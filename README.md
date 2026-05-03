@@ -1,110 +1,85 @@
 # sffd_analyse
 
-## � Fire Department Calls for Service Analysis
-
-Datenanalyse von ~7 Millionen Fire Department Einsätzen mit Fokus auf Häufigkeits-Analysen.
+Bachelorarbeit: Sozioökonomische Einflüsse auf Feuerwehreinsätze in San Francisco
 
 ---
 
-## 🚀 Setup & Installation
+## Projektstruktur
 
-### 1. Ordnerstruktur erstellen
-```bash
-bash setup.sh
+```text
+sffd_analyse/
+├── data/
+│   ├── raw/                        # Rohdaten (von download_data.py befüllt)
+│   │   ├── fire_incidents.parquet  # SFFD-Einsätze (bereinigt)
+│   │   ├── crosswalk.csv           # Census Tract ↔ Neighborhood
+│   │   └── acs_tracts_2019.csv     # ACS-Daten auf Tract-Ebene
+│   └── processed/                  # Analysefertige Daten
+│       ├── acs_neighborhoods.csv   # ACS aggregiert auf Neighborhood
+│       └── sffd_acs_joined.parquet # Hauptanalysedatei (SFFD + ACS, je 1 Einsatz)
+├── docs/
+│   ├── DATA_DICTIONARY_ANALYSIS.md
+│   └── FIR-0001_DataDictionary_fire-incidents.xlsx
+├── results/
+│   ├── basic_stats_summary.txt
+│   └── sffd_fire_incidents_report.pdf
+├── scripts/
+│   ├── download_data.py    # Datenpipeline (SFFD + Crosswalk + ACS)
+│   ├── basic_stats.py      # Deskriptive Statistiken
+│   └── generate_report.py  # PDF-Report mit Visualisierungen
+└── requirements.txt
 ```
 
-Das erstellt automatisch:
-- `data/raw` – Deine CSV-Datei mit Fire Calls
-- `data/processed` – Verarbeitete Daten
-- `notebooks` – Jupyter Notebooks
-- `scripts` – Spezial-Analyse Scripts
-- `results` – Ergebnisse & Reports
+---
 
-### 2. Virtuelle Umgebung (Python 3.10+)
+## Setup
 
-**Windows (PowerShell):**
 ```powershell
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-**Mac/Linux (Bash):**
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+VS Code Interpreter auf `.\venv\Scripts\python.exe` setzen (Ctrl+Shift+P → "Python: Select Interpreter").
+
+---
+
+## Daten laden
+
+```powershell
+# APIs kurz testen (kein Key nötig)
+python scripts/download_data.py test
+
+# Volle Pipeline starten
+python scripts/download_data.py
 ```
 
-### 3. Daten vorbereiten
-- Lege deine Fire Calls CSV-Datei als `fire_calls.csv` in `data/raw/` ab
-- Muss alle Spalten aus FIR-0002 enthalten
+Für die ACS-Daten (Einkommen, Armut, Bildung) wird ein kostenloser Census API Key benötigt:
 
-### 4. Analyse starten
-```bash
-python analyze.py
-```
+1. Key beantragen: [api.census.gov/data/key_signup.html](https://api.census.gov/data/key_signup.html)
+2. In `scripts/download_data.py` eintragen: `CENSUS_API_KEY = "..."`
+
+Optional: DataSF App Token für höhere Rate-Limits (`DATASF_APP_TOKEN`).
 
 ---
 
-## 📊 Was wird analysiert?
+## Analyse
 
-Das Skript analysiert automatisch:
+```powershell
+# Deskriptive Statistiken → results/basic_stats_summary.txt
+python scripts/basic_stats.py
 
-✅ **Top 10 Call Types** - Häufigste Einsatztypen  
-✅ **Top 10 Units** - Aktivste Fahrzeuge  
-✅ **Top 10 Cities** - Meiste Einsätze pro Stadt  
-✅ **Top 10 Neighborhoods** - Geographische Verteilung  
-✅ **Top 10 Dispositions** - Einsatzergebnisse  
-✅ **Statistiken** - Unique Values, Speicherverbrauch  
-
----
-
-## 📖 Dokumentation
-
-Siehe [docs/DATA_DICTIONARY_ANALYSIS.md](docs/DATA_DICTIONARY_ANALYSIS.md) für:
-- Vollständige Spalten-Beschreibung
-- Empfohlene Analyse-Szenarien
-- Response-Time Berechnung
-- Performance-Tipps für 7M+ Zeilen
-
----
-
-## 🔧 Zusätzliche Scripts
-
-```bash
-# Erweiterte Fire Calls Analyse (mehr Details)
-python scripts/fire_analysis.py
-
-# Datendictionary exportieren
-python read_data_dict.py
+# PDF-Report → results/sffd_fire_incidents_report.pdf
+python scripts/generate_report.py
 ```
 
 ---
 
-## 💾 Libraries
+## Datenquellen
 
-- **Polars** – Ultra-schnelle Datenverarbeitung (3-5x schneller als Pandas)
-- **PyArrow** – Effiziente Datenspeicherung
-- **Matplotlib/Seaborn** – Visualisierung
-- **Pandas** – Optional für Kompatibilität
-- **Jupyter** – Interaktive Notebooks
+| Datensatz                      | Quelle                        | Granularität                 |
+| ------------------------------ | ----------------------------- | ---------------------------- |
+| SFFD Fire Incidents (FIR-0001) | DataSF SODA API (`wr8u-xric`) | Einzelner Einsatz            |
+| Neighborhood Crosswalk         | DataSF (`rqw6-h7c5`)          | Census Tract                 |
+| ACS 5-Year 2019                | US Census Bureau              | Census Tract → Neighborhood  |
 
----
-
-## 📈 Optimiert für große Dateien
-
-✓ Lazy Loading - Daten werden nur bei Bedarf geladen  
-✓ Effiziente Aggregationen - schnelle Group By Operationen  
-✓ Speicherverwaltung - minimal RAM-Verbrauch  
-✓ Output von Speicherverbrauch per Operation  
-
----
-
-## 🎯 Nächste Schritte
-
-1. CSV in `data/raw/fire_calls.csv` ablegen
-2. `python analyze.py` ausführen
-3. Ergebnisse in Terminal anschauen
-4. Weitere Analysen in Notebooks ergänzen
-5. Ergebnisse in `results/` speichern
+Die Hauptanalysedatei `data/processed/sffd_acs_joined.parquet` enthält einen Einsatz pro Zeile (~720.000 Zeilen), angereichert mit den ACS-Sozioökonomiedaten der jeweiligen Neighborhood: Medianeinkommen, Armutsquote, Bildungsgrad, Mietkosten und Leerstandsquote.

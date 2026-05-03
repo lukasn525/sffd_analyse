@@ -1,0 +1,28 @@
+# Daten – NICHT hochladen
+data/raw/
+data/processed/
+results/
+results_test_sample/
+
+# Notebooks
+notebooks/
+*.ipynb
+
+# Python-Umgebung
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
