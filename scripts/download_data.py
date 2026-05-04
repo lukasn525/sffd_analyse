@@ -1,18 +1,22 @@
 """
-SFFD + ACS Datenpipeline
+SFFD + ACS Datenpipeline  (Längsschnitt-Version)
 Bachelorarbeit: Sozioökonomische Einflüsse auf Feuerwehreinsätze in SF
 
 Lädt und verknüpft drei Datenquellen:
   1. SFFD Fire Incidents  → DataSF SODA API (data.sfgov.org)
   2. Neighborhood-Crosswalk → DataSF (Census Tract → Neighborhood)
-  3. ACS 5-Year Estimates → US Census API (Einkommen, Armut, Bildung)
+  3. ACS 5-Year Estimates → US Census API – mehrere Jahrgänge
+
+Join-Strategie: Jeder Einsatz wird mit dem zeitlich nächsten ACS-Snapshot
+verknüpft. So werden Veränderungen sozioökonomischer Merkmale über die Zeit
+korrekt berücksichtigt (keine Annahme zeitlicher Stabilität).
 
 Ergebnis:
-  data/raw/fire_incidents.parquet      – bereinigte SFFD-Rohdaten
-  data/raw/crosswalk.csv               – Census Tract ↔ Neighborhood
-  data/raw/acs_tracts_2021.csv         – ACS-Daten auf Tract-Ebene
-  data/processed/acs_neighborhoods.csv – ACS aggregiert auf Neighborhood
-  data/processed/sffd_acs_joined.csv   – Analysedatei (SFFD + ACS)
+  data/raw/fire_incidents.parquet           – bereinigte SFFD-Rohdaten
+  data/raw/crosswalk.csv                    – Census Tract ↔ Neighborhood
+  data/raw/acs_tracts_{year}.csv            – ACS-Daten je Jahrgang
+  data/processed/acs_neighborhoods_{year}.csv – ACS aggregiert je Jahrgang
+  data/processed/sffd_acs_joined.parquet    – Analysedatei mit acs_year-Spalte
 
 Ausführen:
   python scripts/download_data.py          # volle Pipeline
@@ -31,12 +35,15 @@ warnings.filterwarnings("ignore")
 CENSUS_API_KEY   = "f5cb8b553da8a01e351b3804e56e7fe664e12c98"
 DATASF_APP_TOKEN = None   # optional – data.sfgov.org/profile/app_tokens
 
+# ── ACS-Jahrgänge ─────────────────────────────────────────────────────────────
+# Jeder Einsatz wird dem zeitlich nächsten Snapshot zugeordnet.
+# ACS 5-Year auf Tract-Ebene ist frühestens ab 2009 verfügbar.
+ACS_YEARS = [2009, 2014, 2019, 2021, 2023]
+
 # ── Download-Steuerung ────────────────────────────────────────────────────────
-# True  → Daten frisch herunterladen und Datei überschreiben
-# False → vorhandene Datei aus data/raw/ verwenden (kein API-Aufruf)
 DOWNLOAD_SFFD      = False   # data/raw/fire_incidents.parquet
 DOWNLOAD_CROSSWALK = True    # data/raw/crosswalk.csv
-DOWNLOAD_ACS       = True    # data/raw/acs_tracts_2021.csv
+DOWNLOAD_ACS       = True    # data/raw/acs_tracts_{year}.csv je Jahrgang
 
 # ── Pfade ─────────────────────────────────────────────────────────────────────
 ROOT          = Path(__file__).parent.parent
@@ -113,7 +120,6 @@ def fetch_sffd_incidents(app_token: str = None) -> pd.DataFrame:
 
 
 def load_sffd() -> pd.DataFrame:
-    """Gibt SFFD-Daten zurück — neu laden oder Cache verwenden."""
     path = RAW_DIR / "fire_incidents.parquet"
     if DOWNLOAD_SFFD:
         df = fetch_sffd_incidents(app_token=DATASF_APP_TOKEN)
@@ -124,7 +130,7 @@ def load_sffd() -> pd.DataFrame:
             raise FileNotFoundError(f"{path} nicht gefunden. DOWNLOAD_SFFD=True setzen.")
         print(f"  Verwende Cache: {path.relative_to(ROOT)}")
         df = pd.read_parquet(path)
-    print(f"  {len(df):,} Zeilen")
+    print(f"  {len(df):,} Zeilen  |  Jahre: {df['year'].min()}–{df['year'].max()}")
     return df
 
 
@@ -133,7 +139,6 @@ def load_sffd() -> pd.DataFrame:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def fetch_neighborhood_crosswalk(app_token: str = None) -> pd.DataFrame:
-    """Lädt Census Tract ↔ Neighborhood Crosswalk von DataSF."""
     headers = {"X-App-Token": app_token} if app_token else {}
     resp = requests.get(
         "https://data.sfgov.org/resource/sevw-6tgi.json",
@@ -152,14 +157,11 @@ def fetch_neighborhood_crosswalk(app_token: str = None) -> pd.DataFrame:
     df.columns = ["geoid", "neighborhood"]
     df["geoid"]        = df["geoid"].astype(str).str.zfill(11)
     df["neighborhood"] = df["neighborhood"].str.strip().str.title()
-
-    print(f"  {len(df)} Tract-Neighborhood-Paare, "
-          f"{df['neighborhood'].nunique()} Neighborhoods")
+    print(f"  {len(df)} Tract-Neighborhood-Paare, {df['neighborhood'].nunique()} Neighborhoods")
     return df
 
 
 def load_crosswalk() -> pd.DataFrame:
-    """Gibt Crosswalk zurück — neu laden oder Cache verwenden."""
     path = RAW_DIR / "crosswalk.csv"
     if DOWNLOAD_CROSSWALK:
         df = fetch_neighborhood_crosswalk(app_token=DATASF_APP_TOKEN)
@@ -174,10 +176,8 @@ def load_crosswalk() -> pd.DataFrame:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SCHRITT 3: ACS 5-Year Estimates (US Census API)
+# SCHRITT 3: ACS 5-Year Estimates – mehrere Jahrgänge
 # ══════════════════════════════════════════════════════════════════════════════
-#
-# State FIPS: Californien = "06", County FIPS: San Francisco = "075"
 
 ACS_VARIABLES = {
     "B19013_001E": "median_household_income",
@@ -191,56 +191,108 @@ ACS_VARIABLES = {
     "B25002_001E": "total_housing_units",
 }
 
+# Variablen in Gruppen aufgeteilt – falls der Gesamt-Request 400 zurückgibt,
+# werden die Gruppen einzeln abgerufen. Nicht verfügbare Gruppen → NaN-Spalten.
+ACS_VAR_GROUPS = {
+    "income_pop": ["B19013_001E", "B01003_001E"],
+    "poverty":    ["B17001_001E", "B17001_002E"],
+    "education":  ["B15003_022E", "B15003_001E"],
+    "rent":       ["B25064_001E"],
+    "vacancy":    ["B25002_003E", "B25002_001E"],
+}
 
-def fetch_acs_sf_tracts(year: int, api_key: str) -> pd.DataFrame:
-    """Lädt ACS 5-Year Schätzwerte für alle Census Tracts in San Francisco."""
-    variables = ",".join(["NAME"] + list(ACS_VARIABLES.keys()))
+OUTPUT_COLS = [
+    "geoid", "total_population", "median_household_income", "median_gross_rent",
+    "poverty_below", "poverty_universe_total",
+    "bachelor_degree_count", "education_universe_total",
+    "vacant_housing_units", "total_housing_units",
+]
+
+
+def _acs_request(year: int, api_key: str, var_codes: list[str]) -> pd.DataFrame | None:
+    """Einzelner Census-API-Request. Gibt None zurück wenn 400/404."""
+    var_str = ",".join(["NAME"] + var_codes)
     url = (
         f"https://api.census.gov/data/{year}/acs/acs5"
-        f"?get={variables}"
+        f"?get={var_str}"
         f"&for=tract:*"
         f"&in=state:06%20county:075"
         f"&key={api_key}"
     )
     resp = requests.get(url, timeout=30)
+    if resp.status_code in (400, 404):
+        return None
     resp.raise_for_status()
-
     data = resp.json()
-    df   = pd.DataFrame(data[1:], columns=data[0])
+    df = pd.DataFrame(data[1:], columns=data[0])
     df["geoid"] = df["state"] + df["county"] + df["tract"]
+    return df[["geoid"] + [c for c in var_codes if c in df.columns]]
+
+
+def fetch_acs_sf_tracts(year: int, api_key: str) -> pd.DataFrame:
+    """
+    Lädt ACS 5-Year für alle Census Tracts in San Francisco.
+    Strategie: erst Vollversuch; bei 400 werden Variablengruppen einzeln
+    abgerufen. Nicht verfügbare Gruppen werden als NaN-Spalten eingefügt.
+    """
+    # Versuch 1: alle Variablen in einem Request
+    all_codes = list(ACS_VARIABLES.keys())
+    df = _acs_request(year, api_key, all_codes)
+
+    if df is None:
+        # Versuch 2: gruppenweise laden und mergen
+        print(f"  ACS {year}: Vollständiger Request fehlgeschlagen → lade gruppenweise...")
+        df = None
+        for group_name, codes in ACS_VAR_GROUPS.items():
+            part = _acs_request(year, api_key, codes)
+            if part is None:
+                print(f"    Gruppe '{group_name}' nicht verfügbar → NaN")
+                continue
+            df = part if df is None else df.merge(part, on="geoid", how="outer")
+
+        if df is None:
+            raise RuntimeError(f"ACS {year}: Keine einzige Variablengruppe konnte geladen werden.")
+
     df.rename(columns=ACS_VARIABLES, inplace=True)
 
     for col in ACS_VARIABLES.values():
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
             df.loc[df[col] < -999, col] = pd.NA
+        else:
+            df[col] = pd.NA  # Spalte existiert nicht in diesem Jahr
 
-    print(f"  ACS {year}: {len(df)} Census Tracts geladen.")
-    
-    # Rückgabe: Rohdaten (für Aggregation) + direkte Werte (Income, Rent)
-    return df[["geoid", "total_population", "median_household_income", "median_gross_rent",
-               "poverty_below", "poverty_universe_total",
-               "bachelor_degree_count", "education_universe_total",
-               "vacant_housing_units", "total_housing_units"]]
+    print(f"  ACS {year}: {len(df)} Census Tracts | "
+          f"fehlende Vars: {[c for c in ACS_VARIABLES.values() if df[c].isna().all()]or 'keine'}")
+    return df[[c for c in OUTPUT_COLS if c in df.columns]]
 
 
-def load_acs() -> pd.DataFrame:
-    """Gibt ACS-Tract-Daten zurück — neu laden oder Cache verwenden."""
-    path = RAW_DIR / "acs_tracts_2021.csv"
-    if DOWNLOAD_ACS:
-        df = fetch_acs_sf_tracts(year=2021, api_key=CENSUS_API_KEY)
-        df.to_csv(path, index=False)
-        print(f"  Gespeichert: {path.relative_to(ROOT)}")
-    else:
-        if not path.exists():
-            raise FileNotFoundError(f"{path} nicht gefunden. DOWNLOAD_ACS=True setzen.")
-        print(f"  Verwende Cache: {path.relative_to(ROOT)}")
-        df = pd.read_csv(path, dtype={"geoid": str})
-    return df
+def load_acs_multi(years: list[int]) -> dict[int, pd.DataFrame]:
+    """
+    Gibt ein dict {year: tract_df} zurück.
+    Lädt frisch oder nutzt Cache je nach DOWNLOAD_ACS.
+    """
+    result = {}
+    for year in years:
+        path = RAW_DIR / f"acs_tracts_{year}.csv"
+        if DOWNLOAD_ACS:
+            df = fetch_acs_sf_tracts(year=year, api_key=CENSUS_API_KEY)
+            df.to_csv(path, index=False)
+            print(f"  Gespeichert: {path.relative_to(ROOT)}")
+        else:
+            if not path.exists():
+                raise FileNotFoundError(
+                    f"{path} nicht gefunden. DOWNLOAD_ACS=True setzen oder "
+                    f"ACS_YEARS auf vorhandene Jahrgänge beschränken."
+                )
+            print(f"  Verwende Cache: {path.relative_to(ROOT)}")
+            df = pd.read_csv(path, dtype={"geoid": str})
+        result[year] = df
+    return result
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SCHRITT 4: Aggregation und Join
+# SCHRITT 4: Aggregation auf Neighborhood-Ebene
 # ══════════════════════════════════════════════════════════════════════════════
 
 def aggregate_acs_to_neighborhood(acs_df: pd.DataFrame, crosswalk_df: pd.DataFrame) -> pd.DataFrame:
@@ -250,8 +302,6 @@ def aggregate_acs_to_neighborhood(acs_df: pd.DataFrame, crosswalk_df: pd.DataFra
     result_rows = []
     for hood, grp in merged.groupby("neighborhood"):
         pop_total = grp["total_population"].sum()
-        
-        # 1. Direkte Summen / gewichtete Mittel
         row = {
             "neighborhood": hood,
             "total_population": int(pop_total),
@@ -262,56 +312,93 @@ def aggregate_acs_to_neighborhood(acs_df: pd.DataFrame, crosswalk_df: pd.DataFra
                 (grp["median_gross_rent"] * grp["total_population"]).sum() / pop_total
             ) if pop_total > 0 else pd.NA,
         }
-        
-        # 2. Quoten aus aggregierten Rohdaten neu berechnen
-        poverty_total = grp["poverty_below"].sum()
+
         poverty_universe = grp["poverty_universe_total"].sum()
-        row["poverty_rate"] = (poverty_total / poverty_universe * 100) if poverty_universe > 0 else pd.NA
-        
-        bachelor_total = grp["bachelor_degree_count"].sum()
+        row["poverty_rate"] = (
+            grp["poverty_below"].sum() / poverty_universe * 100
+        ) if poverty_universe > 0 else pd.NA
+
         education_universe = grp["education_universe_total"].sum()
-        row["bachelor_rate"] = (bachelor_total / education_universe * 100) if education_universe > 0 else pd.NA
-        
-        vacant_total = grp["vacant_housing_units"].sum()
+        row["bachelor_rate"] = (
+            grp["bachelor_degree_count"].sum() / education_universe * 100
+        ) if education_universe > 0 else pd.NA
+
         housing_total = grp["total_housing_units"].sum()
-        row["vacancy_rate"] = (vacant_total / housing_total * 100) if housing_total > 0 else pd.NA
-        
+        row["vacancy_rate"] = (
+            grp["vacant_housing_units"].sum() / housing_total * 100
+        ) if housing_total > 0 else pd.NA
+
         result_rows.append(row)
 
-    acs_neighborhood = pd.DataFrame(result_rows)
+    nb = pd.DataFrame(result_rows)
 
-    # Datentypen normalisieren
-    # Income & Rent: ganze Zahlen
     for col in ["median_household_income", "median_gross_rent"]:
-        acs_neighborhood[col] = (
-            pd.to_numeric(acs_neighborhood[col], errors="coerce").round(0).astype("Int64")
-        )
-    # Quoten: 2 Dezimalstellen
+        nb[col] = pd.to_numeric(nb[col], errors="coerce").round(0).astype("Int64")
     for col in ["poverty_rate", "bachelor_rate", "vacancy_rate"]:
-        acs_neighborhood[col] = (
-            pd.to_numeric(acs_neighborhood[col], errors="coerce").round(2)
-        )
+        nb[col] = pd.to_numeric(nb[col], errors="coerce").round(2)
 
-    print(f"  ACS auf {len(acs_neighborhood)} Neighborhoods aggregiert.")
-    return acs_neighborhood
+    return nb
 
 
-def aggregate_sffd_to_neighborhood(sffd_df: pd.DataFrame) -> pd.DataFrame:
-    """Aggregiert SFFD-Incidents auf Neighborhood-Ebene."""
-    agg = sffd_df.groupby("neighborhood").agg(
-        incident_count          = ("incident_number",         "count"),
-        mean_response_time      = ("response_time_min",       "mean"),
-        median_response_time    = ("response_time_min",       "median"),
-        p90_response_time       = ("response_time_min",       lambda x: x.quantile(0.9)),
-        pct_over_5min           = ("response_time_min",       lambda x: (x > 5).mean() * 100),
-        mean_suppression_units  = ("suppression_units",       "mean"),
-        mean_ems_units          = ("ems_units",               "mean"),
-        total_property_loss     = ("estimated_property_loss", "sum"),
-        total_civilian_injuries = ("civilian_injuries",       "sum"),
-    ).reset_index().round(3)
+def aggregate_all_years(acs_per_year: dict[int, pd.DataFrame],
+                        crosswalk: pd.DataFrame) -> dict[int, pd.DataFrame]:
+    """Aggregiert alle ACS-Jahrgänge auf Neighborhood-Ebene und speichert sie."""
+    nb_per_year = {}
+    for year, acs_df in acs_per_year.items():
+        nb = aggregate_acs_to_neighborhood(acs_df, crosswalk)
+        nb_per_year[year] = nb
+        out_path = PROCESSED_DIR / f"acs_neighborhoods_{year}.csv"
+        nb.to_csv(out_path, index=False)
+        print(f"  ACS {year}: {len(nb)} Neighborhoods → {out_path.relative_to(ROOT)}")
+    return nb_per_year
 
-    print(f"  SFFD auf {len(agg)} Neighborhoods aggregiert.")
-    return agg
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SCHRITT 5: Zeitbewusster Join (jeder Einsatz → nächster ACS-Snapshot)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def nearest_acs_year(incident_year: int, acs_years: list[int]) -> int:
+    """Gibt den ACS-Jahrgang zurück, der dem Einsatzjahr am nächsten liegt."""
+    return min(acs_years, key=lambda y: abs(y - incident_year))
+
+
+def year_aware_join(sffd_df: pd.DataFrame,
+                    nb_per_year: dict[int, pd.DataFrame]) -> pd.DataFrame:
+    """
+    Verknüpft jeden SFFD-Einsatz mit dem zeitlich nächsten ACS-Neighborhood-
+    Snapshot. Fügt Spalte 'acs_year' hinzu, die den verwendeten Snapshot markiert.
+    """
+    acs_years = sorted(nb_per_year.keys())
+    sffd_df = sffd_df.copy()
+    sffd_df["acs_year"] = sffd_df["year"].apply(
+        lambda y: nearest_acs_year(int(y), acs_years)
+    )
+
+    print(f"\n  Einsätze nach zugeordnetem ACS-Snapshot:")
+    mapping = sffd_df.groupby("acs_year")["year"].agg(
+        lambda x: f"{x.min()}–{x.max()} ({len(x):,} Einsätze)"
+    )
+    for acs_y, info in mapping.items():
+        print(f"    ACS {acs_y}  →  Einsatzjahre {info}")
+
+    parts = []
+    for acs_year, group in sffd_df.groupby("acs_year"):
+        nb = nb_per_year[acs_year].copy()
+        merged = group.merge(nb, on="neighborhood", how="left")
+        parts.append(merged)
+
+    final = pd.concat(parts).sort_index()
+
+    acs_int_cols   = ["total_population", "median_household_income", "median_gross_rent"]
+    acs_float_cols = ["poverty_rate", "bachelor_rate", "vacancy_rate"]
+    for col in acs_int_cols:
+        if col in final.columns:
+            final[col] = pd.to_numeric(final[col], errors="coerce").round(0)
+    for col in acs_float_cols:
+        if col in final.columns:
+            final[col] = pd.to_numeric(final[col], errors="coerce").round(2)
+
+    return final
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -323,56 +410,48 @@ def run_pipeline():
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
     print("=" * 65)
-    print("  SFFD + ACS Datenpipeline")
+    print("  SFFD + ACS Datenpipeline  (Längsschnitt)")
     print("=" * 65)
-    print(f"\n  Download-Flags: SFFD={DOWNLOAD_SFFD}  "
+    print(f"\n  ACS-Jahrgänge: {ACS_YEARS}")
+    print(f"  Download-Flags: SFFD={DOWNLOAD_SFFD}  "
           f"CROSSWALK={DOWNLOAD_CROSSWALK}  ACS={DOWNLOAD_ACS}")
 
     # 1. SFFD
-    print("\n[1/4] SFFD Fire Incidents...")
+    print("\n[1/5] SFFD Fire Incidents...")
     sffd_raw = load_sffd()
 
     # 2. Crosswalk
-    print("\n[2/4] Neighborhood-Crosswalk...")
+    print("\n[2/5] Neighborhood-Crosswalk...")
     crosswalk = load_crosswalk()
 
-    # 3. ACS
-    print("\n[3/4] ACS 5-Year (2021) Census Daten...")
-    acs_tracts = load_acs()
-    acs_neighborhood = aggregate_acs_to_neighborhood(acs_tracts, crosswalk)
-    acs_neighborhood.to_csv(PROCESSED_DIR / "acs_neighborhoods.csv", index=False)
-    print(f"  Gespeichert: data/processed/acs_neighborhoods.csv")
+    # 3. ACS – alle Jahrgänge
+    print(f"\n[3/5] ACS 5-Year – {len(ACS_YEARS)} Jahrgänge ({ACS_YEARS[0]}–{ACS_YEARS[-1]})...")
+    acs_per_year = load_acs_multi(ACS_YEARS)
 
-    # 4. Zusammenführen
-    print("\n[4/4] Zusammenführen...")
+    # 4. Aggregation auf Neighborhood-Ebene
+    print("\n[4/5] Aggregation auf Neighborhood-Ebene...")
+    nb_per_year = aggregate_all_years(acs_per_year, crosswalk)
 
-    # ACS-Daten an jeden einzelnen Einsatz joinen (nicht aggregiert)
-    final = sffd_raw.merge(acs_neighborhood, on="neighborhood", how="left")
-
-    # Typen bereinigen
-    acs_int_cols   = ["total_population", "median_household_income", "median_gross_rent"]
-    acs_float_cols = ["poverty_rate", "bachelor_rate", "vacancy_rate"]
-
-    for col in acs_int_cols:
-        if col in final.columns:
-            final[col] = pd.to_numeric(final[col], errors="coerce").round(0)
-            if final[col].notna().all():
-                final[col] = final[col].astype("int64")
-    for col in acs_float_cols:
-        if col in final.columns:
-            final[col] = pd.to_numeric(final[col], errors="coerce").round(2)
-
-    final.to_parquet(PROCESSED_DIR / "sffd_acs_joined.parquet", index=False)
+    # 5. Zeitbewusster Join
+    print("\n[5/5] Zeitbewusster Join (Einsatz → nächster ACS-Snapshot)...")
+    final = year_aware_join(sffd_raw, nb_per_year)
+    out_path = PROCESSED_DIR / "sffd_acs_joined.parquet"
+    final.to_parquet(out_path, index=False)
 
     print("\n" + "=" * 65)
     print("  Pipeline abgeschlossen!")
     print("=" * 65)
-    print(f"\n  data/raw/fire_incidents.parquet         ({len(sffd_raw):>7,} Zeilen — SFFD-Rohdaten)")
-    print(f"  data/raw/crosswalk.csv                  ({len(crosswalk):>7,} Zeilen — Tract↔Neighborhood)")
-    print(f"  data/processed/acs_neighborhoods.csv    ({len(acs_neighborhood):>7,} Zeilen — ACS pro Neighborhood)")
-    print(f"  data/processed/sffd_acs_joined.parquet  ({len(final):>7,} Zeilen — Analysedatei)")
+    print(f"\n  data/raw/fire_incidents.parquet          ({len(sffd_raw):>7,} Zeilen)")
+    print(f"  data/raw/crosswalk.csv                   ({len(crosswalk):>7,} Zeilen)")
+    for y in ACS_YEARS:
+        nb = nb_per_year[y]
+        print(f"  data/processed/acs_neighborhoods_{y}.csv ({len(nb):>7,} Neighborhoods)")
+    print(f"  data/processed/sffd_acs_joined.parquet   ({len(final):>7,} Zeilen)")
 
-    print("\n  Spalten mit fehlenden Werten (Analysedatei):")
+    print("\n  Neue Spalte 'acs_year' – Verteilung:")
+    print(final["acs_year"].value_counts().sort_index().to_string())
+
+    print("\n  Fehlende Werte (Analysedatei):")
     for col in final.columns:
         null_pct = final[col].isna().mean() * 100
         if null_pct > 0:
@@ -382,7 +461,7 @@ def run_pipeline():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SCHNELLTEST — APIs ohne Keys prüfen
+# SCHNELLTEST
 # ══════════════════════════════════════════════════════════════════════════════
 
 def quick_test():
@@ -397,11 +476,9 @@ def quick_test():
         },
         timeout=15,
     )
+    print("SFFD API:", "OK" if resp.ok else f"Fehler {resp.status_code}")
     if resp.ok:
-        print("SFFD API: OK")
         print(pd.DataFrame(resp.json())[["incident_number", "neighborhood_district"]].to_string(index=False))
-    else:
-        print(f"SFFD API: Fehler {resp.status_code}")
 
     print()
 
@@ -410,27 +487,26 @@ def quick_test():
         params={"$select": "geoid,neighborhoods_analysis_boundaries", "$limit": 3},
         timeout=15,
     )
+    print("Crosswalk API:", "OK" if resp2.ok else f"Fehler {resp2.status_code}")
     if resp2.ok:
-        print("Crosswalk API: OK")
         print(pd.DataFrame(resp2.json()).to_string(index=False))
-    else:
-        print(f"Crosswalk API: Fehler {resp2.status_code}")
 
     print()
 
-    resp3 = requests.get(
-        "https://api.census.gov/data/2021/acs/acs5"
-        "?get=NAME,B19013_001E,B17001_002E"
-        "&for=tract:*"
-        "&in=state:06%20county:075",
-        timeout=15,
-    )
-    if resp3.ok:
-        data = resp3.json()
-        print(f"ACS Census API: OK ({len(data)-1} Tracts gefunden)")
-        print(f"Beispiel: {data[1]}")
-    else:
-        print(f"ACS Census API: Fehler {resp3.status_code}")
+    # ACS-Verfügbarkeit für alle konfigurierten Jahre testen
+    for year in ACS_YEARS:
+        resp3 = requests.get(
+            f"https://api.census.gov/data/{year}/acs/acs5"
+            "?get=NAME,B19013_001E"
+            "&for=tract:*"
+            "&in=state:06%20county:075",
+            timeout=15,
+        )
+        if resp3.ok:
+            n = len(resp3.json()) - 1
+            print(f"ACS Census API {year}: OK ({n} Tracts)")
+        else:
+            print(f"ACS Census API {year}: Fehler {resp3.status_code}")
 
 
 if __name__ == "__main__":
