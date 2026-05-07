@@ -8,7 +8,8 @@ Input:
   data/processed/sf_fire_incidents_base.parquet
 
 Output:
-  data/processed/sf_fire_risk_features.parquet
+  data/processed/sf_fire_risk_features.parquet         (alle 53 Spalten, deutsch)
+  data/processed/sf_fire_risk_features_cleaned.parquet (23 Modellspalten, deutsch)
 
 Berechnete Variablen:
 
@@ -37,6 +38,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from column_names import spalten_deutsch
+
 warnings.filterwarnings("ignore")
 
 ROOT          = Path(__file__).parent.parent
@@ -44,13 +47,48 @@ PROCESSED_DIR = ROOT / "data" / "processed"
 
 BASE_PATH     = PROCESSED_DIR / "sf_fire_incidents_base.parquet"
 FEATURES_PATH = PROCESSED_DIR / "sf_fire_risk_features.parquet"
+CLEANED_PATH  = PROCESSED_DIR / "sf_fire_risk_features_cleaned.parquet"
+
+# Spalten fuer das Analysemodell (behalten + optional + VIF-Kandidaten), deutsche Namen
+CLEANED_COLS = [
+    # Identifikation / Kontrolle
+    "stadtteil",
+    "acs_jahr",
+    "jahr",
+    "stunde",
+    "ist_wochenende",
+    "ist_nacht",
+    # Zielvariable
+    "antwortzeit_min",
+    # Einsatzcharakteristik
+    "einsatzart",
+    "bataillon",             # optional
+    "alarmstufe",            # optional
+    "schaetzung_sachschaden_usd",  # optional
+    # ACS Soziooekonomie
+    "gesamtbevoelkerung",
+    "median_haushaltseinkommen",
+    "armutsquote_pct",
+    "akademikerquote_pct",
+    "median_miete",
+    "leerstandsquote_pct",
+    # Crime
+    "anteil_gewaltdelikte_pct",    # VIF pruefen
+    "anteil_eigentumsdelikte_pct", # VIF pruefen
+    # Land Use
+    "gesamtzahl_wohneinheiten",
+    "anteil_altbau_vor_1940_pct",
+    "anteil_wohngebaeude_pct",
+    "anteil_risikogewerbe_pct",
+]
 
 
-def safe_ratio(numerator: pd.Series, denominator: pd.Series, scale: float = 100.0) -> pd.Series:
+def safe_ratio(numerator: pd.Series, denominator: pd.Series) -> pd.Series:
+    """Gibt Verhältnis als Anteil [0, 1] zurück (4 Dezimalstellen)."""
     num = pd.to_numeric(numerator,   errors="coerce").astype(float)
     den = pd.to_numeric(denominator, errors="coerce").astype(float)
     den = den.where(den > 0, np.nan)
-    return (num / den * scale).round(2)
+    return (num / den).round(4)
 
 
 def compute_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -106,8 +144,8 @@ def summarize(df: pd.DataFrame, new_cols: list[str]) -> None:
             print(f"    {col:<35}  (alle NaN)")
             continue
         nan_pct = df[col].isna().mean() * 100
-        print(f"    {col:<35} {s.mean():>10.2f} {s.median():>10.2f} "
-              f"{s.min():>10.2f} {s.max():>10.2f} {nan_pct:>6.1f}%")
+        print(f"    {col:<35} {s.mean():>10.4f} {s.median():>10.4f} "
+              f"{s.min():>10.4f} {s.max():>10.4f} {nan_pct:>6.1f}%")
 
 
 def run_compute():
@@ -139,10 +177,18 @@ def run_compute():
 
     summarize(features, added)
 
+    features = features.rename(columns=spalten_deutsch)
     features.to_parquet(FEATURES_PATH, index=False)
+
+    cleaned_cols = [c for c in CLEANED_COLS if c in features.columns]
+    cleaned = features[cleaned_cols]
+    cleaned.to_parquet(CLEANED_PATH, index=False)
+
     print("\n" + "=" * 80)
     print(f"  => {FEATURES_PATH.relative_to(ROOT)}  "
           f"({len(features):,} Zeilen  |  {len(features.columns)} Spalten)")
+    print(f"  => {CLEANED_PATH.relative_to(ROOT)}  "
+          f"({len(cleaned):,} Zeilen  |  {len(cleaned.columns)} Spalten)")
     print("=" * 80)
     return features
 

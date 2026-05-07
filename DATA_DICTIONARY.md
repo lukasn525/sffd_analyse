@@ -114,37 +114,37 @@ gültig waren (zeitbewusster Join für ACS; Crime und Land Use sind statisch üb
 
 ## 6. Abgeleitete Variablen – ACS
 
-> Berechnet in `03_compute_features.py`. Formel: Zähler / Nenner × 100.
+> Berechnet in `03_compute_features.py`. Formel: Zähler / Nenner. **Wertebereich: [0, 1]**
 
 | Spalte | Typ | Formel | Einheit | NaN% |
 |---|---|---|---|---|
-| `poverty_rate` | float | `poverty_below / poverty_universe_total × 100` | % | ~5,7 % |
-| `bachelor_rate` | float | `bachelor_degree_count / education_universe_total × 100` | % | ~37,3 % (ACS 2009 fehlt) |
-| `vacancy_rate` | float | `vacant_housing_units / total_housing_units × 100` | % | ~5,7 % |
+| `poverty_rate` | float | `poverty_below / poverty_universe_total` | [0, 1] | ~5,7 % |
+| `bachelor_rate` | float | `bachelor_degree_count / education_universe_total` | [0, 1] | ~37,3 % (ACS 2009 fehlt) |
+| `vacancy_rate` | float | `vacant_housing_units / total_housing_units` | [0, 1] | ~5,7 % |
 
 ---
 
 ## 7. Abgeleitete Variablen – Crime
 
-> Berechnet in `03_compute_features.py`. Anteil an `total_crimes`.
+> Berechnet in `03_compute_features.py`. Anteil an `total_crimes`. **Wertebereich: [0, 1]**
 
 | Spalte | Typ | Formel | Einheit | NaN% |
 |---|---|---|---|---|
-| `pct_violent_crime` | float | `violent_crime_count / total_crimes × 100` | % | 0,0 % |
-| `pct_property_crime` | float | `property_crime_count / total_crimes × 100` | % | 0,0 % |
+| `pct_violent_crime` | float | `violent_crime_count / total_crimes` | [0, 1] | 0,0 % |
+| `pct_property_crime` | float | `property_crime_count / total_crimes` | [0, 1] | 0,0 % |
 
 ---
 
 ## 8. Abgeleitete Variablen – Land Use
 
-> Berechnet in `03_compute_features.py`.
+> Berechnet in `03_compute_features.py`. **Wertebereich: [0, 1]**
 
 | Spalte | Typ | Formel | Einheit | NaN% |
 |---|---|---|---|---|
-| `pct_pre1940` | float | `pre1940_count / yrbuilt_count × 100` | % | ~2,2 % |
-| `pct_pre1960` | float | `pre1960_count / yrbuilt_count × 100` | % | ~2,2 % |
-| `pct_residential` | float | `residential_count / parcel_count × 100` | % | 0,0 % |
-| `pct_high_risk_commercial_area` | float | `high_risk_commercial_area_sqft / total_area_sqft × 100` | % | 0,0 % |
+| `pct_pre1940` | float | `pre1940_count / yrbuilt_count` | [0, 1] | ~2,2 % |
+| `pct_pre1960` | float | `pre1960_count / yrbuilt_count` | [0, 1] | ~2,2 % |
+| `pct_residential` | float | `residential_count / parcel_count` | [0, 1] | 0,0 % |
+| `pct_high_risk_commercial_area` | float | `high_risk_commercial_area_sqft / total_area_sqft` | [0, 1] | 0,0 % |
 
 ---
 
@@ -152,15 +152,15 @@ gültig waren (zeitbewusster Join für ACS; Crime und Land Use sind statisch üb
 
 | Variable | Mean | Median | Min | Max |
 |---|---|---|---|---|
-| `poverty_rate` | 13,21 % | 11,26 % | 0,00 % | 90,38 % |
-| `bachelor_rate` | 33,50 % | 35,23 % | 0,00 % | 80,00 % |
-| `vacancy_rate` | 10,73 % | 9,71 % | 0,00 % | 23,71 % |
-| `pct_violent_crime` | 8,96 % | 9,17 % | 1,68 % | 13,56 % |
-| `pct_property_crime` | 12,52 % | 13,30 % | 3,23 % | 24,54 % |
-| `pct_pre1940` | 72,21 % | 76,89 % | 2,20 % | 100,00 % |
-| `pct_pre1960` | 84,66 % | 89,23 % | 60,56 % | 100,00 % |
-| `pct_residential` | 67,22 % | 79,52 % | 0,00 % | 97,08 % |
-| `pct_high_risk_commercial_area` | 7,45 % | 5,25 % | 0,00 % | 22,18 % |
+| `poverty_rate` | 0,1321 | 0,1126 | 0,0000 | 0,9038 |
+| `bachelor_rate` | 0,3350 | 0,3523 | 0,0000 | 0,8000 |
+| `vacancy_rate` | 0,1073 | 0,0971 | 0,0000 | 0,2371 |
+| `pct_violent_crime` | 0,0896 | 0,0917 | 0,0168 | 0,1356 |
+| `pct_property_crime` | 0,1252 | 0,1330 | 0,0323 | 0,2454 |
+| `pct_pre1940` | 0,7221 | 0,7689 | 0,0220 | 1,0000 |
+| `pct_pre1960` | 0,8466 | 0,8923 | 0,6056 | 1,0000 |
+| `pct_residential` | 0,6722 | 0,7952 | 0,0000 | 0,9708 |
+| `pct_high_risk_commercial_area` | 0,0745 | 0,0525 | 0,0000 | 0,2218 |
 
 ---
 
