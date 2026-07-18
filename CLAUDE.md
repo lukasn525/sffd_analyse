@@ -5,6 +5,9 @@
 > Projektverlauf eigenständig aktualisieren (insbesondere Status-Tracking und
 > Decision Log). Die bestehende Prep-Pipeline (`pipeline/`) wird NICHT verändert,
 > außer Lukas stimmt einer Änderung ausdrücklich zu.
+> **2026-07-18: Lukas hat gezielten Pipeline-Anpassungen zugestimmt** (Dedup,
+> strikt prognostischer ACS-Join, zeitbewusster Crime-Join mit Fallback,
+> monat/wochentag im Cleaned-Datensatz) – umgesetzt und validiert, s. Abschnitt 4.
 
 **Arbeit:** „Vorhersage von Feuerwehreinsätzen mittels Machine Learning, ein
 Verfahrensvergleich am Beispiel der Stadtteile San Franciscos" (FOM, B.Sc.
@@ -66,7 +69,7 @@ SHAP-Analyse zur Interpretation.
 - VIF: max. 8,8 (Einkommen), 7,7 (Miete) → erhöhte, aber nicht extreme Multikollinearität → klassischer Ridge-Anwendungsfall; für RF/XGB unkritisch.
 - Klassifikation: Fehlalarme 44,7 %, Brand 13,1 % → binär **Brand vs. Nicht-Brand (13/87)**, class_weight + F1/AUROC.
 - Datenqualität: 269 doppelte Einsatznummern aus Quelldaten (0,04 %, Dedup in Modellierungsschicht); McLaren-Park-ACS-Artefakt (Armutsquote 0,90 bei 850 Ew.); Treasure Island & Lakeshore ohne ACS-Werte (entfallen); `akademikerquote_pct` 37 % NaN vor 2012.
-- Demo-Modellierung (3-Fold-TS-CV, Test je 12 Monate): Naiv RMSE 24,5 / R² 0,88 · Saisonal RMSE 33,9 / R² 0,81 · Ridge (nur Strukturmerkmale + Saison) RMSE 81,3 / R² −0,10. **Lag-1-Autokorrelation der Zielgröße: 0,96.** → Rein strukturelle Features schlagen die zeitliche Persistenz nicht; s. Decision Log #8.
+- Demo-Modellierung (3-Fold-TS-CV, Test je 12 Monate; **Stand nach Audit-Fix #10, ehrliche NaN → Datensatz 2015–2026, 5.103 Zeilen**): **Ridge (S+L) RMSE 21,6 / R² 0,91 · RF (S+L) RMSE 22,2 / R² 0,90 · Naiv RMSE 24,5 / R² 0,88 · RF (S) R² 0,88 · Saisonal R² 0,85 · Ridge (S) R² 0,17.** Lag-1-Autokorrelation 0,96; Linearität auf ehrlichem Subset: OLS R² 0,74 (roh) / 0,76 (log). → **Baseline-Problem (Decision Log #8) durch Lag-Attribute gelöst:** mit `lag_1`, `lag_12`, `rolling_mean_3` schlagen beide Modellklassen die naive Baseline; reine Strukturmerkmale (Set S) erklären das Querschnittsniveau, nicht die Dynamik. Für Ridge müssen Lags log(1+x)-transformiert werden (roh: R² −5,9!). Maßgebliche Hürde bleibt die **naive Vormonats-Baseline**.
 
 ## 4. Preprocessing-Pipeline (Prüfpunkt Schröter!) – Bestandsdokumentation
 
@@ -82,16 +85,23 @@ Bestehende Pipeline `pipeline/01_fetch.py → 02_join.py → 03_features.py`
 - SFPD Crime (monatlich voraggregiert), DataSF `e3si-785i`
 - Land Use 2020 (Parzellen), DataSF `ygi5-84iq` + Neighborhood-Boundaries `j2bu-swwd`
 
-**Join-Logik (02_join):**
-- SFFD: `response_time_min` = Ankunft−Alarm, Filter 0–60 min (~1,7 % entfernt);
-  Zeit-Features (jahr, monat, stunde, wochentag, ist_wochenende, ist_nacht);
-  Neighborhood-Namen normalisiert (Title Case, 41 Stadtteile)
+**Join-Logik (02_join, Stand nach Anpassungen 2026-07-18):**
+- SFFD: **Dedup nach `incident_number`** (269 mehrfach gemeldete Einsatznummern
+  aus DataSF entfernt, 0,04 %) → 719.989 Einsätze; `response_time_min` =
+  Ankunft−Alarm, Filter 0–60 min (~1,7 % entfernt); Zeit-Features (jahr, monat,
+  stunde, wochentag, ist_wochenende, ist_nacht); Neighborhood-Namen normalisiert
+  (Title Case, 41 Stadtteile)
 - ACS: Tract→Neighborhood via Crosswalk; Mediane populationsgewichtet, Zähler/Nenner
-  summiert; **zeitbewusster Join**: jeder Einsatz erhält den zeitlich *nächsten*
-  ACS-Snapshot (`acs_jahr`)
-- Crime: Summe aller Monats-Snapshots 2003–2026 je Neighborhood → **statisch**
+  summiert; **strikt prognostischer Join**: jeder Einsatz erhält den *letzten
+  verfügbaren* ACS-Snapshot (`acs_jahr` ≤ Einsatzjahr); Ausnahme 2003–2008 →
+  Rückgriff auf ACS 2009 (kein älterer Jahrgang; Hauptanalyse ab 2012)
+- Crime: **zeitbewusster Join implementiert** (Kumulation je Neighborhood nur bis
+  Vorjahr); aktiv erst nach Neu-Download der Rohdaten mit Datumsspalte
+  (`01_fetch.py`, `DOWNLOAD_CRIME=True` – lokale `crime_raw.parquet` ist älterer
+  Stand ohne Datum) → bis dahin dokumentierter **Fallback: statisch**
 - Land Use: Spatial Join Parzellen-Centroid→Neighborhood-Polygon (Match 99,5 %),
-  Aggregation je Neighborhood → **statisch** (Snapshot 2020)
+  Aggregation je Neighborhood → **statisch** (Snapshot 2020; einziger Jahrgang);
+  aggregierte Tabelle wird gecacht (CSV löschen zum Neuberechnen)
 
 **Feature-Berechnung (03_features):** Raten via `safe_ratio` (Zähler/Nenner, [0,1]):
 `armutsquote_pct`, `akademikerquote_pct`, `leerstandsquote_pct`,
@@ -100,7 +110,7 @@ Bestehende Pipeline `pipeline/01_fetch.py → 02_join.py → 03_features.py`
 `anteil_wohngebaeude_pct`, `anteil_risikogewerbe_pct` (= Risiko-Gewerbe-Index aus
 Exposé: RETAIL/ENT+PDR-Fläche / Gesamtfläche). Umbenennung auf Deutsch
 (`column_names.py`). Output: `sf_fire_risk_features.parquet` (53 Sp.) und
-`_cleaned.parquet` (23 Sp.).
+`_cleaned.parquet` (25 Sp., seit 2026-07-18 inkl. `monat`/`wochentag`).
 
 **Aggregationsebene:** Output der Prep-Pipeline ist **Einsatz-Ebene**. Die im
 Exposé festgelegte Aggregation auf **Stadtteil × Monat** fehlt dort und ist in
@@ -158,12 +168,14 @@ Budget je Modell gleich (z. B. 50 Iterationen) → fairer Vergleich.
 |---|---|---|---|---|
 | 1 | 2026-07-18 | Aggregation Stadtteil×Monat als eigener Schritt in `modellierung/`, nicht in der Prep-Pipeline | Prep-Pipeline bleibt unverändert (Absprache); Exposé verlangt diese Ebene | umgesetzt |
 | 2 | 2026-07-18 | Ridge auf log(1+y) statt roher Zählung | Linearitätsprüfung: y stark rechtsschief/heteroskedastisch; log-Baseline annähernd linear → Schröter-Vorgabe erfüllt, Ridge bleibt als interpretierbare Baseline im Vergleich | mit Schröter bestätigen |
-| 3 | 2026-07-18 | Crime- und Land-Use-Features sind statisch (über Gesamtzeitraum bzw. Snapshot 2020) → milde Form von Zukunftsinformation | In Prep-Pipeline so angelegt; als quasi-stabile Strukturmerkmale interpretierbar; Alternative (zeitbewusste Crime-Aggregation) wäre Pipeline-Änderung | als Limitation dokumentieren, mit Schröter besprechen |
-| 4 | 2026-07-18 | ACS-Join nutzt *nächsten* statt *letzten verfügbaren* Snapshot | Für frühe Jahre (2003–2011 → ACS 2009) leichte Zukunftsinformation; strikt prognostisch wäre "letzter verfügbarer" korrekt | mit Schröter besprechen |
-| 5 | 2026-07-18 | `akademikerquote_pct` (37 % NaN vor 2012): Option A Zeitraum ab 2012, B Feature streichen, C Imputation | ACS 2009 enthält B15003 nicht | offen |
+| 3 | 2026-07-18 | Zeitbewusste Crime-Aggregation (Kumulation bis Vorjahr) in 02_join implementiert; aktiv nach Crime-Neu-Download (Rohdatei ohne Datumsspalte); Land Use bleibt statisch (nur ein Snapshot) | Leakage-Behebung mit Zustimmung von Lukas; Fallback statisch dokumentiert | **Code umgesetzt; Lukas: `01_fetch.py` mit `DOWNLOAD_CRIME=True` neu laufen lassen** |
+| 4 | 2026-07-18 | ACS-Join auf *letzten verfügbaren* Snapshot umgestellt (statt *nächsten*); 2003–2008 Rückgriff auf ACS 2009 | Strikte Prognose-Logik, kein Zukunfts-Leakage mehr; Linearitätsbefund bleibt stabil (R² 0,71) | **umgesetzt & validiert (2026-07-18)** |
+| 5 | 2026-07-18 | **Hauptanalyse ab 2014** (nicht 2012): mit strikt prognostischem ACS-Join hängen 2012/13 am ACS 2009 (ohne B15003) → `akademikerquote_pct` erst ab 2014 verfügbar; Sensitivitätsanalyse voller Zeitraum ohne dieses Feature | Ehrliche NaN-Behandlung statt versteckter Imputation; Parameter `ab_jahr`/`ohne_ausreisser` in `aggregation.py` | entschieden; mit Schröter bestätigen |
 | 6 | 2026-07-18 | Klassifikation binär Brand vs. Nicht-Brand (statt Multiklasse) | Klassenverteilung stark unbalanciert (Brand 13,1 %); Exposé sieht Vereinfachung explizit vor | vorgesehen |
-| 7 | 2026-07-18 | Dedup nach `einsatz_nummer` in `modellierung/aggregation.py` (269 Zeilen, 0,04 %) | Mehrfach gemeldete Einsatznummern in DataSF-Quelldaten; Prep-Pipeline bleibt unverändert | umgesetzt |
-| 8 | 2026-07-18 | **Wichtigster offener Punkt:** naive Baseline (Vormonat) schlägt Strukturmodell deutlich (R² 0,88 vs. −0,10), weil Lag-1-Autokorrelation 0,96. Optionen: (A) Lag-/Rolling-Features der Einsatzzahl für ALLE drei Modelle ergänzen (fairer, praxisüblich; Forschungsfrage bleibt beantwortbar über SHAP-Beitrag der Strukturmerkmale), (B) bewusst nur Strukturmerkmale („können Stadtteil-Merkmale die Einsatzlast erklären?") und Baseline-Überlegenheit als ehrliches Ergebnis diskutieren | Beides wissenschaftlich vertretbar; Framing der Story betroffen → **mit Schröter besprechen** | offen |
+| 7 | 2026-07-18 | Dedup nach `einsatz_nummer` **in die Prep-Pipeline verlagert** (02_join, mit Zustimmung); Sicherheits-Dedup in `modellierung/aggregation.py` bleibt (idempotent) | Bereinigung gehört fachlich in die Data Preparation; validiert: 0 Duplikate im Output | umgesetzt & validiert |
+| 8 | 2026-07-18 | Baseline-Problem **empirisch gelöst durch Option A**: Lag-Features (`lag_1`, `lag_12`, `rolling_mean_3`) für alle Modelle; Demo: Ridge (S+L) R² 0,91 und RF (S+L) 0,90 schlagen Naiv 0,88; Set S bleibt für Unterfrage 1 im Vergleich | Fair (identische Zeilen/Folds), praxisüblich; Erklärungsbeitrag der Strukturmerkmale wird über SHAP quantifiziert | umgesetzt in Demo; **Framing mit Schröter bestätigen** |
+| 9 | 2026-07-18 | Lag-Features werden für Ridge log(1+x)-transformiert (modellinterne Aufbereitung analog Skalierung) | Rohe Lags in log-Zielgrößen-Modell fehlspezifiziert (empirisch R² −5,9); log-AR-Spezifikation korrekt | umgesetzt |
+| 10 | 2026-07-18 | **Audit-Fix:** `bfill` aus der Stadtteil-Monat-Aggregation entfernt (nur noch `ffill`) | `bfill` imputierte fehlende Werte (v. a. `akademikerquote_pct` vor 2014) stillschweigend mit **Zukunftswerten** (Leakage); nach Fix ehrliche NaN, Behandlung über Zeitraumfilter (#5); Demo-Ergebnisse bleiben robust (Ridge S+L 0,91 · RF S+L 0,90 · Naiv 0,88; Linearität R² 0,74) | umgesetzt & validiert |
 
 ## 8. Mapping Analyse → Gliederung der Arbeit (Kap. 4–7)
 
@@ -190,3 +202,5 @@ Methodenkapitel so präzise, dass die Arbeit reproduzierbar ist · Story/roter F
 |---|---|---|
 | 2026-07-18 | Anthropic Claude (Fable) | „Lies Exposé und Betreuer-Vorgaben sowie die bestehende Data-Prep-Pipeline. Erstelle (1) einen persistenten Rahmenplan CLAUDE.md (Forschungsfrage, Zielgrößen, CRISP-DM-Status, Pipeline-Doku, Validierungs- und Tuning-Strategie, Decision Log, Gliederungs-Mapping), (2) eine empirische Eignungsprüfung von Ridge/Random Forest/XGBoost auf dem Pipeline-Output (EDA, Overdispersion, Klassenbalance, Linearitätsprüfung, VIF, Datenqualität/Leakage), (3) eine minimale Demo-Modellierungspipeline (Time-Series-CV, naive + saisonale Baseline, ein Beispielmodell), ohne die bestehende Prep-Pipeline zu verändern." |
 | 2026-07-18 | Anthropic Claude (Fable) | „Analysiere mögliche Hürden/Probleme bei der weiteren Bearbeitung und Lösungen, damit alle Algorithmen wertvolle und richtige Erkenntnisse liefern. Schreibe eine Markdown-Datei, die die richtigen Algorithmen einzeln in Teilschritten nach allen Vorgaben zum Programmieren anleitet, inkl. korrekter SHAP-Verwendung." → `docs/UMSETZUNGSLEITFADEN_MODELLIERUNG.md` |
+| 2026-07-18 | Anthropic Claude (Fable) | „Analysiere, wie wir die Probleme bereits in der Prep-Pipeline adressieren können, mache einfache Anpassungen, validiere per Demo-Test und schreibe eine Stichpunkt-Zusammenfassung für das Kapitel Data Preparation. Untersuche, ob zusätzliche Attribute die Probleme beheben und welche Baseline nötig ist." → Pipeline-Anpassungen (Dedup, ACS-/Crime-Join), Lag-Feature-Test, `docs/kapitel_5_2_data_preparation_stichpunkte.md` |
+| 2026-07-18 | Anthropic Claude (Fable) | „Prüfe, ob noch Anpassungen in der Data Preparation nötig sind (Safe-to-Train, wissenschaftliche Vergleichbarkeit der drei Algorithmen), und schreibe Kapitel 5 der Arbeit in LaTeX mit ausgewählten, erklärten Code-Snippets inkl. Highlighting-Setup." → Audit-Fix #10 (bfill-Leakage), Hauptanalyse ab 2014 (#5), `docs/kapitel_5_empirische_analyse.tex` |

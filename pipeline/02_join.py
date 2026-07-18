@@ -38,6 +38,13 @@ def require(path: Path, hint: str) -> None:
 
 def prepare_sffd(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
+    # Bereinigung: mehrfach gemeldete Einsatznummern aus den DataSF-Quelldaten
+    # entfernen (269 Zeilen / 0,04 %, davon 50 vollstaendig identisch; Befund:
+    # results/eignungspruefung/). Abgestimmt mit Lukas am 2026-07-18.
+    n_vorher = len(df)
+    df = df.drop_duplicates(subset=["incident_number"], keep="first")
+    if n_vorher - len(df):
+        print(f"  Dedup: {n_vorher - len(df):,} doppelte Einsatznummern entfernt.")
     df["response_time_min"] = (df["arrival_dttm"] - df["alarm_dttm"]).dt.total_seconds() / 60
     df = df[(df["response_time_min"] >= 0) & (df["response_time_min"] <= 60)]
     df["year"]         = df["incident_date"].dt.year
@@ -79,8 +86,14 @@ def aggregate_acs_to_neighborhood(acs: pd.DataFrame, crosswalk: pd.DataFrame) ->
 def year_aware_join(sffd: pd.DataFrame, nb_per_year: dict[int, pd.DataFrame]) -> pd.DataFrame:
     acs_years = sorted(nb_per_year.keys())
     sffd = sffd.copy()
+    # Strikt prognostischer Join: jeder Einsatz erhaelt den LETZTEN VERFUEGBAREN
+    # ACS-Snapshot (acs_jahr <= Einsatzjahr) statt des zeitlich naechsten ->
+    # keine Zukunftsinformation (Leakage-Befund, Decision Log #4; abgestimmt
+    # 2026-07-18). Fuer Jahre vor dem ersten Snapshot (2003-2008) existiert kein
+    # vergangener Jahrgang; Rueckgriff auf ACS 2009 als dokumentierte Limitation
+    # (Hauptanalyse beginnt ohnehin 2012, vgl. CLAUDE.md / Leitfaden A3).
     sffd["acs_year"] = sffd["year"].apply(
-        lambda y: min(acs_years, key=lambda a: abs(a - int(y)))
+        lambda y: max([a for a in acs_years if a <= int(y)], default=min(acs_years))
     )
     print("\n  Einsaetze nach zugeordnetem ACS-Snapshot:")
     for acs_y, info in sffd.groupby("acs_year")["year"].agg(
@@ -192,15 +205,71 @@ def _lade_acs_alle_jahre(crosswalk: pd.DataFrame) -> dict[int, pd.DataFrame]:
     return nb_per_year
 
 
+def aggregate_crime_zeitbewusst(raw: pd.DataFrame) -> pd.DataFrame:
+    """Zeitbewusste Crime-Aggregation: je Neighborhood und Einsatzjahr werden
+    NUR Delikte bis einschliesslich des VORJAHRES kumuliert (kein Blick in die
+    Zukunft; Leakage-Befund Decision Log #3, abgestimmt 2026-07-18).
+    Fuer das erste Datenjahr existiert keine Vergangenheit -> Rueckgriff auf das
+    eigene Jahr (dokumentierte Limitation, betrifft nur Einsaetze 2003)."""
+    df = raw.copy()
+    df["count"] = pd.to_numeric(df["count"], errors="coerce").fillna(0)
+    df["jahr"] = pd.to_datetime(df["by_month_incident_date"], errors="coerce").dt.year
+    df = df.dropna(subset=["jahr"])
+    quelle = "neighborhood" if "neighborhood" in df.columns else "analysis_neighborhood"
+    df["neighborhood"] = df[quelle].str.strip().str.title()
+    df["incident_category"] = df["incident_category"].fillna("").str.strip()
+    df = df[df["incident_category"] != ""]
+    df["violent_count"]  = df["count"] * df["incident_category"].isin(VIOLENT_CATEGORIES)
+    df["property_count"] = df["count"] * df["incident_category"].isin(PROPERTY_CATEGORIES)
+
+    je_jahr = (df.groupby(["neighborhood", "jahr"])
+                 .agg(total=("count", "sum"), violent=("violent_count", "sum"),
+                      prop=("property_count", "sum"))
+                 .reset_index().sort_values(["neighborhood", "jahr"]))
+    # kumulierte Summen bis einschliesslich Vorjahr (shift um 1 Jahr)
+    for col in ["total", "violent", "prop"]:
+        je_jahr[f"kum_{col}"] = (je_jahr.groupby("neighborhood")[col]
+                                        .transform(lambda s: s.cumsum().shift(1)))
+        # erstes Jahr: Rueckgriff auf eigenes Jahr
+        je_jahr[f"kum_{col}"] = je_jahr[f"kum_{col}"].fillna(je_jahr[col])
+    out = je_jahr.rename(columns={
+        "kum_total": "total_crimes", "kum_violent": "violent_crime_count",
+        "kum_prop": "property_crime_count"})[
+        ["neighborhood", "jahr", "total_crimes",
+         "violent_crime_count", "property_crime_count"]]
+    print(f"  Zeitbewusste Crime-Aggregation: {out['neighborhood'].nunique()} "
+          f"Neighborhoods x {out['jahr'].nunique()} Jahre")
+    return out
+
+
 def _join_crime(base: pd.DataFrame) -> pd.DataFrame:
     path = RAW_DIR / "crime_raw.parquet"
     require(path, "01_fetch.py mit DOWNLOAD_CRIME=True ausfuehren.")
-    crime = aggregate_crime_to_neighborhood(pd.read_parquet(path))
+    raw = pd.read_parquet(path)
+    if "by_month_incident_date" in raw.columns:
+        # bevorzugter Weg: zeitbewusster Join auf (Neighborhood, Jahr)
+        crime = aggregate_crime_zeitbewusst(raw)
+        crime.to_csv(PROCESSED_DIR / "crime_neighborhoods_zeitbewusst.csv", index=False)
+        return base.merge(crime, left_on=["neighborhood", "year"],
+                          right_on=["neighborhood", "jahr"], how="left").drop(columns="jahr")
+    # Fallback: aelterer Rohdaten-Download ohne Datumsspalte -> statischer Join.
+    print("  HINWEIS: crime_raw.parquet enthaelt keine Datumsspalte (aelterer "
+          "Download). Statischer Crime-Join (Limitation!). Fuer den "
+          "zeitbewussten Join 01_fetch.py mit DOWNLOAD_CRIME=True neu ausfuehren.")
+    crime = aggregate_crime_to_neighborhood(raw)
     crime.to_csv(PROCESSED_DIR / "crime_neighborhoods.csv", index=False)
     return base.merge(crime, on="neighborhood", how="left")
 
 
 def _join_landuse(base: pd.DataFrame) -> pd.DataFrame:
+    # Cache: Der Spatial Join ist der teuerste Schritt und deterministisch
+    # (statischer Snapshot 2020). Liegt die aggregierte Tabelle bereits vor,
+    # wird sie wiederverwendet; zum Neuberechnen CSV loeschen.
+    cache = PROCESSED_DIR / "land_use_2020_neighborhoods.csv"
+    if cache.exists():
+        print(f"  Nutze vorhandene Aggregation: {cache.name} (loeschen zum Neuberechnen)")
+        lu = pd.read_csv(cache)
+        return base.merge(lu, on="neighborhood", how="left")
     path = RAW_DIR / "land_use_2020_raw.parquet"
     require(path, "01_fetch.py mit DOWNLOAD_LAND_USE_2020=True ausfuehren.")
     parcels = pd.read_parquet(path)
@@ -208,7 +277,7 @@ def _join_landuse(base: pd.DataFrame) -> pd.DataFrame:
         raise RuntimeError("land_use_2020_raw.parquet enthaelt kein st_area_sh.")
     lu = aggregate_land_use_to_neighborhood(
         spatial_join_land_use(parcels, load_neighborhoods_gdf()))
-    lu.to_csv(PROCESSED_DIR / "land_use_2020_neighborhoods.csv", index=False)
+    lu.to_csv(cache, index=False)
     return base.merge(lu, on="neighborhood", how="left")
 
 

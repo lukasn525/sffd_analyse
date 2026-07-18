@@ -22,6 +22,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.pipeline import make_pipeline
@@ -83,7 +84,26 @@ def main() -> None:
     # Saisonalitaet als Feature fuer das Modell (zyklische Kodierung des Monats)
     daten["monat_sin"] = np.sin(2 * np.pi * daten["monat"] / 12)
     daten["monat_cos"] = np.cos(2 * np.pi * daten["monat"] / 12)
-    feature_spalten = PRAEDIKTOREN + ["monat_sin", "monat_cos", "jahr"]
+
+    # Zusatz-Attribute (Leitfaden A1): zeitliche Persistenz der Zielgroesse als
+    # Lag-/Rolling-Features, je Stadtteil und streng vergangenheitsbezogen
+    # (shift vor rolling -> kein Leakage). Loesen das Baseline-Problem
+    # (Lag-1-Autokorrelation 0,96).
+    daten = daten.sort_values(["stadtteil", "jahr_monat"]).reset_index(drop=True)
+    g = daten.groupby("stadtteil")["anzahl_einsaetze"]
+    daten["lag_1"]          = g.shift(1)
+    daten["lag_12"]         = g.shift(12)
+    daten["rolling_mean_3"] = g.transform(lambda s: s.shift(1).rolling(3).mean())
+    lags = ["lag_1", "lag_12", "rolling_mean_3"]
+    # Fairness: identische Zeilen fuer ALLE Modelle/Feature-Sets
+    daten = daten.dropna(subset=lags).reset_index(drop=True)
+
+    # Zwei Feature-Sets (vgl. Leitfaden A1): S = nur Struktur+Saison,
+    # S+L = zusaetzlich Lags. Kein rohes `jahr` (Extrapolationsproblem, A2).
+    feature_sets = {
+        "S":   PRAEDIKTOREN + ["monat_sin", "monat_cos"],
+        "S+L": PRAEDIKTOREN + ["monat_sin", "monat_cos"] + lags,
+    }
 
     monate = sorted(daten["jahr_monat"].unique())
     print(f"Datensatz: {len(daten):,} Zeilen (Stadtteil x Monat), "
@@ -102,16 +122,42 @@ def main() -> None:
             ergebnisse.append({"fold": fold_nr, "modell": name,
                                **bewerte(y_test, y_hat)})
 
-        # --- Beispielmodell: Ridge auf log(1+y).
-        # StandardScaler in der sklearn-Pipeline: wird NUR auf Trainingsdaten
-        # gefittet -> kein Leakage. Rueckttransformation mit expm1.
-        modell = make_pipeline(StandardScaler(), Ridge(alpha=1.0))
-        t0 = time.time()
-        modell.fit(train[feature_spalten], np.log1p(train["anzahl_einsaetze"]))
-        train_zeit = time.time() - t0
-        y_hat = np.expm1(modell.predict(test[feature_spalten]))
-        ergebnisse.append({"fold": fold_nr, "modell": "Ridge (log1p, Demo)",
-                           **bewerte(y_test, y_hat), "train_s": round(train_zeit, 3)})
+        # --- Beispielmodelle je Feature-Set. Ridge auf log(1+y) (StandardScaler
+        # NUR auf Train gefittet, Ruecktransformation expm1); RF direkt auf y.
+        # Modellspezifische Aufbereitung fuer Ridge: Lag-Features werden
+        # ebenfalls log(1+x)-transformiert, damit die Beziehung zur log-
+        # Zielgroesse linear ist (log-AR-Spezifikation). Rohe Lags in einem
+        # log-Modell sind fehlspezifiziert (empirisch: R2 < 0). Analog zur
+        # Skalierung ist das eine modellinterne Transformation, keine
+        # Verletzung der Fairness-Regel (identische Zeilen/Informationen).
+        def ridge_sicht(d: pd.DataFrame, spalten: list[str]) -> pd.DataFrame:
+            x = d[spalten].copy()
+            for c in lags:
+                if c in x.columns:
+                    x[c] = np.log1p(x[c])
+            return x
+
+        for set_name, spalten in feature_sets.items():
+            for modell_name, modell, log_ziel in [
+                (f"Ridge ({set_name})",
+                 make_pipeline(StandardScaler(), Ridge(alpha=1.0)), True),
+                (f"RandomForest ({set_name})",
+                 RandomForestRegressor(n_estimators=200, n_jobs=-1,
+                                       random_state=42), False),
+            ]:
+                X_train = ridge_sicht(train, spalten) if log_ziel else train[spalten]
+                X_test  = ridge_sicht(test,  spalten) if log_ziel else test[spalten]
+                ziel = np.log1p(train["anzahl_einsaetze"]) if log_ziel \
+                       else train["anzahl_einsaetze"]
+                t0 = time.time()
+                modell.fit(X_train, ziel)
+                train_zeit = time.time() - t0
+                y_hat = modell.predict(X_test)
+                if log_ziel:
+                    y_hat = np.expm1(y_hat)
+                ergebnisse.append({"fold": fold_nr, "modell": modell_name,
+                                   **bewerte(y_test, y_hat),
+                                   "train_s": round(train_zeit, 3)})
 
     df = pd.DataFrame(ergebnisse)
     mittel = (df.groupby("modell")[["RMSE", "MAE", "R2"]]

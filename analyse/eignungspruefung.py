@@ -50,14 +50,14 @@ def pruefe_datenqualitaet(df: pd.DataFrame) -> None:
         f"Stadtteile: {df['stadtteil'].nunique()}")
 
     # Duplikat-Pruefung: fuehrt die Join-Logik zu vervielfachten Einsaetzen?
-    dup      = df.duplicated(subset=["einsatz_nummer"]).sum()
-    voll_dup = df.duplicated().sum()
-    log(f"- Duplikate nach einsatz_nummer: {dup:,} ({dup/len(df)*100:.2f}%), davon "
-        f"{voll_dup} vollstaendig identische Zeilen. Befund: Duplikate stammen aus "
-        "den DataSF-Quelldaten (mehrfach gemeldete Einsatznummern), NICHT aus der "
-        "Join-Logik (Joins sind m:1 auf Stadtteil). Behandlung: Dedup nach "
-        "einsatz_nummer in der Modellierungsschicht (modellierung/aggregation.py), "
-        "Prep-Pipeline unveraendert.")
+    dup = df.duplicated(subset=["einsatz_nummer"]).sum()
+    if dup == 0:
+        log("- Duplikate nach einsatz_nummer: 0 -> Bereinigung erfolgt seit "
+            "2026-07-18 direkt in der Prep-Pipeline (02_join, 269 mehrfach "
+            "gemeldete Einsatznummern aus den DataSF-Quelldaten entfernt).")
+    else:
+        log(f"- Duplikate nach einsatz_nummer: {dup:,} ({dup/len(df)*100:.2f}%) -> "
+            "ACHTUNG: Dedup in 02_join.py greift nicht; pruefen!")
 
     # Wertebereiche der abgeleiteten Raten (muessen in [0, 1] liegen)
     log("\n| Variable | Min | Max | NaN% | in [0,1]? |")
@@ -226,24 +226,28 @@ def main() -> None:
     pruefe_linearitaet(agg)
     pruefe_vif(agg)
 
-    log("\n## 6. Strukturelle Befunde zur Pipeline (Leakage-Pruefung)\n")
-    log("- **Crime-Features sind ueber den Gesamtzeitraum 2003-2026 aggregiert** und "
-        "statisch je Stadtteil gejoint -> enthalten Information aus der Zukunft "
-        "relativ zu fruehen Einsaetzen (Data Leakage im strengen Sinne). Da nur "
-        "*Anteile* (Gewalt-/Eigentumsdelikte) verwendet werden und diese als "
-        "quasi-stabile Strukturmerkmale interpretiert werden, ist das vertretbar, "
-        "muss aber in Kap. 5.2/6.3 als Limitation dokumentiert werden. Alternative: "
-        "Crime zeitbewusst (nur Vergangenheit) aggregieren -> Decision Log.")
-    log("- **Land Use ist Snapshot 2020** (statisch) -> gleiche Einordnung wie Crime.")
-    log("- **ACS-Join nutzt den zeitlich NAECHSTEN Snapshot** (z.B. Einsatz 2003 -> "
-        "ACS 2009): fuer fruehe Jahre leichte Zukunftsinformation. Fuer strikte "
-        "Prognose-Interpretation waere 'letzter verfuegbarer Snapshot' korrekt -> "
-        "Decision Log / mit Schroeter besprechen.")
-    log("- **Aggregation Stadtteil x Monat fehlt in der Prep-Pipeline** (Output ist "
-        "Einsatz-Ebene). Sie wird als eigener Schritt in der Modellierungs-Pipeline "
-        "ergaenzt, ohne die Prep-Pipeline zu veraendern.")
-    log("- **Cleaned-Datensatz (23 Spalten) enthaelt keine Monatsspalte** -> fuer die "
-        "Stadtteil-x-Monat-Aggregation wird `sf_fire_risk_features.parquet` verwendet.")
+    log("\n## 6. Strukturelle Befunde zur Pipeline (Leakage-Pruefung, Stand nach "
+        "Anpassungen 2026-07-18)\n")
+    log("- **ACS-Join: BEHOBEN.** Seit 2026-07-18 wird der *letzte verfuegbare* "
+        "Snapshot verwendet (acs_jahr <= Einsatzjahr) statt des zeitlich "
+        "naechsten -> keine Zukunftsinformation mehr. Einzige Ausnahme: Einsaetze "
+        "2003-2008 greifen auf ACS 2009 zurueck (kein aelterer Jahrgang "
+        "verfuegbar); die Hauptanalyse beginnt ohnehin 2012 -> dokumentierte "
+        "Limitation nur fuer die Sensitivitaetsanalyse 2003-2011.")
+    log("- **Crime-Features: Code fuer zeitbewussten Join (Kumulation nur bis "
+        "Vorjahr) ist in 02_join implementiert**, benoetigt aber einen "
+        "Neu-Download der Rohdaten mit Datumsspalte (01_fetch, "
+        "DOWNLOAD_CRIME=True). Bis dahin faellt die Pipeline dokumentiert auf "
+        "den statischen Join zurueck (Limitation; nur Anteile verwendet).")
+    log("- **Land Use ist Snapshot 2020** (statisch; nur ein Jahrgang bei DataSF "
+        "verfuegbar) -> als quasi-stabiles Strukturmerkmal interpretieren, "
+        "Limitation in Kap. 6.3.")
+    log("- **Aggregation Stadtteil x Monat** erfolgt als eigener Schritt in "
+        "`modellierung/aggregation.py` (Prep-Pipeline-Output bleibt bewusst auf "
+        "Einsatz-Ebene, da die Klassifikation Einzeleinsaetze benoetigt).")
+    log("- **Cleaned-Datensatz enthaelt seit 2026-07-18 `monat` und `wochentag`** "
+        "(25 Spalten) und ist damit fuer die Stadtteil-x-Monat-Aggregation "
+        "nutzbar.")
     log("- Response-Time-Filter (0-60 min) entfernt ~1,7% der Einsaetze bereits in "
         "der Prep-Pipeline -> Zaehlungen beziehen sich auf gefilterte Einsaetze "
         "(dokumentieren).")

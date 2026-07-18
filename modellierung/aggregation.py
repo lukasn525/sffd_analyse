@@ -34,9 +34,21 @@ PRAEDIKTOREN = [
 ]
 
 
-def lade_stadtteil_monat(pfad: Path = FEATURES_PARQUET) -> pd.DataFrame:
-    """Laedt den Pipeline-Output und aggregiert auf Stadtteil x Monat."""
+def lade_stadtteil_monat(pfad: Path = FEATURES_PARQUET,
+                         ab_jahr: int | None = None,
+                         ohne_ausreisser: bool = False) -> pd.DataFrame:
+    """Laedt den Pipeline-Output und aggregiert auf Stadtteil x Monat.
+
+    Parameter (Entscheidungen Decision Log #5 bzw. Leitfaden A3/A4):
+      ab_jahr         - Hauptanalyse-Zeitraum, z. B. 2012 (akademikerquote_pct
+                        erst ab ACS 2014 verfuegbar; vor 2012 ~37% NaN).
+                        None = voller Zeitraum (Sensitivitaetsanalyse).
+      ohne_ausreisser - True entfernt McLaren Park (ACS-Census-Artefakt:
+                        Armutsquote 0,90 bei 850 Einwohnern).
+    """
     df = pd.read_parquet(pfad)
+    if ohne_ausreisser:
+        df = df[df["stadtteil"] != "Mclaren Park"]
 
     # Duplikate aus den DataSF-Quelldaten entfernen (208 mehrfach gemeldete
     # Einsatznummern, ~0,07% der Zeilen; Befund s. results/eignungspruefung/).
@@ -62,11 +74,22 @@ def lade_stadtteil_monat(pfad: Path = FEATURES_PARQUET) -> pd.DataFrame:
         names=["stadtteil", "jahr", "monat"])
     raster = agg.set_index(["stadtteil", "jahr", "monat"]).reindex(idx).reset_index()
     raster["anzahl_einsaetze"] = raster["anzahl_einsaetze"].fillna(0).astype(int)
+    # Nur VORWAERTS fuellen (ffill): schliesst die durch das Raster erzeugten
+    # einsatzfreien Monate mit dem letzten bekannten Stand desselben Stadtteils.
+    # KEIN bfill: Rueckwaertsfuellen wuerde fehlende Werte (z. B.
+    # akademikerquote vor ACS 2014) stillschweigend mit ZUKUNFTSWERTEN
+    # imputieren (Leakage; Audit-Befund 2026-07-18). Echte NaN bleiben sichtbar
+    # und werden bewusst in der Modellierungsschicht behandelt (Zeitraumfilter).
     raster[PRAEDIKTOREN] = (raster.groupby("stadtteil")[PRAEDIKTOREN]
-                                  .transform(lambda s: s.ffill().bfill()))
+                                  .transform(lambda s: s.ffill()))
 
     raster["jahr_monat"] = raster["jahr"] * 100 + raster["monat"]
     raster = raster[(raster["jahr_monat"] >= erster) & (raster["jahr_monat"] < letzter)]
+    if ab_jahr is not None:
+        # Filter NACH der Aggregation, damit Lag-Features im aufrufenden Code
+        # bei Bedarf noch auf Vorjahres-Historie zugreifen koennten; hier
+        # schneidet er schlicht den Analysezeitraum zu.
+        raster = raster[raster["jahr"] >= ab_jahr]
     return (raster.drop(columns="jahr_monat")
                   .sort_values(["jahr", "monat", "stadtteil"])
                   .reset_index(drop=True))

@@ -23,7 +23,10 @@ FEATURES_PATH = PROCESSED_DIR / "sf_fire_risk_features.parquet"
 CLEANED_PATH  = PROCESSED_DIR / "sf_fire_risk_features_cleaned.parquet"
 
 CLEANED_COLS = [
-    "stadtteil", "acs_jahr", "jahr", "stunde", "ist_wochenende", "ist_nacht",
+    # monat/wochentag ergaenzt (2026-07-18): noetig fuer die Aggregation
+    # Stadtteil x Monat bzw. als Zeit-Features der Klassifikation.
+    "stadtteil", "acs_jahr", "jahr", "monat", "wochentag",
+    "stunde", "ist_wochenende", "ist_nacht",
     "antwortzeit_min",
     "einsatzart", "bataillon", "alarmstufe", "schaetzung_sachschaden_usd",
     "gesamtbevoelkerung", "median_haushaltseinkommen", "armutsquote_pct",
