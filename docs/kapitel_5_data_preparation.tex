@@ -1,0 +1,370 @@
+% =========================================================================
+% Kapitel 5 – Data Preparation (CRISP-DM Phase 3)
+% Stand: 2026-07-19. Zahlen validiert gegen results/eignungspruefung/ und
+% results/demo_modellierung/ (Pipeline-Lauf 2026-07-18).
+%
+% EINFÜGEN: kompletten Inhalt ab \section{Data Preparation} in die Hauptdatei
+% übernehmen. Voraussetzung: listings-Preamble (siehe
+% kapitel_5_empirische_analyse.tex, Kopfkommentar) ist in der Hauptdatei
+% eingebunden.
+%
+% QUERVERWEISE: Kapitel-/Abschnittsnummern folgen deiner Gliederung
+% (4 = Data Understanding, 6 = Modelling, 6.2 = Baselines, 7 = Evaluation,
+% 8.3 = Limitationen). Falls du Labels für diese Kapitel hast, die
+% "Kapitel~4"/"Abschnitt~8.3"-Stellen durch \ref{...} ersetzen.
+%
+% KI-VERZEICHNIS: Fußnote in Abschnitt 5.2 (Exposé-Übernahme, Prompt 2)
+% beibehalten; Sessions vom 2026-07-18 laut CLAUDE.md §9 ergänzen.
+% =========================================================================
+
+\section{Data Preparation}
+\label{sec:data-preparation}
+
+Die Data-Preparation-Phase überführt den in Kapitel~4 beschriebenen
+integrierten Rohdatenbestand in den finalen Analysedatensatz. Sie umfasst
+drei Schritte: die Bereinigung der Quelldaten einschließlich der Behandlung
+fehlender Werte (Abschnitt~\ref{sec:bereinigung}), die räumlich-zeitliche
+Aggregation auf die Analyseebene (Abschnitt~\ref{sec:aggregation}) sowie das
+Feature Engineering mit der Ableitung der endgültigen Prädiktoren
+(Abschnitt~\ref{sec:feature-engineering}). Zwei Prinzipien leiten sämtliche
+Schritte: Erstens werden alle Transformationen so gestaltet, dass zu keinem
+Zeitpunkt Informationen aus der Zukunft in die Merkmale einfließen
+(Leakage-Vermeidung);\footnote{Zur Leakage-Problematik bei zeitstrukturierten
+Daten vgl. Bergmeir/Benítez (2012), S.~192\,f.} zweitens erhalten alle drei
+zu vergleichenden Verfahren denselben aufbereiteten Datensatz, sodass
+spätere Leistungsunterschiede ausschließlich auf die Verfahren selbst
+zurückführbar sind.
+
+% =========================================================================
+\subsection{Bereinigung und Behandlung fehlender Werte}
+\label{sec:bereinigung}
+
+Ausgangsbasis sind 720.258 Einsatzdatensätze des SFFD (2003--2026), von
+denen bereits beim Abruf nur Zeilen mit vorhandener Stadtteil-Zuordnung und
+Ankunftszeit übernommen wurden. Die Bereinigung setzt an drei Punkten an.
+Erstens enthalten die Quelldaten 269 mehrfach gemeldete Einsatznummern
+(0,04\,\%, davon 50 vollständig identische Zeilen); diese wurden nach der
+Einsatznummer dedupliziert, da es sich um Melde-Artefakte der Quelldaten
+handelt, die die Einsatzzählungen systematisch überschätzen würden. Es
+verbleiben 719.989 Einsätze. Zweitens wurde die Ausrückzeit als Differenz
+aus Ankunfts- und Alarmzeitpunkt berechnet und auf den plausiblen Bereich
+von 0 bis 60 Minuten begrenzt, wodurch rund 1,7\,\% der Datensätze
+entfielen: Negative Werte deuten auf Uhren- bzw.\ Erfassungsfehler, extreme
+Werte auf Protokollartefakte. Die Einsatzzählungen beziehen sich damit auf
+qualitätsgefilterte Einsätze; diese Einschränkung wird in Abschnitt~8.3
+eingeordnet. Drittens wurden in den baulichen Daten Baujahre außerhalb des
+Bereichs 1800--2025 als fehlend markiert.
+
+Über die Zeilenbereinigung hinaus wirkt die Leakage-Vermeidung bereits in
+dieser Phase als Gestaltungsprinzip der Datenverknüpfung. Die Zuordnung der
+jährlich erhobenen ACS-Merkmale zu den Einsätzen erfolgt strikt
+prognostisch: Jeder Einsatz erhält den \emph{letzten verfügbaren}
+ACS-Jahrgang (Erhebungsjahr $\leq$ Einsatzjahr). Eine Zuordnung des zeitlich
+\emph{nächsten} Jahrgangs würde für frühe Einsatzjahre Informationen aus der
+Zukunft einschleusen und die spätere Prognosegüte systematisch
+überschätzen. Einzige Ausnahme sind die Einsatzjahre 2003--2008, für die
+mangels älterer Erhebung auf den ACS-Jahrgang 2009 zurückgegriffen wird;
+für den unten begründeten Hauptanalyse-Zeitraum ist dies ohne Belang. Nach
+demselben Prinzip werden die Kriminalitätsmerkmale je Stadtteil nur bis zum
+Vorjahr des jeweiligen Einsatzes kumuliert. Die baulichen Merkmale liegen
+ausschließlich als Querschnitt des Jahres 2020 vor und gehen daher als
+zeitkonstante Strukturmerkmale ein; diese Einschränkung wird in
+Abschnitt~8.3 diskutiert.
+
+Quellcode~\ref{lst:bereinigung} belegt die drei zentralen Schritte. Die
+Deduplikation behält je Einsatznummer das erste Vorkommen
+(\texttt{drop\_duplicates}); die Ausrückzeit wird aus der Differenz der
+Zeitstempel in Minuten berechnet und der Datenbestand per boolescher
+Filterung auf den plausiblen Bereich eingeschränkt. Die Jahrgangszuordnung
+wählt für jedes Einsatzjahr per \texttt{max}-Funktion den größten
+ACS-Jahrgang, der das Einsatzjahr nicht überschreitet -- die Bedingung
+\texttt{a <= int(y)} kodiert damit unmittelbar das Verbot des Blicks in die
+Zukunft; der \texttt{default}-Zweig greift ausschließlich für die
+Einsatzjahre vor 2009.
+
+\begin{lstlisting}[caption={Deduplikation, Plausibilitätsfilter und strikt
+prognostischer ACS-Join (Ausschnitte aus \texttt{pipeline/02\_join.py})},
+label=lst:bereinigung]
+# Mehrfach gemeldete Einsatznummern aus den Quelldaten entfernen
+df = df.drop_duplicates(subset=["incident_number"], keep="first")
+
+# Ausrueckzeit berechnen und auf plausiblen Bereich begrenzen
+df["response_time_min"] = (
+    df["arrival_dttm"] - df["alarm_dttm"]
+).dt.total_seconds() / 60
+df = df[(df["response_time_min"] >= 0) & (df["response_time_min"] <= 60)]
+
+# Jeder Einsatz erhaelt den letzten VERFUEGBAREN ACS-Snapshot
+# (acs_jahr <= Einsatzjahr) - kein Blick in die Zukunft.
+df["acs_year"] = df["year"].apply(
+    lambda y: max([a for a in acs_years if a <= int(y)],
+                  default=min(acs_years))
+)
+\end{lstlisting}
+
+Bei den fehlenden Werten sind drei Konstellationen zu unterscheiden.
+Erstens lassen sich rund 5,7\,\% der Einsätze keinem ACS-Wert zuordnen, da
+für kleine oder erst später ausgewiesene Stadtteile im jeweiligen Jahrgang
+kein Census-Tract-Mapping vorliegt: Treasure Island und Mission Bay erhalten
+erst ab dem ACS-Jahrgang 2021 Werte, Lakeshore weist keine Baujahrangaben
+auf. Die betroffenen Stadtteil-Monate entfallen über den Ausschluss
+unvollständiger Zeilen, sodass im Hauptzeitraum 39 der 41 Stadtteile
+verbleiben. Zweitens ist die Bildungsvariable maßgeblich: Die ACS-Tabelle
+B15003 existiert im Jahrgang 2009 nicht, sodass die Akademikerquote bei
+strikt prognostischer Zuordnung erst ab dem Einsatzjahr 2014 zur Verfügung
+steht. Anstelle einer Imputation über mehrere Jahre -- insbesondere
+anstelle eines Rückwärts-Auffüllens, das erneut Zukunftsinformation
+einschleusen würde -- wird die Hauptanalyse auf den Zeitraum ab 2014
+begrenzt und der volle Zeitraum ohne dieses Merkmal ergänzend als
+Sensitivitätsanalyse berichtet. Drittens wird der Stadtteil McLaren Park als
+dokumentiertes Zensus-Artefakt ausgeschlossen: Die ausgewiesene Armutsquote
+von 0,90 bei nur 850 Einwohnern einer Parkfläche ist kein valides
+sozioökonomisches Merkmal, sondern Folge der Zuschneidung des Zensusbezirks.
+Die Robustheit der Ergebnisse gegenüber diesem Ausschluss wird in der
+Evaluation geprüft.
+
+% =========================================================================
+\subsection{Räumlich-zeitliche Aggregation}
+\label{sec:aggregation}
+
+% ---- Übernahme aus Exposé (Fußnote KI-Verzeichnis Prompt 2) ----
+Eine zentrale Entwurfsentscheidung betrifft die Granularität: Da die
+Feature-Werte auf Stadtteilebene und jährlicher Erhebung vorliegen, würden
+sich diese Werte bei einer Auswertung auf Einzeleinsatz-Ebene mehrfach
+wiederholen und potenziell zu Pseudo-Signalen führen. Die Daten wurden daher
+zeitlich auf Stadtteil~$\times$~Monat aggregiert; Zielgröße für die
+Regression ist die Anzahl der Einsätze pro Stadtteil und
+Monat.\footnote{In Anlehnung an Anthropic Claude (2026), KI-Verzeichnis
+Prompt~2.}
+% ---- Ende Übernahme ----
+
+Gegenüber den denkbaren Alternativen ist diese Ebene wie folgt abzuwägen.
+Die Einzeleinsatz-Ebene würde die Stichprobe künstlich auf über 700.000
+Zeilen aufblähen, obwohl die Prädiktoren nur auf Stadtteilebene variieren;
+die Folge wären scheinbar hochsignifikante, tatsächlich aber redundante
+Zusammenhänge. Eine Aggregation auf Census-Tract~$\times$~Jahr böte zwar
+feinere räumliche Auflösung, scheitert jedoch daran, dass die Einsatzdaten
+keine Tract-Zuordnung tragen und eine nachträgliche Geokodierung
+fehleranfällig wäre; zugleich würde die Jahresebene die Saisonalität
+eliminieren. Die gewählte Ebene Stadtteil~$\times$~Monat ist somit die
+kleinste Einheit, auf der Zielgröße und Prädiktoren konsistent vorliegen
+und saisonale Dynamik erhalten bleibt.
+
+Technisch wird ein vollständiges Raster aus Stadtteilen und Kalendermonaten
+aufgespannt, sodass einsatzfreie Monate als echte Nullen in die Zählung
+eingehen; der unvollständige Randmonat wird abgeschnitten. Die je Stadtteil
+und ACS-Jahrgang konstanten Merkmale werden in rasterbedingt ergänzten
+Monaten ausschließlich \emph{vorwärts} aus der Vergangenheit desselben
+Stadtteils aufgefüllt; ein Rückwärts-Füllen wurde aus dem in
+Abschnitt~\ref{sec:bereinigung} genannten Grund bewusst unterbunden.
+Quellcode~\ref{lst:aggregation} zeigt die Umsetzung: Der
+\texttt{groupby}-Schritt zählt die Einsätze je Stadtteil-Monat und übernimmt
+die konstanten Stadtteilmerkmale; \texttt{reindex} spannt anschließend das
+vollständige Raster auf, wobei neu entstandene Zeilen zunächst leer sind und
+ihre Einsatzzahl explizit auf null gesetzt wird (\texttt{fillna(0)}) --
+einsatzfreie Monate sind Beobachtungen, keine Datenlücken. Der abschließende
+\texttt{ffill}-Aufruf arbeitet je Stadtteil-Gruppe und ausschließlich in
+Zeitrichtung.
+
+\begin{lstlisting}[caption={Aggregation auf Stadtteil~$\times$~Monat mit
+vollständigem Raster (Ausschnitt aus
+\texttt{modellierung/aggregation.py})}, label=lst:aggregation]
+agg = (df.groupby(["stadtteil", "jahr", "monat"])
+         .agg(anzahl_einsaetze=("einsatz_nummer", "count"),
+              **{c: (c, "first") for c in PRAEDIKTOREN})
+         .reset_index())
+
+# Vollstaendiges Raster: Monate ohne Einsatz sind echte Nullen
+raster = agg.set_index(["stadtteil", "jahr", "monat"]) \
+            .reindex(idx).reset_index()
+raster["anzahl_einsaetze"] = raster["anzahl_einsaetze"].fillna(0)
+
+# Nur VORWAERTS fuellen - Rueckwaertsfuellen wuerde fehlende Werte
+# mit Zukunftsinformation imputieren (Leakage).
+raster[PRAEDIKTOREN] = (raster.groupby("stadtteil")[PRAEDIKTOREN]
+                              .transform(lambda s: s.ffill()))
+\end{lstlisting}
+
+Nach der Aggregation bestätigt sich die in Kapitel~4 beschriebene
+Charakteristik der Zielgröße auf der finalen Analyseebene: Die monatliche
+Einsatzzahl je Stadtteil ist rechtsschief verteilt (Mittelwert 63,4; Median
+45; Maximum 451) und mit einem Dispersionsindex von 61 (Varianz je
+Mittelwert) deutlich überdispers, was die Spezifikation der
+Negative-Binomial-Regression als Count-Baseline in Abschnitt~6.2
+begründet.\footnote{Vgl. Cameron/Trivedi (2013), S.~1\,ff.} Die Zielgröße
+der Klassifikation verbleibt demgegenüber bewusst auf der
+Einzeleinsatz-Ebene (Brand vs.\ Nicht-Brand; 13,1/86,9\,\%), da die
+Einsatzart ein Merkmal des einzelnen Ereignisses ist und die
+einsatzbezogenen Zeitmerkmale (Stunde, Wochentag, Nacht) nur dort ihre
+Erklärungskraft entfalten.
+
+% =========================================================================
+\subsection{Feature Engineering und finaler Analysedatensatz}
+\label{sec:feature-engineering}
+
+% ---- Übernahme aus Exposé ----
+Im Rahmen des Feature-Engineerings wurden einzelne Prädiktoren aus den
+Rohdaten neu berechnet: So wurden etwa der Anteil an Gebäuden mit Baujahr
+vor 1940 auf Stadtteilebene sowie ein Index für risikobehaftetes Gewerbe,
+auf Basis der Anzahl von Industrie-, Gastronomie- und vergleichbaren
+Betrieben, als eigenständige Merkmale konstruiert und dem Modell als
+zusätzliche Prädiktoren bereitgestellt.
+% ---- Ende Übernahme ----
+Die baulichen Merkmale entstammen einem Spatial Join der 155.395 Parzellen
+der Land-Use-Datenbank gegen die Stadtteilpolygone (Zuordnung über den
+Parzellen-Mittelpunkt, Match-Rate 99,5\,\%). Ergänzend wurden die
+sozioökonomischen Quoten (Armuts-, Akademiker- und Leerstandsquote) als
+Zähler-Nenner-Verhältnisse im Intervall $[0,1]$ berechnet, die Mediane von
+Einkommen und Miete populationsgewichtet von der Tract- auf die
+Stadtteilebene aggregiert und die Kriminalitätsanteile als Gewalt- bzw.\
+Eigentumsdelikte je Gesamtdelikte gebildet. Die Saisonalität wird über eine
+zyklische Kodierung des Monats (Sinus- und Kosinus-Komponente) abgebildet,
+die den künstlichen Sprung zwischen Dezember und Januar einer ordinalen
+Kodierung vermeidet.
+
+Sämtliche Quoten werden über eine gemeinsame Hilfsfunktion berechnet, die
+Quellcode~\ref{lst:features} exemplarisch für die Armutsquote, den
+Altbau-Anteil und den Risiko-Gewerbe-Index zeigt. Die Funktion
+\texttt{safe\_ratio} erzwingt zunächst numerische Datentypen
+(\texttt{errors="coerce"} wandelt nicht interpretierbare Werte in
+\texttt{NaN}) und ersetzt Nenner von null oder darunter durch \texttt{NaN},
+bevor dividiert wird. Fehlende oder unplausible Grundgesamtheiten führen so
+zu einem explizit fehlenden Quotienten statt zu einem Laufzeitfehler oder
+einem verzerrten Wert -- die Behandlung dieser fehlenden Werte erfolgt dann
+zentral nach den Regeln aus Abschnitt~\ref{sec:bereinigung}.
+
+\begin{lstlisting}[caption={Berechnung der Quoten-Merkmale über eine
+robuste Verhältnisfunktion (Ausschnitt aus
+\texttt{pipeline/03\_features.py})}, label=lst:features]
+def safe_ratio(zaehler, nenner):
+    """Quotient in [0, 1]; NaN bei fehlendem/ungueltigem Nenner."""
+    z = pd.to_numeric(zaehler, errors="coerce").astype(float)
+    n = pd.to_numeric(nenner,  errors="coerce").astype(float) \
+          .where(lambda x: x > 0, np.nan)
+    return (z / n).round(4)
+
+df["poverty_rate"] = safe_ratio(df["poverty_below"],
+                                df["poverty_universe_total"])
+df["pct_pre1940"]  = safe_ratio(df["pre1940_count"],
+                                df["yrbuilt_count"])
+df["pct_high_risk_commercial_area"] = safe_ratio(
+    df["high_risk_commercial_area_sqft"], df["total_area_sqft"])
+\end{lstlisting}
+
+Über das Exposé hinaus wurden autoregressive Verlaufsmerkmale ergänzt. Den
+Anlass gibt der Befund aus Kapitel~4: Bei einer Lag-1-Autokorrelation der
+Zielgröße von 0,96 kann kein rein strukturmerkmalbasiertes Modell die naive
+Fortschreibung des Vormonatswerts übertreffen. Je Stadtteil werden daher
+der Vormonatswert (\texttt{lag\_1}), der Vorjahresmonat (\texttt{lag\_12})
+und der gleitende Dreimonatsmittelwert (\texttt{rolling\_mean\_3})
+gebildet. Auf ein rohes Jahresmerkmal wird verzichtet, da es bei der
+Prognose zukünftiger Monate eine Extrapolation über den Trainingsbereich
+hinaus erzwingen würde. Quellcode~\ref{lst:lags} zeigt die Berechnung:
+\texttt{shift(1)} bzw.\ \texttt{shift(12)} verschieben die Zeitreihe je
+Stadtteil um einen bzw.\ zwölf Monate, sodass jede Zeile ausschließlich
+Werte aus ihrer eigenen Vergangenheit erhält. Entscheidend ist die
+Reihenfolge beim gleitenden Mittel: Die Reihe wird \emph{erst} um einen
+Monat verschoben und \emph{dann} über drei Monate gemittelt -- der aktuelle
+Monat fließt somit nie in seine eigenen Merkmale ein, was die
+Leakage-Freiheit der Verlaufsmerkmale sicherstellt.
+
+\begin{lstlisting}[caption={Streng vergangenheitsbezogene Lag-Merkmale je
+Stadtteil (Ausschnitt aus \texttt{modellierung/demo\_modellierung.py})},
+label=lst:lags]
+g = daten.groupby("stadtteil")["anzahl_einsaetze"]
+daten["lag_1"]          = g.shift(1)          # Vormonat
+daten["lag_12"]         = g.shift(12)         # Vorjahresmonat
+daten["rolling_mean_3"] = g.transform(        # Mittel der letzten
+    lambda s: s.shift(1).rolling(3).mean())   # 3 Monate (ohne t)
+\end{lstlisting}
+
+Für die Auswertung werden daraus zwei Merkmalsmengen gebildet: Set~S
+umfasst ausschließlich die Struktur- und Saisonmerkmale und dient der
+Beantwortung der ersten Unterfrage nach dem Erklärungsbeitrag der
+Stadtteilmerkmale; Set~S+L ergänzt die Lag-Merkmale und stellt die faire
+Prognoseaufgabe dar, auf der die drei Verfahren in Kapitel~7 verglichen
+werden. Tabelle~\ref{tab:praediktoren} führt die finalen Prädiktoren mit
+Berechnung und Datenquelle auf.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Finale Prädiktoren des Analysedatensatzes}
+  \label{tab:praediktoren}
+  {\small
+  \begin{tabular}{llp{5.6cm}l}
+    \hline
+    \textbf{Merkmal} & \textbf{Gruppe} & \textbf{Berechnung} &
+    \textbf{Quelle} \\
+    \hline
+    Gesamtbevölkerung & Sozioökon. & Wohnbevölkerung des Stadtteils &
+      ACS \\
+    Medianeinkommen & Sozioökon. & Medianes Haushaltseinkommen,
+      populationsgewichtet (USD/Jahr) & ACS \\
+    Medianmiete & Sozioökon. & Mediane Bruttomiete,
+      populationsgewichtet (USD/Monat) & ACS \\
+    Armutsquote & Sozioökon. & Personen unter Armutsgrenze je
+      Grundgesamtheit $[0,1]$ & ACS \\
+    Akademikerquote & Sozioökon. & Personen mit Bachelor-Abschluss (ab 25
+      J.) je Grundgesamtheit $[0,1]$ & ACS \\
+    Leerstandsquote & Sozioökon. & Leer stehende je gesamte Wohneinheiten
+      $[0,1]$ & ACS \\
+    Anteil Gewaltdelikte & Kriminalität & Gewaltdelikte je Gesamtdelikte
+      $[0,1]$ & SFPD \\
+    Anteil Eigentumsdelikte & Kriminalität & Eigentumsdelikte je
+      Gesamtdelikte $[0,1]$ & SFPD \\
+    Altbau-Anteil & Baulich & Parzellen mit Baujahr vor 1940 je Parzellen
+      mit bekanntem Baujahr $[0,1]$ & Land Use \\
+    Wohnnutzungs-Anteil & Baulich & Wohnparzellen je Gesamtparzellen
+      $[0,1]$ & Land Use \\
+    Risiko-Gewerbe-Index & Baulich & Fläche brandrelevanter
+      Gewerbeparzellen (Handel/Gastronomie, Industrie) je Gesamtfläche
+      $[0,1]$ & Land Use \\
+    Monat (sin, cos) & Saison & Zyklische Kodierung des Kalendermonats
+      (2 Merkmale) & abgeleitet \\
+    \texttt{lag\_1}, \texttt{lag\_12} & Autoregr. & Einsatzzahl des Vormonats
+      bzw.\ Vorjahresmonats & abgeleitet \\
+    \texttt{rolling\_mean\_3} & Autoregr. & Gleitendes Mittel der drei
+      Vormonate & abgeleitet \\
+    \hline
+  \end{tabular}}
+\end{table}
+
+Modellspezifische Transformationen erfolgen ausschließlich innerhalb der je
+Trainingsfenster gefitteten Pipeline, damit keine Kennwerte aus Testdaten in
+die Vorverarbeitung einfließen: Für die Ridge Regression werden alle
+Prädiktoren z-standardisiert, die Zielgröße wegen der Rechtsschiefe und der
+in Kapitel~4 gezeigten Heteroskedastizität als $\log(1+y)$ modelliert und
+die Lag-Merkmale ebenfalls $\log(1+x)$-transformiert, da rohe Zählwerte in
+einem log-linearen Modell fehlspezifiziert wären; die baumbasierten
+Verfahren trainieren unmittelbar auf den unveränderten Zählwerten. Für die
+Klassifikation werden das Bataillon sowie die kategorialen Zeitmerkmale
+einheitlich für alle drei Verfahren One-Hot-kodiert. Damit gilt
+durchgängig: Alle Modelle erhalten identische Zeilen, Merkmale und
+Validierungs-Folds; Leistungsunterschiede sind ausschließlich algorithmisch
+bedingt.
+
+Den finalen Analysedatensatz fasst Tabelle~\ref{tab:steckbrief} zusammen.
+% TODO: Zahlen nach finalem Trainingslauf ggf. aktualisieren
+% (Stand: Demo 2026-07-18).
+
+\begin{table}[htbp]
+  \centering
+  \caption{Steckbrief des finalen Analysedatensatzes}
+  \label{tab:steckbrief}
+  \begin{tabular}{ll}
+    \hline
+    \textbf{Merkmal} & \textbf{Ausprägung} \\
+    \hline
+    Regressionsebene & Stadtteil $\times$ Monat (vollständiges Raster) \\
+    Hauptanalyse-Zeitraum & 2014--2026 (2015--2026 nach Lag-Anlauf) \\
+    Beobachtungen (Regression) & 5.103 (39 Stadtteile $\times$ 133 Monate) \\
+    Zielgröße Regression & Einsätze/Monat (Mittel 63,4; Max.\ 451) \\
+    Prädiktoren & 11 Struktur + 2 Saison + 3 Lag \\
+    Merkmalsmengen & Set S (Struktur + Saison); Set S+L (zzgl.\ Lags) \\
+    Klassifikationsebene & Einzeleinsatz (719.989 Datensätze) \\
+    Zielgröße Klassifikation & Brand vs.\ Nicht-Brand (13,1/86,9\,\%) \\
+    Ausschlüsse & Duplikate; Ausrückzeit $\notin [0,60]$ min; \\
+                & McLaren Park; Stadtteile ohne ACS-/Baujahrdaten \\
+    \hline
+  \end{tabular}
+\end{table}
