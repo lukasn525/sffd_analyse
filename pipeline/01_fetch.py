@@ -2,16 +2,8 @@
 Schritt 1: Rohdaten von DataSF und Census API laden -> data/raw/
 
 Ausfuehren:
-  python pipeline/01_fetch.py test           # nur API-Verfuegbarkeit pruefen
-  python pipeline/01_fetch.py crime          # nur die Kriminalitaetsdaten
-  python pipeline/01_fetch.py sffd acs       # gezielt einzelne Quellen
-  python pipeline/01_fetch.py alle           # alles neu herunterladen
-
-Ohne Argument gelten die DOWNLOAD_*-Schalter unten (Default: alles False,
-damit ein versehentlicher Lauf nichts ueberschreibt).
-
-Verfuegbare Namen: sffd, crosswalk, acs, crime, crime_hist, landuse,
-neighborhoods, crime_alle (= crime + crime_hist), alle
+  python pipeline/01_fetch.py          # vollstaendiger Download
+  python pipeline/01_fetch.py test     # nur API-Verfuegbarkeit testen
 """
 import json
 import sys
@@ -31,8 +23,8 @@ ACS_YEARS        = [2009, 2014, 2019, 2021, 2023]
 DOWNLOAD_SFFD             = False
 DOWNLOAD_CROSSWALK        = False
 DOWNLOAD_ACS              = False
-DOWNLOAD_CRIME            = False   # SFPD ab 2018 (e3si-785i), MIT Datumsspalte
-DOWNLOAD_CRIME_HISTORISCH = False   # SFPD 2014-2017 (tmnf-yvry), fuer den Index
+DOWNLOAD_CRIME            = True   # SFPD ab 2018 (e3si-785i), MIT Datumsspalte
+DOWNLOAD_CRIME_HISTORISCH = True  # SFPD 2014-2017 (tmnf-yvry), fuer den Index
 DOWNLOAD_LAND_USE_2020    = False
 DOWNLOAD_NEIGHBORHOODS    = False
 
@@ -285,82 +277,25 @@ def quick_test():
         ("Neighborhoods", "https://data.sfgov.org/resource/j2bu-swwd.geojson",
          {"$limit": 2}),
     ]
-    def _melde(name: str, r, zaehler) -> None:
-        """Ein Endpunkt darf den ganzen Test nicht abbrechen."""
-        if not r.ok:
-            print(f"  {name:<14} FAIL {r.status_code}")
-            return
-        try:
-            print(f"  {name:<14} OK  ({zaehler(r)} Rows)")
-        except Exception:
-            # Antwort kam an, ist aber kein JSON (z. B. Census-Rate-Limit oder
-            # HTML-Fehlerseite trotz Status 200).
-            print(f"  {name:<14} WARNUNG: Antwort ist kein JSON "
-                  f"(erste 60 Zeichen: {r.text[:60]!r})")
-
     for name, url, params in endpoints:
-        try:
-            r = requests.get(url, params=params, timeout=15)
-        except requests.RequestException as e:
-            print(f"  {name:<14} FEHLER: {type(e).__name__}")
-            continue
+        r = requests.get(url, params=params, timeout=15)
         if name == "Neighborhoods":
-            _melde(name, r, lambda x: len(json.loads(x.text).get("features", [])))
+            n = len(json.loads(r.text).get("features", [])) if r.ok else 0
         else:
-            _melde(name, r, lambda x: len(x.json()))
+            n = len(r.json()) if r.ok else 0
+        print(f"  {name:<14} {'OK' if r.ok else f'FAIL {r.status_code}'}  ({n} Rows)")
 
     for year in ACS_YEARS:
-        # MIT API-Key testen - ohne Key antwortet die Census-API bei haeufigen
-        # Abfragen mit einer HTML-Fehlerseite statt JSON.
-        try:
-            r = requests.get(
-                f"https://api.census.gov/data/{year}/acs/acs5"
-                f"?get=NAME,B19013_001E&for=tract:*&in=state:06%20county:075"
-                f"&key={CENSUS_API_KEY}", timeout=15)
-        except requests.RequestException as e:
-            print(f"  ACS {year:<10} FEHLER: {type(e).__name__}")
-            continue
-        _melde(f"ACS {year}", r, lambda x: len(x.json()) - 1)
-
-
-ARG_ZU_FLAG = {
-    "sffd":          ["DOWNLOAD_SFFD"],
-    "crosswalk":     ["DOWNLOAD_CROSSWALK"],
-    "acs":           ["DOWNLOAD_ACS"],
-    "crime":         ["DOWNLOAD_CRIME", "DOWNLOAD_CRIME_HISTORISCH"],
-    "crime_neu":     ["DOWNLOAD_CRIME"],
-    "crime_hist":    ["DOWNLOAD_CRIME_HISTORISCH"],
-    "landuse":       ["DOWNLOAD_LAND_USE_2020"],
-    "neighborhoods": ["DOWNLOAD_NEIGHBORHOODS"],
-}
-
-
-def _flags_aus_argumenten(argumente: list[str]) -> None:
-    """Setzt die DOWNLOAD_*-Schalter anhand der Kommandozeile.
-
-    Erspart das Editieren der Datei vor und nach jedem Lauf - der haeufigste
-    Weg, versehentlich einen Download stehen zu lassen oder zu vergessen.
-    """
-    global_ = globals()
-    if "alle" in argumente:
-        for flags in ARG_ZU_FLAG.values():
-            for f in flags:
-                global_[f] = True
-        return
-    unbekannt = [a for a in argumente if a not in ARG_ZU_FLAG]
-    if unbekannt:
-        raise SystemExit(f"Unbekanntes Argument: {', '.join(unbekannt)}\n"
-                         f"Erlaubt: {', '.join(ARG_ZU_FLAG)}, alle, test")
-    for a in argumente:
-        for f in ARG_ZU_FLAG[a]:
-            global_[f] = True
+        r = requests.get(
+            f"https://api.census.gov/data/{year}/acs/acs5"
+            "?get=NAME,B19013_001E&for=tract:*&in=state:06%20county:075",
+            timeout=15)
+        n = len(r.json()) - 1 if r.ok else 0
+        print(f"  ACS {year:<10} {'OK' if r.ok else f'FAIL {r.status_code}'}  ({n} Tracts)")
 
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
-    if args and args[0] == "test":
+    if len(sys.argv) > 1 and sys.argv[1] == "test":
         quick_test()
     else:
-        if args:
-            _flags_aus_argumenten(args)
         run_fetch()
