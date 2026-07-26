@@ -1,10 +1,10 @@
 """
 Schritt 3: Raten berechnen, Spalten auf Deutsch umbenennen,
-Modell-Datensatz auf 23 Spalten reduzieren.
+Modell-Datensatz auf 25 Spalten reduzieren.
 
 Input:  data/processed/sf_fire_incidents_base.parquet
-Output: data/processed/sf_fire_risk_features.parquet         (53 Spalten, deutsch)
-        data/processed/sf_fire_risk_features_cleaned.parquet (23 Spalten, deutsch)
+Output: data/processed/sf_fire_risk_features.parquet         (50 Spalten, deutsch)
+        data/processed/sf_fire_risk_features_cleaned.parquet (25 Spalten, deutsch)
 """
 import warnings
 from pathlib import Path

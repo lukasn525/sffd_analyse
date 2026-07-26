@@ -4,8 +4,14 @@
 > Vergleichsstudie. Ergänzt `CLAUDE.md` (Rahmenplan) um die konkrete
 > Programmier-Reihenfolge. Grundlage: Exposé, Schröter-Vorgaben,
 > Eignungsprüfung (`results/eignungspruefung/`), Demo-Ergebnisse
-> (`results/demo_modellierung/`). Die Prep-Pipeline (`pipeline/`) bleibt
-> unverändert.
+> (`results/demo_modellierung/`).
+>
+> **Revision 2026-07-26** nach dem Preprocessing-Audit: A2 war eine
+> Fehldiagnose und ist gestrichen, A3 und A4 sind erledigt. Die Prep-Pipeline
+> wurde mit Zustimmung an drei Stellen angepasst (ACS-Publikationsversatz,
+> Kriminalitätsindex, Dedup) – Details im Decision Log von `CLAUDE.md`.
+> Den Klassifikationsteil beschreibt jetzt `docs/KLASSIFIKATION_DESIGN.md`
+> ausführlicher als Schritt 7 hier.
 
 ---
 
@@ -37,36 +43,52 @@ methodisch sauber und liefert die Story/roten Faden, den Schröter verlangt.
 berechnen (nie über Stadtteilgrenzen, nie mit Zukunftswerten); erste k Monate
 je Stadtteil fallen weg (dropna) – identisch für alle Modelle.
 
-### A2. Fold-Instabilität / Nichtstationarität
+### A2. ~~Fold-Instabilität / Nichtstationarität~~ → **KORRIGIERT (2026-07-26)**
 
-**Problem:** Fold 3 (Test 2025/26) bricht ein (Naiv R² 0,74 statt 0,96;
-Ridge −0,43). Trendbrüche (u. a. COVID-Ära im Training, jüngere Entwicklungen)
-verletzen die implizite Stationaritätsannahme; `jahr` als linearer Prädiktor
-extrapoliert schlecht.
+> **Diese Hürde existiert nicht.** Der beschriebene Einbruch von Fold 3
+> (Naiv R² 0,74 statt 0,96) war **kein Nichtstationaritäts-Befund**, sondern ein
+> Datenartefakt: Die Randmonat-Logik in `aggregation.py` schnitt nur den
+> maximalen Monat ab, sodass **Januar 2026 mit 258 statt ~3.300 Einsätzen** als
+> scheinbar vollständiger Monat im Panel blieb – genau im Testfenster des letzten
+> Folds. Nach dem Fix (Konstante `ENDE = 202512`, Decision Log #12) sind die
+> Folds stabil: naive Baseline R² 0,95 / 0,95 / 0,96.
+>
+> Die COVID-Erklärung war eine nachträgliche Rationalisierung eines Bugs. Sie
+> darf **nicht** in die Arbeit übernommen werden.
 
-**Lösung:** (a) `jahr` nicht als rohes Feature verwenden (stattdessen Lags, die
-das Niveau tragen), (b) Ergebnisse IMMER je Fold + Mittelwert ± Std berichten,
-(c) Fold-Heterogenität in Kap. 6 als Befund diskutieren (kein Fehler, sondern
-Realität von Einsatzdaten), (d) optional 4.–5. Fold ergänzen für stabilere
-Mittelwerte.
+**Was aus A2 gültig bleibt:**
 
-### A3. Fehlende Werte `akademikerquote_pct` (37 % vor 2012)
+- `jahr` nicht als rohes Feature verwenden – Bäume können nicht extrapolieren,
+  Ridge schon; das verzerrt genau den Verfahrensvergleich. Das Zeitniveau tragen
+  die Lag-Features. (umgesetzt)
+- Ergebnisse immer je Fold **und** als Mittelwert ± Standardabweichung berichten.
+  (umgesetzt in `demo_modellierung.py`)
+- Randmonats-Warnung `pruefe_randmonate()` bei jedem Neu-Download beachten.
 
-**Lösung (Empfehlung):** Hauptanalyse auf **2012–2026** einschränken (ACS ab
-2014-Snapshot + 2012/13→ACS 2014 ist ohnehin der nächste Snapshot; Feature
-vollständig, immer noch ~170 Monate × 39 Stadtteile ≈ 6.600 Beobachtungen).
-Alternative B (Feature streichen) als Sensitivitätsanalyse auf 2003–2026 in
-einem Absatz berichten. Keine Imputation über 9 Jahre hinweg (nicht
-verteidigbar). → Decision Log #5 aktualisieren, mit Schröter bestätigen.
+### A3. ~~Fehlende Werte `akademikerquote_pct`~~ → **ERLEDIGT**
 
-### A4. Ausreißer / Datenartefakte
+Der Analysezeitraum ist auf **2015-01 bis 2025-12** festgesetzt
+(`START`/`ENDE` in `aggregation.py`, Decision Log #18). `akademikerquote_pct`
+ist ab dem ACS-Jahrgang 2014 verfügbar, der mit dem Publikationsversatz von
+einem Jahr (Decision Log #11) ab 2015 nutzbar ist. Im Panel gibt es dadurch
+**keine fehlenden Werte mehr**; eine Imputation ist nicht erforderlich.
+Offen bleibt nur die Sensitivitätsanalyse „voller Zeitraum ohne dieses Feature".
 
-- **McLaren Park** (Armutsquote 0,90 bei 850 Ew., Census-Artefakt): aus der
-  Modellierung ausschließen ODER behalten und in SHAP/Residuen gesondert
-  zeigen. Empfehlung: ausschließen, als bewusste Entscheidung dokumentieren
-  (betrifft ~0,3 % der Beobachtungen). Robustheits-Check: einmal mit/ohne.
-- **Treasure Island, Lakeshore** entfallen ohnehin (keine ACS-Werte) → im
-  Methodenkapitel erwähnen (39 statt 41 Stadtteile).
+### A4. ~~Ausreißer / Datenartefakte~~ → **ERLEDIGT**
+
+Sechs Stadtteile sind ausgeschlossen, aus zwei verschiedenen Gründen
+(Decision Log #15 und #19) – **41 → 35 Stadtteile**:
+
+| Stadtteil | Grund |
+|---|---|
+| Treasure Island, Lakeshore | in keinem ACS-Jahrgang enthalten |
+| Mission Bay | erst ab ACS 2021 → würde ein unbalanciertes Panel erzeugen |
+| Golden Gate Park (45 Ew.), Lincoln Park (299), McLaren Park (507) | Park-/Institutionsgebiete ohne nennenswerte Wohnbevölkerung – jede Pro-Kopf-Größe wird dort sinnlos |
+
+Wichtig für die Formulierung in der Arbeit: Das ist eine **Entscheidung über die
+Analyseeinheit**, keine Ausreißerbereinigung nach der Zielgröße. Letzteres wäre
+methodisch angreifbar, Ersteres ist begründbar. Der Robustheitslauf mit allen
+38 Einheiten ist über `lade_stadtteil_monat(mit_parkgebieten=True)` möglich.
 
 ### A5. Zähldaten & Retransformation (Ridge)
 
@@ -128,6 +150,13 @@ Fit-Zeit vermischen – getrennt ausweisen.
 
 - `random_state=42` überall; `requirements.txt` mit exakten Versionen
   einfrieren (`pip freeze`); Ergebnisse als CSV nach `results/`.
+- **Zeilenreihenfolge gehört zum Reproduzierbarkeitsvertrag.** Random Forest und
+  XGBoost ziehen Bootstrap- bzw. Subsample-Stichproben über Zeilenpositionen –
+  eine andere Sortierung liefert trotz identischem `random_state` leicht andere
+  Bäume (empirisch 17,2587 statt 17,2974 RMSE in Fold 1; innerhalb der
+  Fold-Streuung von ±0,8, aber nicht bitgleich). Ridge ist reihenfolgeinvariant.
+  Die Sortierung ist in `features.py` auf `["jahr_monat", "stadtteil"]`
+  festgelegt und darf nicht mehr geändert werden.
 - Methodenkapitel so schreiben, dass Schröter die Arbeit nachbauen könnte
   (Datenquellen-IDs, Filter, Folds, Suchräume, Seeds – vieles steht schon in
   CLAUDE.md Abschnitt 4–6).
@@ -145,14 +174,15 @@ Zielstruktur (Ausbau von `modellierung/`, Demo bleibt als Vorstufe erhalten):
 
 ```text
 modellierung/
-├── aggregation.py        # vorhanden: Stadtteil×Monat + Dedup
-├── features.py           # NEU: Feature-Sets S und S+L, Lags, Zeitraumfilter
-├── cv.py                 # NEU: zeit_folds + inneres Validierungsfenster (zentral!)
-├── baselines.py          # NEU: naiv, saisonal, NegBin
-├── train_regression.py   # NEU: Ridge/RF/XGB + Tuning, Regression
-├── train_klassifikation.py # NEU: LogReg-L2/RF/XGB, Brand vs. Nicht-Brand
-├── shap_analyse.py       # NEU: SHAP für finale Modelle
-└── demo_modellierung.py  # vorhanden (Demo, wird von train_regression abgelöst)
+├── aggregation.py        # [x] Stadtteil×Monat, Zeitraum, Exposure, Panel
+├── cv.py                 # [x] Folds, inneres Fenster, End-Hold-out, Gütemaße
+├── features.py           # [ ] Feature-Sets S und S+L (aktuell noch in der Demo)
+├── baselines.py          # [ ] naiv, saisonal, NegBin
+├── train_regression.py   # [ ] Ridge/RF/XGB + Tuning, Regression
+├── klassifikation_daten.py # [ ] Zielgröße + Merkmalsblöcke Einzeleinsatz
+├── train_klassifikation.py # [ ] LogReg-L2/RF/XGB, Brand vs. Nicht-Brand
+├── shap_analyse.py       # [ ] SHAP für finale Modelle
+└── demo_modellierung.py  # [x] Demo (wird von train_regression abgelöst)
 results/
 ├── regression/           # Metriken je Fold/Modell/Feature-Set (CSV)
 ├── klassifikation/
@@ -161,18 +191,22 @@ results/
 
 ### Schritt 1 – `features.py`: Datensatz finalisieren
 
-1. `lade_stadtteil_monat()` importieren; Zeitraumfilter `ab_jahr=2012`
-   (Parameter, Default gemäß Entscheidung A3).
-2. McLaren Park ausschließen (Parameter `ohne_ausreisser=True`).
+> **Teilweise erledigt.** Zeitraum, Ausschlüsse und Exposure sitzen bereits in
+> `aggregation.py` (`START`/`ENDE`, `PARKGEBIETE`, `balanciertes_panel()`,
+> `log_bevoelkerung`, `log_kriminalitaetsindex`) mit eigenen Selbsttests.
+> Offen ist nur, die Lag-/Saison-Features aus `demo_modellierung.py` in ein
+> eigenes Modul zu ziehen.
+
+1. ~~Zeitraumfilter~~ → festgesetzt in `aggregation.py` (2015-01 – 2025-12, #18).
+2. ~~Ausreißer ausschließen~~ → `PARKGEBIETE` + `balanciertes_panel()` (#15, #19).
 3. Lag-Features je Stadtteil: `lag_1`, `lag_12`, `rolling_mean_3`
-   (shift(1) vor rolling → kein Leakage); erste Monate droppen.
-4. Saison: `monat_sin`, `monat_cos` (bereits in Demo).
-5. Zwei Spaltenlisten exportieren: `FEATURES_S` (Struktur+Saison),
+   (`shift(1)` vor `rolling` → kein Leakage); erste 12 Monate fallen weg.
+4. Saison: `monat_sin`, `monat_cos` (bereits in der Demo).
+5. Zwei Spaltenlisten exportieren: `FEATURES_S` (Struktur + Saison),
    `FEATURES_SL` (S + Lags). KEIN rohes `jahr` (A2).
-6. **Done-Kriterium:** Funktion gibt DataFrame ohne NaN in Features zurück;
-   Zeilenzahl und Zeitraum werden geloggt; ein pytest-artiger Assert-Block
-   (`python modellierung/features.py`) prüft: keine NaN, Lags korrekt
-   verschoben (Stichprobe), Stadtteile = 38/39.
+6. **Done-Kriterium:** DataFrame ohne NaN; Zeilenzahl und Zeitraum werden
+   geloggt; Assert-Block prüft: keine NaN, Lags korrekt verschoben (Stichprobe),
+   **35 Stadtteile, 4.620 Zeilen vor bzw. 4.200 nach Lag-Bildung**.
 
 ### Schritt 2 – `cv.py`: Validierung zentralisieren
 

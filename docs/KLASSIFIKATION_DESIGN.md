@@ -7,9 +7,45 @@ Ergänzt `docs/UMSETZUNGSLEITFADEN_MODELLIERUNG.md`, Schritt 7.
 
 ## 1. Aufgabe und Analyseebene
 
-**Zielgröße:** `ist_brand` = NFIRS-Code beginnt mit „1" (Brand-Serie 100er),
-binär gegen alle übrigen Serien. Entspricht der im Exposé vorgesehenen
-Vereinfachung (Decision Log #6).
+**Zielgröße: vier zusammengefasste NFIRS-Serien** (Decision Log #21). Der
+Datensatz führt beide Varianten mit, weil Zeilen und Merkmale identisch sind
+und die Entscheidung damit ohne erneute Aufbereitung revidierbar bleibt:
+
+| Spalte | Variante | Verteilung | Ungleichgewicht |
+|---|---|---|---|
+| `einsatzart_gruppe` | **Hauptmodell**, 4 Klassen | Fehlalarm/Good Intent 48,2 % · Technische Hilfe/Gefahr 24,0 % · Rettung/EMS 14,2 % · Brand 13,6 % | **3,6 : 1** |
+| `ist_brand` | Robustheit, binär | Brand 13,6 % vs. 86,4 % | 6,4 : 1 |
+
+**Warum vier Klassen statt binär.** Drei Gründe, alle empirisch belegt:
+
+1. **Bessere Klassenbalance.** 3,6 : 1 statt 6,4 : 1. Die ursprüngliche
+   Begründung für die binäre Variante („Klassenverteilung stark unbalanciert")
+   kehrt sich damit um – die Vereinfachung *erzeugt* das Ungleichgewicht.
+2. **Binär verwirft das stärkste Struktursignal.** Der Fehlalarm-Anteil
+   schwankt zwischen den Stadtteilen von 28,8 % (Portola) bis 61,0 %
+   (Financial District/South Beach), Technische Hilfe von 11,6 % bis 44,9 % –
+   Spannen von über 30 Prozentpunkten mit klarer baulicher Ursache
+   (Hochhäuser und Gewerbe mit automatischen Brandmeldeanlagen). In der
+   binären Aufteilung liegen beide in „Nicht-Brand" und sind für das Modell
+   unsichtbar. Brand selbst streut nur 20,7 Prozentpunkte.
+3. **Näher am Exposé.** Das Exposé nennt die Einsatzart eine „kategoriale
+   Zielgröße" und sieht auf S. 5 vor, dass „seltene Kategorien
+   **zusammengefasst** oder die Klassifikation auf zwei Klassen vereinfacht"
+   wird – das Zusammenfassen ist die zuerst genannte Option.
+
+**Gruppierung** (fachlich, nicht nach Häufigkeit):
+
+| Klasse | NFIRS-Serien |
+|---|---|
+| Brand | 100 |
+| Rettung/EMS | 300 |
+| Technische Hilfe/Gefahr | 200 (Überdruck/Explosion **ohne** Feuer), 400, 500, 800, 900 |
+| Fehlalarm/Good Intent | 600, 700 |
+
+**Metriken:** Macro-F1 und **Macro-AUROC (One-vs-Rest)** – beide Maße des
+Exposés gelten unverändert, nur die Mittelungskonvention ist zu benennen.
+Ein Schwellenwert entfällt, die Zuordnung erfolgt über `argmax`; damit
+entschärft sich zugleich das Basisraten-Problem aus Abschnitt 4.
 
 **Ebene:** Einzeleinsatz. Die Einsatzart ist eine Eigenschaft des einzelnen
 Einsatzes, nicht des Stadtteil-Monats. Die Alternative – Brandanteil je
@@ -138,13 +174,20 @@ Index 98 (2019) auf 185 (2023) und fiel auf 151 (2025), während die
 Nicht-Brand-Einsätze nahezu konstant blieben. Es handelt sich also nicht um
 einen Nenner-Effekt oder eine Codierungsänderung.
 
-**Umgang (Decision Log #20):**
+**Umgang (Decision Log #20, #21):**
 
-- Schwellenwert **je Fold auf dem inneren Fenster** wählen (14,9 % statt 12,0 %
-  – näher am Testniveau), nicht blind 0,5.
-- **AUROC als primäres Maß** berichten, weil schwellenunabhängig und damit von
-  der Verschiebung unberührt; F1 zusätzlich, mit Hinweis auf die Kalibrierung.
+- **Mehrklassig entfällt die Schwellenwahl** (`argmax`), das Problem entschärft
+  sich dadurch erheblich. `class_weight="balanced"` gleicht die Basisraten
+  zusätzlich aus.
+- Nur in der **binären Robustheitsvariante** muss der Schwellenwert je Fold auf
+  dem inneren Fenster gewählt werden (14,9 % statt 12,0 % – näher am
+  Testniveau), nicht blind 0,5.
+- **Macro-AUROC als primäres Maß**, weil schwellenunabhängig und damit von der
+  Verschiebung unberührt; Macro-F1 zusätzlich.
 - Den Anstieg in Kapitel 6 als **Befund** diskutieren, nicht als Störgröße.
+  Die Klassenverteilung der Testfenster (Fold 1/2/3) lautet:
+  Brand 17,3 / 17,1 / 15,3 %, Fehlalarm 45,9 / 44,9 / 46,5 %,
+  Rettung 13,1 / 12,4 / 11,8 %, Technische Hilfe 23,7 / 25,6 / 26,4 %.
 
 ---
 
@@ -152,10 +195,10 @@ einen Nenner-Effekt oder eine Codierungsänderung.
 
 | Rolle | Verfahren | Begründung |
 |---|---|---|
-| Lineares Verfahren | `LogisticRegression(penalty="l2", class_weight="balanced")` | Das Klassifikations-Pendant zu Ridge: identische L2-Regularisierung. `RidgeClassifier` hat kein `predict_proba` und wäre für AUROC unbrauchbar. **Als methodische Präzisierung ins Decision Log.** |
+| Lineares Verfahren | `LogisticRegression(penalty="l2", class_weight="balanced", multi_class="multinomial")` | Das Klassifikations-Pendant zu Ridge: identische L2-Regularisierung. `RidgeClassifier` hat kein `predict_proba` und wäre für AUROC unbrauchbar. **Als methodische Präzisierung ins Decision Log.** |
 | Bagging | `RandomForestClassifier(class_weight="balanced_subsample", n_jobs=-1)` | – |
-| Boosting | `XGBClassifier(scale_pos_weight=6.4, tree_method="hist")` | 6,4 = Verhältnis Nicht-Brand zu Brand |
-| Baseline | Mehrheitsklasse + Basisrate-Zufallsmodell | Ohne Baseline ist ein AUROC-Wert nicht einzuordnen |
+| Boosting | `XGBClassifier(objective="multi:softprob", num_class=4, tree_method="hist")` | Klassengewichte über `sample_weight`; in der binären Variante stattdessen `scale_pos_weight=6.38` |
+| Baseline | Mehrheitsklasse + stratifiziertes Zufallsmodell | Ohne Baseline ist ein AUROC-Wert nicht einzuordnen. Mehrheitsklasse erreicht 48,2 % Accuracy, aber Macro-F1 ≈ 0,16 |
 
 **Tuning:** Randomized Search, 50 Iterationen je Modell, gleiches Budget,
 `random_state=42`, Bewertung ausschließlich auf dem inneren Fenster.
@@ -171,21 +214,24 @@ verwendet wird, dann nur gegen das innere Fenster.
 
 ## 6. Läufe
 
-| # | Merkmale | Zweck |
-|---|---|---|
-| 1 | Block A + B | **Hauptmodell**, Verfahrensvergleich |
-| 2 | nur Block B (Zeit) | Wie viel trägt der Strukturblock wirklich bei? |
-| 3 | Block A + B + `bataillon` | Robustheit: Wie viel trägt reine Ortsidentität bei? |
+| # | Zielgröße | Merkmale | Zweck |
+|---|---|---|---|
+| 1 | 4 Klassen | Block A + B | **Hauptmodell**, Verfahrensvergleich |
+| 2 | 4 Klassen | nur Block B (Zeit) | Wie viel trägt der Strukturblock wirklich bei? |
+| 3 | 4 Klassen | A + B + `bataillon` | Robustheit: Wie viel trägt reine Ortsidentität bei? |
+| 4 | binär `ist_brand` | Block A + B | Robustheit + Anschluss an die im Exposé genannte Vereinfachung |
 
-Alle drei Verfahren durchlaufen alle drei Merkmalssätze mit identischen Folds.
+Alle drei Verfahren durchlaufen alle Merkmalssätze mit identischen Folds.
+Lauf 4 kostet fast nichts: `klassifikation_daten.py` liefert beide Zielgrößen
+auf denselben Zeilen, nur die Zielspalte wird getauscht.
 
 ---
 
 ## 7. Erwartungshaltung
 
 Der Merkmalssatz enthält **keine Information über den konkreten Vorfall** –
-nur darüber, wo und wann er gemeldet wurde. Ein AUROC im Bereich 0,60–0,70 ist
-das realistische Ergebnis, kein Misserfolg. Die Aussage der Arbeit lautet dann:
+nur darüber, wo und wann er gemeldet wurde. Ein Macro-AUROC im Bereich
+0,60–0,70 ist das realistische Ergebnis, kein Misserfolg. Die Aussage der Arbeit lautet dann:
 *Strukturelle und zeitliche Kontextmerkmale erlauben eine begrenzte, aber
 systematisch besser-als-zufällige Differenzierung der Einsatzart; die
 entscheidende Information liegt in der Meldung selbst, die in den offenen Daten

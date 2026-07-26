@@ -28,35 +28,17 @@ from sklearn.linear_model import Ridge
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from aggregation import PRAEDIKTOREN, balanciertes_panel, lade_stadtteil_monat
 from cv import (bewerte_regression, beschreibe_splits, split_holdout,
                 zeit_folds, zeitachse)
+from features import FEATURE_SETS, lade_modelldaten, ridge_sicht
 
 ROOT = Path(__file__).parent.parent
 OUT  = ROOT / "results" / "demo_modellierung"
 
-# Der Analysezeitraum ist in aggregation.py festgesetzt (START/ENDE).
-LAGS = ["lag_1", "lag_12", "rolling_mean_3"]
-
-
-def baue_features(daten: pd.DataFrame) -> pd.DataFrame:
-    """Saison- und Lag-Features, streng vergangenheitsbezogen."""
-    daten = daten.copy()
-    daten["jahr_monat"] = daten["jahr"] * 100 + daten["monat"]
-    # Zyklische Kodierung des Monats (nicht 1-12 als Zahl, nicht `jahr` roh:
-    # Baeume koennen nicht extrapolieren, Leitfaden A2)
-    daten["monat_sin"] = np.sin(2 * np.pi * daten["monat"] / 12)
-    daten["monat_cos"] = np.cos(2 * np.pi * daten["monat"] / 12)
-
-    # Lag-/Rolling-Features je Stadtteil (shift VOR rolling -> kein Leakage).
-    # Loesen das Baseline-Problem (Lag-1-Autokorrelation 0,96).
-    daten = daten.sort_values(["stadtteil", "jahr_monat"]).reset_index(drop=True)
-    g = daten.groupby("stadtteil")["anzahl_einsaetze"]
-    daten["lag_1"]          = g.shift(1)
-    daten["lag_12"]         = g.shift(12)
-    daten["rolling_mean_3"] = g.transform(lambda s: s.shift(1).rolling(3).mean())
-    # Fairness: identische Zeilen fuer ALLE Modelle und Feature-Sets
-    return daten.dropna(subset=LAGS).reset_index(drop=True)
+# Zeitraum, Merkmale und Merkmalssaetze sind zentral definiert:
+#   aggregation.py -> Panel, Zeitraum, Exposure, Kriminalitaetsindex
+#   features.py    -> Saison, Lags, Set S und Set S+L
+#   cv.py          -> Folds, inneres Fenster, End-Hold-out, Guetemasse
 
 
 def baseline_naiv(test: pd.DataFrame) -> np.ndarray:
@@ -72,32 +54,11 @@ def baseline_saisonal(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
                 .fillna(train["anzahl_einsaetze"].mean()).to_numpy())
 
 
-def ridge_sicht(d: pd.DataFrame, spalten: list[str]) -> pd.DataFrame:
-    """Modellspezifische Aufbereitung fuer Ridge.
-
-    Die Lag-Features werden log(1+x)-transformiert, damit ihre Beziehung zur
-    log-transformierten Zielgroesse linear ist (log-AR-Spezifikation). Rohe
-    Lags in einem log-Modell sind fehlspezifiziert (empirisch R2 < 0). Analog
-    zur Skalierung ist das eine modellinterne Transformation und keine
-    Verletzung der Fairness-Regel: identische Zeilen, identische Information.
-    """
-    x = d[spalten].copy()
-    for c in LAGS:
-        if c in x.columns:
-            x[c] = np.log1p(x[c])
-    return x
-
-
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
 
-    roh = lade_stadtteil_monat(verbose=True)
-    daten = baue_features(balanciertes_panel(roh, verbose=True))
-
-    feature_sets = {
-        "S":   PRAEDIKTOREN + ["monat_sin", "monat_cos"],
-        "S+L": PRAEDIKTOREN + ["monat_sin", "monat_cos"] + LAGS,
-    }
+    daten = lade_modelldaten(verbose=True)
+    feature_sets = FEATURE_SETS
 
     monate = zeitachse(daten)
     entwicklung, holdout = split_holdout(monate)

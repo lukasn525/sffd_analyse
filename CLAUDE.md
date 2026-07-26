@@ -16,8 +16,22 @@ Wirtschaftsinformatik) · Betreuer: Prof. Dr. Schröter · 2. Prüfer: Oliver Ba
 
 Referenzen: Exposé (`expose.pdf`), Sprechstunden-Mitschrift (`vorgaben_schroeter.pdf`)
 – beide im Claude-Projekt „Bachelorarbeit" hinterlegt.
-**Umsetzungs-Fahrplan:** `docs/UMSETZUNGSLEITFADEN_MODELLIERUNG.md`
-(Hürden/Risiken A1–A10, Programmier-Teilschritte 1–9, SHAP-Vorgehen, Checkliste).
+
+**Dokumentenlandkarte (Stand 2026-07-26):**
+
+| Datei | Inhalt |
+|---|---|
+| `CLAUDE.md` (diese Datei) | verbindlicher Rahmen, Decision Log, Status |
+| `docs/NAECHSTE_SCHRITTE.md` | Roadmap in einfacher Sprache |
+| `docs/RISIKEN_MODELLIERUNG.md` | **Risikoanalyse R1–R10 vor der Modellierung** |
+| `docs/KLASSIFIKATION_DESIGN.md` | Aufbau des Klassifikationsteils |
+| `docs/UMSETZUNGSLEITFADEN_MODELLIERUNG.md` | Programmierplan (A2–A4 revidiert) |
+| `docs/PREPROCESSING_AUDIT_2026-07-26.md` | Audit-Protokoll (abgearbeitet) |
+| `DATA_DICTIONARY.md` | Spaltenbeschreibung des Analysedatensatzes |
+| `results/eignungspruefung/` | Linearität, VIF, Overdispersion, Klassenbalance |
+| `ABGABE.md` | welche Dateien ins Abgabe-Zip gehören |
+| `tests/test_aufbereitung.py` | 11 Prüfungen der Datenaufbereitung |
+| `docs/archiv/` | **veraltet – nichts davon in die Arbeit übernehmen** |
 
 ---
 
@@ -46,7 +60,7 @@ Referenzen: Exposé (`expose.pdf`), Sprechstunden-Mitschrift (`vorgaben_schroete
 | Zielgröße | Typ | Ebene | Gütemaße |
 |---|---|---|---|
 | Einsatzhäufigkeit (`anzahl_einsaetze`) | Regression (Zähldaten) | Stadtteil × Monat | RMSE, MAE, R² |
-| Einsatzart (`einsatzart`, NFIRS) | Klassifikation (bei starkem Ungleichgewicht: binär Brand vs. Nicht-Brand) | Einzeleinsatz | F1, AUROC |
+| Einsatzart (`einsatzart_gruppe`, NFIRS) | Klassifikation, **4 zusammengefasste Serien** (Decision Log #21); binär Brand vs. Nicht-Brand als Robustheitslauf | Einzeleinsatz | Macro-F1, Macro-AUROC |
 
 Ergänzend: Poisson-/Negative-Binomial-Regression als interpretierbare
 Count-Baseline (Exposé); Trainings-/Inferenzzeiten werden dokumentiert;
@@ -170,13 +184,17 @@ Prep-Pipeline umgesetzt):
 - [x] Exposure `log_bevoelkerung`, Rohwert für NegBin-Offset erhalten (#13)
 - [x] Balanciertes Panel, 38 Stadtteile (#15)
 - [x] Zentrale Zeitschnitte + End-Hold-out (`modellierung/cv.py`, #14)
-- [ ] Encoding kategorialer Variablen (nur Klassifikationsteil: `bataillon`,
-      Zeit-Features; One-Hot **einheitlich für alle Modelle**, im ColumnTransformer)
-- [ ] Umgang mit Klassenungleichgewicht Einsatzart (binär Brand vs. Nicht-Brand
-      gemäß Exposé; class_weight/scale_pos_weight; F1/AUROC statt Accuracy)
-- [ ] Pseudo-Signal-Problem der Klassifikation dokumentieren (Stadtteilmerkmale
-      wiederholen sich über alle Einsätze desselben Stadtteils)
-- [ ] Crime-Merkmale: zeitbewusst vs. statisch entscheiden (#16)
+- [x] Klassifikationsdatensatz (`modellierung/klassifikation_daten.py`):
+      beide Zielgrößen, Merkmalsblöcke, Ausschluss der Ergebnisvariablen,
+      Selbsttests (Abgrenzung identisch zur Regression, keine Leakage-Spalten)
+- [x] Crime-Merkmale zeitbewusst (#17) – ersetzt #16
+- [ ] Encoding kategorialer Variablen im ColumnTransformer (`wochentag`,
+      optional `bataillon`; One-Hot **einheitlich für alle Modelle**)
+- [ ] Umgang mit Klassenungleichgewicht (3,6:1 mehrklassig):
+      `class_weight="balanced"` bzw. `sample_weight`; Macro-F1/Macro-AUROC
+      statt Accuracy
+- [ ] Pseudo-Signal-Problem der Klassifikation im Methodenkapitel ausformulieren
+      (350.481 Einsätze → nur 4.619 verschiedene Stadtteil-Monats-Profile)
 - [ ] VIF/Linearität nur auf Trainingsdaten neu rechnen; `results/eignungspruefung/`
       nach den Fixes vom 2026-07-26 neu erzeugen
 - [ ] Sensitivitätsanalyse Zielgröße „Einsätze je 1.000 Einwohner" (#13)
@@ -241,6 +259,7 @@ Budget je Modell gleich (z. B. 50 Iterationen) → fairer Vergleich.
 | 15 | 2026-07-26 | **Balanciertes Panel: 38 statt 39 Stadtteile** (`balanciertes_panel()`); Mission Bay zusätzlich zu Treasure Island und Lakeshore ausgeschlossen | Mission Bay ist erst ab ACS 2021 als eigene Analyseeinheit enthalten. Zeilenweises `dropna` hätte ein **unbalanciertes** Panel erzeugt (Fold 1 mit 37, spätere Folds mit 38 Stadtteilen) → Testfenster-Summen springen allein durch den Zutritt eines Stadtteils. Rechteckiges Panel ist Voraussetzung für den fairen Fold-Vergleich | umgesetzt & validiert |
 | 16 | 2026-07-26 | ~~Crime-Merkmale vorerst statisch belassen~~ | – | **überholt durch #17** |
 | 17 | 2026-07-26 | **Relativer Kriminalitätsindex je Stadtteil × Monat** ersetzt `anteil_gewaltdelikte_pct` und `anteil_eigentumsdelikte_pct`. Maß: **alle Straftaten je Einwohner, relativ zum Stadtdurchschnitt desselben Monats** (Location Quotient), rollierendes 12-Monats-Fenster endend im Vormonat. Quellen: `tmnf-yvry` (2014–2017, Spatial Join) + `e3si-785i` (ab 2018) | Die alten Merkmale waren (a) **statisch** (0 % Zeitvarianz), (b) über den gesamten Zeitraum inkl. Testfenster kumuliert (**Leakage**) und (c) Anteile statt Intensitäten – zwei Stadtteile mit sehr unterschiedlicher Deliktdichte konnten identische Werte haben. Der relative Index löst alle drei Punkte und ist zugleich robust gegen den SFPD-Systemwechsel 05/2018, weil sich ein stadtweiter Niveausprung im Quotienten kürzt. Konsistent mit der Exposure-Entscheidung #13 | **Code umgesetzt & Logik getestet; Lukas muss `01_fetch.py` mit `DOWNLOAD_CRIME=True` und `DOWNLOAD_CRIME_HISTORISCH=True` laufen lassen** |
+| 21 | 2026-07-26 | **Klassifikation mehrklassig statt binär** (revidiert #6): Zielgröße `einsatzart_gruppe` mit **4 zusammengefassten NFIRS-Serien** – Fehlalarm/Good Intent 48,2 % · Technische Hilfe/Gefahr 24,0 % · Rettung/EMS 14,2 % · Brand 13,6 %. Metriken **Macro-F1 und Macro-AUROC (One-vs-Rest)**, Zuordnung über `argmax` statt Schwellenwert. Die binäre Zielgröße `ist_brand` bleibt als Robustheitslauf im selben Datensatz erhalten | (a) **Bessere Balance:** 3,6:1 statt 6,4:1 – die binäre Vereinfachung erzeugte das Ungleichgewicht, das sie vermeiden sollte. (b) **Binär verwirft das stärkste Struktursignal:** Fehlalarm-Anteil streut je Stadtteil 28,8–61,0 %, Technische Hilfe 11,6–44,9 % (Spannen > 30 pp, Ursache: automatische Brandmeldeanlagen in Hochhäusern/Gewerbe) – beide liegen binär in „Nicht-Brand" und sind unsichtbar; Brand selbst streut nur 20,7 pp. (c) **Exposé-treuer:** dort ist die Einsatzart „kategoriale Zielgröße", und „seltene Kategorien zusammenfassen" ist die zuerst genannte Option (S. 5). (d) Schwellenwert-Kalibrierung entfällt → Basisraten-Problem entschärft | umgesetzt in `modellierung/klassifikation_daten.py`; **mit Schröter bestätigen** |
 | 20 | 2026-07-26 | **Klassifikation: Design festgelegt** (`docs/KLASSIFIKATION_DESIGN.md`). Ebene Einzeleinsatz, gleiche Abgrenzung wie die Regression (2015-01–2025-12, 35 Stadtteile, 350.481 Einsätze, 13,6 % Brand). **Ergebnisvariablen ausgeschlossen** (Sachschaden, Löschfahrzeuge/-kräfte, Alarmstufe, Antwortzeit – erst nach dem Einsatz bekannt). Ridge-Pendant = `LogisticRegression(penalty="l2")`. Schwellenwert je Fold auf dem inneren Fenster, **AUROC primär** | Die Basisrate verschiebt sich über den Zeitraum (Training 12,0 % → Test 17,3 % in Fold 1), weil die absolute Zahl der Brände 2019→2023 um 85 % stieg, bei nahezu konstanten Nicht-Brand-Einsätzen. AUROC ist davon unberührt, F1 nicht → Schwelle zeitnah kalibrieren, Anstieg als Befund in Kap. 6. Pseudo-Signal: 350.481 Zeilen enthalten nur **4.619 verschiedene Stadtteil-Monats-Profile** → SHAP nur blockweise, keine Signifikanztests auf Einsatz-Ebene | Design festgelegt; Umsetzung offen |
 | 19 | 2026-07-26 | **Park-/Institutionsgebiete ausgeschlossen:** Golden Gate Park, Lincoln Park, McLaren Park (`PARKGEBIETE` in `aggregation.py`) → **35 Stadtteile, 4.620 Beobachtungen**. Zusätzlich geht der Kriminalitätsindex **logarithmiert** ins Modell (`log_kriminalitaetsindex`) | Gebiete ohne nennenswerte Wohnbevölkerung sind für ein bevölkerungsbezogenes Risikomodell keine sinnvolle Analyseeinheit: Golden Gate Park hat **45 Einwohner**, einen Kriminalitätsindex von 186 im Median und 7.394 Einsätze je 1.000 Ew./Jahr (Median aller übrigen: 14.435 Ew.). Dieser eine Stadtteil erzeugte eine Schiefe von 9,0 im Index und **Ridge (S) R² −3,9**. Nach Ausschluss + Log-Transformation: Schiefe 0,66, **Ridge (S) R² 0,79**. Entscheidung über die Analyseeinheit, keine Ausreißerbereinigung nach Zielgröße | umgesetzt & validiert; **mit Schröter bestätigen** |
 | 18 | 2026-07-26 | **Analysezeitraum dauerhaft festgesetzt: 2015-01 bis 2025-12** (`START`/`ENDE` in `aggregation.py`, nicht mehr aus den Daten abgeleitet) | Reproduzierbarkeit: Jeder Lauf liefert denselben Zeitraum, unabhängig davon, wie weit der letzte DataSF-Download reicht. 132 Monate × 38 Stadtteile = 5.016 Beobachtungen; nach Lag-Bildung 120 Monate | umgesetzt & validiert |
@@ -272,5 +291,8 @@ Methodenkapitel so präzise, dass die Arbeit reproduzierbar ist · Story/roter F
 | 2026-07-18 | Anthropic Claude (Fable) | „Analysiere mögliche Hürden/Probleme bei der weiteren Bearbeitung und Lösungen, damit alle Algorithmen wertvolle und richtige Erkenntnisse liefern. Schreibe eine Markdown-Datei, die die richtigen Algorithmen einzeln in Teilschritten nach allen Vorgaben zum Programmieren anleitet, inkl. korrekter SHAP-Verwendung." → `docs/UMSETZUNGSLEITFADEN_MODELLIERUNG.md` |
 | 2026-07-18 | Anthropic Claude (Fable) | „Analysiere, wie wir die Probleme bereits in der Prep-Pipeline adressieren können, mache einfache Anpassungen, validiere per Demo-Test und schreibe eine Stichpunkt-Zusammenfassung für das Kapitel Data Preparation. Untersuche, ob zusätzliche Attribute die Probleme beheben und welche Baseline nötig ist." → Pipeline-Anpassungen (Dedup, ACS-/Crime-Join), Lag-Feature-Test, `docs/kapitel_5_2_data_preparation_stichpunkte.md` |
 | 2026-07-26 | Anthropic Claude (Opus) | „Prüfe eine externe Kritikliste mit 11 Preprocessing-Prüfaufträgen gegen den tatsächlichen Repo-Stand und gib aus, was im Preprocessing noch zu erledigen ist und welche Entscheidungen mit welchen Auswirkungen zu treffen sind." → `docs/PREPROCESSING_AUDIT_2026-07-26.md` |
+| 2026-07-26 | Anthropic Claude (Opus) | „Baue einen relativen Kriminalitätsindex je Stadtteil und Monat aus beiden SFPD-Datensätzen (vor und nach 2018), setze den Analysezeitraum dauerhaft fest und beschreibe in einfachen Worten, was für eine langfristig korrekte Data Preparation noch zu tun ist." → Decision Log #17–#19, `docs/NAECHSTE_SCHRITTE.md` |
+| 2026-07-26 | Anthropic Claude (Opus) | „Rechne die Eignungsprüfung neu (nur auf Trainingsdaten) und entwirf den Klassifikationsteil." → `analyse/eignungspruefung.py` (Neufassung), `docs/KLASSIFIKATION_DESIGN.md`, Decision Log #20 |
+| 2026-07-26 | Anthropic Claude (Opus) | „Räume Dokumentation und Hilfsskripte auf, setze alles auf den neuesten Stand und analysiere anhand von Exposé, Vorgaben, Pipeline und Ergebnissen, was bei der Modellierung noch zu Fehlern führen kann." → `docs/RISIKEN_MODELLIERUNG.md`, `docs/archiv/`, Aktualisierung von README, DATA_DICTIONARY und Umsetzungsleitfaden |
 | 2026-07-26 | Anthropic Claude (Opus) | „Setze die Priorität-1-Punkte des Audits um (Randmonat-Bugfix, Exposure-Kontrolle, ACS-Publikationsversatz, End-Hold-out) und beschreibe die Änderungen." → Decision Log #11–#16, `modellierung/cv.py`, Anpassungen in `02_join.py`, `aggregation.py`, `demo_modellierung.py` |
 | 2026-07-18 | Anthropic Claude (Fable) | „Prüfe, ob noch Anpassungen in der Data Preparation nötig sind (Safe-to-Train, wissenschaftliche Vergleichbarkeit der drei Algorithmen), und schreibe Kapitel 5 der Arbeit in LaTeX mit ausgewählten, erklärten Code-Snippets inkl. Highlighting-Setup." → Audit-Fix #10 (bfill-Leakage), Hauptanalyse ab 2014 (#5), `docs/kapitel_5_empirische_analyse.tex` |

@@ -1,12 +1,39 @@
 # Data Dictionary – sf_fire_risk_features.parquet
 
+*Stand 2026-07-26 (nach dem Preprocessing-Audit).*
+
 **Tabelle:** `data/processed/sf_fire_risk_features.parquet`
-**Zeilen:** 720.258 (ein Datensatz pro SFFD-Feuerwehreinsatz, 2003–2026)
-**Spalten:** 53
+**Zeilen:** 719.989 (ein Datensatz pro SFFD-Einsatz, 2003–2026, nach Dedup und
+Antwortzeit-Filter)
+**Spalten:** 50
 **Trennzeichen (CSV-Export):** `;`
 
-Jeder Einsatz wird mit Neighborhood-Aggregaten angereichert, die zur Zeit des Einsatzes
-gültig waren (zeitbewusster Join für ACS; Crime und Land Use sind statisch über alle Jahre).
+Jeder Einsatz wird mit Neighborhood-Merkmalen angereichert, die zum
+Prognosezeitpunkt **tatsächlich verfügbar** waren:
+
+| Quelle | Zeitliche Auflösung | Verfügbarkeitsregel |
+|---|---|---|
+| ACS (sozioökonomisch) | Snapshot je Jahrgang | letzter *publizierter* Jahrgang, `acs_jahr ≤ Einsatzjahr − 1` (Publikationsversatz, Decision Log #11) |
+| Kriminalität | **Stadtteil × Monat** | rollierendes 12-Monats-Fenster, endend im **Vormonat** (Decision Log #17) |
+| Land Use (baulich) | Snapshot 2020 | über den gesamten Zeitraum konstant (einziger verfügbarer Jahrgang) – dokumentierte Limitation |
+
+## Analysedatensatz für die Modellierung
+
+Diese Tabelle ist der Pipeline-Output auf **Einsatz-Ebene**. Die Modellierung
+verwendet zwei davon abgeleitete Datensätze:
+
+| | Regression | Klassifikation |
+|---|---|---|
+| Ebene | Stadtteil × Monat | Einzeleinsatz |
+| Zeitraum | 2015-01 – 2025-12 | identisch |
+| Einheiten | 35 Stadtteile | dieselben 35 Stadtteile |
+| Beobachtungen | 4.620 (rechteckiges Panel) | 350.481 |
+| Zielgröße | `anzahl_einsaetze` | `ist_brand` (NFIRS 100er, 13,6 %) |
+| Erzeugt in | `modellierung/aggregation.py` | `modellierung/klassifikation_daten.py` |
+
+Ausgeschlossene Stadtteile: Treasure Island, Lakeshore, Mission Bay (keine
+durchgängige ACS-Abdeckung) sowie Golden Gate Park, Lincoln Park, McLaren Park
+(Park-/Institutionsgebiete ohne nennenswerte Wohnbevölkerung).
 
 ---
 
@@ -79,17 +106,47 @@ gültig waren (zeitbewusster Join für ACS; Crime und Land Use sind statisch üb
 
 ---
 
-## 4. Crime-Rohdaten (Neighborhood-Ebene)
+## 4. Kriminalität (Neighborhood × Monat)
 
-> Quelle: DataSF – SFPD Incident Reports, monatlich voraggregiert (`e3si-785i`)
-> Aggregation: Summe aller monatlichen Snapshots über alle Jahre (2003–2026).
-> **Statisch** – kein zeitbewusster Join, gleicher Wert für alle Einsätze im selben Neighborhood.
+> **Seit 2026-07-26 vollständig überarbeitet (Decision Log #17).** Die früheren
+> Merkmale `total_crimes`, `violent_crime_count`, `property_crime_count` und die
+> daraus gebildeten Anteile existieren nicht mehr: Sie waren über den gesamten
+> Zeitraum kumuliert (Zukunftsinformation), zeitlich konstant und maßen die
+> Zusammensetzung statt der Intensität der Kriminalität.
+>
+> **Quellen** (zwei, weil der aktuelle Datensatz erst 2018 beginnt):
+> - `tmnf-yvry` – SFPD Incident Reports historisch, 2014-01 bis 2017-12.
+>   Ohne Stadtteilspalte → Spatial Join der Koordinaten gegen dieselbe
+>   Neighborhood-Geometrie wie bei Land Use. Match-Rate 100,0 % (572.814 Delikte).
+> - `e3si-785i` – SFPD Incident Reports monatlich voraggregiert, ab 2018-01
+>   (992.441 Delikte). Enthält `analysis_neighborhood` direkt.
+>
+> Gezählt werden **alle** Straftaten; eine Harmonisierung der beiden
+> Kategorienschemata ist deshalb nicht erforderlich.
 
-| Spalte | Typ | Beschreibung | Hinweis |
+**Berechnung** (Location Quotient der Kriminalitätsbelastung):
+
+```
+rate(i,t)     = Delikte(i, 12 Monate bis t−1) / Einwohner(i)
+rate(Stadt,t) = Delikte(Stadt, gleiches Fenster) / Einwohner(Stadt)
+index(i,t)    = rate(i,t) / rate(Stadt,t)
+```
+
+| Spalte | Typ | Beschreibung | Wertebereich |
 |---|---|---|---|
-| `total_crimes` | int | Gesamtzahl gemeldeter Delikte (alle Kategorien) | Summe über gesamten Beobachtungszeitraum |
-| `violent_crime_count` | int | Gewaltdelikte | Assault, Homicide, Robbery, Rape, Kidnapping, Weapons Offenses |
-| `property_crime_count` | int | Eigentumsdelikte | Burglary, Theft, Motor Vehicle Theft, Arson, Vandalism |
+| `crime_index` → `kriminalitaetsindex` | float | Relative Kriminalitätsbelastung. **1,0 = Stadtdurchschnitt desselben Monats**, 2,0 = doppelt so hoch | Panel: 0,05 – 13,55, Median 0,77 |
+| `crime_rate_raw` → `kriminalitaetsrate_pro_1000_ew_roh` | float | Absolute Rate je 1.000 Einwohner, gleiches Fenster | **nur deskriptiv** – enthält den Strukturbruch 2018 |
+
+**Warum relativ?** Im Mai 2018 stellte SFPD von CABLE auf das Crime Data
+Warehouse um. Ein solcher stadtweiter Niveausprung wirkt auf Zähler und Nenner
+des Quotienten gleich und kürzt sich heraus. Empirisch bestätigt: Rangkorrelation
+der Stadtteile 2017 vs. 2019 = **0,975**, Median-Verhältnis 1,01
+(`results/eignungspruefung/`). **Nicht** heraus kürzt sich eine Verschiebung in
+der Zusammensetzung, die einzelne Stadtteile unterschiedlich trifft → Limitation
+Kap. 6.3.
+
+**Kein Leakage:** Das Fenster endet strikt im Vormonat. Für den ersten
+Analysemonat 2015-01 werden die Delikte aus 2014-01 bis 2014-12 verwendet.
 
 ---
 
@@ -126,12 +183,10 @@ gültig waren (zeitbewusster Join für ACS; Crime und Land Use sind statisch üb
 
 ## 7. Abgeleitete Variablen – Crime
 
-> Berechnet in `03_compute_features.py`. Anteil an `total_crimes`. **Wertebereich: [0, 1]**
-
-| Spalte | Typ | Formel | Einheit | NaN% |
-|---|---|---|---|---|
-| `pct_violent_crime` | float | `violent_crime_count / total_crimes` | [0, 1] | 0,0 % |
-| `pct_property_crime` | float | `property_crime_count / total_crimes` | [0, 1] | 0,0 % |
+> **Entfallen.** `pct_violent_crime` und `pct_property_crime` wurden am
+> 2026-07-26 durch den Kriminalitätsindex ersetzt (s. Abschnitt 4). Die
+> Berechnung findet nicht mehr in `03_features.py`, sondern in `02_join.py`
+> statt, weil sie eine Zeitdimension und die Einwohnerzahl benötigt.
 
 ---
 
@@ -152,23 +207,60 @@ gültig waren (zeitbewusster Join für ACS; Crime und Land Use sind statisch üb
 
 | Variable | Mean | Median | Min | Max |
 |---|---|---|---|---|
-| `poverty_rate` | 0,1321 | 0,1126 | 0,0000 | 0,9038 |
-| `bachelor_rate` | 0,3350 | 0,3523 | 0,0000 | 0,8000 |
-| `vacancy_rate` | 0,1073 | 0,0971 | 0,0000 | 0,2371 |
-| `pct_violent_crime` | 0,0896 | 0,0917 | 0,0168 | 0,1356 |
-| `pct_property_crime` | 0,1252 | 0,1330 | 0,0323 | 0,2454 |
+| `poverty_rate` | 0,1295 | 0,1126 | 0,0000 | 0,9038 |
+| `bachelor_rate` | 0,3335 | 0,3487 | 0,0000 | 0,8000 |
+| `vacancy_rate` | 0,1072 | 0,0937 | 0,0000 | 0,2371 |
 | `pct_pre1940` | 0,7221 | 0,7689 | 0,0220 | 1,0000 |
 | `pct_pre1960` | 0,8466 | 0,8923 | 0,6056 | 1,0000 |
 | `pct_residential` | 0,6722 | 0,7952 | 0,0000 | 0,9708 |
-| `pct_high_risk_commercial_area` | 0,0745 | 0,0525 | 0,0000 | 0,2218 |
+| `pct_high_risk_commercial_area` | 0,0744 | 0,0525 | 0,0000 | 0,2218 |
+
+---
+
+## 9. Modellmerkmale (Analysepanel Stadtteil × Monat)
+
+Die zehn Prädiktoren, die tatsächlich in die Modelle gehen
+(`PRAEDIKTOREN` in `modellierung/aggregation.py`). Werte bezogen auf das
+Analysepanel 2015-01 – 2025-12, 35 Stadtteile, 4.620 Beobachtungen, keine NaN.
+
+| Merkmal | Gruppe | Min | Median | Max | Zeitvarianz |
+|---|---|---|---|---|---|
+| `median_haushaltseinkommen` | sozioökonomisch | 20.562 | 112.328 | 246.635 | 4 Werte (ACS-Jahrgänge) |
+| `armutsquote_pct` | sozioökonomisch | 0,007 | 0,096 | 0,361 | 4 Werte |
+| `akademikerquote_pct` | sozioökonomisch | 0,147 | 0,360 | 0,553 | 4 Werte |
+| `median_miete` | sozioökonomisch | 722 | 1.883 | 3.501 | 4 Werte |
+| `leerstandsquote_pct` | sozioökonomisch | 0,005 | 0,082 | 0,237 | 4 Werte |
+| `log_bevoelkerung` | Exposure | 7,77 | 9,73 | 11,31 | 4 Werte |
+| `log_kriminalitaetsindex` | Kriminalität | −2,98 | −0,26 | 2,61 | **128 Werte (monatlich)** |
+| `anteil_altbau_vor_1940_pct` | baulich | 0,128 | 0,769 | 0,908 | **konstant** |
+| `anteil_wohngebaeude_pct` | baulich | 0,133 | 0,886 | 0,971 | **konstant** |
+| `anteil_risikogewerbe_pct` | baulich | 0,000 | 0,034 | 0,222 | **konstant** |
+
+Zusätzlich im Panel enthalten, aber **kein** Modellmerkmal:
+`gesamtbevoelkerung` (roh, für NegBin-Offset und Raten-Sensitivität) und
+`kriminalitaetsindex` (roh, für die Interpretation in Kap. 5.1).
 
 ---
 
 ## Hinweise für die Modellierung
 
-- **Einheit der Analyse:** Einzelner Feuerwehreinsatz (nicht Neighborhood).
-- **Neighborhood-Variablen** (ACS, Crime, Land Use) sind pro Neighborhood konstant – d.h. alle Einsätze im selben Neighborhood / ACS-Jahrgang teilen identische Werte. Bei Regressionen Clustered Standard Errors auf `neighborhood` erwägen.
-- **`bachelor_rate` (37 % NaN):** Für Einsätze 2003–2011 nicht verfügbar (ACS 2009 enthält B15003 nicht). Entweder Zeitraum einschränken, Imputation oder alternative Bildungsvariable verwenden.
-- **`no_flame_spread`** enthält gemischte Codierungen (`"NA"`, `"NO"`, `"Y"`, `"1"`–`"5"`) und ist vor der Nutzung zu bereinigen.
-- **Crime-Aggregate** sind kumulativ (alle Jahre), keine Jahresdurchschnitte. Für zeitvergleichende Analysen müssten sie durch die Beobachtungsjahre geteilt werden.
-- **Land Use Snapshot 2020** – historische Nutzungsänderungen vor 2020 sind nicht abgebildet.
+- **Zwei Analyseebenen:** Regression auf Stadtteil × Monat, Klassifikation auf
+  Einzeleinsatz. Beide mit identischer Abgrenzung (2015-01 – 2025-12,
+  35 Stadtteile).
+- **Pseudo-Signal auf Einsatz-Ebene:** Die Stadtteilmerkmale sind je
+  Stadtteil-Monat konstant. 350.481 Einsätze enthalten nur 4.619 verschiedene
+  Merkmalsprofile. Keine Signifikanztests auf Einsatz-Ebene; SHAP nur nach
+  Merkmalsblöcken aggregiert (s. `docs/KLASSIFIKATION_DESIGN.md`).
+- **Ergebnisvariablen nicht als Prädiktoren:** `schaetzung_sachschaden_usd`,
+  `loeschfahrzeuge`, `loeschkraefte`, `alarmstufe`, `antwortzeit_min`,
+  `zivile_verletzte`, `zivile_tote`, `flammenausbreitung_eingedaemmt` stehen erst
+  nach dem Einsatz fest und sind vom Merkmalssatz ausgeschlossen.
+- **`no_flame_spread`** enthält gemischte Codierungen (`"NA"`, `"NO"`, `"Y"`,
+  `"1"`–`"5"`) – ohnehin ausgeschlossen (Ergebnisvariable).
+- **Drei bauliche Merkmale ohne Zeitvarianz** (Land-Use-Snapshot 2020): Sie
+  erklären Niveauunterschiede zwischen Stadtteilen, nicht deren zeitliche
+  Entwicklung. In der Interpretation entsprechend formulieren.
+- **`akademikerquote_pct`** ist erst ab dem ACS-Jahrgang 2014 verfügbar; mit dem
+  Publikationsversatz von einem Jahr beginnt der Analysezeitraum daher 2015.
+- **Antwortzeit-Filter** (0–60 min) entfernt ~1,7 % der Einsätze bereits in der
+  Prep-Pipeline. Alle Zählungen beziehen sich auf den gefilterten Bestand.

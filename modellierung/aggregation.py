@@ -273,19 +273,6 @@ def balanciertes_panel(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    # Hauptanalyse-Konfiguration (Decision Log #5, #11-#18)
-    d = lade_stadtteil_monat(verbose=True)
-    voll = balanciertes_panel(d, verbose=True)
-
-    # Selbsttests (Done-Kriterien, Leitfaden Schritt 1)
-    jm = voll["jahr"] * 100 + voll["monat"]
-    n_monate = voll.groupby(["jahr", "monat"]).ngroups
-    assert len(voll) == voll["stadtteil"].nunique() * n_monate, \
-        "Panel ist nicht das vollstaendige Kreuzprodukt Stadtteil x Monat."
-    assert voll[PRAEDIKTOREN].notna().all().all(), "NaN im balancierten Panel."
-    assert jm.min() == START and jm.max() == ENDE, \
-        f"Zeitraum {jm.min()}-{jm.max()} weicht von {START}-{ENDE} ab."
-    assert n_monate == 132, f"Erwartet 132 Monate, gefunden {n_monate}."
-    assert voll["log_bevoelkerung"].notna().all(), "Exposure fehlt."
-    print("\n  Selbsttests bestanden (rechteckiges Panel, keine NaN, "
-          f"Zeitraum {START}-{ENDE}, Exposure).")
+    # Hauptanalyse-Konfiguration (Decision Log #5, #11-#19)
+    balanciertes_panel(lade_stadtteil_monat(verbose=True), verbose=True)
+    print("\n  Pruefungen: python tests/test_aufbereitung.py")

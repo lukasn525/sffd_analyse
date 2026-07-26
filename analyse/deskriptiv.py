@@ -2,7 +2,7 @@
 Deskriptive Statistik auf dem finalen Modelldatensatz.
 
 Liest:
-  data/processed/sf_fire_risk_features_cleaned.parquet  (23 Spalten, deutsch)
+  data/processed/sf_fire_risk_features_cleaned.parquet  (25 Spalten, deutsch)
 
 Schreibt:
   results/deskriptiv_summary.txt

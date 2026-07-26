@@ -179,14 +179,5 @@ if __name__ == "__main__":
 
     d = balanciertes_panel(lade_stadtteil_monat())
     d["jahr_monat"] = d["jahr"] * 100 + d["monat"]
-    monate = zeitachse(d)
-    print(beschreibe_splits(monate))
-
-    entwicklung, holdout = split_holdout(monate)
-    assert set(entwicklung).isdisjoint(holdout), "Hold-out ueberlappt Entwicklung."
-    for tr, te in zeit_folds(entwicklung):
-        assert max(tr) < min(te), "Testfenster liegt nicht nach dem Training."
-        assert set(te).isdisjoint(holdout), "Fold-Test greift ins Hold-out."
-        sub, val = inneres_fenster(tr)
-        assert max(sub) < min(val) < min(te), "Inneres Fenster falsch geordnet."
-    print("\n  Selbsttests bestanden (Ordnung, Disjunktheit, Hold-out unberuehrt).")
+    print(beschreibe_splits(zeitachse(d)))
+    print("\n  Pruefungen: python tests/test_aufbereitung.py")
