@@ -68,8 +68,43 @@ SHAP-Analyse zur Interpretation.
 - Linearität (Schröter-Prüfpunkt): **lineare Baseline vorhanden** (OLS R²≈0,71 auf Stadtteil×Monat; stärkster Prädiktor `anteil_risikogewerbe_pct` r=0,69) → Ridge zulässig; wegen Trichter-Residuen und negativer Vorhersagen auf Rohskala: **Ridge auf log(1+y)**.
 - VIF: max. 8,8 (Einkommen), 7,7 (Miete) → erhöhte, aber nicht extreme Multikollinearität → klassischer Ridge-Anwendungsfall; für RF/XGB unkritisch.
 - Klassifikation: Fehlalarme 44,7 %, Brand 13,1 % → binär **Brand vs. Nicht-Brand (13/87)**, class_weight + F1/AUROC.
-- Datenqualität: 269 doppelte Einsatznummern aus Quelldaten (0,04 %, Dedup in Modellierungsschicht); McLaren-Park-ACS-Artefakt (Armutsquote 0,90 bei 850 Ew.); Treasure Island & Lakeshore ohne ACS-Werte (entfallen); `akademikerquote_pct` 37 % NaN vor 2012.
-- Demo-Modellierung (3-Fold-TS-CV, Test je 12 Monate; **Stand nach Audit-Fix #10, ehrliche NaN → Datensatz 2015–2026, 5.103 Zeilen**): **Ridge (S+L) RMSE 21,6 / R² 0,91 · RF (S+L) RMSE 22,2 / R² 0,90 · Naiv RMSE 24,5 / R² 0,88 · RF (S) R² 0,88 · Saisonal R² 0,85 · Ridge (S) R² 0,17.** Lag-1-Autokorrelation 0,96; Linearität auf ehrlichem Subset: OLS R² 0,74 (roh) / 0,76 (log). → **Baseline-Problem (Decision Log #8) durch Lag-Attribute gelöst:** mit `lag_1`, `lag_12`, `rolling_mean_3` schlagen beide Modellklassen die naive Baseline; reine Strukturmerkmale (Set S) erklären das Querschnittsniveau, nicht die Dynamik. Für Ridge müssen Lags log(1+x)-transformiert werden (roh: R² −5,9!). Maßgebliche Hürde bleibt die **naive Vormonats-Baseline**.
+- Datenqualität: 269 doppelte Einsatznummern aus Quelldaten (0,04 %, Dedup in der Prep-Pipeline); McLaren-Park-ACS-Artefakt (Armutsquote 0,90 bei 850 Ew.); Treasure Island, Lakeshore und Mission Bay ohne durchgängige ACS-Abdeckung (entfallen, Decision Log #15); `akademikerquote_pct` erst ab ACS-2014-Snapshot.
+
+**Stand nach dem Preprocessing-Audit vom 2026-07-26** (Decision Log #11–#16, Details:
+`docs/PREPROCESSING_AUDIT_2026-07-26.md`):
+
+- **Analysedatensatz Regression:** Stadtteil × Monat, **2015-01 – 2025-12**, **35 Stadtteile**,
+  **4.620 Zeilen** (rechteckiges Panel, keine NaN); nach Lag-Bildung 120 Monate
+  (2016-01 – 2025-12). Dispersionsindex 62,8 → NegBin bestätigt;
+  Nullanteil 0,02 % → keine Zero-Inflation.
+  Ausgeschlossen: Treasure Island, Lakeshore, Mission Bay (keine durchgängige
+  ACS-Abdeckung, #15) sowie Golden Gate Park, Lincoln Park, McLaren Park
+  (Park-/Institutionsgebiete ohne Wohnbevölkerung, #19).
+- **Kriminalitätsindex (#17) wirkt:** 128 verschiedene Werte je Stadtteil über
+  132 Monate (vorher: 1 Wert, 0 % Zeitvarianz). Median 0,77, Spanne 0,05–13,55;
+  logarithmiert Schiefe 0,66. Korrelation mit der Einsatzzahl +0,59.
+- **Zeitschnitte (zentral in `modellierung/cv.py`):** Entwicklungsdaten 2016-01 – 2024-12,
+  **End-Hold-out 2025-01 – 2025-12 (beim Tuning unberührt)**; 3 Folds à 12 Testmonate,
+  inneres Validierungsfenster = letzte 12 Trainingsmonate.
+- **Demo-Modellierung nach allen Fixes** (3-Fold-TS-CV, Mittel ± Std, Hold-out nicht ausgewertet):
+  **Ridge (S+L) RMSE 15,0 ± 0,9 / R² 0,96 · RF (S+L) RMSE 16,8 ± 0,9 / R² 0,95 ·
+  Naiv RMSE 17,8 ± 1,3 / R² 0,95 · RF (S) RMSE 25,3 / R² 0,89 ·
+  Saisonal RMSE 25,6 / R² 0,89 · Ridge (S) RMSE 34,0 / R² 0,79.**
+  Set S (reine Strukturmerkmale) ist damit erstmals belastbar: R² 0,17 (Ausgangsstand)
+  → 0,52 (Exposure #13) → **0,79** (Kriminalitätsindex #17 + Analyseeinheiten #19).
+- **Korrektur gegenüber dem Stand 2026-07-18:** Der Einbruch von Fold 3 (Naiv R² 0,74)
+  war **kein Nichtstationaritäts-Befund**, sondern der Phantom-Monat 2026-01
+  (Decision Log #12). Nach dem Fix sind die Folds stabil (R² 0,95/0,95/0,96).
+  **Hürde A2 im Umsetzungsleitfaden ist entsprechend zu korrigieren.**
+- **Baseline-Problem (Decision Log #8) bleibt gelöst:** mit `lag_1`, `lag_12`,
+  `rolling_mean_3` schlagen beide Modellklassen die naive Baseline; reine
+  Strukturmerkmale (Set S) erklären das Querschnittsniveau, nicht die Dynamik.
+  Für Ridge müssen Lags log(1+x)-transformiert werden. Die Exposure-Kontrolle
+  (#13) hebt Set S deutlich an (Ridge (S) R² 0,17 → 0,52).
+- **Weiterhin offen:** VIF/Linearitätsprüfung wurden auf dem Gesamtdatensatz statt
+  nur auf Trainingsdaten gerechnet; `results/eignungspruefung/` ist nach den Fixes
+  **veraltet** und neu zu rechnen. Klassifikationsteil existiert noch nicht.
+  Details und Reihenfolge: `docs/NAECHSTE_SCHRITTE.md`.
 
 ## 4. Preprocessing-Pipeline (Prüfpunkt Schröter!) – Bestandsdokumentation
 
@@ -95,10 +130,18 @@ Bestehende Pipeline `pipeline/01_fetch.py → 02_join.py → 03_features.py`
   summiert; **strikt prognostischer Join**: jeder Einsatz erhält den *letzten
   verfügbaren* ACS-Snapshot (`acs_jahr` ≤ Einsatzjahr); Ausnahme 2003–2008 →
   Rückgriff auf ACS 2009 (kein älterer Jahrgang; Hauptanalyse ab 2012)
-- Crime: **zeitbewusster Join implementiert** (Kumulation je Neighborhood nur bis
-  Vorjahr); aktiv erst nach Neu-Download der Rohdaten mit Datumsspalte
-  (`01_fetch.py`, `DOWNLOAD_CRIME=True` – lokale `crime_raw.parquet` ist älterer
-  Stand ohne Datum) → bis dahin dokumentierter **Fallback: statisch**
+- Crime: **relativer Kriminalitätsindex je Stadtteil × Monat** (Decision Log #17).
+  Zwei Quellen, weil `e3si-785i` erst 2018-01 beginnt: `tmnf-yvry` (2014–2017,
+  Zuordnung per Spatial Join der Koordinaten gegen dieselbe Neighborhood-Geometrie
+  wie bei Land Use) + `e3si-785i` (ab 2018-01). Alle Straftaten werden gezählt,
+  daher **keine Kategorien-Harmonisierung nötig**.
+  Definition (Location Quotient): `Index(i,t) = [Delikte(i, 12-Monats-Fenster
+  endend in t−1) / Einwohner(i)] ÷ [dasselbe stadtweit]`. Lesart: 1,0 =
+  Kriminalitätsbelastung wie im Stadtdurchschnitt desselben Monats.
+  Der SFPD-Systemwechsel 05/2018 (CABLE → Crime Data Warehouse) verschiebt das
+  stadtweite Niveau; ein solcher multiplikativer Sprung kürzt sich im Quotienten
+  heraus. **Kein statischer Fallback mehr** – fehlen die Rohdaten, bricht die
+  Pipeline mit Anleitung ab.
 - Land Use: Spatial Join Parzellen-Centroid→Neighborhood-Polygon (Match 99,5 %),
   Aggregation je Neighborhood → **statisch** (Snapshot 2020; einziger Jahrgang);
   aggregierte Tabelle wird gecacht (CSV löschen zum Neuberechnen)
@@ -123,13 +166,21 @@ Prep-Pipeline umgesetzt):
 - [x] Aggregation Stadtteil × Monat (`modellierung/aggregation.py`)
 - [x] Skalierung für Ridge (StandardScaler in sklearn-Pipeline, nur auf Train gefittet)
 - [x] Zielgrößen-Transformation log(1+y) für Ridge (Ergebnis Linearitätsprüfung)
+- [x] Randmonat-Konstante `ENDE` + Vollständigkeitswarnung (#12)
+- [x] Exposure `log_bevoelkerung`, Rohwert für NegBin-Offset erhalten (#13)
+- [x] Balanciertes Panel, 38 Stadtteile (#15)
+- [x] Zentrale Zeitschnitte + End-Hold-out (`modellierung/cv.py`, #14)
 - [ ] Encoding kategorialer Variablen (nur Klassifikationsteil: `bataillon`,
-      Zeit-Features; One-Hot bzw. nativ bei XGBoost – einheitlich für alle Modelle!)
+      Zeit-Features; One-Hot **einheitlich für alle Modelle**, im ColumnTransformer)
 - [ ] Umgang mit Klassenungleichgewicht Einsatzart (binär Brand vs. Nicht-Brand
       gemäß Exposé; class_weight/scale_pos_weight; F1/AUROC statt Accuracy)
-- [ ] Fehlende Werte: `akademikerquote_pct` ~37 % NaN (ACS 2009 ohne B15003) →
-      Entscheidung: Zeitraum einschränken vs. Feature streichen vs. Imputation
-      (→ Decision Log, mit Schröter klären)
+- [ ] Pseudo-Signal-Problem der Klassifikation dokumentieren (Stadtteilmerkmale
+      wiederholen sich über alle Einsätze desselben Stadtteils)
+- [ ] Crime-Merkmale: zeitbewusst vs. statisch entscheiden (#16)
+- [ ] VIF/Linearität nur auf Trainingsdaten neu rechnen; `results/eignungspruefung/`
+      nach den Fixes vom 2026-07-26 neu erzeugen
+- [ ] Sensitivitätsanalyse Zielgröße „Einsätze je 1.000 Einwohner" (#13)
+- [ ] Robustheitsvariante mit Stadtteil-ID (Maß für unbeobachtete Heterogenität)
 
 **Fairness-Regel:** Alle drei Modelle erhalten exakt denselben aufbereiteten
 Datensatz (identische Zeilen, Features, CV-Folds). Modellspezifische
@@ -139,7 +190,14 @@ Transformationen (Skalierung) laufen innerhalb der sklearn-Pipeline je Fold.
 
 - **Time-Series-Cross-Validation** (expanding window über Monate, Testfenster
   12 Monate, kein Blick in die Zukunft; vgl. Bergmeir & Benítez 2012).
-  Implementiert in `modellierung/demo_modellierung.py::zeit_folds`.
+  **Zentral implementiert in `modellierung/cv.py`** – alle Verfahren beziehen
+  Splits und Gütemaße ausschließlich von dort (konstruktive Absicherung der
+  Fairness-Regel). Zusätzlich: **End-Hold-out der letzten 12 Monate**
+  (`split_holdout`, beim Tuning unberührt) und **inneres Validierungsfenster**
+  (`inneres_fenster`) für die Hyperparameter-Suche.
+  *Kein Gap zwischen Train- und Testfenster nötig:* alle Lag-/Rolling-Features
+  sind strikt rückwärtsgerichtet (`shift` vor `rolling`), ein Testmonat greift
+  nie auf Werte nach seinem eigenen Zeitpunkt zu.
 - **Vergleichsgrößen:** naives Modell (Vormonatswert je Stadtteil) + saisonaler
   Durchschnitt (Mittelwert desselben Kalendermonats im Training je Stadtteil).
 - **Gütemaße:** RMSE, MAE, R² (Regression) · F1, AUROC (Klassifikation) ·
@@ -176,6 +234,16 @@ Budget je Modell gleich (z. B. 50 Iterationen) → fairer Vergleich.
 | 8 | 2026-07-18 | Baseline-Problem **empirisch gelöst durch Option A**: Lag-Features (`lag_1`, `lag_12`, `rolling_mean_3`) für alle Modelle; Demo: Ridge (S+L) R² 0,91 und RF (S+L) 0,90 schlagen Naiv 0,88; Set S bleibt für Unterfrage 1 im Vergleich | Fair (identische Zeilen/Folds), praxisüblich; Erklärungsbeitrag der Strukturmerkmale wird über SHAP quantifiziert | umgesetzt in Demo; **Framing mit Schröter bestätigen** |
 | 9 | 2026-07-18 | Lag-Features werden für Ridge log(1+x)-transformiert (modellinterne Aufbereitung analog Skalierung) | Rohe Lags in log-Zielgrößen-Modell fehlspezifiziert (empirisch R² −5,9); log-AR-Spezifikation korrekt | umgesetzt |
 | 10 | 2026-07-18 | **Audit-Fix:** `bfill` aus der Stadtteil-Monat-Aggregation entfernt (nur noch `ffill`) | `bfill` imputierte fehlende Werte (v. a. `akademikerquote_pct` vor 2014) stillschweigend mit **Zukunftswerten** (Leakage); nach Fix ehrliche NaN, Behandlung über Zeitraumfilter (#5); Demo-Ergebnisse bleiben robust (Ridge S+L 0,91 · RF S+L 0,90 · Naiv 0,88; Linearität R² 0,74) | umgesetzt & validiert |
+| 11 | 2026-07-26 | **ACS-Publikationsversatz +1 Jahr** (`ACS_PUBLIKATIONS_LAG` in `02_join.py`): Snapshot-Bedingung jetzt `acs_jahr ≤ Einsatzjahr − 1` | Die ACS-5-Jahres-Schätzung für Jahr y erscheint erst ca. Dez. y+1. Ohne Versatz nutzte ein Einsatz aus 2023 den ACS-Jahrgang 2023 – zum Prognosezeitpunkt nicht publiziert, Modell nicht implementierbar. Kostet den Jahrgang 2014; **Hauptanalyse startet nun 2015** | **umgesetzt & validiert (Pipeline neu gerechnet)**; mit Schröter bestätigen |
+| 12 | 2026-07-26 | **Audit-Fix: Randmonat-Konstante `ENDE = 202512`** in `aggregation.py` (statt „größter vorhandener `jahr_monat` minus 1") | Alte Logik schnitt nur 2026-02 (1 Einsatz) ab; **2026-01 blieb mit 258 statt ~3.300 Einsätzen als scheinbar vollständiger Monat im Panel** und lag im Testfenster des letzten Folds. Wirkung: naive Baseline dort R² 0,740 statt 0,955. Zusätzlich warnt `pruefe_randmonate()` bei künftigen Downloads | **umgesetzt & validiert** |
+| 13 | 2026-07-26 | **Exposure: `log_bevoelkerung` statt roher `gesamtbevoelkerung`** als Prädiktor; Rohwert bleibt für NegBin-Offset und Raten-Sensitivität im Datensatz | Ohne Exposure-Kontrolle sagt das Modell im Kern die Stadtteilgröße vorher: `armutsquote_pct` r=+0,20 auf absolute Counts, aber **−0,13** auf Einsätze je 1.000 Ew.; `anteil_risikogewerbe_pct` +0,70 vs. −0,12. Zielgröße bleibt Zähldaten → NegBin/Overdispersion-Argumentation intakt. Empirischer Effekt: Ridge (S) R² 0,17 → **0,52** | umgesetzt; **Raten-Sensitivität steht noch aus**; mit Schröter bestätigen |
+| 14 | 2026-07-26 | **End-Hold-out der letzten 12 Monate** (`modellierung/cv.py`, `split_holdout`): 2025-01–2025-12 wird bei Modellwahl und Tuning nie berührt | Fold 3 war zugleich CV-Fold und letzter Zeitraum → beim Tuning wird zwangsläufig darauf geschaut. Zeitschnitte, inneres Validierungsfenster und Gütemaße jetzt zentral in `cv.py`, damit alle Verfahren konstruktiv identische Splits sehen (Fairness-Regel) | umgesetzt & validiert |
+| 15 | 2026-07-26 | **Balanciertes Panel: 38 statt 39 Stadtteile** (`balanciertes_panel()`); Mission Bay zusätzlich zu Treasure Island und Lakeshore ausgeschlossen | Mission Bay ist erst ab ACS 2021 als eigene Analyseeinheit enthalten. Zeilenweises `dropna` hätte ein **unbalanciertes** Panel erzeugt (Fold 1 mit 37, spätere Folds mit 38 Stadtteilen) → Testfenster-Summen springen allein durch den Zutritt eines Stadtteils. Rechteckiges Panel ist Voraussetzung für den fairen Fold-Vergleich | umgesetzt & validiert |
+| 16 | 2026-07-26 | ~~Crime-Merkmale vorerst statisch belassen~~ | – | **überholt durch #17** |
+| 17 | 2026-07-26 | **Relativer Kriminalitätsindex je Stadtteil × Monat** ersetzt `anteil_gewaltdelikte_pct` und `anteil_eigentumsdelikte_pct`. Maß: **alle Straftaten je Einwohner, relativ zum Stadtdurchschnitt desselben Monats** (Location Quotient), rollierendes 12-Monats-Fenster endend im Vormonat. Quellen: `tmnf-yvry` (2014–2017, Spatial Join) + `e3si-785i` (ab 2018) | Die alten Merkmale waren (a) **statisch** (0 % Zeitvarianz), (b) über den gesamten Zeitraum inkl. Testfenster kumuliert (**Leakage**) und (c) Anteile statt Intensitäten – zwei Stadtteile mit sehr unterschiedlicher Deliktdichte konnten identische Werte haben. Der relative Index löst alle drei Punkte und ist zugleich robust gegen den SFPD-Systemwechsel 05/2018, weil sich ein stadtweiter Niveausprung im Quotienten kürzt. Konsistent mit der Exposure-Entscheidung #13 | **Code umgesetzt & Logik getestet; Lukas muss `01_fetch.py` mit `DOWNLOAD_CRIME=True` und `DOWNLOAD_CRIME_HISTORISCH=True` laufen lassen** |
+| 20 | 2026-07-26 | **Klassifikation: Design festgelegt** (`docs/KLASSIFIKATION_DESIGN.md`). Ebene Einzeleinsatz, gleiche Abgrenzung wie die Regression (2015-01–2025-12, 35 Stadtteile, 350.481 Einsätze, 13,6 % Brand). **Ergebnisvariablen ausgeschlossen** (Sachschaden, Löschfahrzeuge/-kräfte, Alarmstufe, Antwortzeit – erst nach dem Einsatz bekannt). Ridge-Pendant = `LogisticRegression(penalty="l2")`. Schwellenwert je Fold auf dem inneren Fenster, **AUROC primär** | Die Basisrate verschiebt sich über den Zeitraum (Training 12,0 % → Test 17,3 % in Fold 1), weil die absolute Zahl der Brände 2019→2023 um 85 % stieg, bei nahezu konstanten Nicht-Brand-Einsätzen. AUROC ist davon unberührt, F1 nicht → Schwelle zeitnah kalibrieren, Anstieg als Befund in Kap. 6. Pseudo-Signal: 350.481 Zeilen enthalten nur **4.619 verschiedene Stadtteil-Monats-Profile** → SHAP nur blockweise, keine Signifikanztests auf Einsatz-Ebene | Design festgelegt; Umsetzung offen |
+| 19 | 2026-07-26 | **Park-/Institutionsgebiete ausgeschlossen:** Golden Gate Park, Lincoln Park, McLaren Park (`PARKGEBIETE` in `aggregation.py`) → **35 Stadtteile, 4.620 Beobachtungen**. Zusätzlich geht der Kriminalitätsindex **logarithmiert** ins Modell (`log_kriminalitaetsindex`) | Gebiete ohne nennenswerte Wohnbevölkerung sind für ein bevölkerungsbezogenes Risikomodell keine sinnvolle Analyseeinheit: Golden Gate Park hat **45 Einwohner**, einen Kriminalitätsindex von 186 im Median und 7.394 Einsätze je 1.000 Ew./Jahr (Median aller übrigen: 14.435 Ew.). Dieser eine Stadtteil erzeugte eine Schiefe von 9,0 im Index und **Ridge (S) R² −3,9**. Nach Ausschluss + Log-Transformation: Schiefe 0,66, **Ridge (S) R² 0,79**. Entscheidung über die Analyseeinheit, keine Ausreißerbereinigung nach Zielgröße | umgesetzt & validiert; **mit Schröter bestätigen** |
+| 18 | 2026-07-26 | **Analysezeitraum dauerhaft festgesetzt: 2015-01 bis 2025-12** (`START`/`ENDE` in `aggregation.py`, nicht mehr aus den Daten abgeleitet) | Reproduzierbarkeit: Jeder Lauf liefert denselben Zeitraum, unabhängig davon, wie weit der letzte DataSF-Download reicht. 132 Monate × 38 Stadtteile = 5.016 Beobachtungen; nach Lag-Bildung 120 Monate | umgesetzt & validiert |
 
 ## 8. Mapping Analyse → Gliederung der Arbeit (Kap. 4–7)
 
@@ -203,4 +271,6 @@ Methodenkapitel so präzise, dass die Arbeit reproduzierbar ist · Story/roter F
 | 2026-07-18 | Anthropic Claude (Fable) | „Lies Exposé und Betreuer-Vorgaben sowie die bestehende Data-Prep-Pipeline. Erstelle (1) einen persistenten Rahmenplan CLAUDE.md (Forschungsfrage, Zielgrößen, CRISP-DM-Status, Pipeline-Doku, Validierungs- und Tuning-Strategie, Decision Log, Gliederungs-Mapping), (2) eine empirische Eignungsprüfung von Ridge/Random Forest/XGBoost auf dem Pipeline-Output (EDA, Overdispersion, Klassenbalance, Linearitätsprüfung, VIF, Datenqualität/Leakage), (3) eine minimale Demo-Modellierungspipeline (Time-Series-CV, naive + saisonale Baseline, ein Beispielmodell), ohne die bestehende Prep-Pipeline zu verändern." |
 | 2026-07-18 | Anthropic Claude (Fable) | „Analysiere mögliche Hürden/Probleme bei der weiteren Bearbeitung und Lösungen, damit alle Algorithmen wertvolle und richtige Erkenntnisse liefern. Schreibe eine Markdown-Datei, die die richtigen Algorithmen einzeln in Teilschritten nach allen Vorgaben zum Programmieren anleitet, inkl. korrekter SHAP-Verwendung." → `docs/UMSETZUNGSLEITFADEN_MODELLIERUNG.md` |
 | 2026-07-18 | Anthropic Claude (Fable) | „Analysiere, wie wir die Probleme bereits in der Prep-Pipeline adressieren können, mache einfache Anpassungen, validiere per Demo-Test und schreibe eine Stichpunkt-Zusammenfassung für das Kapitel Data Preparation. Untersuche, ob zusätzliche Attribute die Probleme beheben und welche Baseline nötig ist." → Pipeline-Anpassungen (Dedup, ACS-/Crime-Join), Lag-Feature-Test, `docs/kapitel_5_2_data_preparation_stichpunkte.md` |
+| 2026-07-26 | Anthropic Claude (Opus) | „Prüfe eine externe Kritikliste mit 11 Preprocessing-Prüfaufträgen gegen den tatsächlichen Repo-Stand und gib aus, was im Preprocessing noch zu erledigen ist und welche Entscheidungen mit welchen Auswirkungen zu treffen sind." → `docs/PREPROCESSING_AUDIT_2026-07-26.md` |
+| 2026-07-26 | Anthropic Claude (Opus) | „Setze die Priorität-1-Punkte des Audits um (Randmonat-Bugfix, Exposure-Kontrolle, ACS-Publikationsversatz, End-Hold-out) und beschreibe die Änderungen." → Decision Log #11–#16, `modellierung/cv.py`, Anpassungen in `02_join.py`, `aggregation.py`, `demo_modellierung.py` |
 | 2026-07-18 | Anthropic Claude (Fable) | „Prüfe, ob noch Anpassungen in der Data Preparation nötig sind (Safe-to-Train, wissenschaftliche Vergleichbarkeit der drei Algorithmen), und schreibe Kapitel 5 der Arbeit in LaTeX mit ausgewählten, erklärten Code-Snippets inkl. Highlighting-Setup." → Audit-Fix #10 (bfill-Leakage), Hauptanalyse ab 2014 (#5), `docs/kapitel_5_empirische_analyse.tex` |

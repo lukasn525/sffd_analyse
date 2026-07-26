@@ -40,7 +40,14 @@ spalten_deutsch = {
     "education_universe_total":      "bildungs_grundgesamtheit",
     "vacant_housing_units":          "leerstehende_wohneinheiten",
     "total_housing_units":           "gesamtzahl_wohnungen",
-    # ── SFPD Kriminalitaet (Rohdaten) ─────────────────────────────────────────
+    # ── SFPD Kriminalitaet ────────────────────────────────────────────────────
+    # Seit 2026-07-26: relativer Index je Stadtteil x Monat (Location Quotient
+    # gegen den Stadtdurchschnitt desselben Monats, rollierendes 12-Monats-
+    # Fenster endend im Vormonat). Ersetzt die frueheren statischen Anteile.
+    "crime_index":                   "kriminalitaetsindex",
+    "crime_rate_raw":                "kriminalitaetsrate_pro_1000_ew_roh",
+    # Alt (bis 2026-07-26, nicht mehr erzeugt - Mapping bleibt fuer die
+    # Lesbarkeit aelterer Parquet-Staende erhalten):
     "total_crimes":                  "gesamtzahl_straftaten",
     "violent_crime_count":           "gewaltdelikte_anzahl",
     "property_crime_count":          "eigentumsdelikte_anzahl",

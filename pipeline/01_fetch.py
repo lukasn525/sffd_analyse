@@ -2,8 +2,16 @@
 Schritt 1: Rohdaten von DataSF und Census API laden -> data/raw/
 
 Ausfuehren:
-  python pipeline/01_fetch.py          # vollstaendiger Download
-  python pipeline/01_fetch.py test     # nur API-Verfuegbarkeit testen
+  python pipeline/01_fetch.py test           # nur API-Verfuegbarkeit pruefen
+  python pipeline/01_fetch.py crime          # nur die Kriminalitaetsdaten
+  python pipeline/01_fetch.py sffd acs       # gezielt einzelne Quellen
+  python pipeline/01_fetch.py alle           # alles neu herunterladen
+
+Ohne Argument gelten die DOWNLOAD_*-Schalter unten (Default: alles False,
+damit ein versehentlicher Lauf nichts ueberschreibt).
+
+Verfuegbare Namen: sffd, crosswalk, acs, crime, crime_hist, landuse,
+neighborhoods, crime_alle (= crime + crime_hist), alle
 """
 import json
 import sys
@@ -20,12 +28,21 @@ CENSUS_API_KEY   = "f5cb8b553da8a01e351b3804e56e7fe664e12c98"
 DATASF_APP_TOKEN = None
 ACS_YEARS        = [2009, 2014, 2019, 2021, 2023]
 
-DOWNLOAD_SFFD          = False
-DOWNLOAD_CROSSWALK     = False
-DOWNLOAD_ACS           = False
-DOWNLOAD_CRIME         = False
-DOWNLOAD_LAND_USE_2020 = False
-DOWNLOAD_NEIGHBORHOODS = False
+DOWNLOAD_SFFD             = False
+DOWNLOAD_CROSSWALK        = False
+DOWNLOAD_ACS              = False
+DOWNLOAD_CRIME            = False   # SFPD ab 2018 (e3si-785i), MIT Datumsspalte
+DOWNLOAD_CRIME_HISTORISCH = False   # SFPD 2014-2017 (tmnf-yvry), fuer den Index
+DOWNLOAD_LAND_USE_2020    = False
+DOWNLOAD_NEIGHBORHOODS    = False
+
+# Startjahr der historischen Crime-Daten. Der Kriminalitaetsindex nutzt ein
+# rollierendes 12-Monats-Fenster, das im VORMONAT endet; fuer den ersten
+# Analysemonat 2015-01 werden daher die Monate 2014-01 bis 2014-12 benoetigt.
+CRIME_HISTORISCH_AB = "2014-01-01"
+# Der historische SFPD-Datensatz endet im Mai 2018, der moderne beginnt im
+# Januar 2018. Sauberer Kalenderschnitt ohne Ueberlappung:
+CRIME_HISTORISCH_BIS = "2018-01-01"   # exklusiv
 
 ROOT    = Path(__file__).parent.parent
 RAW_DIR = ROOT / "data" / "raw"
@@ -138,6 +155,48 @@ def fetch_crime_data(app_token: str | None = None) -> pd.DataFrame:
                "incident_category", "count"]]
 
 
+def fetch_crime_historisch(app_token: str | None = None) -> pd.DataFrame:
+    """SFPD Incident Reports 2003 - Mai 2018 (tmnf-yvry), gefiltert ab 2014.
+
+    Warum ein zweiter Crime-Datensatz? Der aktuelle Datensatz (e3si-785i)
+    beginnt erst 2018-01. Der Analysezeitraum der Arbeit ist 2015-01 bis
+    2025-12; der Kriminalitaetsindex braucht wegen des rollierenden
+    12-Monats-Fensters zusaetzlich das Jahr 2014. Ohne diesen Datensatz gaebe
+    es fuer 2015-2017 keine Kriminalitaetswerte.
+
+    Der historische Datensatz enthaelt KEINE Stadtteilspalte, wohl aber
+    Koordinaten -> die Zuordnung erfolgt in 02_join.py per Spatial Join gegen
+    dieselbe Neighborhood-Geometrie wie bei den Land-Use-Daten (identische
+    Gebietsdefinition, damit beide Quellen vergleichbar bleiben).
+
+    WICHTIG (Limitation fuer Kap. 6): Im Mai 2018 hat SFPD von der
+    Alt-Anwendung CABLE auf das Crime Data Warehouse umgestellt. Absolute
+    Fallzahlen sind ueber diesen Bruch hinweg nicht direkt vergleichbar -
+    genau deshalb wird in 02_join.py ein RELATIVER Index (Stadtteil gegen
+    Stadtdurchschnitt desselben Monats) gebildet und nicht die Rohzahl.
+    """
+    rows = _paginiere_datasf(
+        "https://data.sfgov.org/resource/tmnf-yvry.json",
+        {"$select": "date,x,y",
+         "$where":  f"date >= '{CRIME_HISTORISCH_AB}' "
+                    f"AND date < '{CRIME_HISTORISCH_BIS}' "
+                    f"AND x IS NOT NULL AND y IS NOT NULL",
+         "$order":  ":id"},
+        app_token, f"SFPD Crime historisch ({CRIME_HISTORISCH_AB[:4]}-2017)",
+    )
+    df = pd.DataFrame(rows)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    for col in ["x", "y"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    df = df.dropna(subset=["date", "x", "y"])
+    # SF liegt etwa bei -122.5..-122.3 / 37.7..37.85; grobe Plausibilitaets-
+    # grenzen entfernen die bekannten (0,90)-Platzhalter der Quelldaten.
+    df = df[df["x"].between(-123.2, -122.2) & df["y"].between(37.6, 37.95)]
+    print(f"  {len(df):,} Delikte mit plausiblen Koordinaten "
+          f"({df['date'].min():%Y-%m} bis {df['date'].max():%Y-%m})")
+    return df[["date", "x", "y"]]
+
+
 def fetch_land_use_2020(app_token: str | None = None) -> pd.DataFrame:
     rows = _paginiere_datasf(
         "https://data.sfgov.org/resource/ygi5-84iq.json",
@@ -169,6 +228,7 @@ def run_fetch():
     print("Schritt 1: Daten einladen")
     print(f"Flags: SFFD={DOWNLOAD_SFFD} CROSSWALK={DOWNLOAD_CROSSWALK} "
           f"ACS={DOWNLOAD_ACS} CRIME={DOWNLOAD_CRIME} "
+          f"CRIME_HIST={DOWNLOAD_CRIME_HISTORISCH} "
           f"LAND_USE={DOWNLOAD_LAND_USE_2020} NEIGHBORHOODS={DOWNLOAD_NEIGHBORHOODS}\n")
 
     if DOWNLOAD_SFFD:
@@ -185,9 +245,13 @@ def run_fetch():
             fetch_acs_sf_tracts(year, CENSUS_API_KEY).to_csv(
                 RAW_DIR / f"acs_tracts_{year}.csv", index=False)
     if DOWNLOAD_CRIME:
-        print("[4/6] SFPD Crime Data...")
+        print("[4/6] SFPD Crime Data (ab 2018)...")
         fetch_crime_data(DATASF_APP_TOKEN).to_parquet(
             RAW_DIR / "crime_raw.parquet", index=False)
+    if DOWNLOAD_CRIME_HISTORISCH:
+        print("[4b/6] SFPD Crime Data (historisch 2014-2017)...")
+        fetch_crime_historisch(DATASF_APP_TOKEN).to_parquet(
+            RAW_DIR / "crime_historisch_raw.parquet", index=False)
     if DOWNLOAD_LAND_USE_2020:
         print("[5/6] Land Use 2020...")
         fetch_land_use_2020(DATASF_APP_TOKEN).to_parquet(
@@ -211,31 +275,92 @@ def quick_test():
         ("SFPD Crime",   "https://data.sfgov.org/resource/e3si-785i.json",
          {"$select": "by_month_incident_date,analysis_neighborhood,incident_category,count",
           "$limit": 2}),
+        ("SFPD hist.",   "https://data.sfgov.org/resource/tmnf-yvry.json",
+         {"$select": "date,x,y",
+          "$where":  f"date >= '{CRIME_HISTORISCH_AB}' AND x IS NOT NULL",
+          "$limit": 2}),
         ("Land Use",     "https://data.sfgov.org/resource/ygi5-84iq.json",
          {"$select": "blklot,yrbuilt,landuse,resunits,st_area_sh",
           "$where":  "yrbuilt IS NOT NULL", "$limit": 2}),
         ("Neighborhoods", "https://data.sfgov.org/resource/j2bu-swwd.geojson",
          {"$limit": 2}),
     ]
+    def _melde(name: str, r, zaehler) -> None:
+        """Ein Endpunkt darf den ganzen Test nicht abbrechen."""
+        if not r.ok:
+            print(f"  {name:<14} FAIL {r.status_code}")
+            return
+        try:
+            print(f"  {name:<14} OK  ({zaehler(r)} Rows)")
+        except Exception:
+            # Antwort kam an, ist aber kein JSON (z. B. Census-Rate-Limit oder
+            # HTML-Fehlerseite trotz Status 200).
+            print(f"  {name:<14} WARNUNG: Antwort ist kein JSON "
+                  f"(erste 60 Zeichen: {r.text[:60]!r})")
+
     for name, url, params in endpoints:
-        r = requests.get(url, params=params, timeout=15)
+        try:
+            r = requests.get(url, params=params, timeout=15)
+        except requests.RequestException as e:
+            print(f"  {name:<14} FEHLER: {type(e).__name__}")
+            continue
         if name == "Neighborhoods":
-            n = len(json.loads(r.text).get("features", [])) if r.ok else 0
+            _melde(name, r, lambda x: len(json.loads(x.text).get("features", [])))
         else:
-            n = len(r.json()) if r.ok else 0
-        print(f"  {name:<14} {'OK' if r.ok else f'FAIL {r.status_code}'}  ({n} Rows)")
+            _melde(name, r, lambda x: len(x.json()))
 
     for year in ACS_YEARS:
-        r = requests.get(
-            f"https://api.census.gov/data/{year}/acs/acs5"
-            "?get=NAME,B19013_001E&for=tract:*&in=state:06%20county:075",
-            timeout=15)
-        n = len(r.json()) - 1 if r.ok else 0
-        print(f"  ACS {year:<10} {'OK' if r.ok else f'FAIL {r.status_code}'}  ({n} Tracts)")
+        # MIT API-Key testen - ohne Key antwortet die Census-API bei haeufigen
+        # Abfragen mit einer HTML-Fehlerseite statt JSON.
+        try:
+            r = requests.get(
+                f"https://api.census.gov/data/{year}/acs/acs5"
+                f"?get=NAME,B19013_001E&for=tract:*&in=state:06%20county:075"
+                f"&key={CENSUS_API_KEY}", timeout=15)
+        except requests.RequestException as e:
+            print(f"  ACS {year:<10} FEHLER: {type(e).__name__}")
+            continue
+        _melde(f"ACS {year}", r, lambda x: len(x.json()) - 1)
+
+
+ARG_ZU_FLAG = {
+    "sffd":          ["DOWNLOAD_SFFD"],
+    "crosswalk":     ["DOWNLOAD_CROSSWALK"],
+    "acs":           ["DOWNLOAD_ACS"],
+    "crime":         ["DOWNLOAD_CRIME", "DOWNLOAD_CRIME_HISTORISCH"],
+    "crime_neu":     ["DOWNLOAD_CRIME"],
+    "crime_hist":    ["DOWNLOAD_CRIME_HISTORISCH"],
+    "landuse":       ["DOWNLOAD_LAND_USE_2020"],
+    "neighborhoods": ["DOWNLOAD_NEIGHBORHOODS"],
+}
+
+
+def _flags_aus_argumenten(argumente: list[str]) -> None:
+    """Setzt die DOWNLOAD_*-Schalter anhand der Kommandozeile.
+
+    Erspart das Editieren der Datei vor und nach jedem Lauf - der haeufigste
+    Weg, versehentlich einen Download stehen zu lassen oder zu vergessen.
+    """
+    global_ = globals()
+    if "alle" in argumente:
+        for flags in ARG_ZU_FLAG.values():
+            for f in flags:
+                global_[f] = True
+        return
+    unbekannt = [a for a in argumente if a not in ARG_ZU_FLAG]
+    if unbekannt:
+        raise SystemExit(f"Unbekanntes Argument: {', '.join(unbekannt)}\n"
+                         f"Erlaubt: {', '.join(ARG_ZU_FLAG)}, alle, test")
+    for a in argumente:
+        for f in ARG_ZU_FLAG[a]:
+            global_[f] = True
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "test":
+    args = sys.argv[1:]
+    if args and args[0] == "test":
         quick_test()
     else:
+        if args:
+            _flags_aus_argumenten(args)
         run_fetch()

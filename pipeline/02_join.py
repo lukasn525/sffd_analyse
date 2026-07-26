@@ -17,12 +17,24 @@ PROCESSED_DIR = ROOT / "data" / "processed"
 
 ACS_YEARS = [2009, 2014, 2019, 2021, 2023]
 
-VIOLENT_CATEGORIES   = {"Assault", "Homicide", "Robbery", "Rape",
-                        "Kidnapping", "Weapons Offenses"}
-PROPERTY_CATEGORIES  = {"Burglary", "Theft", "Motor Vehicle Theft",
-                        "Arson", "Vandalism"}
+# Publikationsverzoegerung der ACS-5-Jahres-Schaetzungen: der Jahrgang y wird
+# erst ca. Dezember y+1 veroeffentlicht. Ein Modell, das im Jahr y bereits den
+# ACS-Jahrgang y nutzt, waere zum Prognosezeitpunkt nicht implementierbar.
+# Daher wird der Snapshot zusaetzlich um ACS_PUBLIKATIONS_LAG Jahre verzoegert
+# (Entscheidung 2026-07-26, abgestimmt mit Lukas; Decision Log #11).
+ACS_PUBLIKATIONS_LAG = 1
+
 HIGH_RISK_COMMERCIAL = {"RETAIL/ENT", "PDR"}
 RESIDENTIAL          = {"RESIDENT", "MIXRES"}
+
+# --------------------------------------------------------------------------
+# Kriminalitaetsindex (Decision Log #17, 2026-07-26)
+# --------------------------------------------------------------------------
+# Laenge des rollierenden Fensters in Monaten. Das Fenster endet im VORMONAT
+# des jeweiligen Analysemonats -> strikt rueckwaertsgerichtet, kein Leakage.
+# 12 Monate glaetten die starke Monatsschwankung kleiner Stadtteile und
+# entsprechen der jaehrlichen Taktung der uebrigen Merkmale (ACS).
+CRIME_FENSTER_MONATE = 12
 
 ACS_NUM_COLS = [
     "total_population", "median_household_income", "median_gross_rent",
@@ -86,14 +98,22 @@ def aggregate_acs_to_neighborhood(acs: pd.DataFrame, crosswalk: pd.DataFrame) ->
 def year_aware_join(sffd: pd.DataFrame, nb_per_year: dict[int, pd.DataFrame]) -> pd.DataFrame:
     acs_years = sorted(nb_per_year.keys())
     sffd = sffd.copy()
-    # Strikt prognostischer Join: jeder Einsatz erhaelt den LETZTEN VERFUEGBAREN
-    # ACS-Snapshot (acs_jahr <= Einsatzjahr) statt des zeitlich naechsten ->
-    # keine Zukunftsinformation (Leakage-Befund, Decision Log #4; abgestimmt
-    # 2026-07-18). Fuer Jahre vor dem ersten Snapshot (2003-2008) existiert kein
+    # Strikt prognostischer Join: jeder Einsatz erhaelt den LETZTEN zum
+    # Prognosezeitpunkt TATSAECHLICH PUBLIZIERTEN ACS-Snapshot.
+    #   Bedingung: acs_jahr <= Einsatzjahr - ACS_PUBLIKATIONS_LAG
+    # Stufe 1 (Decision Log #4, 2026-07-18): "letzter verfuegbarer" statt
+    #   "zeitlich naechster" Snapshot -> kein Zukunfts-Leakage mehr.
+    # Stufe 2 (Decision Log #11, 2026-07-26): zusaetzlich die reale
+    #   Publikationsverzoegerung von ~1 Jahr beruecksichtigt. Ohne diesen
+    #   Versatz haette ein Einsatz aus 2023 den ACS-Jahrgang 2023 erhalten,
+    #   der erst Ende 2024 erschienen ist - das Modell waere nicht
+    #   implementierbar gewesen.
+    # Fuer Jahre vor dem ersten publizierten Snapshot (2003-2009) existiert kein
     # vergangener Jahrgang; Rueckgriff auf ACS 2009 als dokumentierte Limitation
-    # (Hauptanalyse beginnt ohnehin 2012, vgl. CLAUDE.md / Leitfaden A3).
+    # (Hauptanalyse beginnt ohnehin 2015, vgl. CLAUDE.md / Leitfaden A3).
     sffd["acs_year"] = sffd["year"].apply(
-        lambda y: max([a for a in acs_years if a <= int(y)], default=min(acs_years))
+        lambda y: max([a for a in acs_years if a <= int(y) - ACS_PUBLIKATIONS_LAG],
+                      default=min(acs_years))
     )
     print("\n  Einsaetze nach zugeordnetem ACS-Snapshot:")
     for acs_y, info in sffd.groupby("acs_year")["year"].agg(
@@ -110,27 +130,166 @@ def year_aware_join(sffd: pd.DataFrame, nb_per_year: dict[int, pd.DataFrame]) ->
     return final
 
 
-def aggregate_crime_to_neighborhood(raw: pd.DataFrame) -> pd.DataFrame:
+def _crime_monatlich_modern(path: Path) -> pd.DataFrame:
+    """Monatliche Deliktzahlen je Neighborhood aus e3si-785i (ab 2018-01).
+
+    Der Datensatz ist bereits auf Monat x Neighborhood x Kategorie
+    voraggregiert; da der Index ALLE Straftaten zaehlt, werden die Kategorien
+    schlicht aufsummiert (keine Schema-Harmonisierung noetig).
+    """
+    raw = pd.read_parquet(path)
+    if "by_month_incident_date" not in raw.columns:
+        raise RuntimeError(
+            "crime_raw.parquet enthaelt keine Spalte 'by_month_incident_date'. "
+            "Das ist ein aelterer Download ohne Datum. Bitte 01_fetch.py mit "
+            "DOWNLOAD_CRIME=True neu ausfuehren - ohne Datum laesst sich kein "
+            "zeitbewusster Kriminalitaetsindex bilden.")
     df = raw.copy()
     df["count"] = pd.to_numeric(df["count"], errors="coerce").fillna(0)
     quelle = "neighborhood" if "neighborhood" in df.columns else "analysis_neighborhood"
     df["neighborhood"] = df[quelle].str.strip().str.title()
-    df["incident_category"] = df["incident_category"].fillna("").str.strip()
-    df = df[df["incident_category"] != ""]
+    d = pd.to_datetime(df["by_month_incident_date"], errors="coerce")
+    df = df.assign(jahr=d.dt.year, monat=d.dt.month).dropna(subset=["jahr"])
+    out = (df.groupby(["neighborhood", "jahr", "monat"])["count"].sum()
+             .reset_index(name="delikte"))
+    out[["jahr", "monat"]] = out[["jahr", "monat"]].astype(int)
+    print(f"  Modern (e3si-785i): {out['delikte'].sum():,.0f} Delikte, "
+          f"{out['jahr'].min()}-{out['jahr'].max()}")
+    return out
 
-    df["violent_count"]  = df["count"] * df["incident_category"].isin(VIOLENT_CATEGORIES)
-    df["property_count"] = df["count"] * df["incident_category"].isin(PROPERTY_CATEGORIES)
 
-    agg = df.groupby("neighborhood").agg(
-        total_crimes         =("count",          "sum"),
-        violent_crime_count  =("violent_count",  "sum"),
-        property_crime_count =("property_count", "sum"),
-    ).reset_index()
-    for col in ["total_crimes", "violent_crime_count", "property_crime_count"]:
-        agg[col] = agg[col].astype(int)
-    print(f"  {len(agg)} Neighborhoods | Delikte gesamt: {agg['total_crimes'].sum():,} "
-          f"(Gewalt: {agg['violent_crime_count'].sum():,})")
-    return agg
+def _crime_monatlich_historisch(path: Path) -> pd.DataFrame:
+    """Monatliche Deliktzahlen je Neighborhood aus tmnf-yvry (2014-2017).
+
+    Der historische Datensatz hat keine Stadtteilspalte -> Spatial Join der
+    Koordinaten gegen dieselbe Neighborhood-Geometrie, die auch fuer die
+    Land-Use-Daten verwendet wird. Damit ist die Gebietsdefinition ueber alle
+    Quellen hinweg identisch.
+    """
+    import geopandas as gpd
+
+    df = pd.read_parquet(path)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df = df.dropna(subset=["date", "x", "y"])
+
+    punkte = gpd.GeoDataFrame(
+        df[["date"]].copy(),
+        geometry=gpd.points_from_xy(df["x"], df["y"]),
+        crs="EPSG:4326")
+    print("  Spatial Join (Deliktkoordinate -> Neighborhood-Polygon)...")
+    joined = gpd.sjoin(punkte, load_neighborhoods_gdf(), how="left", predicate="within")
+    quote = joined["neighborhood"].notna().mean()
+    print(f"  Match-Rate: {quote*100:.1f}% "
+          f"({joined['neighborhood'].notna().sum():,}/{len(joined):,})")
+    if quote < 0.90:
+        raise RuntimeError(f"Match-Rate des historischen Crime-Joins nur "
+                           f"{quote:.1%} - Geometrie oder Koordinaten pruefen.")
+
+    j = pd.DataFrame(joined.dropna(subset=["neighborhood"]).drop(columns="geometry"))
+    j["neighborhood"] = j["neighborhood"].str.strip().str.title()
+    out = (j.assign(jahr=j["date"].dt.year, monat=j["date"].dt.month)
+             .groupby(["neighborhood", "jahr", "monat"]).size()
+             .reset_index(name="delikte"))
+    print(f"  Historisch (tmnf-yvry): {out['delikte'].sum():,.0f} Delikte, "
+          f"{out['jahr'].min()}-{out['jahr'].max()}")
+    return out
+
+
+def _bevoelkerung_je_jahr(nb_per_year: dict[int, pd.DataFrame],
+                          jahre: list[int]) -> pd.DataFrame:
+    """Einwohnerzahl je Neighborhood und Jahr, mit demselben ACS-Versatz.
+
+    Dieselbe Snapshot-Regel wie beim Einsatz-Join (year_aware_join), damit die
+    Nenner des Kriminalitaetsindex und das Exposure-Merkmal des Modells auf
+    identischen Bevoelkerungswerten beruhen.
+    """
+    acs_years = sorted(nb_per_year.keys())
+    zeilen = []
+    for jahr in jahre:
+        acs_y = max([a for a in acs_years if a <= jahr - ACS_PUBLIKATIONS_LAG],
+                    default=min(acs_years))
+        nb = nb_per_year[acs_y][["neighborhood", "total_population"]].copy()
+        zeilen.append(nb.assign(jahr=jahr))
+    return pd.concat(zeilen, ignore_index=True)
+
+
+def berechne_kriminalitaetsindex(nb_per_year: dict[int, pd.DataFrame]) -> pd.DataFrame:
+    """Relativer Kriminalitaetsindex je Neighborhood und Monat.
+
+    Definition (Location Quotient der Kriminalitaetsbelastung):
+
+        rate(i,t)       = Delikte(i, Fenster endend in t-1) / Einwohner(i)
+        rate(Stadt,t)   = Delikte(Stadt, gleiches Fenster) / Einwohner(Stadt)
+        index(i,t)      = rate(i,t) / rate(Stadt,t)
+
+    Lesart: 1,0 = Kriminalitaetsbelastung wie im Stadtdurchschnitt desselben
+    Monats, 2,0 = doppelt so hoch, 0,5 = halb so hoch.
+
+    Warum relativ statt absolut? Der SFPD-Systemwechsel im Mai 2018 (CABLE ->
+    Crime Data Warehouse) veraendert das stadtweite Niveau der erfassten
+    Faelle. Ein solcher multiplikativer Niveauspruung wirkt auf Zaehler und
+    Nenner gleichermassen und kuerzt sich im Quotienten heraus - der Index ist
+    dadurch ueber den Bruch hinweg vergleichbar, die Rohrate waere es nicht.
+    Verbleibende Limitation: Eine Verschiebung in der ZUSAMMENSETZUNG der
+    erfassten Delikte, die einzelne Stadtteile staerker trifft als andere,
+    kuerzt sich nicht heraus (Kap. 6.3).
+
+    Kein Leakage: Das Fenster endet strikt im Vormonat; fuer den ersten
+    Analysemonat 2015-01 werden die Delikte aus 2014-01 bis 2014-12 verwendet.
+
+    Zusaetzlich wird `crime_rate_raw` (Delikte je 1.000 Einwohner, gleiches
+    Fenster) zurueckgegeben - NUR als deskriptive Groesse fuer Kapitel 5.1,
+    nicht als Modellmerkmal, weil sie den Strukturbruch 2018 enthaelt.
+    """
+    modern_path = RAW_DIR / "crime_raw.parquet"
+    hist_path   = RAW_DIR / "crime_historisch_raw.parquet"
+    require(modern_path, "01_fetch.py mit DOWNLOAD_CRIME=True ausfuehren.")
+    require(hist_path,   "01_fetch.py mit DOWNLOAD_CRIME_HISTORISCH=True ausfuehren.")
+
+    teile = [_crime_monatlich_historisch(hist_path), _crime_monatlich_modern(modern_path)]
+    monatlich = pd.concat(teile, ignore_index=True)
+    # Sicherheitsnetz gegen Ueberlappung der beiden Quellen
+    monatlich = (monatlich.groupby(["neighborhood", "jahr", "monat"])["delikte"]
+                          .max().reset_index())
+
+    # Vollstaendiges Raster Neighborhood x Monat (Monate ohne Delikt = 0)
+    jahre = list(range(int(monatlich["jahr"].min()), int(monatlich["jahr"].max()) + 1))
+    idx = pd.MultiIndex.from_product(
+        [sorted(monatlich["neighborhood"].unique()), jahre, range(1, 13)],
+        names=["neighborhood", "jahr", "monat"])
+    raster = (monatlich.set_index(["neighborhood", "jahr", "monat"])
+                       .reindex(idx).fillna({"delikte": 0}).reset_index())
+
+    # Rollierendes Fenster, endend im VORMONAT (shift(1) VOR rolling)
+    raster = raster.sort_values(["neighborhood", "jahr", "monat"])
+    raster["delikte_fenster"] = (
+        raster.groupby("neighborhood")["delikte"]
+              .transform(lambda s: s.shift(1).rolling(CRIME_FENSTER_MONATE).sum()))
+    raster = raster.dropna(subset=["delikte_fenster"])
+
+    # Einwohner je Neighborhood und Jahr (gleicher ACS-Versatz wie im Modell)
+    bev = _bevoelkerung_je_jahr(nb_per_year, sorted(raster["jahr"].unique()))
+    raster = raster.merge(bev, on=["neighborhood", "jahr"], how="left")
+    raster = raster[raster["total_population"] > 0]
+
+    # Stadtweite Referenz je Monat (Summe ueber alle Neighborhoods mit Werten)
+    stadt = (raster.groupby(["jahr", "monat"])
+                   .agg(stadt_delikte=("delikte_fenster", "sum"),
+                        stadt_bev=("total_population", "sum")).reset_index())
+    raster = raster.merge(stadt, on=["jahr", "monat"], how="left")
+
+    raster["crime_rate_raw"] = (raster["delikte_fenster"]
+                                / raster["total_population"] * 1000).round(3)
+    stadt_rate = raster["stadt_delikte"] / raster["stadt_bev"] * 1000
+    raster["crime_index"] = (raster["crime_rate_raw"] / stadt_rate).round(4)
+
+    out = raster[["neighborhood", "jahr", "monat", "crime_index", "crime_rate_raw"]]
+    print(f"  Kriminalitaetsindex: {out['neighborhood'].nunique()} Neighborhoods "
+          f"x {len(out.groupby(['jahr','monat']))} Monate "
+          f"({out['jahr'].min()}-{out['jahr'].max()})")
+    print(f"    Index Median {out['crime_index'].median():.2f}, "
+          f"Spanne {out['crime_index'].min():.2f}-{out['crime_index'].max():.2f}")
+    return out
 
 
 def spatial_join_land_use(parcels: pd.DataFrame, neighborhoods_gdf):
@@ -205,60 +364,26 @@ def _lade_acs_alle_jahre(crosswalk: pd.DataFrame) -> dict[int, pd.DataFrame]:
     return nb_per_year
 
 
-def aggregate_crime_zeitbewusst(raw: pd.DataFrame) -> pd.DataFrame:
-    """Zeitbewusste Crime-Aggregation: je Neighborhood und Einsatzjahr werden
-    NUR Delikte bis einschliesslich des VORJAHRES kumuliert (kein Blick in die
-    Zukunft; Leakage-Befund Decision Log #3, abgestimmt 2026-07-18).
-    Fuer das erste Datenjahr existiert keine Vergangenheit -> Rueckgriff auf das
-    eigene Jahr (dokumentierte Limitation, betrifft nur Einsaetze 2003)."""
-    df = raw.copy()
-    df["count"] = pd.to_numeric(df["count"], errors="coerce").fillna(0)
-    df["jahr"] = pd.to_datetime(df["by_month_incident_date"], errors="coerce").dt.year
-    df = df.dropna(subset=["jahr"])
-    quelle = "neighborhood" if "neighborhood" in df.columns else "analysis_neighborhood"
-    df["neighborhood"] = df[quelle].str.strip().str.title()
-    df["incident_category"] = df["incident_category"].fillna("").str.strip()
-    df = df[df["incident_category"] != ""]
-    df["violent_count"]  = df["count"] * df["incident_category"].isin(VIOLENT_CATEGORIES)
-    df["property_count"] = df["count"] * df["incident_category"].isin(PROPERTY_CATEGORIES)
+def _join_crime(base: pd.DataFrame,
+                nb_per_year: dict[int, pd.DataFrame]) -> pd.DataFrame:
+    """Join des monatlichen Kriminalitaetsindex auf die Einsatz-Ebene.
 
-    je_jahr = (df.groupby(["neighborhood", "jahr"])
-                 .agg(total=("count", "sum"), violent=("violent_count", "sum"),
-                      prop=("property_count", "sum"))
-                 .reset_index().sort_values(["neighborhood", "jahr"]))
-    # kumulierte Summen bis einschliesslich Vorjahr (shift um 1 Jahr)
-    for col in ["total", "violent", "prop"]:
-        je_jahr[f"kum_{col}"] = (je_jahr.groupby("neighborhood")[col]
-                                        .transform(lambda s: s.cumsum().shift(1)))
-        # erstes Jahr: Rueckgriff auf eigenes Jahr
-        je_jahr[f"kum_{col}"] = je_jahr[f"kum_{col}"].fillna(je_jahr[col])
-    out = je_jahr.rename(columns={
-        "kum_total": "total_crimes", "kum_violent": "violent_crime_count",
-        "kum_prop": "property_crime_count"})[
-        ["neighborhood", "jahr", "total_crimes",
-         "violent_crime_count", "property_crime_count"]]
-    print(f"  Zeitbewusste Crime-Aggregation: {out['neighborhood'].nunique()} "
-          f"Neighborhoods x {out['jahr'].nunique()} Jahre")
+    Es gibt bewusst KEINEN statischen Fallback mehr: Ein statischer Join wuerde
+    Delikte aus dem Testzeitraum in die Trainingsmerkmale tragen (Leakage) und
+    zugleich jede Zeitvarianz beseitigen. Fehlen die Rohdaten, bricht die
+    Pipeline mit einer Anleitung ab.
+    """
+    crime = berechne_kriminalitaetsindex(nb_per_year)
+    crime.to_csv(PROCESSED_DIR / "crime_index_monatlich.csv", index=False)
+    vorher = len(base)
+    out = base.merge(crime, left_on=["neighborhood", "year", "month"],
+                     right_on=["neighborhood", "jahr", "monat"],
+                     how="left").drop(columns=["jahr", "monat"])
+    assert len(out) == vorher, "Crime-Join hat Zeilen dupliziert (1:n-Beziehung!)."
+    fehlend = out["crime_index"].isna().mean()
+    print(f"  Join auf Einsatz-Ebene: {(1-fehlend)*100:.1f}% der Einsaetze mit "
+          f"Index (fehlend v. a. vor {int(crime['jahr'].min())})")
     return out
-
-
-def _join_crime(base: pd.DataFrame) -> pd.DataFrame:
-    path = RAW_DIR / "crime_raw.parquet"
-    require(path, "01_fetch.py mit DOWNLOAD_CRIME=True ausfuehren.")
-    raw = pd.read_parquet(path)
-    if "by_month_incident_date" in raw.columns:
-        # bevorzugter Weg: zeitbewusster Join auf (Neighborhood, Jahr)
-        crime = aggregate_crime_zeitbewusst(raw)
-        crime.to_csv(PROCESSED_DIR / "crime_neighborhoods_zeitbewusst.csv", index=False)
-        return base.merge(crime, left_on=["neighborhood", "year"],
-                          right_on=["neighborhood", "jahr"], how="left").drop(columns="jahr")
-    # Fallback: aelterer Rohdaten-Download ohne Datumsspalte -> statischer Join.
-    print("  HINWEIS: crime_raw.parquet enthaelt keine Datumsspalte (aelterer "
-          "Download). Statischer Crime-Join (Limitation!). Fuer den "
-          "zeitbewussten Join 01_fetch.py mit DOWNLOAD_CRIME=True neu ausfuehren.")
-    crime = aggregate_crime_to_neighborhood(raw)
-    crime.to_csv(PROCESSED_DIR / "crime_neighborhoods.csv", index=False)
-    return base.merge(crime, on="neighborhood", how="left")
 
 
 def _join_landuse(base: pd.DataFrame) -> pd.DataFrame:
@@ -295,11 +420,13 @@ def run_join():
     crosswalk = pd.read_csv(RAW_DIR / "crosswalk.csv", dtype={"geoid": str})
     nb_per_year = _lade_acs_alle_jahre(crosswalk)
 
-    print("\n[3/5] Zeitbewusster Join (Einsatz -> naechster ACS-Snapshot)...")
+    print(f"\n[3/5] Zeitbewusster Join (Einsatz -> letzter publizierter "
+          f"ACS-Snapshot, Versatz {ACS_PUBLIKATIONS_LAG} Jahr)...")
     base = year_aware_join(sffd, nb_per_year)
 
-    print("\n[4/5] Crime: Aggregation + Join...")
-    base = _join_crime(base)
+    print(f"\n[4/5] Crime: relativer Index (Fenster {CRIME_FENSTER_MONATE} Monate, "
+          f"endend im Vormonat) + Join...")
+    base = _join_crime(base, nb_per_year)
 
     print("\n[5/5] Land Use: Spatial Join + Aggregation + Join...")
     base = _join_landuse(base)

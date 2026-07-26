@@ -31,7 +31,9 @@ CLEANED_COLS = [
     "einsatzart", "bataillon", "alarmstufe", "schaetzung_sachschaden_usd",
     "gesamtbevoelkerung", "median_haushaltseinkommen", "armutsquote_pct",
     "akademikerquote_pct", "median_miete", "leerstandsquote_pct",
-    "anteil_gewaltdelikte_pct", "anteil_eigentumsdelikte_pct",
+    # Kriminalitaet: relativer Index (Modellmerkmal) + Rohrate (nur deskriptiv,
+    # enthaelt den SFPD-Systemwechsel 2018 als Strukturbruch)
+    "kriminalitaetsindex", "kriminalitaetsrate_pro_1000_ew_roh",
     "gesamtzahl_wohneinheiten", "anteil_altbau_vor_1940_pct",
     "anteil_wohngebaeude_pct", "anteil_risikogewerbe_pct",
 ]
@@ -44,7 +46,6 @@ INT64_COLS = [
 
 NEUE_VARIABLEN = [
     "poverty_rate", "bachelor_rate", "vacancy_rate",
-    "pct_violent_crime", "pct_property_crime",
     "pct_pre1940", "pct_pre1960", "pct_residential",
     "pct_high_risk_commercial_area",
 ]
@@ -66,8 +67,9 @@ def compute_features(df: pd.DataFrame) -> pd.DataFrame:
     _add_ratio(df, "poverty_rate",      "poverty_below",         "poverty_universe_total")
     _add_ratio(df, "bachelor_rate",     "bachelor_degree_count", "education_universe_total")
     _add_ratio(df, "vacancy_rate",      "vacant_housing_units",  "total_housing_units")
-    _add_ratio(df, "pct_violent_crime", "violent_crime_count",   "total_crimes")
-    _add_ratio(df, "pct_property_crime","property_crime_count",  "total_crimes")
+    # Kriminalitaet wird nicht mehr hier als Anteil berechnet, sondern in
+    # 02_join.py als relativer Index je Stadtteil x Monat gebildet
+    # (berechne_kriminalitaetsindex, Decision Log #17).
     _add_ratio(df, "pct_pre1940",       "pre1940_count",         "yrbuilt_count")
     _add_ratio(df, "pct_pre1960",       "pre1960_count",         "yrbuilt_count")
     _add_ratio(df, "pct_residential",   "residential_count",     "parcel_count")
