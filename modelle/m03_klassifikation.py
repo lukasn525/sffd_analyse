@@ -44,7 +44,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "prep"))
 from config import (KLASSEN, MERKMALE_KATEGORIAL, N_FOLDS,  # noqa: E402
                     PFAD_KLASSIFIKATION, RANDOM_STATE, RESULTS_DIR, ROOT,
                     merkmalslisten)
-from cv import bewerte_mehrklassig, fold_masken  # noqa: E402
+from s2_datensaetze import bewerte_mehrklassig, fold_masken  # noqa: E402
 
 OUT = RESULTS_DIR / "klassifikation"
 

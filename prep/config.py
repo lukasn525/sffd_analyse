@@ -6,9 +6,6 @@ Stadtteile, Praediktoren, Merkmalssaetze, Zeitschnitte, Suchraeume - steht hier
 und nirgendwo sonst. Wer wissen will, ab wann die Analyse laeuft oder welche
 Merkmale ins Modell gehen, oeffnet ausschliesslich diese Datei.
 
-Vorher lagen dieselben Konstanten in vier Dateien verteilt, ACS_YEARS sogar
-doppelt (01_fetch.py und 02_s02_einsaetze.py) - eine stille Fehlerquelle.
-
 Bezug: CLAUDE.md (Decision Log), docs/UMBAU_PREPROCESSING.md
 """
 from pathlib import Path
@@ -29,7 +26,7 @@ PFAD_REGRESSION     = PROCESSED_DIR / "regression.parquet"
 PFAD_KLASSIFIKATION = PROCESSED_DIR / "klassifikation.parquet"
 
 # ==========================================================================
-# 2  DOWNLOADS  (Schritt: prep/s01_laden.py)
+# 2  DOWNLOADS  (Schritt: prep/s1_daten.py)
 # ==========================================================================
 # Alle Schalter stehen per Default auf False. `python prep/build.py` laeuft
 # dann allein aus data/raw und braucht weder Internet noch API-Key.
@@ -70,7 +67,7 @@ CRIME_HISTORISCH_AB  = "2014-01-01"
 CRIME_HISTORISCH_BIS = "2018-01-01"   # exklusiv; ab hier greift e3si-785i
 
 # ==========================================================================
-# 3  JOINS  (Schritt: prep/s02_einsaetze.py)
+# 3  JOINS  (Schritt: prep/s1_daten.py)
 # ==========================================================================
 # Publikationsverzoegerung der ACS-5-Jahres-Schaetzungen: Jahrgang y erscheint
 # erst ca. Dezember y+1. Ein Modell, das im Jahr y schon den Jahrgang y nutzt,
@@ -308,9 +305,9 @@ SUCHRAEUME = {
 # 9  SPALTENNAMEN  englisch -> deutsch
 # ==========================================================================
 # Die Rohquellen (DataSF, Census) liefern englische Namen; ab dem Ende von
-# prep/s02_einsaetze.py heisst im Projekt alles deutsch. Dieses Mapping ist die einzige
-# Stelle, an der der Wechsel passiert. Steht hier unten, weil man es beim
-# Arbeiten praktisch nie anfasst - im Gegensatz zu allem darueber.
+# prep/s1_daten.py heisst im Projekt alles deutsch. Dieses Mapping ist die
+# einzige Stelle, an der der Wechsel passiert. Steht hier unten, weil man es
+# beim Arbeiten praktisch nie anfasst - im Gegensatz zu allem darueber.
 spalten_deutsch = {
     # ── SFFD Einsatzfelder (Quelldaten) ──────────────────────────────────────
     "incident_number":               "einsatz_nummer",
@@ -349,13 +346,11 @@ spalten_deutsch = {
     "vacant_housing_units":          "leerstehende_wohneinheiten",
     "total_housing_units":           "gesamtzahl_wohnungen",
     # ── SFPD Kriminalitaet ────────────────────────────────────────────────────
-    # Seit 2026-07-26: relativer Index je Stadtteil x Monat (Location Quotient
-    # gegen den Stadtdurchschnitt desselben Monats, rollierendes 12-Monats-
-    # Fenster endend im Vormonat). Ersetzt die frueheren statischen Anteile.
+    # Relativer Index je Stadtteil x Monat (Location Quotient gegen den
+    # Stadtdurchschnitt desselben Monats, rollierendes 12-Monats-Fenster endend
+    # im Vormonat). Ersetzt die frueheren statischen Anteile.
     "crime_index":                   "kriminalitaetsindex",
     "crime_rate_raw":                "kriminalitaetsrate_pro_1000_ew_roh",
-    # Alt (bis 2026-07-26, nicht mehr erzeugt - Mapping bleibt fuer die
-    # Lesbarkeit aelterer Parquet-Staende erhalten):
     # ── Land Use (Rohdaten) ───────────────────────────────────────────────────
     "parcel_count":                  "parzellen_anzahl",
     "yrbuilt_count":                 "parzellen_mit_baujahr",

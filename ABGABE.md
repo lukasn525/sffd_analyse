@@ -17,14 +17,14 @@ DATA_DICTIONARY.md                     Spaltenbeschreibung
 requirements.txt                       eingefrorene Paketversionen
 
 prep/config.py                         alle Festlegungen an einer Stelle
-prep/s01_laden.py                      1  Rohdaten laden (DataSF, Census)
-prep/s02_einsaetze.py                  2-4  auswählen, joinen, Raten berechnen
-prep/s03_datensaetze.py                5-6  aggregieren, Lags, Zielgrößen
-prep/s04_eignungspruefung.py           7  Eignungsurteil je Verfahren
-prep/cv.py                             Folds, inneres Fenster, End-Hold-out, Gütemaße
+prep/s1_daten.py                       1  laden, auswählen, joinen, Raten
+prep/s2_datensaetze.py                 2  aggregieren, Lags, Zielgrößen,
+                                          Folds, End-Hold-out, Gütemaße
+prep/s3_pruefung.py                    3  Eignungsurteil je Verfahren,
+                                          Vergleichsgrößen (naiv, saisonal, NegBin)
 prep/build.py                          der eine Befehl
+prep/_archiv/                          ersetzte Vorgängerdateien
 
-modelle/m01_baselines.py               naiv, saisonal, Negative Binomial
 modelle/m02_regression.py              Ridge, Random Forest, XGBoost
 modelle/m03_klassifikation.py          dieselben drei, 4 Klassen
 
@@ -79,7 +79,7 @@ direkteste Beleg dafür, worauf die Modelle gerechnet haben. Der Zwischenstand
 | Was | Warum |
 |---|---|
 | `venv/` | mehrere hundert MB, über `requirements.txt` reproduzierbar |
-| `data/raw/` | 38 MB Rohdaten, über `prep/s01_laden.py` reproduzierbar |
+| `data/raw/` | 38 MB Rohdaten, über `prep/s1_daten.py` reproduzierbar |
 | `data/processed/einsaetze.parquet` | 35 MB Zwischenstand, reproduzierbar |
 | `docs/archiv/` | veraltete Stände, würde nur verwirren |
 | `.git/`, `__pycache__/`, `notebooks/` | Arbeitsstände |

@@ -31,11 +31,12 @@ und ohne API-Key – die Downloads sind über die `DOWNLOAD_*`-Schalter in
 `prep/config.py` gesteuert und stehen per Default auf `False`.
 
 ```text
-prep/s01_laden.py            →  data/raw/*
-prep/s02_einsaetze.py        →  data/processed/einsaetze.parquet       Zwischenstand
-prep/s03_datensaetze.py      →  data/processed/regression.parquet      FINAL
-                             →  data/processed/klassifikation.parquet  FINAL
-prep/s04_eignungspruefung.py →  results/eignungspruefung/
+prep/s1_daten.py         →  data/raw/*
+                         →  data/processed/einsaetze.parquet       Zwischenstand
+prep/s2_datensaetze.py   →  data/processed/regression.parquet      FINAL
+                         →  data/processed/klassifikation.parquet  FINAL
+prep/s3_pruefung.py      →  results/eignungspruefung/
+                         →  results/regression/baselines_*.csv
 ```
 
 Die beiden **FINAL** markierten Dateien sind das Einzige, was die Modellskripte
@@ -55,7 +56,7 @@ unter `modelle/` lesen.
 | Aufteilung | `fold` (1–3) und `ist_holdout` als Spalten | identisch |
 | End-Hold-out | 2025-01 – 2025-12, beim Tuning unberührt | identisch |
 
-Beide entstehen in **einer** Datei (`prep/s03_datensaetze.py`) und teilen dadurch
+Beide entstehen in **einer** Datei (`prep/s2_datensaetze.py`) und teilen dadurch
 zwingend dieselbe Abgrenzung – Zeitraum und Stadtteilliste werden einmal
 bestimmt und an beide weitergereicht.
 
@@ -80,15 +81,14 @@ sffd_analyse/
 ├── prep/                      # alles Festgelegte – erzeugt die Datensätze
 │   ├── config.py              #   EINZIGE Wahrheit: Zeitraum, Merkmale,
 │   │                          #   Ausschlüsse, Folds, Suchräume, API-Keys
-│   ├── s01_laden.py           #   1 laden          → data/raw
-│   ├── s02_einsaetze.py       #   2-4 auswählen, joinen, Raten berechnen
-│   ├── s03_datensaetze.py     #   5-6 aggregieren, Lags → beide Datensätze
-│   ├── s04_eignungspruefung.py#   7 Eignungsurteil je Verfahren
-│   ├── cv.py                  #   Zeitschnitte, Folds, Hold-out, Gütemaße
-│   └── build.py               #   DER EINE BEFEHL
+│   ├── s1_daten.py            #   1 laden, auswählen, joinen, Raten
+│   ├── s2_datensaetze.py      #   2 aggregieren, Lags, Folds, Gütemaße
+│   │                          #     → beide finalen Datensätze
+│   ├── s3_pruefung.py         #   3 Eignungsurteil je Verfahren + Baselines
+│   ├── build.py               #   DER EINE BEFEHL
+│   └── _archiv/               #   ersetzte Vorgängerdateien (Nachvollziehbarkeit)
 │
 ├── modelle/                   # nur was tatsächlich schätzt
-│   ├── m01_baselines.py       #   naiv, saisonal, Negative Binomial
 │   ├── m02_regression.py      #   Ridge, Random Forest, XGBoost
 │   └── m03_klassifikation.py  #   dieselben drei, 4 Klassen
 │
@@ -125,25 +125,25 @@ Rate-Limits (`DATASF_APP_TOKEN`).
 python prep\build.py                 # alles: Daten + Eignungsprüfung
 python prep\build.py daten           # nur die Datensätze
 python prep\build.py pruefung        # nur die Eignungsprüfung
-python prep\s01_laden.py test        # Erreichbarkeit der Quellen prüfen
+python prep\s1_daten.py test         # Erreichbarkeit der Quellen prüfen
 
 # Einzelschritte (falls nur ein Teil neu soll)
-python prep\s02_einsaetze.py
-python prep\s03_datensaetze.py
-python prep\cv.py                    # zeigt die Zeitschnitte
+python prep\s1_daten.py join         # nur joinen, ohne Download
+python prep\s2_datensaetze.py
+python prep\s2_datensaetze.py splits # zeigt die Zeitschnitte
+python prep\s3_pruefung.py baselines # nur die Vergleichsgrößen
 
 # Absicherung
 python tests\test_aufbereitung.py    # muss 14/14 zeigen
 
 # Modelle
-python modelle\m01_baselines.py
 python modelle\m02_regression.py
 python modelle\m03_klassifikation.py
 ```
 
 Rohdaten werden nur geladen, wenn der jeweilige `DOWNLOAD_*`-Schalter in
 `prep/config.py` auf `True` steht. Nach einem Crime- oder ACS-Neu-Download
-verwirft `s01_laden.py` automatisch den Cache `crime_index_monatlich.csv`.
+verwirft `s1_daten.py` automatisch den Cache `crime_index_monatlich.csv`.
 
 ---
 

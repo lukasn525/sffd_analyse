@@ -41,7 +41,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "prep"))
 
 from config import (FEATURE_SETS, LAGS, N_FOLDS,  # noqa: E402
                     PFAD_REGRESSION, RANDOM_STATE, RESULTS_DIR, ROOT)
-from cv import bewerte_regression, beschreibe_splits, fold_masken, zeitachse  # noqa: E402
+from s2_datensaetze import (bewerte_regression, beschreibe_splits,  # noqa: E402
+                            fold_masken, zeitachse)
 
 OUT = RESULTS_DIR / "regression"
 

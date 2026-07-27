@@ -35,9 +35,9 @@ from config import (ENDE, ERGEBNISVARIABLEN, FEATURE_SETS,  # noqa: E402
                     KLASSEN, MERKMALE_KATEGORIAL, MERKMALE_STRUKTUR,
                     MERKMALE_ZEIT, PFAD_KLASSIFIKATION, PFAD_REGRESSION,
                     PRAEDIKTOREN, START, VORLAUF_MONATE)
-from cv import (ergaenze_aufteilung, fold_masken, inneres_fenster,  # noqa: E402
-                split_holdout, zeit_folds, zeitachse)
-from s03_datensaetze import _monat_minus, aggregiere  # noqa: E402
+from s2_datensaetze import (_monat_minus, aggregiere,  # noqa: E402
+                            ergaenze_aufteilung, fold_masken, inneres_fenster,
+                            split_holdout, zeit_folds, zeitachse)
 
 # Erwartungswerte des festgesetzten Analysedatensatzes
 # (Decision Log #15, #18, #19, #23)
