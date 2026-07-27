@@ -41,8 +41,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "prep"))
 
 from config import (FEATURE_SETS, LAGS, N_FOLDS,  # noqa: E402
                     PFAD_REGRESSION, RANDOM_STATE, RESULTS_DIR, ROOT)
-from s2_datensaetze import (bewerte_regression, beschreibe_splits,  # noqa: E402
-                            fold_masken, zeitachse)
+from s2_datensaetze import beschreibe_splits, fold_masken, zeitachse  # noqa: E402
+from s3_baselines import bewerte_regression  # noqa: E402
 
 OUT = RESULTS_DIR / "regression"
 
@@ -143,7 +143,7 @@ def main() -> pd.DataFrame:
     mittel.to_csv(OUT / "regression_mittel.csv")
     print(f"\n  => {OUT.relative_to(ROOT)}/regression_*.csv")
     print("\nNaechster Ausbau: RandomizedSearchCV auf dem inneren "
-          "Validierungsfenster (prep/cv.inneres_fenster_masken) mit den "
+          "Validierungsfenster (prep/s2_datensaetze.inneres_fenster) mit den "
           "Suchraeumen aus prep/config.SUCHRAEUME, danach EINMALIG auf dem "
           "End-Hold-out bewerten.")
     return df

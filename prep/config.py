@@ -6,7 +6,7 @@ Stadtteile, Praediktoren, Merkmalssaetze, Zeitschnitte, Suchraeume - steht hier
 und nirgendwo sonst. Wer wissen will, ab wann die Analyse laeuft oder welche
 Merkmale ins Modell gehen, oeffnet ausschliesslich diese Datei.
 
-Bezug: CLAUDE.md (Decision Log), docs/UMBAU_PREPROCESSING.md
+Bezug: docs/01_PIPELINE.md, docs/02_ENTSCHEIDUNGEN.md
 """
 from pathlib import Path
 
@@ -240,7 +240,7 @@ ERGEBNISVARIABLEN = [
 ]
 
 def merkmalslisten(mit_ort: bool = MIT_BATAILLON) -> dict[str, list[str]]:
-    """Merkmalssaetze der geplanten Laeufe (docs/KLASSIFIKATION_DESIGN.md).
+    """Merkmalssaetze der geplanten Laeufe.
 
       A+B  Stadtteilstruktur + Zeitpunkt -> Hauptmodell
       B    nur Zeitpunkt                 -> zeigt den Beitrag der Struktur
@@ -257,7 +257,7 @@ def merkmalslisten(mit_ort: bool = MIT_BATAILLON) -> dict[str, list[str]]:
 
 
 # ==========================================================================
-# 7  VALIDIERUNG  (Schritt: prep/cv.py)
+# 7  VALIDIERUNG  (Schritt: prep/s2_datensaetze.py, Teil A)
 # ==========================================================================
 # Blockiertes Forward Chaining ueber globale Zeitschnitte; alle Stadtteile
 # teilen dieselbe Trennlinie. Kein Gap zwischen Train und Test noetig, weil

@@ -12,7 +12,7 @@ Gegenstand:
 
   1. Analysedatensatz  rechteckig, vollständig, fester Zeitraum
   2. Zeitschnitte      Reihenfolge, Disjunktheit, unberührtes Hold-out,
-                       Aufteilungsspalten konsistent zu prep/cv.py
+                       Aufteilungsspalten konsistent zu prep/s2_datensaetze.py
   3. Merkmale          Lags gegen die Rohdaten verifiziert, kein Leakage
   4. Klassifikation    keine Ergebnisvariablen, Abgrenzung wie die Regression
 
@@ -145,7 +145,7 @@ def test_folds_ordnung_und_holdout():
 
 
 def test_aufteilungsspalten_konsistent():
-    """`fold` und `ist_holdout` in der Datei müssen zu prep/cv.py passen.
+    """`fold` und `ist_holdout` in der Datei müssen zu prep/s2_datensaetze.py passen.
 
     Die Spalten sind der Grund, warum die Fairness-Regel nachzählbar ist. Wären
     sie veraltet – etwa weil jemand den Zeitraum geändert, aber den Datensatz

@@ -1,13 +1,12 @@
 """
-Schritt 2 der Aufbereitung: die beiden finalen Datensaetze samt Validierungsrahmen.
+Schritt 2: die beiden finalen Datensaetze samt Validierungsrahmen.
 
 Eingang:  data/processed/einsaetze.parquet        (ein Einsatz je Zeile)
 Ausgang:  data/processed/regression.parquet       Stadtteil x Monat
           data/processed/klassifikation.parquet   Einzeleinsatz
 
-Beide Datensaetze entstehen in EINER Datei, weil sie zwingend dieselbe
-Abgrenzung teilen muessen: Zeitraum und Stadtteilliste werden einmal bestimmt
-und an beide weitergereicht.
+Beide entstehen in EINER Datei, weil sie dieselbe Abgrenzung teilen muessen:
+Zeitraum und Stadtteilliste werden einmal bestimmt und weitergereicht.
 
 Der Validierungsrahmen steht ebenfalls hier, weil die Aufteilung als SPALTEN in
 die Parquet-Dateien geschrieben wird (`fold`, `ist_holdout`). Sie ist damit
@@ -16,9 +15,8 @@ Funktion aufruft. "Alle drei Verfahren sehen identische Folds" ist eine Zusage
 ueber den DATENSATZ, nicht ueber die Algorithmen (Fairness-Regel, CLAUDE.md).
 
   TEIL A  Zeitschnitte, Folds, End-Hold-out
-  TEIL B  Guetemasse
-  TEIL C  Regression      Aggregation, Exposure, Saison, Lags, Panel
-  TEIL D  Klassifikation  Zielgroessen aus NFIRS, Zeitmerkmale
+  TEIL B  Regression      Aggregation, Exposure, Saison, Lags, Panel
+  TEIL C  Klassifikation  Zielgroessen aus NFIRS, Zeitmerkmale
 
 Ausfuehren:
   python prep/s2_datensaetze.py          # beide Datensaetze bauen
@@ -30,9 +28,6 @@ import sys
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import (average_precision_score, f1_score,
-                             mean_absolute_error, mean_squared_error,
-                             r2_score, roc_auc_score)
 
 from config import (CRIME_ROH, ENDE, ERGEBNISVARIABLEN, EXPOSURE_ROH,
                     FEATURE_SETS, KLASSEN, LAGS, MERKMALE_KATEGORIAL,
@@ -43,20 +38,15 @@ from config import (CRIME_ROH, ENDE, ERGEBNISVARIABLEN, EXPOSURE_ROH,
                     RESTKLASSE, ROOT, SAISON, START,
                     VOLLSTAENDIGKEITS_SCHWELLE, VORLAUF_MONATE, merkmalslisten)
 
-# --------------------------------------------------------------------------
-# Spaltenordnung der beiden Ausgaben
-# --------------------------------------------------------------------------
-ZIELGROESSE   = "anzahl_einsaetze"
-R_SCHLUESSEL  = ["stadtteil", "jahr", "monat", "jahr_monat"]
-R_NEBEN       = [EXPOSURE_ROH, CRIME_ROH]   # NegBin-Offset, Deskription Kap. 5.1
-
-K_SCHLUESSEL  = ["einsatz_nummer", "stadtteil", "jahr", "monat", "jahr_monat"]
+ZIELGROESSE    = "anzahl_einsaetze"
+R_SCHLUESSEL   = ["stadtteil", "jahr", "monat", "jahr_monat"]
+R_NEBEN        = [EXPOSURE_ROH, CRIME_ROH]   # NegBin-Offset, Deskription 5.1
+K_SCHLUESSEL   = ["einsatz_nummer", "stadtteil", "jahr", "monat", "jahr_monat"]
 K_ZIELGROESSEN = ["einsatzart_gruppe", "ist_brand"]
+AUFTEILUNG     = ["fold", "ist_holdout"]
 
-AUFTEILUNG = ["fold", "ist_holdout"]
-
-# Aus der Einsatz-Tabelle je Stadtteil-Monat uebernommene Spalten. Die
-# log-Merkmale entstehen erst danach.
+# Je Stadtteil-Monat aus der Einsatz-Tabelle uebernommen; die log-Merkmale
+# entstehen erst danach.
 _ABGELEITET  = ["log_bevoelkerung", "log_kriminalitaetsindex"]
 _UEBERNOMMEN = ([c for c in PRAEDIKTOREN if c not in _ABGELEITET]
                 + [EXPOSURE_ROH, CRIME_ROH])
@@ -87,73 +77,52 @@ def zeitachse(daten: pd.DataFrame, spalte: str = "jahr_monat") -> list[int]:
 
 def split_holdout(monate: list[int],
                   n_holdout: int = N_HOLDOUT) -> tuple[list[int], list[int]]:
-    """Trennt die Zeitachse in Entwicklungsdaten und End-Hold-out.
+    """Entwicklungsdaten und End-Hold-out (letzte `n_holdout` Monate).
 
-    Das Hold-out umfasst die letzten `n_holdout` Monate und wird waehrend
-    Modellauswahl und Tuning NICHT verwendet - nur fuer die abschliessende,
-    einmalige Bewertung.
+    Das Hold-out wird bei Modellauswahl und Tuning NICHT verwendet - nur fuer
+    die abschliessende, einmalige Bewertung.
     """
-    if len(monate) <= n_holdout:
-        raise ValueError(f"Zeitachse zu kurz ({len(monate)} Monate) "
-                         f"fuer ein Hold-out von {n_holdout} Monaten.")
+    assert len(monate) > n_holdout, f"Zeitachse zu kurz: {len(monate)} Monate."
     return monate[:-n_holdout], monate[-n_holdout:]
 
 
-def zeit_folds(monate: list[int],
-               n_folds: int = N_FOLDS,
+def zeit_folds(monate: list[int], n_folds: int = N_FOLDS,
                test_monate: int = N_TEST_MONATE) -> list[tuple[list[int], list[int]]]:
-    """Expanding-Window-Folds ueber sortierte Jahr-Monats-Schluessel.
-
-    `monate` sollte das Hold-out bereits ausschliessen (siehe split_holdout).
-    """
-    benoetigt = n_folds * test_monate + test_monate
-    if len(monate) < benoetigt:
-        raise ValueError(f"Zeitachse zu kurz: {len(monate)} Monate, "
-                         f"mindestens {benoetigt} noetig fuer {n_folds} Folds "
-                         f"a {test_monate} Testmonate.")
+    """Expanding-Window-Folds. `monate` sollte das Hold-out ausschliessen."""
+    assert len(monate) >= (n_folds + 1) * test_monate, (
+        f"Zeitachse zu kurz: {len(monate)} Monate fuer {n_folds} Folds "
+        f"a {test_monate} Testmonate.")
     folds = []
     for i in range(n_folds):
-        ende_test  = len(monate) - (n_folds - 1 - i) * test_monate
-        start_test = ende_test - test_monate
-        folds.append((monate[:start_test], monate[start_test:ende_test]))
+        ende = len(monate) - (n_folds - 1 - i) * test_monate
+        folds.append((monate[:ende - test_monate], monate[ende - test_monate:ende]))
     return folds
 
 
 def inneres_fenster(train_monate: list[int],
                     val_monate: int = N_VAL_MONATE) -> tuple[list[int], list[int]]:
-    """Zerlegt ein Trainingsfenster in Sub-Training und Validierung.
+    """Sub-Training und Validierung fuer die Hyperparameter-Suche.
 
-    Fuer die Hyperparameter-Suche: die letzten `val_monate` dienen als
-    Validierung, der Rest als Sub-Training. Damit wird nie auf Testmonaten
-    getunt.
+    Die letzten `val_monate` des Trainings dienen als Validierung - damit wird
+    nie auf Testmonaten getunt.
     """
-    if len(train_monate) <= val_monate:
-        raise ValueError(f"Trainingsfenster zu kurz ({len(train_monate)} Monate) "
-                         f"fuer ein inneres Fenster von {val_monate} Monaten.")
+    assert len(train_monate) > val_monate, "Trainingsfenster zu kurz."
     return train_monate[:-val_monate], train_monate[-val_monate:]
 
 
-def maske(daten: pd.DataFrame, monate: list[int],
-          spalte: str = "jahr_monat") -> pd.Series:
-    """Boolesche Maske fuer eine Monatsliste."""
-    return daten[spalte].isin(monate)
-
-
 def ergaenze_aufteilung(daten: pd.DataFrame) -> pd.DataFrame:
-    """Schreibt die Spalten `fold` und `ist_holdout` in den Datensatz.
+    """Schreibt `fold` und `ist_holdout` in den Datensatz.
 
     `fold`         Nummer des Folds, in dessen TESTfenster der Monat liegt.
                    0 = der Monat dient ausschliesslich als Trainingsmaterial.
     `ist_holdout`  1 = Monat gehoert zum unberuehrten End-Hold-out.
 
-    Die Trainingsfenster sind daraus vollstaendig ableitbar (siehe
-    `fold_masken`), weil das Training bei Forward Chaining immer aus allen
-    Monaten VOR dem Testfenster besteht.
+    Die Trainingsfenster sind daraus ableitbar (siehe `fold_masken`), weil das
+    Training bei Forward Chaining immer aus allen Monaten VOR dem Testfenster
+    besteht.
     """
     d = daten.copy()
-    monate = zeitachse(d)
-    entwicklung, holdout = split_holdout(monate)
-
+    entwicklung, holdout = split_holdout(zeitachse(d))
     d["fold"] = 0
     for i, (_, test) in enumerate(zeit_folds(entwicklung), start=1):
         d.loc[d["jahr_monat"].isin(test), "fold"] = i
@@ -168,19 +137,11 @@ def fold_masken(daten: pd.DataFrame, k: int) -> tuple[pd.Series, pd.Series]:
     Training = alle Monate vor dem Testfenster, ohne das Hold-out.
     """
     test = daten["fold"] == k
-    if not test.any():
-        raise ValueError(f"Kein Fold {k} im Datensatz (vorhanden: "
-                         f"{sorted(daten['fold'].unique())}).")
-    start_test = daten.loc[test, "jahr_monat"].min()
-    train = (daten["jahr_monat"] < start_test) & (daten["ist_holdout"] == 0)
+    assert test.any(), (f"Kein Fold {k} im Datensatz "
+                        f"(vorhanden: {sorted(daten['fold'].unique())}).")
+    train = ((daten["jahr_monat"] < daten.loc[test, "jahr_monat"].min())
+             & (daten["ist_holdout"] == 0))
     return train, test
-
-
-def inneres_fenster_masken(daten: pd.DataFrame, k: int) -> tuple[pd.Series, pd.Series]:
-    """Sub-Training und inneres Validierungsfenster des Folds k (fuer die Suche)."""
-    train, _ = fold_masken(daten, k)
-    sub, val = inneres_fenster(sorted(daten.loc[train, "jahr_monat"].unique()))
-    return daten["jahr_monat"].isin(sub), daten["jahr_monat"].isin(val)
 
 
 def beschreibe_splits(monate: list[int]) -> str:
@@ -200,74 +161,7 @@ def beschreibe_splits(monate: list[int]) -> str:
 
 
 # ==========================================================================
-# TEIL B  GUETEMASSE
-# ==========================================================================
-def bewerte_regression(y_true, y_pred) -> dict:
-    """RMSE, MAE, R2 - immer auf der ORIGINALSKALA der Zaehlgroesse.
-
-    Modelle, die auf log(1+y) trainiert werden (Ridge), muessen ihre
-    Vorhersagen vorher per expm1 zuruecktransformieren.
-    """
-    y_true = np.asarray(y_true, dtype=float)
-    y_pred = np.asarray(y_pred, dtype=float)
-    return {
-        "RMSE": float(np.sqrt(mean_squared_error(y_true, y_pred))),
-        "MAE":  float(mean_absolute_error(y_true, y_pred)),
-        "R2":   float(r2_score(y_true, y_pred)),
-    }
-
-
-def bewerte_klassifikation(y_true, p_hat, schwelle: float = 0.5) -> dict:
-    """Binaer: F1 (positive Klasse = Brand), AUROC, Average Precision.
-
-    AUROC ist schwellenunabhaengig, F1 nicht - die Schwelle ist daher auf dem
-    inneren Validierungsfenster zu waehlen, nicht blind auf 0,5.
-    """
-    y_true = np.asarray(y_true).astype(int)
-    p_hat  = np.asarray(p_hat, dtype=float)
-    return {
-        "F1":    float(f1_score(y_true, (p_hat >= schwelle).astype(int),
-                                zero_division=0)),
-        "AUROC": float(roc_auc_score(y_true, p_hat)),
-        "AP":    float(average_precision_score(y_true, p_hat)),
-        "schwelle": float(schwelle),
-    }
-
-
-def bewerte_mehrklassig(y_true, p_hat, klassen: list[str]) -> dict:
-    """Mehrklassig: Macro-F1 und Macro-AUROC (One-vs-Rest).
-
-    Zuordnung ueber argmax statt Schwellenwert (Decision Log #21). Macro
-    gewichtet alle vier Klassen gleich - sonst dominiert Fehlalarm/Good Intent
-    mit 48 % das Ergebnis.
-    """
-    p_hat  = np.asarray(p_hat, dtype=float)
-    y_true = np.asarray(y_true)
-    y_pred = np.asarray(klassen)[p_hat.argmax(axis=1)]
-    # roc_auc_score verlangt sortierte Labels; die Wahrscheinlichkeitsspalten
-    # muessen in derselben Reihenfolge stehen wie `labels`.
-    ordnung = sorted(range(len(klassen)), key=lambda i: klassen[i])
-    return {
-        "Macro-F1":    float(f1_score(y_true, y_pred, average="macro",
-                                      labels=klassen, zero_division=0)),
-        "Macro-AUROC": float(roc_auc_score(y_true, p_hat[:, ordnung],
-                                           multi_class="ovr", average="macro",
-                                           labels=[klassen[i] for i in ordnung])),
-    }
-
-
-def beste_schwelle(y_true, p_hat, raster: np.ndarray | None = None) -> float:
-    """F1-optimale Schwelle auf dem inneren Validierungsfenster (nur binaer)."""
-    y_true = np.asarray(y_true).astype(int)
-    p_hat  = np.asarray(p_hat, dtype=float)
-    raster = np.arange(0.05, 0.96, 0.01) if raster is None else raster
-    werte = [f1_score(y_true, (p_hat >= s).astype(int), zero_division=0)
-             for s in raster]
-    return float(raster[int(np.argmax(werte))])
-
-
-# ==========================================================================
-# Datentypen (von beiden Datensaetzen genutzt)
+# Von beiden Datensaetzen genutzt
 # ==========================================================================
 def _monat_minus(jahr_monat: int, monate: int) -> int:
     """Verschiebt einen jahr_monat-Schluessel um n Monate zurueck."""
@@ -279,28 +173,20 @@ def _monat_minus(jahr_monat: int, monate: int) -> int:
 def _setze_datentypen(d: pd.DataFrame, merkmale: list[str]) -> pd.DataFrame:
     """Vereinheitlicht die Datentypen auf modelltaugliche NumPy-Typen.
 
-    WARUM DAS NOETIG IST: Die ACS-Aggregation liefert `median_haushaltseinkommen`
-    und `median_miete` als pandas-eigenen Typ `Int64` (nullable). Solange nur
-    scikit-learn im Spiel ist, faellt das nicht auf - der StandardScaler wandelt
-    still um. Sobald aber EINE Int64-Spalte im Merkmalssatz steht, liefert
-    `X.to_numpy()` ein object-Array statt float64, und XGBoost lehnt den
-    DataFrame mit "dtypes for data must be int, float, bool or category" ab.
-    Der Fehler traete also erst beim dritten der drei zu vergleichenden
-    Verfahren auf.
+    WARUM: Die ACS-Aggregation liefert `median_haushaltseinkommen` und
+    `median_miete` als pandas-eigenen Typ `Int64` (nullable). Solange nur
+    scikit-learn im Spiel ist, faellt das nicht auf. Sobald aber EINE
+    Int64-Spalte im Merkmalssatz steht, liefert `X.to_numpy()` ein object-Array
+    statt float64, und XGBoost lehnt den DataFrame ab - der Fehler traete erst
+    beim dritten der drei zu vergleichenden Verfahren auf (Decision Log #24).
 
-    Regel:
-      Merkmale                float64  (einheitliche Designmatrix)
-      wochentag               int64    (kategorial, One-Hot im ColumnTransformer)
-      Schluessel/Zaehlgroesse int64
-      Steuerspalten           int64
-      stadtteil, Zielklasse   str
+    Merkmale float64 · wochentag int64 (kategorial, One-Hot spaeter) ·
+    Schluessel und Steuerspalten int64 · stadtteil und Zielklasse str.
     """
     d = d.copy()
     for c in merkmale:
-        if c in MERKMALE_KATEGORIAL:
-            d[c] = d[c].astype("int64")
-        else:
-            d[c] = pd.to_numeric(d[c], errors="coerce").astype("float64")
+        d[c] = (d[c].astype("int64") if c in MERKMALE_KATEGORIAL
+                else pd.to_numeric(d[c], errors="coerce").astype("float64"))
     for c in ["jahr", "monat", "jahr_monat", ZIELGROESSE, "ist_brand",
               "fold", "ist_holdout", EXPOSURE_ROH]:
         if c in d.columns:
@@ -314,30 +200,8 @@ def _setze_datentypen(d: pd.DataFrame, merkmale: list[str]) -> pd.DataFrame:
 
 
 # ==========================================================================
-# TEIL C  REGRESSION
+# TEIL B  REGRESSION
 # ==========================================================================
-def pruefe_randmonate(df: pd.DataFrame) -> None:
-    """Warnt, wenn Monate im Rohdatenbestand unvollstaendig wirken.
-
-    Reine Diagnose - massgeblich ist die Konstante ENDE in config.py. Diese
-    Pruefung verhindert, dass nach einem Neu-Download erneut ein angebrochener
-    Randmonat unbemerkt ins Panel laeuft (Decision Log #12): Frueher blieb
-    2026-01 mit 258 statt ~3.300 Einsaetzen als scheinbar vollstaendiger Monat
-    im Testfenster des letzten Folds stehen und drueckte die naive Baseline dort
-    von R2 0,955 auf 0,740.
-    """
-    je_monat = df.groupby("jahr_monat").size()
-    median = je_monat.median()
-    verdaechtig = je_monat[je_monat < VOLLSTAENDIGKEITS_SCHWELLE * median]
-    verdaechtig = verdaechtig[verdaechtig.index <= ENDE]
-    if len(verdaechtig):
-        print(f"  WARNUNG: {len(verdaechtig)} Monat(e) <= ENDE={ENDE} wirken "
-              f"unvollstaendig (< {VOLLSTAENDIGKEITS_SCHWELLE:.0%} des "
-              f"Median-Monats von {median:,.0f} Einsaetzen):")
-        for jm, n in verdaechtig.items():
-            print(f"    {jm}: {n:,} Einsaetze -> ENDE in config.py pruefen!")
-
-
 def aggregiere(von: int, bis: int, mit_parkgebieten: bool = False,
                verbose: bool = False) -> pd.DataFrame:
     """Einsatz-Ebene -> Stadtteil x Monat, vollstaendiges Raster.
@@ -347,20 +211,26 @@ def aggregiere(von: int, bis: int, mit_parkgebieten: bool = False,
     df = pd.read_parquet(PFAD_EINSAETZE)
     if not mit_parkgebieten:
         df = df[~df["stadtteil"].isin(PARKGEBIETE)]
-
-    # Sicherheits-Dedup (idempotent; die Bereinigung erfolgt in s1_daten.py).
+    # Sicherheits-Dedup (idempotent; bereinigt wird in s1_daten.py).
     df = df.drop_duplicates(subset=["einsatz_nummer"], keep="first")
-
     df["jahr_monat"] = df["jahr"] * 100 + df["monat"]
+
     if verbose:
-        pruefe_randmonate(df)
+        # Diagnose gegen angebrochene Randmonate (Decision Log #12): 2026-01
+        # blieb frueher mit 258 statt ~3.300 Einsaetzen als scheinbar
+        # vollstaendiger Monat im letzten Testfenster stehen und drueckte die
+        # naive Baseline dort von R2 0,955 auf 0,740. Massgeblich bleibt ENDE.
+        je_monat = df.groupby("jahr_monat").size()
+        median = je_monat.median()
+        duenn = je_monat[(je_monat < VOLLSTAENDIGKEITS_SCHWELLE * median)
+                         & (je_monat.index <= ENDE)]
+        for jm, n in duenn.items():
+            print(f"  WARNUNG: {jm} hat nur {n:,} Einsaetze "
+                  f"(Median {median:,.0f}) -> ENDE in config.py pruefen!")
 
     # Zuschnitt VOR der Aggregation, damit das Raster genau den gewuenschten
     # Zeitraum aufspannt.
     df = df[df["jahr_monat"].between(von, bis)]
-    if df.empty:
-        raise ValueError(f"Keine Einsaetze im Zeitraum {von}-{bis}.")
-
     agg = (df.groupby(["stadtteil", "jahr", "monat"])
              .agg(anzahl_einsaetze=("einsatz_nummer", "count"),
                   **{c: (c, "first") for c in _UEBERNOMMEN})
@@ -380,16 +250,14 @@ def aggregiere(von: int, bis: int, mit_parkgebieten: bool = False,
     # Leakage (Decision Log #10). Echte NaN bleiben sichtbar.
     raster[_UEBERNOMMEN] = (raster.groupby("stadtteil")[_UEBERNOMMEN]
                                   .transform(lambda s: s.ffill()))
-
     raster["jahr_monat"] = raster["jahr"] * 100 + raster["monat"]
     raster = raster[raster["jahr_monat"].between(von, bis)]
 
-    # Exposure (Decision Log #13). log1p statt log nur zur Absicherung gegen
-    # Datenartefakte mit Bevoelkerung 0.
+    # Exposure (Decision Log #13); log1p sichert gegen Bevoelkerung 0 ab.
     raster["log_bevoelkerung"] = np.log1p(raster[EXPOSURE_ROH].astype(float))
-    # Kriminalitaetsindex logarithmieren (Decision Log #17/#19): 0 entspricht dem
-    # Stadtdurchschnitt. Nullwerte wuerden -inf erzeugen und werden auf NaN
-    # gesetzt, damit sie sichtbar bleiben statt still zum Extremwert zu werden.
+    # Kriminalitaetsindex logarithmieren (#17/#19): 0 = Stadtdurchschnitt.
+    # Nullwerte wuerden -inf erzeugen und werden zu NaN, damit sie sichtbar
+    # bleiben statt still zum Extremwert zu werden.
     index_roh = raster[CRIME_ROH].astype(float)
     raster["log_kriminalitaetsindex"] = np.log(index_roh.where(index_roh > 0))
 
@@ -402,65 +270,33 @@ def aggregiere(von: int, bis: int, mit_parkgebieten: bool = False,
     return ergebnis
 
 
-def baue_merkmale(panel: pd.DataFrame) -> pd.DataFrame:
-    """Ergaenzt Saison- und Lag-Merkmale.
-
-    SAISON - Der Monat als Zahl 1-12 waere eine schlechte Kodierung: Dezember und
-    Januar haetten den Abstand 11, obwohl sie benachbart sind, und ein linearer
-    Koeffizient koennte ein U-foermiges Jahresmuster nicht abbilden. sin/cos
-    legen die Monate auf ein Zifferblatt.
-
-    LAGS - Strikt rueckwaertsgerichtet und je Stadtteil gebildet (`groupby`), nie
-    ueber Stadtteilgrenzen hinweg. Beim gleitenden Mittel steht `shift(1)` VOR
-    `rolling(3)`: der Wert fuer Monat t verwendet t-1, t-2, t-3, nie t selbst.
-    """
-    d = panel.copy()
-    d["monat_sin"] = np.sin(2 * np.pi * d["monat"] / 12)
-    d["monat_cos"] = np.cos(2 * np.pi * d["monat"] / 12)
-
-    d = d.sort_values(["stadtteil", "jahr_monat"]).reset_index(drop=True)
-    g = d.groupby("stadtteil")[ZIELGROESSE]
-    d["lag_1"]          = g.shift(1)
-    d["lag_12"]         = g.shift(12)
-    d["rolling_mean_3"] = g.transform(lambda s: s.shift(1).rolling(3).mean())
-    return d
-
-
-def balanciertes_panel(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
-    """Reduziert das Panel auf ein rechteckiges Stadtteil x Monat-Gitter.
-
-    Nicht alle Stadtteile sind in allen ACS-Jahrgaengen enthalten:
-      Treasure Island, Lakeshore  in KEINEM Jahrgang
-      Mission Bay                 erst ab ACS 2021
-
-    Zeilenweises `dropna` erzeugte ein UNBALANCIERTES Panel - Mission Bay taucht
-    mitten in der Zeitreihe auf, die Folds enthalten unterschiedlich viele
-    Stadtteile, und die Einsatzsumme im Testfenster springt allein durch den
-    Zutritt eines Stadtteils (Decision Log #15).
-    """
-    unvollstaendig = (df.groupby("stadtteil")[PRAEDIKTOREN]
-                        .apply(lambda g: g.isna().any().any()))
-    raus = sorted(unvollstaendig[unvollstaendig].index)
-    aus = df[~df["stadtteil"].isin(raus)].reset_index(drop=True)
-    if verbose and raus:
-        print(f"  Balanciertes Panel: {len(raus)} Stadtteil(e) ohne durchgaengige "
-              f"Abdeckung ausgeschlossen -> {raus}")
-    return aus
-
-
 def baue_regression(vorlauf: int = VORLAUF_MONATE,
                     verbose: bool = False) -> pd.DataFrame:
     """Der vollstaendige Regressionsdatensatz.
 
     LAG-VORLAUF (Decision Log #23): Aggregiert wird ab START minus `vorlauf`
     Monaten, damit lag_12 schon fuer den ersten Analysemonat definiert ist.
-    Danach wird auf START zugeschnitten - die Vorlaufmonate gehen ausschliesslich
-    ueber shift() ein, nie als eigene Zeile. Ohne Vorlauf fiel das erste Jahr je
-    Stadtteil weg und die Regression begann 2016-01, waehrend die Klassifikation
-    ab 2015-01 lief.
+    Danach Zuschnitt auf START - die Vorlaufmonate gehen ausschliesslich ueber
+    shift() ein, nie als eigene Zeile.
     """
     von = _monat_minus(START, vorlauf)
-    d = baue_merkmale(aggregiere(von=von, bis=ENDE, verbose=verbose))
+    d = aggregiere(von=von, bis=ENDE, verbose=verbose)
+
+    # SAISON - Der Monat als Zahl 1-12 waere eine schlechte Kodierung: Dezember
+    # und Januar haetten den Abstand 11, obwohl sie benachbart sind, und ein
+    # linearer Koeffizient koennte ein U-foermiges Jahresmuster nicht abbilden.
+    # sin/cos legen die Monate auf ein Zifferblatt.
+    d["monat_sin"] = np.sin(2 * np.pi * d["monat"] / 12)
+    d["monat_cos"] = np.cos(2 * np.pi * d["monat"] / 12)
+
+    # LAGS - Strikt rueckwaertsgerichtet und je Stadtteil gebildet, nie ueber
+    # Stadtteilgrenzen hinweg. Beim gleitenden Mittel steht `shift(1)` VOR
+    # `rolling(3)`: der Wert fuer Monat t verwendet t-1, t-2, t-3, nie t selbst.
+    d = d.sort_values(["stadtteil", "jahr_monat"]).reset_index(drop=True)
+    g = d.groupby("stadtteil")[ZIELGROESSE]
+    d["lag_1"]          = g.shift(1)
+    d["lag_12"]         = g.shift(12)
+    d["rolling_mean_3"] = g.transform(lambda s: s.shift(1).rolling(3).mean())
 
     # Vorlauf abschneiden. Erst danach greift die NaN-Pruefung des balancierten
     # Panels - die Vorlaufmonate haben absichtlich keine Strukturmerkmale (der
@@ -472,7 +308,18 @@ def baue_regression(vorlauf: int = VORLAUF_MONATE,
         print(f"  Lag-Vorlauf: {vor_schnitt - len(d):,} Vorlaufzeilen "
               f"({von}-{_monat_minus(START, 1)}) nach der Lag-Bildung entfernt")
 
-    d = balanciertes_panel(d, verbose=verbose)
+    # Balanciertes Panel (Decision Log #15): Treasure Island und Lakeshore
+    # fehlen in JEDEM ACS-Jahrgang, Mission Bay erst ab 2021. Zeilenweises
+    # dropna erzeugte ein unbalanciertes Panel - Mission Bay taucht mitten in
+    # der Zeitreihe auf, die Folds enthalten unterschiedlich viele Stadtteile,
+    # und die Testfenster-Summe springt allein durch diesen Zutritt.
+    luecken = (d.groupby("stadtteil")[PRAEDIKTOREN]
+                .apply(lambda g: g.isna().any().any()))
+    raus = sorted(luecken[luecken].index)
+    d = d[~d["stadtteil"].isin(raus)].reset_index(drop=True)
+    if verbose and raus:
+        print(f"  Balanciertes Panel: {len(raus)} Stadtteil(e) ohne durchgaengige "
+              f"Abdeckung ausgeschlossen -> {raus}")
 
     # Sicherheitsnetz: ohne ausreichenden Vorlauf bleiben Anlaufmonate ohne
     # lag_12 uebrig. Sie muessen fuer ALLE Modelle und beide Merkmalssaetze
@@ -488,24 +335,22 @@ def baue_regression(vorlauf: int = VORLAUF_MONATE,
     # Sortierung liefert trotz identischem random_state leicht andere Baeume -
     # empirisch 17,2587 statt 17,2974 RMSE in Fold 1. Ridge ist dagegen
     # reihenfolgeinvariant. Diese Sortierung darf nicht veraendert werden.
-    d = d.sort_values(["jahr_monat", "stadtteil"]).reset_index(drop=True)
-    d = ergaenze_aufteilung(d)
-
+    d = ergaenze_aufteilung(
+        d.sort_values(["jahr_monat", "stadtteil"]).reset_index(drop=True))
     spalten = (R_SCHLUESSEL + [ZIELGROESSE] + FEATURE_SETS["S+L"]
                + AUFTEILUNG + R_NEBEN)
     return _setze_datentypen(d[spalten], FEATURE_SETS["S+L"])
 
 
 # ==========================================================================
-# TEIL D  KLASSIFIKATION
+# TEIL C  KLASSIFIKATION
 # ==========================================================================
-def baue_klassifikation(regression: pd.DataFrame,
-                        mit_ort: bool = MIT_BATAILLON,
+def baue_klassifikation(regression: pd.DataFrame, mit_ort: bool = MIT_BATAILLON,
                         verbose: bool = False) -> pd.DataFrame:
     """Der vollstaendige Klassifikationsdatensatz.
 
-    Zeitraum und Stadtteilliste werden dem Regressionsdatensatz ENTNOMMEN, nicht
-    neu bestimmt. Damit beziehen sich beide Teile der Arbeit zwingend auf
+    Zeitraum und Stadtteilliste werden dem Regressionsdatensatz ENTNOMMEN,
+    nicht neu bestimmt. Damit beziehen sich beide Teile der Arbeit zwingend auf
     denselben Datenbestand.
     """
     von, bis = int(regression["jahr_monat"].min()), int(regression["jahr_monat"].max())
@@ -513,27 +358,25 @@ def baue_klassifikation(regression: pd.DataFrame,
 
     df = pd.read_parquet(PFAD_EINSAETZE)
     df["jahr_monat"] = df["jahr"] * 100 + df["monat"]
-    df = df[df["jahr_monat"].between(von, bis)]
-    df = df[df["stadtteil"].isin(stadtteile)].copy()
-    df = df.drop_duplicates(subset=["einsatz_nummer"], keep="first")
+    df = df[df["jahr_monat"].between(von, bis) & df["stadtteil"].isin(stadtteile)]
+    df = df.drop_duplicates(subset=["einsatz_nummer"], keep="first").copy()
 
-    # --- Zielgroessen ------------------------------------------------------
-    # NFIRS-Codes sind hierarchisch, die fuehrende Ziffer bezeichnet die Serie.
+    # Zielgroessen: NFIRS-Codes sind hierarchisch, die fuehrende Ziffer
+    # bezeichnet die Serie.
     serie = df["einsatzart"].astype(str).str.extract(r"^(\d)")[0]
     df["einsatzart_gruppe"] = serie.map(NFIRS_GRUPPEN).fillna(RESTKLASSE)
     df["ist_brand"] = (serie == "1").astype(int)
 
-    # --- Block A: Stadtteilstruktur ----------------------------------------
-    # Dieselben Transformationen wie im Regressionsdatensatz, hier auf
-    # Einsatz-Ebene.
+    # Block A: Stadtteilstruktur - dieselben Transformationen wie in der
+    # Regression, hier auf Einsatz-Ebene.
     df["log_bevoelkerung"] = np.log1p(df[EXPOSURE_ROH].astype(float))
     index_roh = df[CRIME_ROH].astype(float)
     df["log_kriminalitaetsindex"] = np.log(index_roh.where(index_roh > 0))
 
-    # --- Block B: Zeitpunkt des Alarms -------------------------------------
-    # Zyklisch kodiert, weil der Zusammenhang periodisch und nicht monoton ist:
-    # Der Brandanteil schwankt ueber den Tag zwischen 8,5 % und 20,5 %, die
-    # lineare Korrelation mit `stunde` betraegt aber nur -0,006.
+    # Block B: Zeitpunkt des Alarms, zyklisch kodiert - der Zusammenhang ist
+    # periodisch und nicht monoton: Der Brandanteil schwankt ueber den Tag
+    # zwischen 8,5 % und 20,5 %, die lineare Korrelation mit `stunde` betraegt
+    # aber nur -0,006.
     df["stunde_sin"] = np.sin(2 * np.pi * df["stunde"] / 24)
     df["stunde_cos"] = np.cos(2 * np.pi * df["stunde"] / 24)
     df["monat_sin"]  = np.sin(2 * np.pi * df["monat"] / 12)
@@ -541,19 +384,17 @@ def baue_klassifikation(regression: pd.DataFrame,
 
     merkmale = (MERKMALE_STRUKTUR + MERKMALE_ZEIT + MERKMALE_KATEGORIAL
                 + (MERKMALE_ORT if mit_ort else []))
-    d = df.dropna(subset=MERKMALE_STRUKTUR).reset_index(drop=True)
-    d = ergaenze_aufteilung(d)
+    d = ergaenze_aufteilung(df.dropna(subset=MERKMALE_STRUKTUR).reset_index(drop=True))
     # Reihenfolge wie im Regressionsdatensatz; die Einsatznummer macht die
     # Sortierung innerhalb eines Monats eindeutig (Reproduzierbarkeitsvertrag).
     d = (d.sort_values(["jahr_monat", "stadtteil", "einsatz_nummer"])
            .reset_index(drop=True))
-
     ergebnis = _setze_datentypen(
         d[K_SCHLUESSEL + K_ZIELGROESSEN + merkmale + AUFTEILUNG], merkmale)
 
-    # Harte Zusicherung: keine Ergebnisvariable darf im Datensatz landen. Diese
-    # Spalten stehen erst nach dem Einsatz fest oder sind eine Folge der
-    # Einsatzart - ihre Verwendung waere Leakage im engeren Sinn (#20).
+    # Keine Ergebnisvariable darf im Datensatz landen - diese Spalten stehen
+    # erst nach dem Einsatz fest oder sind eine Folge der Einsatzart, ihre
+    # Verwendung waere Leakage im engeren Sinn (Decision Log #20).
     verboten = [c for c in ERGEBNISVARIABLEN if c in ergebnis.columns]
     assert not verboten, f"Ergebnisvariablen im Datensatz: {verboten}"
 
@@ -603,22 +444,16 @@ def run(verbose: bool = True) -> tuple[pd.DataFrame, pd.DataFrame]:
     return r, k
 
 
-def zeige_splits() -> None:
-    """Selbsttest: Zeitschnitte des fertigen Regressionsdatensatzes."""
-    if not PFAD_REGRESSION.exists():
-        raise SystemExit("regression.parquet fehlt - erst 'python prep/build.py'.")
-    d = pd.read_parquet(PFAD_REGRESSION)
-    print(beschreibe_splits(zeitachse(d)))
-    print("\n  Aufteilung wie im Datensatz gespeichert:")
-    for k in sorted(x for x in d["fold"].unique() if x > 0):
-        tr, te = fold_masken(d, k)
-        print(f"    Fold {k}: Train {tr.sum():>5,} Zeilen | Test {te.sum():>5,} Zeilen")
-    print(f"    Hold-out: {int(d['ist_holdout'].sum()):,} Zeilen")
-
-
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "splits":
-        zeige_splits()
+        d = pd.read_parquet(PFAD_REGRESSION)
+        print(beschreibe_splits(zeitachse(d)))
+        print("\n  Aufteilung wie im Datensatz gespeichert:")
+        for k in sorted(x for x in d["fold"].unique() if x > 0):
+            tr, te = fold_masken(d, k)
+            print(f"    Fold {k}: Train {tr.sum():>5,} Zeilen | "
+                  f"Test {te.sum():>5,} Zeilen")
+        print(f"    Hold-out: {int(d['ist_holdout'].sum()):,} Zeilen")
     else:
         run()
         print("\n  Pruefungen: python tests/test_aufbereitung.py")

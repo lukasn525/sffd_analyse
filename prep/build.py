@@ -6,29 +6,25 @@ DER EINE BEFEHL. Erzeugt aus den Rohdaten die beiden finalen Datensaetze.
 Ablauf:
 
     1  s1_daten.py        -> data/raw/*  (nur was in config.py auf True steht)
-                          -> data/processed/einsaetze.parquet
+                          -> data/processed/einsaetze.parquet   Zwischenstand
     2  s2_datensaetze.py  -> data/processed/regression.parquet      FINAL
                           -> data/processed/klassifikation.parquet  FINAL
-    3  s3_pruefung.py     -> results/eignungspruefung/
-                          -> results/regression/baselines_*.csv
+    3  s3_baselines.py    -> results/regression/baselines_*.csv
 
-Schritt 3 prueft, ob Ridge Regression, Random Forest und XGBoost zu den eben
-erzeugten Datensaetzen passen, und faellt ein explizites Urteil je Verfahren.
-Ein nicht erfuelltes Kriterium fuehrt zu Exit-Code 1 - die Aufbereitung gilt
-dann als nicht abgenommen. Ausserdem rechnet er die drei Vergleichsgroessen,
-an denen sich jedes spaetere Modell messen lassen muss.
+Danach ist die Aufbereitung fertig. Die beiden FINAL markierten Dateien sind
+modellfertig: identische Zeilen, Merkmale und Folds fuer alle drei Verfahren.
+Schritt 3 legt die Referenzwerte fest, bevor modelliert wird (Auflage
+Schroeter, 27.07.2026). Alles Weitere liegt unter modelle/.
 
-Die beiden FINAL markierten Dateien sind das Einzige, was die Modellskripte
-unter modelle/ lesen.
-
-Argumente (optional, sonst laeuft alles):
-    python prep/build.py daten        nur Schritte 1-2, ohne Pruefung
-    python prep/build.py pruefung     nur Schritt 3 auf vorhandenen Datensaetzen
+Argumente (optional):
+    python prep/build.py daten        wie ohne Argument
+    python prep/build.py tests        anschliessend die 14 Pruefungen laufen lassen
 
 Downloads werden ueber die DOWNLOAD_*-Schalter in config.py gesteuert. Stehen
 sie auf False (Default), arbeitet der Befehl allein aus data/raw und braucht
 weder Internet noch API-Key.
 """
+import subprocess
 import sys
 import time
 
@@ -49,10 +45,6 @@ def schritt(nummer: str, titel: str) -> float:
     return time.time()
 
 
-def fertig(t0: float) -> None:
-    print(f"\n  Dauer: {time.time() - t0:.1f}s")
-
-
 def uebersicht() -> None:
     print(f"\n{'=' * 78}\n  ERGEBNIS\n{'=' * 78}\n")
     for pfad, beschreibung in DATEIEN:
@@ -60,59 +52,44 @@ def uebersicht() -> None:
             print(f"  {pfad.name:<26} FEHLT")
             continue
         d = pd.read_parquet(pfad)
-        mb = pfad.stat().st_size / 1_048_576
+        # einsaetze.parquet ist Einsatz-Ebene und hat keinen Monatsschluessel.
         zeitraum = (f"{d['jahr_monat'].min()}-{d['jahr_monat'].max()}"
                     if "jahr_monat" in d.columns else "-")
         print(f"  {pfad.name:<26} {len(d):>8,} Zeilen | {len(d.columns):>2} Spalten "
-              f"| {mb:>5.1f} MB | {zeitraum}")
+              f"| {pfad.stat().st_size / 1_048_576:>5.1f} MB | {zeitraum}")
         print(f"  {'':<26} {beschreibung}")
     print(f"\n  Die beiden FINAL-Dateien liegen in "
-          f"{PROCESSED_DIR.relative_to(ROOT)} und sind das Einzige, was die "
-          f"Modellskripte lesen.")
+          f"{PROCESSED_DIR.relative_to(ROOT)} und sind modellfertig.")
+    print("  Naechster Schritt: python modelle/m01_eignung.py")
 
 
-def baue_daten() -> None:
+def main() -> int:
     import s1_daten
     import s2_datensaetze
+    import s3_baselines
+
+    t_gesamt = time.time()
 
     t = schritt("1/3", "Rohdaten laden und joinen (s1_daten.py)")
     s1_daten.run_download()
     s1_daten.run_join()
-    fertig(t)
+    print(f"\n  Dauer: {time.time() - t:.1f}s")
 
     t = schritt("2/3", "Beide finalen Datensaetze (s2_datensaetze.py)")
     s2_datensaetze.run()
-    fertig(t)
+    print(f"\n  Dauer: {time.time() - t:.1f}s")
 
+    t = schritt("3/3", "Vergleichsgroessen (s3_baselines.py)")
+    s3_baselines.run()
+    print(f"\n  Dauer: {time.time() - t:.1f}s")
 
-def pruefe_eignung() -> bool:
-    import s3_pruefung
-
-    t = schritt("3/3", "Eignungspruefung und Vergleichsgroessen (s3_pruefung.py)")
-    bestanden = s3_pruefung.main()
-    fertig(t)
-    return bestanden
-
-
-def main() -> int:
-    was = sys.argv[1] if len(sys.argv) > 1 else "alles"
-    t_gesamt = time.time()
-
-    if was in ("alles", "daten"):
-        baue_daten()
-        uebersicht()
-
-    bestanden = True
-    if was in ("alles", "pruefung"):
-        bestanden = pruefe_eignung()
-
+    uebersicht()
     print(f"\n  Gesamtdauer: {time.time() - t_gesamt:.1f}s")
-    if not bestanden:
-        print("\n  ABGELEHNT: Mindestens ein Eignungskriterium ist nicht "
-              "erfuellt (Abschnitt 9 des Berichts).")
-        return 1
-    if was != "pruefung":
-        print("\n  Naechster Schritt: python tests/test_aufbereitung.py")
+
+    if len(sys.argv) > 1 and sys.argv[1] == "tests":
+        return subprocess.call([sys.executable,
+                                str(ROOT / "tests" / "test_aufbereitung.py")])
+    print("  Absicherung:      python tests/test_aufbereitung.py")
     return 0
 
 

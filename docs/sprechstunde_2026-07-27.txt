@@ -1,0 +1,15 @@
+Schröter 27.07:
+Kolloqium 2 pro Tag
+Blindabsätze: Zwischen 1 und 1.1 steht kein Inhalt -> redundanz vermeiden
+Zitate wichtig einheitlich; Pro Seite mehrere Quellen
+Baseline als referenz
+Baseline muss auf den Anwendungsfall passen: bei nicht linearen zusammenhängen brauch man nicht lineare baseline
+=> bringt der zusätzliche Aufwand der Modelle überhaupt etwas
+Baseline in Data Preparation
+
+Alles muss mit dem Stand der Forschung belegt werden
+
+Ki verzeichnis
+Engine, jahr, Modell, Prompt, Url
+
+kennung dann über z.b. obenai2026a oder openai2026x, openai2026ab

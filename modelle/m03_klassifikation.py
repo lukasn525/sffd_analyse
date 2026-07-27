@@ -44,7 +44,29 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "prep"))
 from config import (KLASSEN, MERKMALE_KATEGORIAL, N_FOLDS,  # noqa: E402
                     PFAD_KLASSIFIKATION, RANDOM_STATE, RESULTS_DIR, ROOT,
                     merkmalslisten)
-from s2_datensaetze import bewerte_mehrklassig, fold_masken  # noqa: E402
+from s2_datensaetze import fold_masken  # noqa: E402
+
+
+def bewerte_mehrklassig(y_true, p_hat, klassen: list[str]) -> dict:
+    """Macro-F1 und Macro-AUROC (One-vs-Rest).
+
+    Zuordnung ueber argmax statt Schwellenwert (Decision Log #21). Macro
+    gewichtet alle vier Klassen gleich - sonst dominiert Fehlalarm/Good Intent
+    mit 48 % das Ergebnis.
+    """
+    from sklearn.metrics import f1_score, roc_auc_score
+
+    p_hat  = np.asarray(p_hat, dtype=float)
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(klassen)[p_hat.argmax(axis=1)]
+    # roc_auc_score verlangt sortierte Labels; die Wahrscheinlichkeitsspalten
+    # muessen in derselben Reihenfolge stehen wie `labels`.
+    ordnung = sorted(range(len(klassen)), key=lambda i: klassen[i])
+    return {"Macro-F1": float(f1_score(y_true, y_pred, average="macro",
+                                       labels=klassen, zero_division=0)),
+            "Macro-AUROC": float(roc_auc_score(
+                y_true, p_hat[:, ordnung], multi_class="ovr", average="macro",
+                labels=[klassen[i] for i in ordnung]))}
 
 OUT = RESULTS_DIR / "klassifikation"
 

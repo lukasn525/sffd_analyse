@@ -1,36 +1,34 @@
 """
-Schritt 3 der Aufbereitung: Eignungspruefung und Vergleichsgroessen.
+Eignungspruefung und Vergleichsgroessen - der erste Schritt der Modellierung.
 
-Dieser Schritt erzeugt keine Modelldaten mehr. Er prueft die VORAUSSETZUNGEN von
-Ridge Regression, Random Forest und XGBoost gegen die fertigen Datensaetze,
-faellt ein explizites Urteil je Verfahren (Abschnitt 9) und rechnet die drei
-Vergleichsgroessen, an denen sich jedes spaetere Modell messen lassen muss
-(Abschnitt 11). Damit ist vor der Modellierung belegt, dass die Verfahrenswahl
-zum Datensatz passt - und nicht umgekehrt der Datensatz nachtraeglich zur
-Verfahrenswahl erklaert wird.
+Dieses Skript gehoert NICHT zur Aufbereitung: Es erzeugt keine Daten, sondern
+liest die beiden fertigen Datensaetze. Es prueft die VORAUSSETZUNGEN von Ridge
+Regression, Random Forest und XGBoost, faellt ein Urteil je Verfahren
+(Abschnitt 9) und rechnet die drei Vergleichsgroessen, an denen sich jedes
+spaetere Modell messen lassen muss (Abschnitt 11). Damit ist vor der
+Modellierung belegt, dass die Verfahrenswahl zum Datensatz passt - und nicht
+umgekehrt der Datensatz nachtraeglich zur Verfahrenswahl erklaert wird.
 
-Bezug Bachelorarbeit: Kapitel 5.1 (Data Understanding) / 5.2 (Data Preparation).
-Vorgabe Schroeter: "erst plotten, falls keine lineare Baseline vorliegt, kein
-lineares Regressionsmodell verwenden" -> Linearitaetspruefung in Abschnitt 5.
+Bezug: Kapitel 5.1 (Data Understanding) / 5.2 (Data Preparation). Vorgabe
+Schroeter: "erst plotten, falls keine lineare Baseline vorliegt, kein lineares
+Regressionsmodell verwenden" -> Linearitaetspruefung in Abschnitt 5.
 
 METHODISCHE REGEL: Alle Diagnosen, die eine Modellentscheidung begruenden -
 Linearitaet, Multikollinearitaet, Transformationswahl - werden AUSSCHLIESSLICH
 auf dem Trainingsfenster des ersten CV-Folds gerechnet. Diese Monate sind in
-jedem Fold Trainingsdaten und in keinem Fold Testdaten; sie liegen ausserdem
-vollstaendig vor dem End-Hold-out. Rein deskriptive Kennzahlen duerfen den
-vollen Zeitraum nutzen und sind entsprechend gekennzeichnet.
+keinem Fold Testdaten und liegen vollstaendig vor dem End-Hold-out. Rein
+deskriptive Kennzahlen duerfen den vollen Zeitraum nutzen und sind
+entsprechend gekennzeichnet.
 
-Eingang:  data/processed/regression.parquet
-          data/processed/klassifikation.parquet
-          data/processed/einsaetze.parquet   (nur fuer die Rohbestand-Kennzahlen)
+Eingang:  data/processed/{regression,klassifikation,einsaetze}.parquet
 Ausgang:  results/eignungspruefung/  (Bericht + 5 Plots)
           results/regression/baselines_*.csv
 
 Ausfuehren:
-  python prep/s3_pruefung.py             # Eignungspruefung + Baselines
-  python prep/s3_pruefung.py baselines   # nur die Vergleichsgroessen
+  python modelle/m01_eignung.py
 """
 import sys
+from pathlib import Path
 
 import matplotlib
 
@@ -39,19 +37,21 @@ import matplotlib.pyplot as plt   # noqa: E402
 import numpy as np                # noqa: E402
 import pandas as pd               # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "prep"))
+
 from config import (CRIME_ROH, ENDE, EXPOSURE_ROH, FEATURE_SETS,  # noqa: E402
                     KLASSEN, MERKMALE_KATEGORIAL, MERKMALE_STRUKTUR,
-                    MERKMALE_ZEIT, N_FOLDS, PARKGEBIETE, PFAD_EINSAETZE,
+                    MERKMALE_ZEIT, PARKGEBIETE, PFAD_EINSAETZE,
                     PFAD_KLASSIFIKATION, PFAD_REGRESSION, PRAEDIKTOREN,
-                    RESULTS_DIR, ROOT, SAISON, START)
-from s2_datensaetze import bewerte_regression, fold_masken  # noqa: E402
+                    RESULTS_DIR, ROOT, START)
+from s2_datensaetze import fold_masken  # noqa: E402
+from s3_baselines import rechne_baselines  # noqa: E402
 
-OUT      = RESULTS_DIR / "eignungspruefung"
-OUT_BASE = RESULTS_DIR / "regression"
+OUT = RESULTS_DIR / "eignungspruefung"
 
 bericht: list[str] = []
-# Sammelt die maschinell geprueften Kriterien fuer das Urteil in Abschnitt 9:
-# (Verfahren, Kriterium, gemessener Wert, Schwelle, Urteil)
+# Maschinell geprueft, fuer das Urteil in Abschnitt 9:
+# (Verfahren, Kriterium, Messwert, Schwelle, Urteil)
 urteile: list[tuple[str, str, str, str, str]] = []
 
 OK, ACHTUNG, KRITISCH = "erfuellt", "mit Auflage", "nicht erfuellt"
@@ -68,11 +68,17 @@ def pruefe(verfahren: str, kriterium: str, wert: str, schwelle: str,
                     ACHTUNG if auflage else (OK if bestanden else KRITISCH)))
 
 
+def speichere(fig, name: str) -> None:
+    fig.tight_layout()
+    fig.savefig(OUT / name, dpi=150)
+    plt.close(fig)
+
+
 # ---------------------------------------------------------------------------
 # 1. Datengrundlage und Analyseeinheiten
 # ---------------------------------------------------------------------------
 def pruefe_datengrundlage(roh: pd.DataFrame, n_spalten: int, panel: pd.DataFrame,
-                          train: pd.DataFrame) -> None:
+                          kl: pd.DataFrame, train: pd.DataFrame) -> None:
     log("## 1. Datengrundlage und Analyseeinheiten\n")
     log(f"- Einsatz-Ebene (Rohbestand): {len(roh):,} Zeilen, "
         f"{n_spalten} Spalten, {int(roh['jahr'].min())}-{int(roh['jahr'].max())}")
@@ -112,19 +118,14 @@ def pruefe_datengrundlage(roh: pd.DataFrame, n_spalten: int, panel: pd.DataFrame
 
     # Stichprobengroesse je Merkmal - Voraussetzung fuer beide Baumverfahren.
     p = len(FEATURE_SETS["S+L"])
-    verhaeltnis = len(train) / p
     pruefe("Random Forest / XGBoost", "Beobachtungen je Merkmal",
-           f"{len(train):,} / {p} = {verhaeltnis:.0f}", ">= 10", verhaeltnis >= 10)
+           f"{len(train):,} / {p} = {len(train) / p:.0f}", ">= 10",
+           len(train) / p >= 10)
 
-
-def pruefe_designmatrix(panel: pd.DataFrame, kl: pd.DataFrame) -> None:
-    """Kann man die Merkmale ohne Umweg an alle drei Verfahren uebergeben?
-
-    Geprueft wird, was sonst erst im Modellskript auffaellt: fehlende Werte,
-    unendliche Werte, konstante Spalten und - der subtilste Punkt - pandas-eigene
-    (nullable) Datentypen. Eine einzige `Int64`-Spalte macht aus `X.to_numpy()`
-    ein object-Array; scikit-learn faengt das still ab, XGBoost lehnt es ab.
-    """
+    # Designmatrix: Geprueft wird, was sonst erst im Modellskript auffaellt -
+    # fehlende, unendliche und konstante Werte sowie pandas-eigene (nullable)
+    # Datentypen. Eine einzige Int64-Spalte macht aus X.to_numpy() ein
+    # object-Array; scikit-learn faengt das still ab, XGBoost lehnt es ab.
     log("\n**Modelltauglichkeit der Designmatrix**\n")
     log("| Datensatz | Merkmale | dtypes | X.to_numpy() | NaN | inf | konstant |")
     log("|---|---|---|---|---|---|---|")
@@ -135,15 +136,14 @@ def pruefe_designmatrix(panel: pd.DataFrame, kl: pd.DataFrame) -> None:
          MERKMALE_STRUKTUR + MERKMALE_ZEIT + MERKMALE_KATEGORIAL),
     ]:
         X = d[feats]
-        typen = sorted(set(map(str, X.dtypes)))
         matrix = X.to_numpy()
         n_nan = int(X.isna().sum().sum())
         n_inf = int(np.isinf(X.astype("float64").to_numpy()).sum())
         konst = [c for c in feats if X[c].nunique() <= 1]
-        ok = (matrix.dtype != object and n_nan == 0 and n_inf == 0 and not konst)
-        alles_ok &= ok
-        log(f"| {name} | {len(feats)} | {', '.join(typen)} | {matrix.dtype} | "
-            f"{n_nan} | {n_inf} | {len(konst)} |")
+        alles_ok &= (matrix.dtype != object and n_nan == 0 and n_inf == 0
+                     and not konst)
+        log(f"| {name} | {len(feats)} | {', '.join(sorted(set(map(str, X.dtypes))))} "
+            f"| {matrix.dtype} | {n_nan} | {n_inf} | {len(konst)} |")
     pruefe("alle Verfahren", "Designmatrix direkt uebergebbar",
            "float64, keine NaN/inf/Konstanten" if alles_ok else "Maengel s. Tabelle",
            "keine nullable dtypes, kein object-Array", alles_ok)
@@ -183,9 +183,7 @@ def pruefe_zielgroesse_regression(panel: pd.DataFrame) -> None:
     ax[1].hist(np.log1p(y), bins=60, color="#A85048")
     ax[1].set(title=f"log(1+y) (Schiefe {np.log1p(y).skew():.2f})",
               xlabel="log(1+Einsaetze)")
-    fig.tight_layout()
-    fig.savefig(OUT / "01_zielgroesse_verteilung.png", dpi=150)
-    plt.close(fig)
+    speichere(fig, "01_zielgroesse_verteilung.png")
 
 
 # ---------------------------------------------------------------------------
@@ -248,9 +246,7 @@ def pruefe_kriminalitaetsindex(panel: pd.DataFrame) -> None:
     ax[1].plot(lim, lim, color="red", lw=1)
     ax[1].set(title=f"Index 2017 vs. 2019 (Spearman {rang:.3f})",
               xlabel="Median 2017 (Altsystem)", ylabel="Median 2019 (Neusystem)")
-    fig.tight_layout()
-    fig.savefig(OUT / "05_kriminalitaetsindex.png", dpi=150)
-    plt.close(fig)
+    speichere(fig, "05_kriminalitaetsindex.png")
 
 
 # ---------------------------------------------------------------------------
@@ -290,15 +286,12 @@ def pruefe_linearitaet(train: pd.DataFrame) -> None:
     korr = {}
     for ax, col in zip(axes.flat, PRAEDIKTOREN):
         ax.scatter(train[col], y, s=3, alpha=0.15)
-        r = float(np.corrcoef(train[col], y)[0, 1])
-        korr[col] = r
-        ax.set_title(f"{col}\nr={r:.2f}", fontsize=8)
+        korr[col] = float(np.corrcoef(train[col], y)[0, 1])
+        ax.set_title(f"{col}\nr={korr[col]:.2f}", fontsize=8)
     for ax in axes.flat[len(PRAEDIKTOREN):]:
         ax.axis("off")
     fig.suptitle("Praediktoren vs. Einsaetze je Stadtteil-Monat (Trainingsfenster)")
-    fig.tight_layout()
-    fig.savefig(OUT / "03_linearitaet_streudiagramme.png", dpi=150)
-    plt.close(fig)
+    speichere(fig, "03_linearitaet_streudiagramme.png")
 
     X = sm.add_constant(train[PRAEDIKTOREN].astype(float))
     fig, ax = plt.subplots(1, 2, figsize=(11, 4))
@@ -314,9 +307,7 @@ def pruefe_linearitaet(train: pd.DataFrame) -> None:
         ax[i].axhline(0, color="red", lw=1)
         ax[i].set(title=f"Residuen ({name}), R2={fit.rsquared:.3f}",
                   xlabel="Vorhersage", ylabel="Residuum")
-    fig.tight_layout()
-    fig.savefig(OUT / "04_residuenanalyse.png", dpi=150)
-    plt.close(fig)
+    speichere(fig, "04_residuenanalyse.png")
 
     staerkster = max(korr, key=lambda k: abs(korr[k]))
     log(f"- OLS R2 (y roh):    {r2['y roh']:.3f} | negative Vorhersagen: "
@@ -350,9 +341,8 @@ def pruefe_linearitaet(train: pd.DataFrame) -> None:
            "p > 0,05 -> sonst log-Spezifikation",
            bp["y roh"] > 0.05, auflage=bp["y roh"] <= 0.05)
 
-    # Nichtlinearitaet: Wo Spearman deutlich ueber Pearson liegt, ist der
-    # Zusammenhang monoton, aber nicht linear - genau dort haben Baumverfahren
-    # einen Vorteil gegenueber Ridge.
+    # Wo Spearman deutlich ueber Pearson liegt, ist der Zusammenhang monoton,
+    # aber nicht linear - genau dort haben Baumverfahren einen Vorteil.
     log("\n**Hinweis auf Nichtlinearitaet** (Rangkorrelation deutlich staerker als "
         "lineare Korrelation -> Vorteil fuer Baumverfahren):\n")
     log("| Merkmal | Pearson r | Spearman rho | Differenz |")
@@ -387,25 +377,25 @@ def pruefe_vif(train: pd.DataFrame) -> None:
     import statsmodels.api as sm
     from statsmodels.stats.outliers_influence import variance_inflation_factor
 
+    def vifs(X: pd.DataFrame) -> list[tuple[float, str]]:
+        Xs = sm.add_constant((X - X.mean()) / X.std())
+        return [(float(variance_inflation_factor(Xs.values, i)), c)
+                for i, c in enumerate(Xs.columns) if c != "const"]
+
     log("\n## 6. Multikollinearitaet (VIF, nur Trainingsfenster)\n")
     log("Berechnet auf den eindeutigen Stadtteil-Merkmalskombinationen des "
         "Trainingsfensters. Wuerde man alle Panelzeilen verwenden, waeren die "
         "Werte allein durch die Wiederholung derselben Kombination ueber die "
         "Monate hinweg kuenstlich stabilisiert.\n")
     d = train[PRAEDIKTOREN].astype(float).drop_duplicates()
-    X = sm.add_constant((d - d.mean()) / d.std())
     log(f"- Grundlage: {len(d):,} eindeutige Merkmalskombinationen\n")
     log("| Praediktor | VIF |")
     log("|---|---|")
-    maxvif, maxcol = 0.0, ""
-    for i, col in enumerate(X.columns):
-        if col == "const":
-            continue
-        vif = float(variance_inflation_factor(X.values, i))
-        if vif > maxvif:
-            maxvif, maxcol = vif, col
+    werte_s = vifs(d)
+    for vif, col in werte_s:
         marker = " (>10: stark)" if vif > 10 else (" (>5: erhoeht)" if vif > 5 else "")
         log(f"| {col} | {vif:.1f}{marker} |")
+    maxvif, maxcol = max(werte_s)
     log(f"\n**Befund Set S:** Hoechster VIF {maxvif:.1f} (`{maxcol}`). Erhoehte "
         "Werte bei Einkommen, Miete und Bildung sind sachlich erwartbar - es "
         "handelt sich um verschiedene Messungen desselben soziooekonomischen "
@@ -415,7 +405,6 @@ def pruefe_vif(train: pd.DataFrame) -> None:
         "ist Multikollinearitaet unkritisch; fuer die Interpretation einzelner "
         "SHAP-Werte muss sie jedoch beruecksichtigt werden, weil sich Beitraege "
         "auf korrelierte Merkmale verteilen.")
-
     pruefe("Ridge Regression", "Multikollinearitaet Set S begruendet L2-Strafterm",
            f"max. VIF {maxvif:.1f} ({maxcol})",
            "5-30: klassischer Ridge-Fall; > 30 kritisch",
@@ -423,15 +412,10 @@ def pruefe_vif(train: pd.DataFrame) -> None:
 
     # Set S+L: Der Hauptvergleich laeuft auf DIESEM Satz. Die drei Lags messen
     # dieselbe Groesse zu verschiedenen Zeitpunkten und sind daher zwangslaeufig
-    # hoch korreliert (lag_1 vs. rolling_mean_3: r = 0,99). Das gehoert berichtet,
-    # weil sonst der Eindruck entstuende, die VIF-Pruefung betreffe den
-    # tatsaechlich verwendeten Merkmalssatz.
+    # hoch korreliert. Das gehoert berichtet, weil sonst der Eindruck entstuende,
+    # die VIF-Pruefung betreffe den tatsaechlich verwendeten Merkmalssatz.
     log("\n**Set S+L (der Hauptvergleich laeuft hierauf):**\n")
-    X2 = train[FEATURE_SETS["S+L"]].astype(float)
-    X2s = sm.add_constant((X2 - X2.mean()) / X2.std())
-    werte = sorted(((float(variance_inflation_factor(X2s.values, i)), c)
-                    for i, c in enumerate(X2s.columns) if c != "const"),
-                   reverse=True)
+    werte = sorted(vifs(train[FEATURE_SETS["S+L"]].astype(float)), reverse=True)
     log("| Merkmal | VIF |")
     log("|---|---|")
     for v, c in werte[:5]:
@@ -458,14 +442,6 @@ def pruefe_vif(train: pd.DataFrame) -> None:
 # 7. Extrapolation - koennen Baumverfahren den Wertebereich abdecken?
 # ---------------------------------------------------------------------------
 def pruefe_extrapolation(panel: pd.DataFrame) -> None:
-    """Baumverfahren koennen nicht extrapolieren.
-
-    Random Forest und XGBoost sagen ausserhalb des im Training gesehenen
-    Wertebereichs immer den Randwert des letzten Blatts vorher. Liegt die
-    Zielgroesse in spaeteren Perioden systematisch ueber dem Trainingsmaximum,
-    sind beide Verfahren strukturell im Nachteil - und der Verfahrensvergleich
-    misst dann diesen Nachteil statt der Modellguete.
-    """
     log("\n## 7. Extrapolationsbedarf (Voraussetzung fuer Random Forest und XGBoost)\n")
     log("Baumverfahren koennen nicht extrapolieren: Ausserhalb des im Training "
         "gesehenen Wertebereichs geben sie den Randwert des letzten Blatts "
@@ -475,21 +451,19 @@ def pruefe_extrapolation(panel: pd.DataFrame) -> None:
 
     train, _ = fold_masken(panel, 1)
     y_train = panel.loc[train, "anzahl_einsaetze"]
-    spaeter = panel.loc[~train, "anzahl_einsaetze"]
-    ueber = float((spaeter > y_train.max()).mean() * 100)
+    ueber = float((panel.loc[~train, "anzahl_einsaetze"] > y_train.max()).mean() * 100)
 
     # Stadtweiter Zeittrend: Wenn die Einsatzzahl systematisch steigt, betrifft
     # das Baumverfahren staerker als Ridge.
     stadt = panel.groupby("jahr_monat")["anzahl_einsaetze"].sum()
-    t = np.arange(len(stadt))
-    steigung = float(np.polyfit(t, stadt.values, 1)[0])
-    trend_pct = steigung * len(stadt) / stadt.iloc[0] * 100
+    steigung = float(np.polyfit(np.arange(len(stadt)), stadt.values, 1)[0])
 
     log(f"- Trainingsbereich (Fold 1): {y_train.min():.0f} bis {y_train.max():.0f} "
         f"Einsaetze je Stadtteil-Monat")
     log(f"- Spaetere Perioden ueber dem Trainingsmaximum: {ueber:.2f} % der "
         f"Beobachtungen")
-    log(f"- Stadtweiter Trend ueber den Analysezeitraum: {trend_pct:+.1f} % "
+    log(f"- Stadtweiter Trend ueber den Analysezeitraum: "
+        f"{steigung * len(stadt) / stadt.iloc[0] * 100:+.1f} % "
         f"(lineare Steigung {steigung:+.2f} Einsaetze je Monat)")
     log("\n**Befund:** "
         + (f"Der Extrapolationsbedarf ist gering ({ueber:.2f} % der spaeteren "
@@ -538,7 +512,8 @@ def pruefe_zielgroesse_klassifikation(kl: pd.DataFrame) -> None:
 
     # Basisratendrift: verschiebt sich der Brandanteil zwischen Training und Test?
     train, test = fold_masken(kl, 1)
-    drift_tr, drift_te = kl.loc[train, "ist_brand"].mean(), kl.loc[test, "ist_brand"].mean()
+    drift_tr = kl.loc[train, "ist_brand"].mean()
+    drift_te = kl.loc[test, "ist_brand"].mean()
     drift = abs(drift_te - drift_tr) * 100
     log(f"\n- **Basisratendrift:** Brandanteil im Training des ersten Folds "
         f"{drift_tr * 100:.1f} %, im Testfenster {drift_te * 100:.1f} % "
@@ -548,7 +523,6 @@ def pruefe_zielgroesse_klassifikation(kl: pd.DataFrame) -> None:
         f"Bei der mehrklassigen Hauptvariante entfaellt das Problem, weil ueber "
         f"`argmax` zugeordnet wird (Decision Log #21).")
 
-    # Pseudo-Signal
     je_monat = kl.groupby(["stadtteil", "jahr", "monat"]).size()
     log(f"\n- **Pseudo-Signal-Problem:** Die Stadtteilmerkmale sind je "
         f"Stadtteil-Monat konstant. Im Mittel teilen sich {je_monat.mean():.0f} "
@@ -574,9 +548,7 @@ def pruefe_zielgroesse_klassifikation(kl: pd.DataFrame) -> None:
     ax[1].plot(jahre.index, jahre.values, marker="o")
     ax[1].set(title="Brandanteil je Jahr", xlabel="Jahr", ylabel="Anteil in %")
     ax[1].set_ylim(0, max(20, jahre.max() * 1.2))
-    fig.tight_layout()
-    fig.savefig(OUT / "02_klassenbalance_einsatzart.png", dpi=150)
-    plt.close(fig)
+    speichere(fig, "02_klassenbalance_einsatzart.png")
 
 
 # ---------------------------------------------------------------------------
@@ -622,140 +594,49 @@ def schreibe_urteil() -> bool:
 # ---------------------------------------------------------------------------
 # 11. Vergleichsgroessen (Baselines)
 # ---------------------------------------------------------------------------
-# Ein Verfahrensvergleich ohne Referenz sagt wenig. Erst diese drei Groessen
-# machen die Ergebnisse der Modelle einordbar. Sie stehen hier und nicht unter
-# modelle/, weil sie nichts tunen und nichts auswaehlen - sie legen die Latte
-# fest, ueber die die getunten Verfahren spaeter springen muessen.
+# Gerechnet werden sie in prep/s3_baselines.py - sie gehoeren zur Data
+# Preparation (Auflage Schroeter, 27.07.2026). Hier werden sie nur berichtet.
 # ---------------------------------------------------------------------------
-def naiv(test: pd.DataFrame) -> np.ndarray:
-    """Wert des Vormonats desselben Stadtteils - steht als lag_1 im Datensatz.
-
-    Die Zielgroesse ist mit Lag-1-Autokorrelation 0,96 stark persistent - wer
-    diese Baseline nicht schlaegt, hat nichts gelernt (Decision Log #8).
-    """
-    return test["lag_1"].to_numpy()
-
-
-def saisonal(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
-    """Mittelwert desselben Kalendermonats im Training, je Stadtteil.
-
-    Trennt das Saisonmuster von echtem Signal.
-    """
-    mittel = (train.groupby(["stadtteil", "monat"])["anzahl_einsaetze"]
-                   .mean().rename("saison"))
-    return (test.join(mittel, on=["stadtteil", "monat"])["saison"]
-                .fillna(train["anzahl_einsaetze"].mean()).to_numpy())
-
-
-def negative_binomial(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
-    """NegBin-GLM mit log(Bevoelkerung) als Offset.
-
-    Interpretierbare Count-Baseline. Poisson scheidet aus: Dispersionsindex 62,8
-    (Abschnitt 2). Der Offset unterscheidet dieses Modell von einem gewoehnlichen
-    Regressor auf log_bevoelkerung: Der Koeffizient ist auf 1 fixiert, das Modell
-    schaetzt also Einsaetze JE EINWOHNER und nicht die Stadtteilgroesse mit -
-    genau das war die Begruendung der Exposure-Entscheidung (Decision Log #13).
-
-    Der Dispersionsparameter alpha wird ueber ein Poisson-Vormodell geschaetzt
-    (Momentenschaetzer auf den Pearson-Residuen) - das uebliche zweistufige
-    Vorgehen, wenn statsmodels alpha nicht selbst optimiert.
-    """
-    import statsmodels.api as sm
-
-    spalten = PRAEDIKTOREN + SAISON
-    X_tr = sm.add_constant(train[spalten].astype(float), has_constant="add")
-    X_te = sm.add_constant(test[spalten].astype(float),  has_constant="add")
-    y_tr = train["anzahl_einsaetze"].astype(float)
-    off_tr = np.log(train[EXPOSURE_ROH].astype(float))
-    off_te = np.log(test[EXPOSURE_ROH].astype(float))
-
-    poisson = sm.GLM(y_tr, X_tr, family=sm.families.Poisson(),
-                     offset=off_tr).fit()
-    mu = poisson.mu
-    alpha = float(np.sum((y_tr - mu) ** 2 / mu - 1) / np.sum(mu))
-    alpha = max(alpha, 1e-6)
-
-    negbin = sm.GLM(y_tr, X_tr,
-                    family=sm.families.NegativeBinomial(alpha=alpha),
-                    offset=off_tr).fit()
-    return np.asarray(negbin.predict(X_te, offset=off_te))
-
-
-def rechne_baselines(panel: pd.DataFrame, protokoll: bool = True) -> pd.DataFrame:
-    """Naiv, saisonal und NegBin je Fold - auf der Originalskala bewertet.
-
-    Das End-Hold-out (`ist_holdout == 1`) wird bewusst NICHT ausgewertet, es
-    bleibt der finalen Bewertung vorbehalten.
-    """
-    OUT_BASE.mkdir(parents=True, exist_ok=True)
-
-    zeilen = []
-    for k in range(1, N_FOLDS + 1):
-        tr, te = fold_masken(panel, k)
-        train, test = panel[tr], panel[te]
-        y = test["anzahl_einsaetze"].to_numpy()
-        for name, y_hat in [
-            ("Naiv (Vormonat)",          naiv(test)),
-            ("Saisonaler Durchschnitt",  saisonal(train, test)),
-            ("Negative Binomial",        negative_binomial(train, test)),
-        ]:
-            zeilen.append({"fold": k, "modell": name,
-                           **bewerte_regression(y, y_hat)})
-
-    df = pd.DataFrame(zeilen)
-    mittel = (df.groupby("modell")[["RMSE", "MAE", "R2"]]
-                .agg(["mean", "std"]).round(2))
-    mittel.columns = [f"{a}_{b}" for a, b in mittel.columns]
-    mittel = mittel.sort_values("RMSE_mean")
-
-    df.to_csv(OUT_BASE / "baselines_folds.csv", index=False)
-    mittel.to_csv(OUT_BASE / "baselines_mittel.csv")
-
-    if protokoll:
-        log("\n## 11. Vergleichsgroessen der Regression\n")
-        log("Referenzwerte, an denen sich Ridge, Random Forest und XGBoost messen "
-            "lassen muessen. Identische Folds, identische Zeilen, Bewertung auf "
-            "der Originalskala. Das End-Hold-out bleibt unberuehrt.\n")
-        log("| Modell | RMSE (Mittel +/- Std) | MAE | R2 |")
-        log("|---|---|---|---|")
-        for name, r in mittel.iterrows():
-            log(f"| {name} | {r['RMSE_mean']:.2f} +/- {r['RMSE_std']:.2f} | "
-                f"{r['MAE_mean']:.2f} | {r['R2_mean']:.2f} |")
-        bester = mittel.index[0]
-        log(f"\n**Zu schlagende Latte:** {bester} "
-            f"(RMSE {mittel.iloc[0]['RMSE_mean']:.2f}). Ein Verfahren, das diese "
-            f"Referenz nicht schlaegt, ist ein Ergebnis - kein Makel.")
-
+def berichte_baselines(panel: pd.DataFrame) -> None:
+    df, mittel = rechne_baselines(panel)
+    log("\n## 11. Vergleichsgroessen der Regression\n")
+    log("Referenzwerte, an denen sich Ridge, Random Forest und XGBoost messen "
+        "lassen muessen. Identische Folds, identische Zeilen, Bewertung auf "
+        "der Originalskala. Das End-Hold-out bleibt unberuehrt.\n")
+    log("| Modell | RMSE (Mittel +/- Std) | MAE | R2 |")
+    log("|---|---|---|---|")
+    for name, r in mittel.iterrows():
+        log(f"| {name} | {r['RMSE_mean']:.2f} +/- {r['RMSE_std']:.2f} | "
+            f"{r['MAE_mean']:.2f} | {r['R2_mean']:.2f} |")
+    log(f"\n**Zu schlagende Latte:** {mittel.index[0]} "
+        f"(RMSE {mittel.iloc[0]['RMSE_mean']:.2f}). Ein Verfahren, das diese "
+        f"Referenz nicht schlaegt, ist ein Ergebnis - kein Makel.")
     print("\nVergleichsgroessen je Fold:\n", df.round(2).to_string(index=False))
     print("\nMittelwert +/- Std ueber die Folds:\n", mittel.to_string())
-    print(f"\n  => {OUT_BASE.relative_to(ROOT)}/baselines_*.csv")
-    return df
 
 
 # ---------------------------------------------------------------------------
 # Ablauf
 # ---------------------------------------------------------------------------
 def _lade() -> tuple[pd.DataFrame, pd.DataFrame]:
-    for pfad in (PFAD_REGRESSION, PFAD_KLASSIFIKATION, PFAD_EINSAETZE):
-        if not pfad.exists():
-            raise SystemExit(f"{pfad.relative_to(ROOT)} fehlt - "
-                             f"erst 'python prep/build.py' ausfuehren.")
+    fehlend = [p.relative_to(ROOT) for p in
+               (PFAD_REGRESSION, PFAD_KLASSIFIKATION, PFAD_EINSAETZE)
+               if not p.exists()]
+    if fehlend:
+        raise SystemExit(f"{fehlend} fehlt - erst 'python prep/build.py' ausfuehren.")
     return pd.read_parquet(PFAD_REGRESSION), pd.read_parquet(PFAD_KLASSIFIKATION)
 
 
 def main() -> bool:
-    OUT.mkdir(parents=True, exist_ok=True)
-    panel, kl = _lade()
-
     import pyarrow.parquet as pq
 
-    # Nur die fuer die Kennzahlen noetigen Spalten laden - die volle Tabelle hat
-    # 720.000 Zeilen und wird hier nicht gebraucht.
+    OUT.mkdir(parents=True, exist_ok=True)
+    panel, kl = _lade()
+    # Nur die noetigen Spalten laden - die volle Tabelle hat 720.000 Zeilen.
     n_spalten = len(pq.ParquetFile(PFAD_EINSAETZE).schema_arrow)
     roh = pd.read_parquet(PFAD_EINSAETZE,
                           columns=["einsatz_nummer", "jahr", "monat", "stadtteil"])
-    train_maske, _ = fold_masken(panel, 1)
-    train = panel[train_maske].copy()
+    train = panel[fold_masken(panel, 1)[0]].copy()
 
     log("# Eignungspruefung: Ridge Regression, Random Forest, XGBoost\n")
     log(f"Stand {pd.Timestamp.today():%Y-%m-%d}. Grundlage sind die fertigen "
@@ -768,8 +649,7 @@ def main() -> bool:
     log("Das abschliessende Urteil je Verfahren steht in Abschnitt 9, die "
         "Vergleichsgroessen in Abschnitt 11.\n")
 
-    pruefe_datengrundlage(roh, n_spalten, panel, train)
-    pruefe_designmatrix(panel, kl)
+    pruefe_datengrundlage(roh, n_spalten, panel, kl, train)
     pruefe_zielgroesse_regression(panel)
     pruefe_kriminalitaetsindex(panel)
     pruefe_exposure(train)
@@ -782,32 +662,37 @@ def main() -> bool:
     log("\n## 10. Leakage- und Strukturpruefung\n")
     log("| Punkt | Status |")
     log("|---|---|")
-    log("| ACS-Join | **behoben**: letzter *publizierter* Snapshot "
-        "(`acs_jahr <= Einsatzjahr - 1`), Decision Log #4 und #11 |")
-    log("| Kriminalitaetsmerkmale | **behoben**: relativer Index je Stadtteil x "
-        "Monat, rollierendes 12-Monats-Fenster endend im Vormonat, Decision "
-        "Log #17 |")
-    log(f"| Randmonat | **behoben**: fester Analysezeitraum {START}-{ENDE}, "
-        "Decision Log #12 und #18 |")
-    log("| Fehlende Werte | **behoben**: kein `bfill` mehr (Zukunfts-Imputation), "
-        "Decision Log #10 |")
-    log("| Exposure | **behoben**: `log_bevoelkerung` als Merkmal, Rohwert fuer "
-        "NegBin-Offset erhalten, Decision Log #13 |")
-    log("| Analyseeinheiten | **behoben**: Park-/Institutionsgebiete "
-        "ausgeschlossen, Decision Log #19 |")
-    log("| End-Hold-out | **eingerichtet**: letzte 12 Monate, beim Tuning "
-        "unberuehrt, als Spalte `ist_holdout` im Datensatz, Decision Log #14 |")
-    log("| Lag-Vorlauf | **eingerichtet**: Aggregation ab 2014-01, Zuschnitt auf "
-        "2015-01 nach der Lag-Bildung; Vorlaufmonate nur ueber `shift()`, nie "
-        "als eigene Zeile, Decision Log #23 |")
-    log("| Land Use | **offen (Limitation)**: Snapshot 2020, ueber den gesamten "
-        "Zeitraum konstant -> als quasi-stabiles Strukturmerkmal zu "
-        "interpretieren, Kap. 6.3 |")
-    log("| Response-Time-Filter | **dokumentieren**: 0-60 min entfernt ~1,7 % der "
-        "Einsaetze bereits in prep/s1_daten.py; alle Zaehlungen beziehen sich auf "
-        "den gefilterten Bestand |")
+    for punkt, status in [
+        ("ACS-Join", "**behoben**: letzter *publizierter* Snapshot "
+                     "(`acs_jahr <= Einsatzjahr - 1`), Decision Log #4 und #11"),
+        ("Kriminalitaetsmerkmale", "**behoben**: relativer Index je Stadtteil x "
+                                   "Monat, rollierendes 12-Monats-Fenster endend "
+                                   "im Vormonat, Decision Log #17"),
+        ("Randmonat", f"**behoben**: fester Analysezeitraum {START}-{ENDE}, "
+                      "Decision Log #12 und #18"),
+        ("Fehlende Werte", "**behoben**: kein `bfill` mehr "
+                           "(Zukunfts-Imputation), Decision Log #10"),
+        ("Exposure", "**behoben**: `log_bevoelkerung` als Merkmal, Rohwert fuer "
+                     "NegBin-Offset erhalten, Decision Log #13"),
+        ("Analyseeinheiten", "**behoben**: Park-/Institutionsgebiete "
+                             "ausgeschlossen, Decision Log #19"),
+        ("End-Hold-out", "**eingerichtet**: letzte 12 Monate, beim Tuning "
+                         "unberuehrt, als Spalte `ist_holdout` im Datensatz, "
+                         "Decision Log #14"),
+        ("Lag-Vorlauf", "**eingerichtet**: Aggregation ab 2014-01, Zuschnitt auf "
+                        "2015-01 nach der Lag-Bildung; Vorlaufmonate nur ueber "
+                        "`shift()`, nie als eigene Zeile, Decision Log #23"),
+        ("Land Use", "**offen (Limitation)**: Snapshot 2020, ueber den gesamten "
+                     "Zeitraum konstant -> als quasi-stabiles Strukturmerkmal zu "
+                     "interpretieren, Kap. 6.3"),
+        ("Response-Time-Filter", "**dokumentieren**: 0-60 min entfernt ~1,7 % der "
+                                 "Einsaetze bereits in prep/s1_daten.py; alle "
+                                 "Zaehlungen beziehen sich auf den gefilterten "
+                                 "Bestand"),
+    ]:
+        log(f"| {punkt} | {status} |")
 
-    rechne_baselines(panel)
+    berichte_baselines(panel)
 
     (OUT / "eignungspruefung_summary.md").write_text("\n".join(bericht),
                                                      encoding="utf-8")
@@ -816,8 +701,4 @@ def main() -> bool:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "baselines":
-        panel, _ = _lade()
-        rechne_baselines(panel, protokoll=False)
-    else:
-        raise SystemExit(0 if main() else 1)
+    raise SystemExit(0 if main() else 1)

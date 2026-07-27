@@ -9,7 +9,7 @@ scikit-learn
 statsmodels
 xgboost
 
-# Geodaten – Spatial Joins in prep/join.py (Crime historisch, Land Use).
+# Geodaten – Spatial Joins in prep/s1_daten.py (Crime historisch, Land Use).
 # Nur noetig, wenn die Caches crime_index_monatlich.csv bzw.
 # land_use_2020_neighborhoods.csv neu berechnet werden.
 geopandas
