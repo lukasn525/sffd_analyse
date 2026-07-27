@@ -27,7 +27,7 @@ Eingang:  data/processed/regression.parquet
 Ausgang:  results/eignungspruefung/  (Plots + eignungspruefung_summary.md)
 
 Ausfuehren:
-  python prep/eignungspruefung.py
+  python prep/s04_s04_eignungspruefung.py
 """
 import matplotlib
 
@@ -37,7 +37,8 @@ import numpy as np                # noqa: E402
 import pandas as pd               # noqa: E402
 
 from config import (CRIME_ROH, ENDE, EXPOSURE_ROH, FEATURE_SETS,  # noqa: E402
-                    KLASSEN, PARKGEBIETE, PFAD_EINSAETZE,
+                    KLASSEN, MERKMALE_KATEGORIAL, MERKMALE_STRUKTUR,
+                    MERKMALE_ZEIT, PARKGEBIETE, PFAD_EINSAETZE,
                     PFAD_KLASSIFIKATION, PFAD_REGRESSION, PRAEDIKTOREN,
                     RESULTS_DIR, ROOT, START)
 from cv import fold_masken  # noqa: E402
@@ -73,7 +74,7 @@ def pruefe_datengrundlage(roh: pd.DataFrame, n_spalten: int, panel: pd.DataFrame
         f"{n_spalten} Spalten, {int(roh['jahr'].min())}-{int(roh['jahr'].max())}")
     dup = roh.duplicated(subset=["einsatz_nummer"]).sum()
     log(f"- Duplikate nach `einsatz_nummer`: {dup:,} "
-        + ("(Dedup erfolgt in prep/join.py)" if dup == 0
+        + ("(Dedup erfolgt in prep/s02_einsaetze.py)" if dup == 0
            else "-> ACHTUNG: Dedup greift nicht!"))
     log(f"- **Analysepanel:** Stadtteil x Monat, {START}-{ENDE}, "
         f"{len(panel):,} Beobachtungen, {panel['stadtteil'].nunique()} Stadtteile, "
@@ -110,6 +111,38 @@ def pruefe_datengrundlage(roh: pd.DataFrame, n_spalten: int, panel: pd.DataFrame
     verhaeltnis = len(train) / p
     pruefe("Random Forest / XGBoost", "Beobachtungen je Merkmal",
            f"{len(train):,} / {p} = {verhaeltnis:.0f}", ">= 10", verhaeltnis >= 10)
+
+
+def pruefe_designmatrix(panel: pd.DataFrame, kl: pd.DataFrame) -> None:
+    """Kann man die Merkmale ohne Umweg an alle drei Verfahren uebergeben?
+
+    Geprueft wird, was sonst erst im Modellskript auffaellt: fehlende Werte,
+    unendliche Werte, konstante Spalten und - der subtilste Punkt - pandas-eigene
+    (nullable) Datentypen. Eine einzige `Int64`-Spalte macht aus `X.to_numpy()`
+    ein object-Array; scikit-learn faengt das still ab, XGBoost lehnt es ab.
+    """
+    log("\n**Modelltauglichkeit der Designmatrix**\n")
+    log("| Datensatz | Merkmale | dtypes | X.to_numpy() | NaN | inf | konstant |")
+    log("|---|---|---|---|---|---|---|")
+    alles_ok = True
+    for name, d, feats in [
+        ("Regression (S+L)", panel, FEATURE_SETS["S+L"]),
+        ("Klassifikation (A+B)", kl,
+         MERKMALE_STRUKTUR + MERKMALE_ZEIT + MERKMALE_KATEGORIAL),
+    ]:
+        X = d[feats]
+        typen = sorted(set(map(str, X.dtypes)))
+        matrix = X.to_numpy()
+        n_nan = int(X.isna().sum().sum())
+        n_inf = int(np.isinf(X.astype("float64").to_numpy()).sum())
+        konst = [c for c in feats if X[c].nunique() <= 1]
+        ok = (matrix.dtype != object and n_nan == 0 and n_inf == 0 and not konst)
+        alles_ok &= ok
+        log(f"| {name} | {len(feats)} | {', '.join(typen)} | {matrix.dtype} | "
+            f"{n_nan} | {n_inf} | {len(konst)} |")
+    pruefe("alle Verfahren", "Designmatrix direkt uebergebbar",
+           "float64, keine NaN/inf/Konstanten" if alles_ok else "Maengel s. Tabelle",
+           "keine nullable dtypes, kein object-Array", alles_ok)
 
 
 # ---------------------------------------------------------------------------
@@ -369,20 +402,52 @@ def pruefe_vif(train: pd.DataFrame) -> None:
             maxvif, maxcol = vif, col
         marker = " (>10: stark)" if vif > 10 else (" (>5: erhoeht)" if vif > 5 else "")
         log(f"| {col} | {vif:.1f}{marker} |")
-    log(f"\n**Befund:** Hoechster VIF {maxvif:.1f} (`{maxcol}`). Erhoehte Werte bei "
-        "Einkommen, Miete und Bildung sind sachlich erwartbar - es handelt sich "
-        "um verschiedene Messungen desselben soziooekonomischen Gefaelles. Genau "
-        "diese Konstellation ist der Anwendungsfall der L2-Regularisierung "
-        "(Hoerl & Kennard 1970): Ridge stabilisiert die Schaetzung, ohne Merkmale "
-        "zu entfernen. Fuer Random Forest und XGBoost ist Multikollinearitaet "
-        "unkritisch; fuer die Interpretation einzelner SHAP-Werte muss sie "
-        "jedoch beruecksichtigt werden, weil sich Beitraege auf korrelierte "
-        "Merkmale verteilen.")
+    log(f"\n**Befund Set S:** Hoechster VIF {maxvif:.1f} (`{maxcol}`). Erhoehte "
+        "Werte bei Einkommen, Miete und Bildung sind sachlich erwartbar - es "
+        "handelt sich um verschiedene Messungen desselben soziooekonomischen "
+        "Gefaelles. Genau diese Konstellation ist der Anwendungsfall der "
+        "L2-Regularisierung (Hoerl & Kennard 1970): Ridge stabilisiert die "
+        "Schaetzung, ohne Merkmale zu entfernen. Fuer Random Forest und XGBoost "
+        "ist Multikollinearitaet unkritisch; fuer die Interpretation einzelner "
+        "SHAP-Werte muss sie jedoch beruecksichtigt werden, weil sich Beitraege "
+        "auf korrelierte Merkmale verteilen.")
 
-    pruefe("Ridge Regression", "Multikollinearitaet begruendet L2-Strafterm",
+    pruefe("Ridge Regression", "Multikollinearitaet Set S begruendet L2-Strafterm",
            f"max. VIF {maxvif:.1f} ({maxcol})",
            "5-30: klassischer Ridge-Fall; > 30 kritisch",
            5 <= maxvif <= 30, auflage=maxvif < 5)
+
+    # Set S+L: Der Hauptvergleich laeuft auf DIESEM Satz. Die drei Lags messen
+    # dieselbe Groesse zu verschiedenen Zeitpunkten und sind daher zwangslaeufig
+    # hoch korreliert (lag_1 vs. rolling_mean_3: r = 0,99). Das gehoert berichtet,
+    # weil sonst der Eindruck entstuende, die VIF-Pruefung betreffe den
+    # tatsaechlich verwendeten Merkmalssatz.
+    log("\n**Set S+L (der Hauptvergleich laeuft hierauf):**\n")
+    X2 = train[FEATURE_SETS["S+L"]].astype(float)
+    X2s = sm.add_constant((X2 - X2.mean()) / X2.std())
+    werte = sorted(((float(variance_inflation_factor(X2s.values, i)), c)
+                    for i, c in enumerate(X2s.columns) if c != "const"),
+                   reverse=True)
+    log("| Merkmal | VIF |")
+    log("|---|---|")
+    for v, c in werte[:5]:
+        log(f"| {c} | {v:.1f} |")
+    maxvif2, maxcol2 = werte[0]
+    log(f"\n**Befund Set S+L:** Hoechster VIF {maxvif2:.1f} (`{maxcol2}`). Die "
+        f"drei Lag-Merkmale messen dieselbe Groesse zu verschiedenen "
+        f"Zeitpunkten; `lag_1` und `rolling_mean_3` korrelieren mit r = "
+        f"{train['lag_1'].corr(train['rolling_mean_3']):.2f}. Das ist keine "
+        f"Fehlspezifikation, sondern liegt in der Natur autoregressiver "
+        f"Merkmale. Fuer Ridge ist es unschaedlich - der L2-Strafterm verteilt "
+        f"das Gewicht auf die korrelierten Merkmale, statt einzelne Koeffizienten "
+        f"instabil werden zu lassen; genau dafuer wurde das Verfahren "
+        f"entwickelt. Konsequenz fuer die Interpretation: **Einzelkoeffizienten "
+        f"und SHAP-Werte der Lags sind nicht einzeln zu deuten, sondern nur als "
+        f"Block** (Kap. 5.5).")
+    pruefe("Ridge Regression", "Multikollinearitaet Set S+L beherrschbar",
+           f"max. VIF {maxvif2:.1f} ({maxcol2})",
+           "durch L2 abgedeckt; Lags nur blockweise interpretieren",
+           True, auflage=maxvif2 > 10)
 
 
 # ---------------------------------------------------------------------------
@@ -445,8 +510,8 @@ def pruefe_zielgroesse_klassifikation(kl: pd.DataFrame) -> None:
     log(f"- Grundgesamtheit: {len(kl):,} Einzeleinsaetze "
         f"({kl['jahr_monat'].min()}-{kl['jahr_monat'].max()}, "
         f"{kl['stadtteil'].nunique()} Stadtteile) - identisch abgegrenzt wie das "
-        f"Regressionspanel, weil klassifikation_datensatz.py Zeitraum und "
-        f"Stadtteilliste aus regression.parquet uebernimmt")
+        f"Regressionspanel, weil beide in s03_datensaetze.py entstehen und Zeitraum sowie "
+        f"Stadtteilliste einmal bestimmt und weitergereicht werden")
 
     v = kl["einsatzart_gruppe"].value_counts()
     log("\n| Klasse | Anzahl | Anteil |")
@@ -580,6 +645,7 @@ def main() -> bool:
     log("Das abschliessende Urteil je Verfahren steht in Abschnitt 9.\n")
 
     pruefe_datengrundlage(roh, n_spalten, panel, train)
+    pruefe_designmatrix(panel, kl)
     pruefe_zielgroesse_regression(panel)
     pruefe_kriminalitaetsindex(panel)
     pruefe_exposure(train)
@@ -614,7 +680,7 @@ def main() -> bool:
         "Zeitraum konstant -> als quasi-stabiles Strukturmerkmal zu "
         "interpretieren, Kap. 6.3 |")
     log("| Response-Time-Filter | **dokumentieren**: 0-60 min entfernt ~1,7 % der "
-        "Einsaetze bereits in prep/join.py; alle Zaehlungen beziehen sich auf "
+        "Einsaetze bereits in prep/s02_einsaetze.py; alle Zaehlungen beziehen sich auf "
         "den gefilterten Bestand |")
 
     (OUT / "eignungspruefung_summary.md").write_text("\n".join(bericht),

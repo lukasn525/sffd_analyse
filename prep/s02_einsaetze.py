@@ -4,12 +4,12 @@ Schritt 2 der Aufbereitung: Rohdaten joinen, Quoten berechnen, Namen eindeutsche
 Eingang:  data/raw/*
 Ausgang:  data/processed/einsaetze.parquet   (ein Einsatz je Zeile, ~720.000)
 
-Dieser Schritt fasst die frueheren Dateien 02_join.py und 03_features.py
+Dieser Schritt fasst die frueheren Dateien 02_s02_einsaetze.py und 03_features.py
 zusammen. Die Trennung war kuenstlich: Die Quotenberechnung sind rund 40 Zeilen,
 die unmittelbar auf die gejointen Zaehlvariablen folgen.
 
 Die Ebene bleibt der EINZELEINSATZ. Die Aggregation auf Stadtteil x Monat und
-alle Modellmerkmale (Saison, Lags) entstehen erst in regression_datensatz.py.
+alle Modellmerkmale (Saison, Lags) entstehen erst in s03_datensaetze.py.
 
 Vier Datenquellen werden angejoint:
   ACS       soziooekonomisch, je Stadtteil x Jahrgang, strikt prognostisch
@@ -18,7 +18,7 @@ Vier Datenquellen werden angejoint:
   Geometrie Neighborhood-Polygone fuer die beiden Spatial Joins
 
 Ausfuehren:
-  python prep/join.py
+  python prep/s02_einsaetze.py
 """
 import warnings
 from pathlib import Path
@@ -29,13 +29,12 @@ import pandas as pd
 from config import (ACS_PUBLIKATIONS_LAG, ACS_YEARS, ANTWORTZEIT_MAX,
                     ANTWORTZEIT_MIN, CRIME_FENSTER_MONATE,
                     HIGH_RISK_COMMERCIAL, PFAD_EINSAETZE, PROCESSED_DIR,
-                    RAW_DIR, RESIDENTIAL, ROOT)
-from spaltennamen import spalten_deutsch
+                    RAW_DIR, RESIDENTIAL, ROOT, spalten_deutsch)
 
 warnings.filterwarnings("ignore")
 
 # Caches: teure, deterministische Zwischenergebnisse. Zum Neuberechnen einfach
-# die CSV loeschen; download.py verwirft den Crime-Cache automatisch, sobald
+# die CSV loeschen; s01_laden.py verwirft den Crime-Cache automatisch, sobald
 # Crime- oder ACS-Rohdaten neu geladen wurden.
 CACHE_CRIME    = PROCESSED_DIR / "crime_index_monatlich.csv"
 CACHE_LAND_USE = PROCESSED_DIR / "land_use_2020_neighborhoods.csv"
@@ -163,7 +162,7 @@ def _lade_acs_alle_jahre(crosswalk: pd.DataFrame) -> dict[int, pd.DataFrame]:
     nb_per_year = {}
     for year in ACS_YEARS:
         path = RAW_DIR / f"acs_tracts_{year}.csv"
-        require(path, "prep/download.py mit DOWNLOAD_ACS=True ausfuehren.")
+        require(path, "prep/s01_laden.py mit DOWNLOAD_ACS=True ausfuehren.")
         nb = aggregate_acs_to_neighborhood(
             pd.read_csv(path, dtype={"geoid": str}), crosswalk)
         nb_per_year[year] = nb
@@ -178,7 +177,7 @@ def _lade_acs_alle_jahre(crosswalk: pd.DataFrame) -> dict[int, pd.DataFrame]:
 def load_neighborhoods_gdf():
     import geopandas as gpd
     path = RAW_DIR / "neighborhoods.geojson"
-    require(path, "prep/download.py mit DOWNLOAD_NEIGHBORHOODS=True ausfuehren.")
+    require(path, "prep/s01_laden.py mit DOWNLOAD_NEIGHBORHOODS=True ausfuehren.")
     gdf = gpd.read_file(path)
     gdf["neighborhood"] = gdf["nhood"].str.strip().str.title()
     gdf = gdf[["neighborhood", "geometry"]].to_crs("EPSG:4326")
@@ -200,7 +199,7 @@ def _crime_monatlich_modern(path: Path) -> pd.DataFrame:
     if "by_month_incident_date" not in raw.columns:
         raise RuntimeError(
             "crime_raw.parquet enthaelt keine Spalte 'by_month_incident_date'. "
-            "Das ist ein aelterer Download ohne Datum. Bitte prep/download.py "
+            "Das ist ein aelterer Download ohne Datum. Bitte prep/s01_laden.py "
             "mit DOWNLOAD_CRIME=True neu ausfuehren - ohne Datum laesst sich "
             "kein zeitbewusster Kriminalitaetsindex bilden.")
     df = raw.copy()
@@ -293,8 +292,8 @@ def berechne_kriminalitaetsindex(nb_per_year: dict[int, pd.DataFrame]) -> pd.Dat
     """
     modern_path = RAW_DIR / "crime_raw.parquet"
     hist_path   = RAW_DIR / "crime_historisch_raw.parquet"
-    require(modern_path, "prep/download.py mit DOWNLOAD_CRIME=True ausfuehren.")
-    require(hist_path, "prep/download.py mit DOWNLOAD_CRIME_HISTORISCH=True ausfuehren.")
+    require(modern_path, "prep/s01_laden.py mit DOWNLOAD_CRIME=True ausfuehren.")
+    require(hist_path, "prep/s01_laden.py mit DOWNLOAD_CRIME_HISTORISCH=True ausfuehren.")
 
     teile = [_crime_monatlich_historisch(hist_path),
              _crime_monatlich_modern(modern_path)]
@@ -433,7 +432,7 @@ def _join_landuse(base: pd.DataFrame) -> pd.DataFrame:
         return base.merge(pd.read_csv(CACHE_LAND_USE), on="neighborhood", how="left")
 
     path = RAW_DIR / "land_use_2020_raw.parquet"
-    require(path, "prep/download.py mit DOWNLOAD_LAND_USE=True ausfuehren.")
+    require(path, "prep/s01_laden.py mit DOWNLOAD_LAND_USE=True ausfuehren.")
     parcels = pd.read_parquet(path)
     if "st_area_sh" not in parcels.columns:
         raise RuntimeError("land_use_2020_raw.parquet enthaelt kein st_area_sh.")
@@ -491,14 +490,14 @@ def run_join() -> pd.DataFrame:
 
     print("[1/6] SFFD: Rohdaten, Dedup, Zeit-Features...")
     require(RAW_DIR / "fire_incidents.parquet",
-            "prep/download.py mit DOWNLOAD_SFFD=True ausfuehren.")
+            "prep/s01_laden.py mit DOWNLOAD_SFFD=True ausfuehren.")
     sffd = prepare_sffd(pd.read_parquet(RAW_DIR / "fire_incidents.parquet"))
     print(f"  {len(sffd):,} Einsaetze | Jahre "
           f"{int(sffd['year'].min())}-{int(sffd['year'].max())}")
 
     print(f"\n[2/6] ACS: Tract -> Neighborhood ({len(ACS_YEARS)} Jahrgaenge)...")
     require(RAW_DIR / "crosswalk.csv",
-            "prep/download.py mit DOWNLOAD_CROSSWALK=True ausfuehren.")
+            "prep/s01_laden.py mit DOWNLOAD_CROSSWALK=True ausfuehren.")
     crosswalk = pd.read_csv(RAW_DIR / "crosswalk.csv", dtype={"geoid": str})
     nb_per_year = _lade_acs_alle_jahre(crosswalk)
 

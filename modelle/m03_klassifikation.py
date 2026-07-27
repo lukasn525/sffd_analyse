@@ -26,7 +26,7 @@ Unterschiede bleiben rein algorithmisch.
 Das End-Hold-out (`ist_holdout == 1`) wird hier NICHT ausgewertet.
 
 Ausfuehren:
-  python modelle/train_klassifikation.py
+  python modelle/m03_klassifikation.py
 """
 import sys
 import time
@@ -42,9 +42,9 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "prep"))
 
 from config import (KLASSEN, MERKMALE_KATEGORIAL, N_FOLDS,  # noqa: E402
-                    PFAD_KLASSIFIKATION, RANDOM_STATE, RESULTS_DIR, ROOT)
+                    PFAD_KLASSIFIKATION, RANDOM_STATE, RESULTS_DIR, ROOT,
+                    merkmalslisten)
 from cv import bewerte_mehrklassig, fold_masken  # noqa: E402
-from klassifikation_datensatz import merkmalslisten  # noqa: E402
 
 OUT = RESULTS_DIR / "klassifikation"
 

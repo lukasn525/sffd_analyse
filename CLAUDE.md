@@ -28,6 +28,7 @@ Referenzen: Exposé (`expose.pdf`), Sprechstunden-Mitschrift (`vorgaben_schroete
 | `CLAUDE.md` (diese Datei) | verbindlicher Rahmen, Decision Log, Status |
 | `ORIENTIERUNG.md` | **Datenfluss und Zuständigkeit je Datei – zuerst nach dieser Datei lesen** |
 | `README.md` | Setup und Ausführung |
+| `docs/KAPITEL_5_AUFBEREITUNG.md` | **Schreibvorlage Kapitel 5 – was wurde je Arbeitsschritt umgesetzt** |
 | `docs/UMBAU_PREPROCESSING.md` | Umbau-Plan und Nachweis der Bitgleichheit (#22) |
 | `docs/NAECHSTE_SCHRITTE.md` | Roadmap in einfacher Sprache |
 | `docs/RISIKEN_MODELLIERUNG.md` | **Risikoanalyse R1–R10 vor der Modellierung** |
@@ -37,7 +38,7 @@ Referenzen: Exposé (`expose.pdf`), Sprechstunden-Mitschrift (`vorgaben_schroete
 | `DATA_DICTIONARY.md` | Spaltenbeschreibung des Analysedatensatzes |
 | `results/eignungspruefung/` | Linearität, VIF, Overdispersion, Balance, **Eignungsurteil je Verfahren** |
 | `ABGABE.md` | welche Dateien ins Abgabe-Zip gehören |
-| `tests/test_aufbereitung.py` | 13 Prüfungen der Datenaufbereitung |
+| `tests/test_aufbereitung.py` | 14 Prüfungen der Datenaufbereitung |
 | `docs/archiv/` | **veraltet – nichts davon in die Arbeit übernehmen** |
 
 ---
@@ -78,9 +79,9 @@ SHAP-Analyse zur Interpretation.
 | Phase | Status | Artefakte |
 |---|---|---|
 | Business Understanding | ✅ abgeschlossen | Exposé, Kap. 1/4 |
-| Data Understanding | ✅ Eignungsprüfung neu gerechnet (2026-07-27), nur auf Trainingsdaten, mit **Eignungsurteil je Verfahren** | `prep/eignungspruefung.py`, `results/eignungspruefung/` |
-| Data Preparation | ✅ **abgeschlossen** – ein Befehl, zwei finale Datensätze, 13/13 Prüfungen grün | `prep/`, `data/processed/regression.parquet`, `…/klassifikation.parquet` |
-| Modeling | 🟡 Ridge + RF + Baselines (inkl. NegBin) lauffähig; offen: XGBoost-Lauf, Randomized Search, Klassifikations-Robustheitslauf | `modelle/train_regression.py`, `modelle/baselines.py`, `modelle/train_klassifikation.py` |
+| Data Understanding | ✅ Eignungsprüfung neu gerechnet (2026-07-27), nur auf Trainingsdaten, mit **Eignungsurteil je Verfahren** | `prep/s04_eignungspruefung.py`, `results/eignungspruefung/` |
+| Data Preparation | ✅ **abgeschlossen** – ein Befehl, zwei finale Datensätze, 14/14 Prüfungen grün | `prep/`, `data/processed/regression.parquet`, `…/klassifikation.parquet` |
+| Modeling | 🟡 Ridge + RF + Baselines (inkl. NegBin) lauffähig; offen: XGBoost-Lauf, Randomized Search, Klassifikations-Robustheitslauf | `modelle/m01_baselines.py`, `m02_regression.py`, `m03_klassifikation.py` |
 | Evaluation | 🟡 Fold-Ergebnisse liegen vor (s. u.); Hold-out unberührt | `results/regression/` |
 | Deployment | ⬜ nicht Teil der Arbeit (Limitation, vgl. Schröer et al. 2021) | – |
 
@@ -159,11 +160,13 @@ SHAP-Analyse zur Interpretation.
 
 ## 4. Preprocessing-Pipeline (Prüfpunkt Schröter!) – Bestandsdokumentation
 
-Aufbereitung `prep/download.py → join.py → regression_datensatz.py +
-klassifikation_datensatz.py` (Orchestrierung: `prep/build.py`).
+Aufbereitung `prep/s01_laden.py → s02_einsaetze.py → s03_datensaetze.py`
+(Orchestrierung: `prep/build.py`, ein Befehl). Die Nummern bilden die
+Ausführungsreihenfolge ab; welcher Arbeitsschritt in welcher Datei steht, ist in
+`docs/KAPITEL_5_AUFBEREITUNG.md` Schritt für Schritt aufgeschlüsselt.
 **Für Kapitel 5.2 der Arbeit.**
 
-**Datenquellen (`download.py`):**
+**Datenquellen (`s01_laden.py`):**
 - SFFD Fire Incidents, DataSF `wr8u-xric` (~720.000 Einsätze, 2003–2026); nur
   Zeilen mit `neighborhood_district` und `arrival_dttm`
 - Census-Tract↔Neighborhood-Crosswalk, DataSF `sevw-6tgi`
@@ -172,7 +175,7 @@ klassifikation_datensatz.py` (Orchestrierung: `prep/build.py`).
 - SFPD Crime (monatlich voraggregiert), DataSF `e3si-785i`
 - Land Use 2020 (Parzellen), DataSF `ygi5-84iq` + Neighborhood-Boundaries `j2bu-swwd`
 
-**Join-Logik (`join.py`):**
+**Join-Logik (`s02_einsaetze.py`):**
 - SFFD: **Dedup nach `incident_number`** (269 mehrfach gemeldete Einsatznummern
   aus DataSF entfernt, 0,04 %) → 719.989 Einsätze; `response_time_min` =
   Ankunft−Alarm, Filter 0–60 min (~1,7 % entfernt); Zeit-Features (jahr, monat,
@@ -201,15 +204,15 @@ klassifikation_datensatz.py` (Orchestrierung: `prep/build.py`).
   Aggregation je Neighborhood → **statisch** (Snapshot 2020; einziger Jahrgang);
   aggregierte Tabelle wird gecacht (CSV löschen zum Neuberechnen)
 
-**Quoten (ebenfalls `join.py`, früher `03_features.py`):** Raten via
+**Quoten (ebenfalls `s02_einsaetze.py`, früher `03_features.py`):** Raten via
 `safe_ratio` (Zähler/Nenner, [0,1]): `armutsquote_pct`, `akademikerquote_pct`,
 `leerstandsquote_pct`, `anteil_altbau_vor_1940_pct` (= Altbau-Anteil aus Exposé),
 `anteil_altbau_vor_1960_pct`, `anteil_wohngebaeude_pct`, `anteil_risikogewerbe_pct`
 (= Risiko-Gewerbe-Index aus Exposé: RETAIL/ENT+PDR-Fläche / Gesamtfläche).
-Umbenennung auf Deutsch (`spaltennamen.py`).
+Umbenennung auf Deutsch (Mapping in `config.py`, Abschnitt 9).
 Output: `data/processed/einsaetze.parquet` (719.989 × 50, Einsatz-Ebene).
 
-**Regressionsdatensatz (`regression_datensatz.py`):** Aggregation auf
+**Regressionsdatensatz (`s03_datensaetze.py`, Teil 1):** Aggregation auf
 **Stadtteil × Monat** – Zählung je Stadtteil-Monat, vollständiges Raster (Monate
 ohne Einsatz = echte 0), `ffill` ohne `bfill`, Exposure und Kriminalitätsindex
 logarithmiert, Saison (sin/cos) und Lags (`lag_1`, `lag_12`, `rolling_mean_3`),
@@ -217,11 +220,18 @@ Lag-Vorlauf ab 2014-01 mit anschließendem Zuschnitt auf 2015-01 (#23),
 balanciertes Panel (#15), Aufteilungsspalten `fold` und `ist_holdout`.
 Output: **`data/processed/regression.parquet` (4.620 × 24)**.
 
-**Klassifikationsdatensatz (`klassifikation_datensatz.py`):** Einzeleinsatz-Ebene,
+**Klassifikationsdatensatz (`s03_datensaetze.py`, Teil 2):** Einzeleinsatz-Ebene,
 Zeitraum und Stadtteilliste **aus dem Regressionsdatensatz übernommen**, beide
 Zielgrößen (`einsatzart_gruppe`, `ist_brand`), Merkmalsblöcke A (Struktur) und
 B (Zeitpunkt, zyklisch kodiert), Ergebnisvariablen ausgeschlossen (#20).
 Output: **`data/processed/klassifikation.parquet` (350.481 × 26)**.
+
+**Datentypen (`s03_datensaetze.py`, Teil 3):** Alle Merkmale werden auf `float64`
+vereinheitlicht (`wochentag` bleibt `int64`, weil kategorial). Grund: Die
+ACS-Aggregation liefert Einkommen und Miete als pandas-eigenen Typ `Int64`;
+eine einzige solche Spalte macht aus `X.to_numpy()` ein object-Array, das
+XGBoost ablehnt (Decision Log #24). Die Designmatrix ist damit ohne Umweg an
+alle drei Verfahren übergebbar.
 
 **Stand der Aufbereitungsschritte:**
 - [x] Aggregation Stadtteil × Monat
@@ -236,12 +246,13 @@ Output: **`data/processed/klassifikation.parquet` (350.481 × 26)**.
       der Ergebnisvariablen
 - [x] Crime-Merkmale zeitbewusst (#17) – ersetzt #16
 - [x] Encoding kategorialer Variablen im ColumnTransformer (`wochentag`;
-      One-Hot **einheitlich für alle Modelle**, `modelle/train_klassifikation.py`)
+      One-Hot **einheitlich für alle Modelle**, `modelle/m03_klassifikation.py`)
 - [x] Umgang mit Klassenungleichgewicht (3,6:1 mehrklassig):
       `class_weight="balanced"`; Macro-F1/Macro-AUROC statt Accuracy
-- [x] VIF/Linearität nur auf Trainingsdaten (`prep/eignungspruefung.py`);
+- [x] VIF/Linearität nur auf Trainingsdaten (`prep/s04_eignungspruefung.py`);
       `results/eignungspruefung/` am 2026-07-27 neu erzeugt
 - [x] Lag-Vorlauf, beide Datensätze deckungsgleich ab 2015-01 (#23)
+- [x] Datentypen modelltauglich, keine nullable dtypes (#24)
 - [ ] Pseudo-Signal-Problem der Klassifikation im Methodenkapitel ausformulieren
       (350.481 Einsätze → nur 4.619 verschiedene Stadtteil-Monats-Profile)
 - [ ] Sensitivitätsanalyse Zielgröße „Einsätze je 1.000 Einwohner" (#13)
@@ -320,16 +331,17 @@ Budget je Modell gleich (z. B. 50 Iterationen) → fairer Vergleich.
 | 20 | 2026-07-26 | **Klassifikation: Design festgelegt** (`docs/KLASSIFIKATION_DESIGN.md`). Ebene Einzeleinsatz, gleiche Abgrenzung wie die Regression (2015-01–2025-12, 35 Stadtteile, 350.481 Einsätze, 13,6 % Brand). **Ergebnisvariablen ausgeschlossen** (Sachschaden, Löschfahrzeuge/-kräfte, Alarmstufe, Antwortzeit – erst nach dem Einsatz bekannt). Ridge-Pendant = `LogisticRegression(penalty="l2")`. Schwellenwert je Fold auf dem inneren Fenster, **AUROC primär** | Die Basisrate verschiebt sich über den Zeitraum (Training 12,0 % → Test 17,3 % in Fold 1), weil die absolute Zahl der Brände 2019→2023 um 85 % stieg, bei nahezu konstanten Nicht-Brand-Einsätzen. AUROC ist davon unberührt, F1 nicht → Schwelle zeitnah kalibrieren, Anstieg als Befund in Kap. 6. Pseudo-Signal: 350.481 Zeilen enthalten nur **4.619 verschiedene Stadtteil-Monats-Profile** → SHAP nur blockweise, keine Signifikanztests auf Einsatz-Ebene | Design festgelegt; Umsetzung offen |
 | 19 | 2026-07-26 | **Park-/Institutionsgebiete ausgeschlossen:** Golden Gate Park, Lincoln Park, McLaren Park (`PARKGEBIETE` in `aggregation.py`) → **35 Stadtteile, 4.620 Beobachtungen**. Zusätzlich geht der Kriminalitätsindex **logarithmiert** ins Modell (`log_kriminalitaetsindex`) | Gebiete ohne nennenswerte Wohnbevölkerung sind für ein bevölkerungsbezogenes Risikomodell keine sinnvolle Analyseeinheit: Golden Gate Park hat **45 Einwohner**, einen Kriminalitätsindex von 186 im Median und 7.394 Einsätze je 1.000 Ew./Jahr (Median aller übrigen: 14.435 Ew.). Dieser eine Stadtteil erzeugte eine Schiefe von 9,0 im Index und **Ridge (S) R² −3,9**. Nach Ausschluss + Log-Transformation: Schiefe 0,66, **Ridge (S) R² 0,79**. Entscheidung über die Analyseeinheit, keine Ausreißerbereinigung nach Zielgröße | umgesetzt & validiert; **mit Schröter bestätigen** |
 | 18 | 2026-07-26 | **Analysezeitraum dauerhaft festgesetzt: 2015-01 bis 2025-12** (`START`/`ENDE`, nicht mehr aus den Daten abgeleitet) | Reproduzierbarkeit: Jeder Lauf liefert denselben Zeitraum, unabhängig davon, wie weit der letzte DataSF-Download reicht | umgesetzt & validiert |
-| 22 | 2026-07-27 | **Restrukturierung: eine Aufbereitung, ein Befehl, zwei Datensätze.** `pipeline/`, `modellierung/` und `analyse/` sind aufgelöst; die gesamte Aufbereitung liegt in **`prep/`** (9 Dateien), die Modellskripte in **`modelle/`** (3 Dateien). `python prep/build.py` erzeugt `regression.parquet` und `klassifikation.parquet` und prüft anschließend die Verfahrenseignung. Alle Konstanten stehen in **`prep/config.py`** (vorher über vier Dateien verteilt, `ACS_YEARS` sogar doppelt). Neu: Die CV-Aufteilung wird als Spalten `fold` und `ist_holdout` in die Datensätze geschrieben. Gestrichen: `deskriptiv.py`, `dashboard.py`, `sf_fire_incidents_base.parquet`, `sf_fire_risk_features_cleaned.parquet` | Die Aufbereitung war über zwei Ordner verteilt, mit einer Namenskollision (`03_features.py` vs. `features.py`), fünf Aufrufen in fester Reihenfolge und einem finalen Datensatz, der nur im Speicher existierte. **Der Umbau ist inhaltlich folgenlos:** Vor Aktivierung des Lag-Vorlaufs war der neue Datensatz zellengleich zum alten (`pd.testing.assert_frame_equal` bestanden, Nachweis in `docs/UMBAU_PREPROCESSING.md` Schritt 4). Die Fold-Spalten sichern die Fairness-Regel konstruktiv ab | umgesetzt & validiert (13/13 Prüfungen); **Schröter gegenüber erwähnen** |
+| 22 | 2026-07-27 | **Restrukturierung: eine Aufbereitung, ein Befehl, zwei Datensätze.** `pipeline/`, `modellierung/` und `analyse/` sind aufgelöst; die gesamte Aufbereitung liegt in **`prep/`** (7 Dateien, `s01`–`s04` in Ausführungsreihenfolge), die Modellskripte in **`modelle/`** (3 Dateien). `python prep/build.py` erzeugt `regression.parquet` und `klassifikation.parquet` und prüft anschließend die Verfahrenseignung. Alle Konstanten stehen in **`prep/config.py`** (vorher über vier Dateien verteilt, `ACS_YEARS` sogar doppelt). Neu: Die CV-Aufteilung wird als Spalten `fold` und `ist_holdout` in die Datensätze geschrieben. Gestrichen: `deskriptiv.py`, `dashboard.py`, `sf_fire_incidents_base.parquet`, `sf_fire_risk_features_cleaned.parquet` | Die Aufbereitung war über zwei Ordner verteilt, mit einer Namenskollision (`03_features.py` vs. `features.py`), fünf Aufrufen in fester Reihenfolge und einem finalen Datensatz, der nur im Speicher existierte. **Der Umbau ist inhaltlich folgenlos:** Vor Aktivierung des Lag-Vorlaufs war der neue Datensatz zellengleich zum alten (`pd.testing.assert_frame_equal` bestanden, Nachweis in `docs/UMBAU_PREPROCESSING.md` Schritt 4). Die Fold-Spalten sichern die Fairness-Regel konstruktiv ab | umgesetzt & validiert (14/14 Prüfungen); **Schröter gegenüber erwähnen** |
+| 24 | 2026-07-27 | **Datentypen der Merkmale auf `float64` vereinheitlicht** und die beiden Datensatz-Skripte zu `prep/s03_datensaetze.py` zusammengelegt (7 statt 9 Dateien in `prep/`) | Die ACS-Aggregation lieferte `median_haushaltseinkommen` und `median_miete` als pandas-eigenen Typ `Int64`. Beide sind **Modellprädiktoren**. Folge: `X.to_numpy()` ergab ein **object**-Array statt float64. scikit-learn fing das still ab (Ridge und Random Forest liefen fehlerfrei), **XGBoost lehnt solche DataFrames jedoch ab** – der Fehler wäre erst beim dritten der drei zu vergleichenden Verfahren aufgetreten und hätte im Preprocessing gesessen. Zusätzlich waren `jahr`/`monat` in den beiden Datensätzen unterschiedlich typisiert (int32 vs. int64). Nur die Typen ändern sich, kein einziger Wert (nachgerechnet). Die Zusammenlegung beseitigt zugleich die Reihenfolgeabhängigkeit, dass die Klassifikation den Regressionsdatensatz von der Platte lesen musste | umgesetzt & validiert (14/14 Prüfungen, neuer Test `test_datentypen_modelltauglich`) |
 | 23 | 2026-07-27 | **Lag-Vorlauf: Regression beginnt ebenfalls 2015-01** statt 2016-01 (`VORLAUF_MONATE = 12`). Aggregiert wird ab 2014-01, nach der Lag-Bildung wird auf 2015-01 zugeschnitten. **4.620 statt 4.200 Modellzeilen (+10 %)** | `lag_12` für Januar 2015 braucht Januar 2014 – der fehlte im Panel, also entfernte `dropna` das erste Jahr je Stadtteil. Das war unnötig: Die Lags brauchen ausschließlich `anzahl_einsaetze` aus der Vergangenheit, keine ACS-Merkmale. Der Grund für START = 2015 (Akademikerquote, #11) betrifft nur die Prädiktoren der Zielzeile. Zwei Vorteile: Regression und Klassifikation decken jetzt **denselben Zeitraum** ab, und das Training wird um 12 Monate länger. **Die Testfenster der drei Folds bleiben unverändert** (2022/2023/2024) – es kommt nur Trainingsmaterial hinzu, der Verfahrensvergleich bleibt strukturgleich. Kein Leakage: Die Vorlaufmonate gehen ausschließlich über `shift()` ein, nie als eigene Zeile (geprüft in `tests/`) | umgesetzt & validiert; **mit Schröter bestätigen** |
 
 ## 8. Mapping Analyse → Gliederung der Arbeit (Kap. 4–7)
 
 | Kapitel | Inhalt | Artefakt im Repo |
 |---|---|---|
-| 4.1–4.3 Anwendungsfall & Daten | Datenquellen, Variablen, Zielgrößen | `DATA_DICTIONARY.md`, `prep/download.py` |
-| 5.1 Business & Data Understanding | EDA, Verteilungen, Klassenbalance, Overdispersion, **Eignungsprüfung mit Urteil je Verfahren** | `prep/eignungspruefung.py`, `results/eignungspruefung/` |
-| 5.2 Data Preparation | Aufbereitung (Abschnitt 4 dieser Datei), Aggregation, fehlende Werte, Encoding, Skalierung | `prep/`, `docs/UMBAU_PREPROCESSING.md` |
+| 4.1–4.3 Anwendungsfall & Daten | Datenquellen, Variablen, Zielgrößen | `DATA_DICTIONARY.md`, `prep/s01_laden.py` |
+| 5.1 Business & Data Understanding | EDA, Verteilungen, Klassenbalance, Overdispersion, **Eignungsprüfung mit Urteil je Verfahren** (Schröter-Prüfpunkt) | `prep/s04_eignungspruefung.py`, `results/eignungspruefung/` |
+| 5.2 Data Preparation | Aufbereitung Schritt für Schritt | **`docs/KAPITEL_5_AUFBEREITUNG.md`**, `prep/` |
 | 5.3 Modellierung & Tuning | 3 Verfahren + NegBin-Baseline, Randomized Search | `modelle/`, Suchräume in `prep/config.py` |
 | 5.4 Evaluation & Vergleich | Time-Series-CV, Baselines, Gütemaße, Laufzeiten | `results/regression/`, `results/klassifikation/` |
 | 5.5 SHAP | Interpretierbarkeit | geplant |

@@ -5,13 +5,11 @@ DER EINE BEFEHL. Erzeugt aus den Rohdaten die beiden finalen Datensaetze.
 
 Ablauf:
 
-    1  download.py                -> data/raw/*                  (nur was in
-                                                                  config.py auf
-                                                                  True steht)
-    2  join.py                    -> data/processed/einsaetze.parquet
-    3a regression_datensatz.py    -> data/processed/regression.parquet      FINAL
-    3b klassifikation_datensatz.py-> data/processed/klassifikation.parquet  FINAL
-    4  eignungspruefung.py        -> results/eignungspruefung/
+    1  s01_laden.py         -> data/raw/*   (nur was in config.py auf True steht)
+    2  s02_einsaetze.py             -> data/processed/einsaetze.parquet
+    3  s03_datensaetze.py      -> data/processed/regression.parquet      FINAL
+                           -> data/processed/klassifikation.parquet  FINAL
+    4  s04_eignungspruefung.py -> results/eignungspruefung/
 
 Schritt 4 prueft, ob Ridge Regression, Random Forest und XGBoost zu den eben
 erzeugten Datensaetzen passen, und faellt ein explizites Urteil je Verfahren.
@@ -72,33 +70,28 @@ def uebersicht() -> None:
 
 
 def baue_daten() -> None:
-    import download
-    import join
-    import klassifikation_datensatz
-    import regression_datensatz
+    import s01_laden
+    import s02_einsaetze
+    import s03_datensaetze
 
-    t = schritt("1/4", "Rohdaten laden (download.py)")
-    download.run_download()
+    t = schritt("1/4", "Rohdaten laden (s01_laden.py)")
+    s01_laden.run_download()
     fertig(t)
 
-    t = schritt("2/4", "Joinen, Quoten, Eindeutschen (join.py)")
-    join.run_join()
+    t = schritt("2/4", "Joinen, Quoten, Eindeutschen (s02_einsaetze.py)")
+    s02_einsaetze.run_join()
     fertig(t)
 
-    t = schritt("3a/4", "Regressionsdatensatz (regression_datensatz.py)")
-    regression_datensatz.run()
-    fertig(t)
-
-    t = schritt("3b/4", "Klassifikationsdatensatz (klassifikation_datensatz.py)")
-    klassifikation_datensatz.run()
+    t = schritt("3/4", "Beide finalen Datensaetze (s03_datensaetze.py)")
+    s03_datensaetze.run()
     fertig(t)
 
 
 def pruefe_eignung() -> bool:
-    import eignungspruefung
+    import s04_eignungspruefung
 
     t = schritt("4/4", "Eignungspruefung Ridge / Random Forest / XGBoost")
-    bestanden = eignungspruefung.main()
+    bestanden = s04_eignungspruefung.main()
     fertig(t)
     return bestanden
 

@@ -5,7 +5,7 @@ Der Code ist Beleg, nicht Hauptbestandteil (mind. 3/4 Fließtext).
 
 ---
 
-## 1. Pflicht – Analysecode (18 Dateien, ~200 KB)
+## 1. Pflicht – Analysecode (16 Dateien, ~200 KB)
 
 Das ist alles, was jemand braucht, um die Arbeit nachzurechnen.
 
@@ -17,27 +17,25 @@ DATA_DICTIONARY.md                     Spaltenbeschreibung
 requirements.txt                       eingefrorene Paketversionen
 
 prep/config.py                         alle Festlegungen an einer Stelle
-prep/download.py                       Rohdaten laden (DataSF, Census)
-prep/join.py                           Joins, ACS-Versatz, Kriminalitätsindex, Quoten
-prep/regression_datensatz.py           Panel, Exposure, Saison, Lags
-prep/klassifikation_datensatz.py       Zielgrößen + Merkmale Einzeleinsatz
+prep/s01_laden.py                      1  Rohdaten laden (DataSF, Census)
+prep/s02_einsaetze.py                  2-4  auswählen, joinen, Raten berechnen
+prep/s03_datensaetze.py                5-6  aggregieren, Lags, Zielgrößen
+prep/s04_eignungspruefung.py           7  Eignungsurteil je Verfahren
 prep/cv.py                             Folds, inneres Fenster, End-Hold-out, Gütemaße
-prep/eignungspruefung.py               Eignungsurteil je Verfahren
-prep/spaltennamen.py                   Mapping englisch → deutsch
 prep/build.py                          der eine Befehl
 
-modelle/baselines.py                   naiv, saisonal, Negative Binomial
-modelle/train_regression.py            Ridge, Random Forest, XGBoost
-modelle/train_klassifikation.py        dieselben drei, 4 Klassen
+modelle/m01_baselines.py               naiv, saisonal, Negative Binomial
+modelle/m02_regression.py              Ridge, Random Forest, XGBoost
+modelle/m03_klassifikation.py          dieselben drei, 4 Klassen
 
-tests/test_aufbereitung.py             13 Prüfungen der Datenaufbereitung
+tests/test_aufbereitung.py             14 Prüfungen der Datenaufbereitung
 ```
 
-Hinzu kommt `modelle/shap_analyse.py`, sobald es existiert.
+Hinzu kommt `modelle/m04_shap.py`, sobald es existiert.
 
 **Warum `tests/` mitgeht:** Die Datei belegt, dass die Aufbereitung geprüft ist –
 kein Leakage, rechteckiges Panel, Lags gegen die Rohdaten verifiziert,
-Fold-Spalten konsistent. Das ist ein Qualitätsnachweis, der in einer
+Fold-Spalten konsistent, Designmatrix modelltauglich. Das ist ein Qualitätsnachweis, der in einer
 Prüfungssituation mehr wert ist als zusätzlicher Analysecode. Ein Satz im
 Methodenkapitel genügt als Verweis.
 
@@ -53,13 +51,14 @@ results/shap/                          SHAP-Grafiken
 ## 3. Empfohlen – Nachvollziehbarkeit der Entscheidungen
 
 ```text
+docs/KAPITEL_5_AUFBEREITUNG.md         was je Arbeitsschritt umgesetzt wurde
 docs/UMBAU_PREPROCESSING.md            Umbau-Plan + Nachweis der Bitgleichheit
 docs/KLASSIFIKATION_DESIGN.md          Aufbau und Begründung
 docs/RISIKEN_MODELLIERUNG.md           Risikoanalyse R1–R10
 docs/PREPROCESSING_AUDIT_2026-07-26.md Audit-Protokoll
 ```
 
-Diese vier belegen, dass Entscheidungen begründet und nicht zufällig getroffen
+Diese fünf belegen, dass Entscheidungen begründet und nicht zufällig getroffen
 wurden. Das Decision Log in `CLAUDE.md` ist ohnehin Pflicht.
 
 ## 4. Optional – Datenbelege
@@ -80,7 +79,7 @@ direkteste Beleg dafür, worauf die Modelle gerechnet haben. Der Zwischenstand
 | Was | Warum |
 |---|---|
 | `venv/` | mehrere hundert MB, über `requirements.txt` reproduzierbar |
-| `data/raw/` | 38 MB Rohdaten, über `prep/download.py` reproduzierbar |
+| `data/raw/` | 38 MB Rohdaten, über `prep/s01_laden.py` reproduzierbar |
 | `data/processed/einsaetze.parquet` | 35 MB Zwischenstand, reproduzierbar |
 | `docs/archiv/` | veraltete Stände, würde nur verwirren |
 | `.git/`, `__pycache__/`, `notebooks/` | Arbeitsstände |
@@ -92,7 +91,7 @@ direkteste Beleg dafür, worauf die Modelle gerechnet haben. Der Zwischenstand
 ```powershell
 pip freeze > requirements.txt          # Versionen einfrieren
 python prep\build.py                   # einmal komplett durchlaufen lassen
-python tests\test_aufbereitung.py      # muss 13/13 zeigen
+python tests\test_aufbereitung.py      # muss 14/14 zeigen
 ```
 
 `prep/build.py` endet mit Exit-Code 1, falls ein Eignungskriterium nicht erfüllt

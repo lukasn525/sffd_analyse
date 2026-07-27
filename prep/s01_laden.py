@@ -9,8 +9,8 @@ Stehen dort alle auf False (Default), laeuft dieser Schritt folgenlos durch -
 braucht weder Internet noch API-Key.
 
 Ausfuehren:
-  python prep/download.py          # laedt, was in config.py auf True steht
-  python prep/download.py test     # nur Erreichbarkeit der Quellen pruefen
+  python prep/s01_laden.py          # laedt, was in config.py auf True steht
+  python prep/s01_laden.py test     # nur Erreichbarkeit der Quellen pruefen
 """
 import json
 import sys
@@ -138,12 +138,12 @@ def fetch_crime_historisch() -> pd.DataFrame:
     2015-2017 keine Kriminalitaetswerte.
 
     Der historische Datensatz enthaelt KEINE Stadtteilspalte, wohl aber
-    Koordinaten -> Zuordnung in join.py per Spatial Join gegen dieselbe
+    Koordinaten -> Zuordnung in s02_einsaetze.py per Spatial Join gegen dieselbe
     Neighborhood-Geometrie wie bei den Land-Use-Daten.
 
     Limitation fuer Kap. 6: Im Mai 2018 hat SFPD von CABLE auf das Crime Data
     Warehouse umgestellt. Absolute Fallzahlen sind ueber diesen Bruch hinweg
-    nicht vergleichbar - genau deshalb bildet join.py einen RELATIVEN Index.
+    nicht vergleichbar - genau deshalb bildet s02_einsaetze.py einen RELATIVEN Index.
     """
     rows = _paginiere_datasf(
         "https://data.sfgov.org/resource/tmnf-yvry.json",
@@ -249,7 +249,7 @@ def run_download() -> None:
         if cache.exists():
             cache.unlink()
             print("  Cache crime_index_monatlich.csv verworfen "
-                  "(wird in join.py neu berechnet).")
+                  "(wird in s02_einsaetze.py neu berechnet).")
 
 
 def quick_test() -> None:

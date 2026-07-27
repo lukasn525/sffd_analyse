@@ -24,7 +24,7 @@ Das End-Hold-out (`ist_holdout == 1`) wird hier NICHT ausgewertet. Es bleibt der
 einmaligen Schlussbewertung vorbehalten (Decision Log #14).
 
 Ausfuehren:
-  python modelle/train_regression.py
+  python modelle/m02_regression.py
 """
 import sys
 import time
@@ -39,12 +39,31 @@ from sklearn.preprocessing import StandardScaler
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "prep"))
 
-from config import (FEATURE_SETS, N_FOLDS, PFAD_REGRESSION,  # noqa: E402
-                    RANDOM_STATE, RESULTS_DIR, ROOT)
+from config import (FEATURE_SETS, LAGS, N_FOLDS,  # noqa: E402
+                    PFAD_REGRESSION, RANDOM_STATE, RESULTS_DIR, ROOT)
 from cv import bewerte_regression, beschreibe_splits, fold_masken, zeitachse  # noqa: E402
-from regression_datensatz import ridge_sicht  # noqa: E402
 
 OUT = RESULTS_DIR / "regression"
+
+
+def ridge_sicht(d: pd.DataFrame, spalten: list[str]) -> pd.DataFrame:
+    """Modellspezifische Aufbereitung der Lags fuer Ridge.
+
+    Ridge wird auf log(1+y) geschaetzt. Damit die Beziehung zwischen Lags und
+    log-Zielgroesse linear ist, muessen auch die Lags logarithmiert werden
+    (log-AR-Spezifikation). Rohe Lags in einem log-Modell sind fehlspezifiziert -
+    empirisch ergab das R2 < 0.
+
+    Steht bewusst HIER und nicht in prep/: Es ist eine modellinterne
+    Transformation wie die Standardisierung, keine Eigenschaft des Datensatzes.
+    Und KEINE Verletzung der Fairness-Regel - identische Zeilen, identische
+    Information, nur eine andere Darstellung (Decision Log #9).
+    """
+    x = d[spalten].copy()
+    for c in LAGS:
+        if c in x.columns:
+            x[c] = np.log1p(x[c])
+    return x
 
 
 def modelle():

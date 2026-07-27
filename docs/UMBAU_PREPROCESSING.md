@@ -1,14 +1,21 @@
 # Umbau: eine Preprocessing-Pipeline, ein Befehl, zwei Datensätze
 
 Stand 2026-07-27 · **Status: UMGESETZT.** Alle 12 Schritte aus Abschnitt 8 sind
-abgeschlossen, `python prep/build.py` läuft in ~35 s durch, `tests/` zeigt 13/13.
+abgeschlossen, `python prep/build.py` läuft in ~35 s durch, `tests/` zeigt 14/14.
 Der Nachweis der Bitgleichheit (Schritt 4) ist erbracht:
 `pd.testing.assert_frame_equal` gegen den eingefrorenen Referenzstand bestanden,
 alle 22 Spalten der 4.200 alten Zeilen zellengleich. Erst danach wurde der
 Lag-Vorlauf aktiviert.
 
+**Nachtrag 2026-07-27 (Decision Log #24):** Ein anschliessender Audit der beiden
+Datensätze fand zwei Prädiktoren mit pandas-eigenem Typ `Int64` – für XGBoost
+unbrauchbar. Alle Merkmale sind jetzt `float64`. Ausserdem wurden
+`regression_datensatz.py` und `klassifikation_datensatz.py` zu
+`prep/datensaetze.py` zusammengelegt: **7 statt 9 Dateien**, und die
+Klassifikation muss den Regressionsdatensatz nicht mehr von der Platte lesen.
+
 Dieses Dokument bleibt als Begründung und Nachweis erhalten (Decision Log #22,
-#23). Wer wissen will, wie die Struktur *heute* aussieht, liest
+#23, #24). Wer wissen will, wie die Struktur *heute* aussieht, liest
 `ORIENTIERUNG.md`.
 
 **Ziel:** `python prep/build.py` erzeugt aus den Rohdaten die beiden finalen

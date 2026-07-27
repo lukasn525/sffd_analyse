@@ -7,7 +7,7 @@ und nirgendwo sonst. Wer wissen will, ab wann die Analyse laeuft oder welche
 Merkmale ins Modell gehen, oeffnet ausschliesslich diese Datei.
 
 Vorher lagen dieselben Konstanten in vier Dateien verteilt, ACS_YEARS sogar
-doppelt (01_fetch.py und 02_join.py) - eine stille Fehlerquelle.
+doppelt (01_fetch.py und 02_s02_einsaetze.py) - eine stille Fehlerquelle.
 
 Bezug: CLAUDE.md (Decision Log), docs/UMBAU_PREPROCESSING.md
 """
@@ -29,7 +29,7 @@ PFAD_REGRESSION     = PROCESSED_DIR / "regression.parquet"
 PFAD_KLASSIFIKATION = PROCESSED_DIR / "klassifikation.parquet"
 
 # ==========================================================================
-# 2  DOWNLOADS  (Schritt: prep/download.py)
+# 2  DOWNLOADS  (Schritt: prep/s01_laden.py)
 # ==========================================================================
 # Alle Schalter stehen per Default auf False. `python prep/build.py` laeuft
 # dann allein aus data/raw und braucht weder Internet noch API-Key.
@@ -70,7 +70,7 @@ CRIME_HISTORISCH_AB  = "2014-01-01"
 CRIME_HISTORISCH_BIS = "2018-01-01"   # exklusiv; ab hier greift e3si-785i
 
 # ==========================================================================
-# 3  JOINS  (Schritt: prep/join.py)
+# 3  JOINS  (Schritt: prep/s02_einsaetze.py)
 # ==========================================================================
 # Publikationsverzoegerung der ACS-5-Jahres-Schaetzungen: Jahrgang y erscheint
 # erst ca. Dezember y+1. Ein Modell, das im Jahr y schon den Jahrgang y nutzt,
@@ -242,6 +242,23 @@ ERGEBNISVARIABLEN = [
     "ankunft_zeitpunkt",
 ]
 
+def merkmalslisten(mit_ort: bool = MIT_BATAILLON) -> dict[str, list[str]]:
+    """Merkmalssaetze der geplanten Laeufe (docs/KLASSIFIKATION_DESIGN.md).
+
+      A+B  Stadtteilstruktur + Zeitpunkt -> Hauptmodell
+      B    nur Zeitpunkt                 -> zeigt den Beitrag der Struktur
+      A    nur Stadtteilstruktur         -> Gegenprobe
+    """
+    saetze = {
+        "A+B": MERKMALE_STRUKTUR + MERKMALE_ZEIT + MERKMALE_KATEGORIAL,
+        "B":   MERKMALE_ZEIT + MERKMALE_KATEGORIAL,
+        "A":   list(MERKMALE_STRUKTUR),
+    }
+    if mit_ort:
+        saetze["A+B+Ort"] = saetze["A+B"] + MERKMALE_ORT
+    return saetze
+
+
 # ==========================================================================
 # 7  VALIDIERUNG  (Schritt: prep/cv.py)
 # ==========================================================================
@@ -284,4 +301,77 @@ SUCHRAEUME = {
         "reg_lambda":       ("loguniform", 1e-2, 1e2),
     },
     # NegBin-Baseline: kein Tuning, interpretierbare Referenz.
+}
+
+
+# ==========================================================================
+# 9  SPALTENNAMEN  englisch -> deutsch
+# ==========================================================================
+# Die Rohquellen (DataSF, Census) liefern englische Namen; ab dem Ende von
+# prep/s02_einsaetze.py heisst im Projekt alles deutsch. Dieses Mapping ist die einzige
+# Stelle, an der der Wechsel passiert. Steht hier unten, weil man es beim
+# Arbeiten praktisch nie anfasst - im Gegensatz zu allem darueber.
+spalten_deutsch = {
+    # ── SFFD Einsatzfelder (Quelldaten) ──────────────────────────────────────
+    "incident_number":               "einsatz_nummer",
+    "incident_date":                 "einsatz_datum",
+    "alarm_dttm":                    "alarm_zeitpunkt",
+    "arrival_dttm":                  "ankunft_zeitpunkt",
+    "neighborhood_district":         "stadtteil_bezirk",
+    "battalion":                     "bataillon",
+    "primary_situation":             "einsatzart",
+    "suppression_units":             "loeschfahrzeuge",
+    "suppression_personnel":         "loeschkraefte",
+    "ems_units":                     "rettungsdienst_einheiten",
+    "number_of_alarms":              "alarmstufe",
+    "civilian_fatalities":           "zivile_tote",
+    "civilian_injuries":             "zivile_verletzte",
+    "no_flame_spread":               "flammenausbreitung_eingedaemmt",
+    "estimated_property_loss":       "schaetzung_sachschaden_usd",
+    # ── Abgeleitete Einsatzfelder (Zeitvariablen) ─────────────────────────────
+    "response_time_min":             "antwortzeit_min",
+    "year":                          "jahr",
+    "month":                         "monat",
+    "hour":                          "stunde",
+    "weekday":                       "wochentag",
+    "is_weekend":                    "ist_wochenende",
+    "is_night":                      "ist_nacht",
+    "neighborhood":                  "stadtteil",
+    "acs_year":                      "acs_jahr",
+    # ── ACS Soziooekonomie (Rohdaten) ─────────────────────────────────────────
+    "total_population":              "gesamtbevoelkerung",
+    "median_household_income":       "median_haushaltseinkommen",
+    "median_gross_rent":             "median_miete",
+    "poverty_below":                 "armutsbevoelkerung",
+    "poverty_universe_total":        "armuts_grundgesamtheit",
+    "bachelor_degree_count":         "akademiker_anzahl",
+    "education_universe_total":      "bildungs_grundgesamtheit",
+    "vacant_housing_units":          "leerstehende_wohneinheiten",
+    "total_housing_units":           "gesamtzahl_wohnungen",
+    # ── SFPD Kriminalitaet ────────────────────────────────────────────────────
+    # Seit 2026-07-26: relativer Index je Stadtteil x Monat (Location Quotient
+    # gegen den Stadtdurchschnitt desselben Monats, rollierendes 12-Monats-
+    # Fenster endend im Vormonat). Ersetzt die frueheren statischen Anteile.
+    "crime_index":                   "kriminalitaetsindex",
+    "crime_rate_raw":                "kriminalitaetsrate_pro_1000_ew_roh",
+    # Alt (bis 2026-07-26, nicht mehr erzeugt - Mapping bleibt fuer die
+    # Lesbarkeit aelterer Parquet-Staende erhalten):
+    # ── Land Use (Rohdaten) ───────────────────────────────────────────────────
+    "parcel_count":                  "parzellen_anzahl",
+    "yrbuilt_count":                 "parzellen_mit_baujahr",
+    "pre1940_count":                 "parzellen_vor_1940",
+    "pre1960_count":                 "parzellen_vor_1960",
+    "total_resunits":                "gesamtzahl_wohneinheiten",
+    "residential_count":             "wohnparzellen_anzahl",
+    "total_area_sqft":               "gesamtflaeche_sqft",
+    "high_risk_commercial_area_sqft": "risikogewerbeflaeche_sqft",
+    # ── Abgeleitete Variablen – ACS ───────────────────────────────────────────
+    "poverty_rate":                  "armutsquote_pct",
+    "bachelor_rate":                 "akademikerquote_pct",
+    "vacancy_rate":                  "leerstandsquote_pct",
+    # ── Abgeleitete Variablen – Land Use ──────────────────────────────────────
+    "pct_pre1940":                   "anteil_altbau_vor_1940_pct",
+    "pct_pre1960":                   "anteil_altbau_vor_1960_pct",
+    "pct_residential":               "anteil_wohngebaeude_pct",
+    "pct_high_risk_commercial_area": "anteil_risikogewerbe_pct",
 }

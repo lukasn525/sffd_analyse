@@ -30,7 +30,7 @@ verwendet zwei davon abgeleitete Datensätze:
 | Einheiten | 35 Stadtteile | dieselben 35 Stadtteile |
 | Beobachtungen | 4.620 (rechteckiges Panel) | 350.481 |
 | Zielgröße | `anzahl_einsaetze` | `einsatzart_gruppe` (4 Klassen) + `ist_brand` (13,6 %) |
-| Erzeugt in | `prep/regression_datensatz.py` | `prep/klassifikation_datensatz.py` |
+| Erzeugt in | `prep/s03_datensaetze.py`, Teil 1 | `prep/s03_datensaetze.py`, Teil 2 |
 
 Ausgeschlossene Stadtteile: Treasure Island, Lakeshore, Mission Bay (keine
 durchgängige ACS-Abdeckung) sowie Golden Gate Park, Lincoln Park, McLaren Park
@@ -64,7 +64,7 @@ durchgängige ACS-Abdeckung) sowie Golden Gate Park, Lincoln Park, McLaren Park
 
 ## 2. Abgeleitete Einsatz­felder (Zeitvariablen)
 
-> Berechnet aus `alarm_dttm` / `incident_date` in `prep/join.py`
+> Berechnet aus `alarm_dttm` / `incident_date` in `prep/s02_einsaetze.py`
 
 | Spalte | Typ | Beschreibung | Wertebereich |
 |---|---|---|---|
@@ -172,7 +172,7 @@ Analysemonat 2015-01 werden die Delikte aus 2014-01 bis 2014-12 verwendet.
 
 ## 6. Abgeleitete Variablen – ACS
 
-> Berechnet in `prep/join.py` (`berechne_quoten`). Formel: Zähler / Nenner. **Wertebereich: [0, 1]**
+> Berechnet in `prep/s02_einsaetze.py` (`berechne_quoten`). Formel: Zähler / Nenner. **Wertebereich: [0, 1]**
 
 | Spalte | Typ | Formel | Einheit | NaN% |
 |---|---|---|---|---|
@@ -186,14 +186,14 @@ Analysemonat 2015-01 werden die Delikte aus 2014-01 bis 2014-12 verwendet.
 
 > **Entfallen.** `pct_violent_crime` und `pct_property_crime` wurden am
 > 2026-07-26 durch den Kriminalitätsindex ersetzt (s. Abschnitt 4). Die
-> Berechnet in `prep/join.py` (`berechne_kriminalitaetsindex`)
+> Berechnet in `prep/s02_einsaetze.py` (`berechne_kriminalitaetsindex`)
 > statt, weil sie eine Zeitdimension und die Einwohnerzahl benötigt.
 
 ---
 
 ## 8. Abgeleitete Variablen – Land Use
 
-> Berechnet in `prep/join.py` (`berechne_quoten`). **Wertebereich: [0, 1]**
+> Berechnet in `prep/s02_einsaetze.py` (`berechne_quoten`). **Wertebereich: [0, 1]**
 
 | Spalte | Typ | Formel | Einheit | NaN% |
 |---|---|---|---|---|
@@ -307,5 +307,17 @@ ableitbar: alle Monate vor dem Testfenster, ohne Hold-out
 | `wochentag` | kategorial, One-Hot erst im ColumnTransformer |
 | `fold`, `ist_holdout` | wie oben, identische Zeitschnitte |
 
+### Datentypen
+
+Alle Merkmale sind `float64`, `wochentag` als kategoriales Merkmal `int64`.
+Schlüssel, Zielgröße und Steuerspalten sind `int64`, `stadtteil`,
+`einsatz_nummer` und `einsatzart_gruppe` sind Strings.
+
+Die Vereinheitlichung ist nicht kosmetisch: Die ACS-Aggregation liefert
+`median_haushaltseinkommen` und `median_miete` als pandas-eigenen Typ `Int64`
+(nullable). Eine einzige solche Spalte im Merkmalssatz genügt, damit
+`X.to_numpy()` ein **object**-Array statt `float64` liefert – scikit-learn fängt
+das still ab, XGBoost lehnt es ab (Decision Log #24).
+
 Ergebnisvariablen sind in beiden Dateien garantiert nicht enthalten; das prüft
-`tests/test_aufbereitung.py`.
+`tests/test_aufbereitung.py`, ebenso die Datentypen.

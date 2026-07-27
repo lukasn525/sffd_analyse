@@ -32,12 +32,12 @@ ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "prep"))
 
 from config import (ENDE, ERGEBNISVARIABLEN, FEATURE_SETS,  # noqa: E402
-                    KLASSEN, MERKMALE_STRUKTUR, MERKMALE_ZEIT,
-                    PFAD_KLASSIFIKATION, PFAD_REGRESSION, PRAEDIKTOREN, START,
-                    VORLAUF_MONATE)
+                    KLASSEN, MERKMALE_KATEGORIAL, MERKMALE_STRUKTUR,
+                    MERKMALE_ZEIT, PFAD_KLASSIFIKATION, PFAD_REGRESSION,
+                    PRAEDIKTOREN, START, VORLAUF_MONATE)
 from cv import (ergaenze_aufteilung, fold_masken, inneres_fenster,  # noqa: E402
                 split_holdout, zeit_folds, zeitachse)
-from regression_datensatz import _monat_minus, aggregiere  # noqa: E402
+from s03_datensaetze import _monat_minus, aggregiere  # noqa: E402
 
 # Erwartungswerte des festgesetzten Analysedatensatzes
 # (Decision Log #15, #18, #19, #23)
@@ -93,6 +93,31 @@ def test_zeitraum_festgesetzt():
     assert d["jahr_monat"].min() == START, \
         f"Beginn {d['jahr_monat'].min()} statt {START} – Lag-Vorlauf prüfen"
     assert d["jahr_monat"].max() == ENDE
+
+
+def test_datentypen_modelltauglich():
+    """Kein Merkmal darf einen pandas-eigenen (nullable) Typ haben.
+
+    Die ACS-Aggregation liefert `median_haushaltseinkommen` und `median_miete`
+    als `Int64`. Solange nur scikit-learn rechnet, fällt das nicht auf – der
+    StandardScaler wandelt still um. Sobald aber eine einzige Int64-Spalte im
+    Merkmalssatz steht, liefert `X.to_numpy()` ein **object**-Array statt
+    float64, und XGBoost lehnt den DataFrame ab ("dtypes for data must be int,
+    float, bool or category"). Der Fehler träte also erst beim dritten der drei
+    zu vergleichenden Verfahren auf – und säße dann im Preprocessing.
+    """
+    erlaubt = {"float64", "int64"}
+    for name, d, feats in [
+        ("regression", regression(), FEATURE_SETS["S+L"]),
+        ("klassifikation", klassifikation(),
+         MERKMALE_STRUKTUR + MERKMALE_ZEIT + MERKMALE_KATEGORIAL),
+    ]:
+        schlecht = {c: str(t) for c, t in d[feats].dtypes.items()
+                    if str(t) not in erlaubt}
+        assert not schlecht, f"{name}: untaugliche Merkmals-dtypes {schlecht}"
+        matrix = d[feats].to_numpy()
+        assert matrix.dtype != object, \
+            f"{name}: Designmatrix wird zu object statt float"
 
 
 def test_exposure_und_kriminalitaetsindex_vorhanden():

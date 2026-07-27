@@ -14,6 +14,9 @@ Zielgrößen, Phasenstatus, Decision Log, Validierungs- und Tuning-Strategie.
 **Wo gehört was hin? [`ORIENTIERUNG.md`](ORIENTIERUNG.md)** – Datenfluss und
 Zuständigkeit je Datei.
 
+**Schreibvorlage Kapitel 5: [`docs/KAPITEL_5_AUFBEREITUNG.md`](docs/KAPITEL_5_AUFBEREITUNG.md)**
+– je Arbeitsschritt: was passiert, wo im Code, welche Zahlen, welche Entscheidung.
+
 ---
 
 ## Ein Befehl
@@ -28,11 +31,11 @@ und ohne API-Key – die Downloads sind über die `DOWNLOAD_*`-Schalter in
 `prep/config.py` gesteuert und stehen per Default auf `False`.
 
 ```text
-prep/download.py  ─┐
-prep/join.py       ├─→ data/processed/einsaetze.parquet        Zwischenstand
-prep/regression_datensatz.py     → data/processed/regression.parquet      FINAL
-prep/klassifikation_datensatz.py → data/processed/klassifikation.parquet  FINAL
-prep/eignungspruefung.py         → results/eignungspruefung/
+prep/s01_laden.py            →  data/raw/*
+prep/s02_einsaetze.py        →  data/processed/einsaetze.parquet       Zwischenstand
+prep/s03_datensaetze.py      →  data/processed/regression.parquet      FINAL
+                             →  data/processed/klassifikation.parquet  FINAL
+prep/s04_eignungspruefung.py →  results/eignungspruefung/
 ```
 
 Die beiden **FINAL** markierten Dateien sind das Einzige, was die Modellskripte
@@ -52,8 +55,12 @@ unter `modelle/` lesen.
 | Aufteilung | `fold` (1–3) und `ist_holdout` als Spalten | identisch |
 | End-Hold-out | 2025-01 – 2025-12, beim Tuning unberührt | identisch |
 
-Beide teilen zwingend dieselbe Abgrenzung: `klassifikation_datensatz.py`
-übernimmt Zeitraum und Stadtteilliste aus `regression.parquet`.
+Beide entstehen in **einer** Datei (`prep/s03_datensaetze.py`) und teilen dadurch
+zwingend dieselbe Abgrenzung – Zeitraum und Stadtteilliste werden einmal
+bestimmt und an beide weitergereicht.
+
+Alle Merkmale sind `float64`; die Designmatrix lässt sich ohne Umweg an Ridge,
+Random Forest und XGBoost übergeben.
 
 Die Fold-Zuordnung steht **als Spalte im Datensatz**, nicht nur in einem
 Funktionsaufruf. Damit ist die Fairness-Regel – alle drei Verfahren sehen
@@ -73,21 +80,19 @@ sffd_analyse/
 ├── prep/                      # alles Festgelegte – erzeugt die Datensätze
 │   ├── config.py              #   EINZIGE Wahrheit: Zeitraum, Merkmale,
 │   │                          #   Ausschlüsse, Folds, Suchräume, API-Keys
-│   ├── download.py            #   DataSF + Census → data/raw
-│   ├── join.py                #   Joins, ACS-Versatz, Kriminalitätsindex, Quoten
-│   ├── regression_datensatz.py     # Panel, Exposure, Saison, Lags
-│   ├── klassifikation_datensatz.py # Zielgrößen + Merkmale, Einzeleinsatz
+│   ├── s01_laden.py           #   1 laden          → data/raw
+│   ├── s02_einsaetze.py       #   2-4 auswählen, joinen, Raten berechnen
+│   ├── s03_datensaetze.py     #   5-6 aggregieren, Lags → beide Datensätze
+│   ├── s04_eignungspruefung.py#   7 Eignungsurteil je Verfahren
 │   ├── cv.py                  #   Zeitschnitte, Folds, Hold-out, Gütemaße
-│   ├── eignungspruefung.py    #   Eignungsurteil je Verfahren
-│   ├── spaltennamen.py        #   englisch → deutsch
 │   └── build.py               #   DER EINE BEFEHL
 │
 ├── modelle/                   # nur was tatsächlich schätzt
-│   ├── baselines.py           #   naiv, saisonal, Negative Binomial
-│   ├── train_regression.py    #   Ridge, Random Forest, XGBoost
-│   └── train_klassifikation.py#   dieselben drei, 4 Klassen
+│   ├── m01_baselines.py       #   naiv, saisonal, Negative Binomial
+│   ├── m02_regression.py      #   Ridge, Random Forest, XGBoost
+│   └── m03_klassifikation.py  #   dieselben drei, 4 Klassen
 │
-├── tests/test_aufbereitung.py # 13 Prüfungen der Aufbereitung
+├── tests/test_aufbereitung.py # 14 Prüfungen der Aufbereitung
 ├── docs/                      # Design, Risiken, Audit, Umbau-Plan
 ├── data/                      # nicht im Repo (gitignored)
 └── results/                   # nicht im Repo (gitignored)
@@ -120,26 +125,25 @@ Rate-Limits (`DATASF_APP_TOKEN`).
 python prep\build.py                 # alles: Daten + Eignungsprüfung
 python prep\build.py daten           # nur die Datensätze
 python prep\build.py pruefung        # nur die Eignungsprüfung
-python prep\download.py test         # Erreichbarkeit der Quellen prüfen
+python prep\s01_laden.py test        # Erreichbarkeit der Quellen prüfen
 
 # Einzelschritte (falls nur ein Teil neu soll)
-python prep\join.py
-python prep\regression_datensatz.py
-python prep\klassifikation_datensatz.py
+python prep\s02_einsaetze.py
+python prep\s03_datensaetze.py
 python prep\cv.py                    # zeigt die Zeitschnitte
 
 # Absicherung
-python tests\test_aufbereitung.py    # muss 13/13 zeigen
+python tests\test_aufbereitung.py    # muss 14/14 zeigen
 
 # Modelle
-python modelle\baselines.py
-python modelle\train_regression.py
-python modelle\train_klassifikation.py
+python modelle\m01_baselines.py
+python modelle\m02_regression.py
+python modelle\m03_klassifikation.py
 ```
 
 Rohdaten werden nur geladen, wenn der jeweilige `DOWNLOAD_*`-Schalter in
 `prep/config.py` auf `True` steht. Nach einem Crime- oder ACS-Neu-Download
-verwirft `download.py` automatisch den Cache `crime_index_monatlich.csv`.
+verwirft `s01_laden.py` automatisch den Cache `crime_index_monatlich.csv`.
 
 ---
 

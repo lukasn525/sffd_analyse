@@ -19,7 +19,7 @@ machen die Ergebnisse der Modelle einordbar:
 Liest ausschliesslich data/processed/regression.parquet.
 
 Ausfuehren:
-  python modelle/baselines.py
+  python modelle/m01_baselines.py
 """
 import sys
 from pathlib import Path
