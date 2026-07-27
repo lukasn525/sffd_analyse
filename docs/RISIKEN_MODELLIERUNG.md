@@ -1,5 +1,11 @@
 # Risikoanalyse vor der Modellierung
 
+> **Hinweis (2026-07-27):** Dieses Dokument nennt teilweise die alten Dateinamen
+> (`pipeline/`, `modellierung/`, `analyse/`). Seit dem Struktur-Umbau liegt die
+> gesamte Aufbereitung in `prep/`, die Modellskripte in `modelle/`. Die Zuordnung
+> alt → neu steht in `ORIENTIERUNG.md`, Abschnitt 5 (Decision Log #22). Inhaltlich
+> gilt alles Folgende unverändert weiter.
+
 Stand 2026-07-26, nach Abschluss der Data Preparation. Grundlage: Exposé
 (05.06.2026), Schröter-Vorgaben, Prep-Pipeline, `results/eignungspruefung/`,
 `results/demo_modellierung/`.

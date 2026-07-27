@@ -1,6 +1,9 @@
 """
-Mapping englischer -> deutscher Spaltennamen fuer alle finalen Tabellen.
-Wird in 03_compute_features.py (Parquet-Export) und export_sample.py (CSV-Export) importiert.
+Mapping englischer -> deutscher Spaltennamen.
+
+Die Rohquellen (DataSF, Census) liefern englische Spaltennamen; ab dem Ende von
+prep/join.py heisst im Projekt alles deutsch. Dieses Mapping ist die Stelle, an
+der der Wechsel passiert - genau einmal.
 """
 
 spalten_deutsch = {

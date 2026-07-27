@@ -1,5 +1,11 @@
 # Klassifikationsteil – Aufbau und Begründung
 
+> **Hinweis (2026-07-27):** Dieses Dokument nennt teilweise die alten Dateinamen
+> (`pipeline/`, `modellierung/`, `analyse/`). Seit dem Struktur-Umbau liegt die
+> gesamte Aufbereitung in `prep/`, die Modellskripte in `modelle/`. Die Zuordnung
+> alt → neu steht in `ORIENTIERUNG.md`, Abschnitt 5 (Decision Log #22). Inhaltlich
+> gilt alles Folgende unverändert weiter.
+
 Stand 2026-07-26. Grundlage: `results/eignungspruefung/eignungspruefung_summary.md`.
 Ergänzt `docs/UMSETZUNGSLEITFADEN_MODELLIERUNG.md`, Schritt 7.
 

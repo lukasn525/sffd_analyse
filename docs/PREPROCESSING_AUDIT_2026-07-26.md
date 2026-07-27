@@ -1,5 +1,11 @@
 # Preprocessing-Audit gegen die 11 Prüfaufträge
 
+> **Hinweis (2026-07-27):** Dieses Dokument nennt teilweise die alten Dateinamen
+> (`pipeline/`, `modellierung/`, `analyse/`). Seit dem Struktur-Umbau liegt die
+> gesamte Aufbereitung in `prep/`, die Modellskripte in `modelle/`. Die Zuordnung
+> alt → neu steht in `ORIENTIERUNG.md`, Abschnitt 5 (Decision Log #22). Inhaltlich
+> gilt alles Folgende unverändert weiter.
+
 > **Umsetzungsstand 2026-07-26:** Alle Punkte aus **P1 sind umgesetzt**, mit einer
 > bewussten Ausnahme: P1.4 (Crime zeitbewusst) wurde vertagt, siehe Decision Log #16.
 > Zusätzlich kam beim Umbau ein weiterer Befund hinzu (unbalanciertes Panel durch

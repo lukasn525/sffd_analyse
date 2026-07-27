@@ -1,5 +1,11 @@
 # Umsetzungsleitfaden Modellierung – Ridge · Random Forest · XGBoost
 
+> **Hinweis (2026-07-27):** Dieses Dokument nennt teilweise die alten Dateinamen
+> (`pipeline/`, `modellierung/`, `analyse/`). Seit dem Struktur-Umbau liegt die
+> gesamte Aufbereitung in `prep/`, die Modellskripte in `modelle/`. Die Zuordnung
+> alt → neu steht in `ORIENTIERUNG.md`, Abschnitt 5 (Decision Log #22). Inhaltlich
+> gilt alles Folgende unverändert weiter.
+
 > Verbindlicher Fahrplan für den Ausbau von `modellierung/` bis zur fertigen
 > Vergleichsstudie. Ergänzt `CLAUDE.md` (Rahmenplan) um die konkrete
 > Programmier-Reihenfolge. Grundlage: Exposé, Schröter-Vorgaben,

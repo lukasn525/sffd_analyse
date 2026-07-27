@@ -11,18 +11,53 @@ Zielgrößen: Einsatzhäufigkeit (Regression, Stadtteil × Monat) und Einsatzart
 **Verbindlicher Projektrahmen: [`CLAUDE.md`](CLAUDE.md)** – Forschungsfrage,
 Zielgrößen, Phasenstatus, Decision Log, Validierungs- und Tuning-Strategie.
 
+**Wo gehört was hin? [`ORIENTIERUNG.md`](ORIENTIERUNG.md)** – Datenfluss und
+Zuständigkeit je Datei.
+
 ---
 
-## Analysedatensatz (festgesetzt, Stand 2026-07-26)
+## Ein Befehl
 
-| | Regression | Klassifikation |
+```powershell
+python prep\build.py
+```
+
+Erzeugt aus den Rohdaten die beiden finalen Datensätze und prüft anschließend,
+ob die drei Verfahren zu ihnen passen. Läuft in etwa 30 Sekunden, ohne Internet
+und ohne API-Key – die Downloads sind über die `DOWNLOAD_*`-Schalter in
+`prep/config.py` gesteuert und stehen per Default auf `False`.
+
+```text
+prep/download.py  ─┐
+prep/join.py       ├─→ data/processed/einsaetze.parquet        Zwischenstand
+prep/regression_datensatz.py     → data/processed/regression.parquet      FINAL
+prep/klassifikation_datensatz.py → data/processed/klassifikation.parquet  FINAL
+prep/eignungspruefung.py         → results/eignungspruefung/
+```
+
+Die beiden **FINAL** markierten Dateien sind das Einzige, was die Modellskripte
+unter `modelle/` lesen.
+
+---
+
+## Die beiden Datensätze
+
+| | `regression.parquet` | `klassifikation.parquet` |
 |---|---|---|
-| Ebene | Stadtteil × Monat | Einzeleinsatz |
+| Zeile ist | ein Stadtteil-Monat | ein Einsatz |
 | Zeitraum | **2015-01 – 2025-12** (132 Monate) | identisch |
 | Einheiten | **35 Stadtteile** | dieselben 35 |
-| Beobachtungen | **4.620** (rechteckiges Panel) | 350.481 |
-| Zielgröße | `anzahl_einsaetze` | `ist_brand` (13,6 %) |
+| Beobachtungen | **4.620** (rechteckiges Panel) | **350.481** |
+| Zielgröße | `anzahl_einsaetze` | `einsatzart_gruppe` (4 Klassen) + `ist_brand` |
+| Aufteilung | `fold` (1–3) und `ist_holdout` als Spalten | identisch |
 | End-Hold-out | 2025-01 – 2025-12, beim Tuning unberührt | identisch |
+
+Beide teilen zwingend dieselbe Abgrenzung: `klassifikation_datensatz.py`
+übernimmt Zeitraum und Stadtteilliste aus `regression.parquet`.
+
+Die Fold-Zuordnung steht **als Spalte im Datensatz**, nicht nur in einem
+Funktionsaufruf. Damit ist die Fairness-Regel – alle drei Verfahren sehen
+identische Splits – nachzählbar.
 
 ---
 
@@ -31,32 +66,29 @@ Zielgrößen, Phasenstatus, Decision Log, Validierungs- und Tuning-Strategie.
 ```text
 sffd_analyse/
 ├── CLAUDE.md                  # Projektrahmen + Decision Log  ← zuerst lesen
+├── ORIENTIERUNG.md            # Datenfluss + Zuständigkeit je Datei
 ├── DATA_DICTIONARY.md         # Spaltenbeschreibung
-├── pipeline/                  # ETL (Prep-Pipeline)
-│   ├── 01_fetch.py            #   Rohdaten von DataSF / Census laden
-│   ├── 02_join.py             #   Joins, ACS-Versatz, Kriminalitätsindex
-│   ├── 03_features.py         #   Raten, deutsche Spaltennamen
-│   ├── column_names.py        #   Mapping englisch → deutsch
-│   └── run_pipeline.py        #   Orchestrierung 01 → 02 → 03
 ├── ABGABE.md                  # was ins Abgabe-Zip gehört
-├── modellierung/
-│   ├── aggregation.py         # Stadtteil × Monat, Zeitraum, Exposure, Panel
-│   ├── features.py            # Saison, Lags, Merkmalssätze S und S+L
-│   ├── cv.py                  # Zeitschnitte, Folds, Hold-out, Gütemaße
-│   ├── klassifikation_daten.py # Zielgrößen + Merkmale Einzeleinsatz
-│   └── demo_modellierung.py   # lauffähige Demo (Baselines + Ridge + RF)
-├── tests/
-│   └── test_aufbereitung.py   # 11 Prüfungen der Datenaufbereitung
-├── analyse/
-│   ├── eignungspruefung.py    # Linearität, VIF, Overdispersion, Klassenbalance
-│   ├── deskriptiv.py          # deskriptive Kennzahlen
-│   └── dashboard.py           # Übersichtsgrafik
-├── docs/
-│   ├── NAECHSTE_SCHRITTE.md   # Roadmap in einfacher Sprache
-│   ├── KLASSIFIKATION_DESIGN.md
-│   ├── UMSETZUNGSLEITFADEN_MODELLIERUNG.md
-│   ├── PREPROCESSING_AUDIT_2026-07-26.md
-│   └── archiv/                # veraltet – nicht in die Arbeit übernehmen
+│
+├── prep/                      # alles Festgelegte – erzeugt die Datensätze
+│   ├── config.py              #   EINZIGE Wahrheit: Zeitraum, Merkmale,
+│   │                          #   Ausschlüsse, Folds, Suchräume, API-Keys
+│   ├── download.py            #   DataSF + Census → data/raw
+│   ├── join.py                #   Joins, ACS-Versatz, Kriminalitätsindex, Quoten
+│   ├── regression_datensatz.py     # Panel, Exposure, Saison, Lags
+│   ├── klassifikation_datensatz.py # Zielgrößen + Merkmale, Einzeleinsatz
+│   ├── cv.py                  #   Zeitschnitte, Folds, Hold-out, Gütemaße
+│   ├── eignungspruefung.py    #   Eignungsurteil je Verfahren
+│   ├── spaltennamen.py        #   englisch → deutsch
+│   └── build.py               #   DER EINE BEFEHL
+│
+├── modelle/                   # nur was tatsächlich schätzt
+│   ├── baselines.py           #   naiv, saisonal, Negative Binomial
+│   ├── train_regression.py    #   Ridge, Random Forest, XGBoost
+│   └── train_klassifikation.py#   dieselben drei, 4 Klassen
+│
+├── tests/test_aufbereitung.py # 13 Prüfungen der Aufbereitung
+├── docs/                      # Design, Risiken, Audit, Umbau-Plan
 ├── data/                      # nicht im Repo (gitignored)
 └── results/                   # nicht im Repo (gitignored)
 ```
@@ -74,34 +106,40 @@ pip install -r requirements.txt
 VS Code Interpreter auf `.\venv\Scripts\python.exe` setzen
 (Ctrl+Shift+P → „Python: Select Interpreter").
 
+Für die ACS-Daten wird ein kostenloser Census API Key benötigt
+([Signup](https://api.census.gov/data/key_signup.html)), eingetragen in
+`prep/config.py` als `CENSUS_API_KEY`. Optional: DataSF App Token für höhere
+Rate-Limits (`DATASF_APP_TOKEN`).
+
 ---
 
 ## Ausführen
 
 ```powershell
-# ETL – Downloads über Argumente statt Flags im Code
-python pipeline\01_fetch.py test          # Erreichbarkeit der Quellen prüfen
-python pipeline\01_fetch.py crime         # z. B. nur Kriminalitätsdaten
-python pipeline\02_join.py
-python pipeline\03_features.py
+# Aufbereitung
+python prep\build.py                 # alles: Daten + Eignungsprüfung
+python prep\build.py daten           # nur die Datensätze
+python prep\build.py pruefung        # nur die Eignungsprüfung
+python prep\download.py test         # Erreichbarkeit der Quellen prüfen
 
-# Selbsttests der Aufbereitung
-python modellierung\aggregation.py        # Panel, Zeitraum, Exposure
-python modellierung\cv.py                 # Folds, Hold-out
+# Einzelschritte (falls nur ein Teil neu soll)
+python prep\join.py
+python prep\regression_datensatz.py
+python prep\klassifikation_datensatz.py
+python prep\cv.py                    # zeigt die Zeitschnitte
 
-# Analyse
-python analyse\eignungspruefung.py
-python modellierung\demo_modellierung.py
+# Absicherung
+python tests\test_aufbereitung.py    # muss 13/13 zeigen
+
+# Modelle
+python modelle\baselines.py
+python modelle\train_regression.py
+python modelle\train_klassifikation.py
 ```
 
-`01_fetch.py` akzeptiert: `sffd`, `crosswalk`, `acs`, `crime`, `crime_neu`,
-`crime_hist`, `landuse`, `neighborhoods`, `alle`, `test`. Ohne Argument gelten
-die `DOWNLOAD_*`-Schalter im Kopf der Datei (Default: alle `False`).
-
-Für die ACS-Daten wird ein kostenloser Census API Key benötigt
-([Signup](https://api.census.gov/data/key_signup.html)), eingetragen in
-`pipeline/01_fetch.py` als `CENSUS_API_KEY`. Optional: DataSF App Token für
-höhere Rate-Limits (`DATASF_APP_TOKEN`).
+Rohdaten werden nur geladen, wenn der jeweilige `DOWNLOAD_*`-Schalter in
+`prep/config.py` auf `True` steht. Nach einem Crime- oder ACS-Neu-Download
+verwirft `download.py` automatisch den Cache `crime_index_monatlich.csv`.
 
 ---
 

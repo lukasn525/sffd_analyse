@@ -1,8 +1,9 @@
-# Data Dictionary – sf_fire_risk_features.parquet
+# Data Dictionary – einsaetze.parquet
 
-*Stand 2026-07-26 (nach dem Preprocessing-Audit).*
+*Stand 2026-07-27 (nach dem Struktur-Umbau, Decision Log #22).*
 
-**Tabelle:** `data/processed/sf_fire_risk_features.parquet`
+**Tabelle:** `data/processed/einsaetze.parquet`
+(hieß bis 2026-07-27 `sf_fire_risk_features.parquet`)
 **Zeilen:** 719.989 (ein Datensatz pro SFFD-Einsatz, 2003–2026, nach Dedup und
 Antwortzeit-Filter)
 **Spalten:** 50
@@ -25,11 +26,11 @@ verwendet zwei davon abgeleitete Datensätze:
 | | Regression | Klassifikation |
 |---|---|---|
 | Ebene | Stadtteil × Monat | Einzeleinsatz |
-| Zeitraum | 2015-01 – 2025-12 | identisch |
+| Zeitraum | 2015-01 – 2025-12 (132 Monate, Lag-Vorlauf #23) | identisch |
 | Einheiten | 35 Stadtteile | dieselben 35 Stadtteile |
 | Beobachtungen | 4.620 (rechteckiges Panel) | 350.481 |
-| Zielgröße | `anzahl_einsaetze` | `ist_brand` (NFIRS 100er, 13,6 %) |
-| Erzeugt in | `modellierung/aggregation.py` | `modellierung/klassifikation_daten.py` |
+| Zielgröße | `anzahl_einsaetze` | `einsatzart_gruppe` (4 Klassen) + `ist_brand` (13,6 %) |
+| Erzeugt in | `prep/regression_datensatz.py` | `prep/klassifikation_datensatz.py` |
 
 Ausgeschlossene Stadtteile: Treasure Island, Lakeshore, Mission Bay (keine
 durchgängige ACS-Abdeckung) sowie Golden Gate Park, Lincoln Park, McLaren Park
@@ -63,7 +64,7 @@ durchgängige ACS-Abdeckung) sowie Golden Gate Park, Lincoln Park, McLaren Park
 
 ## 2. Abgeleitete Einsatz­felder (Zeitvariablen)
 
-> Berechnet aus `alarm_dttm` / `incident_date` in `02_join_data.py`
+> Berechnet aus `alarm_dttm` / `incident_date` in `prep/join.py`
 
 | Spalte | Typ | Beschreibung | Wertebereich |
 |---|---|---|---|
@@ -171,7 +172,7 @@ Analysemonat 2015-01 werden die Delikte aus 2014-01 bis 2014-12 verwendet.
 
 ## 6. Abgeleitete Variablen – ACS
 
-> Berechnet in `03_compute_features.py`. Formel: Zähler / Nenner. **Wertebereich: [0, 1]**
+> Berechnet in `prep/join.py` (`berechne_quoten`). Formel: Zähler / Nenner. **Wertebereich: [0, 1]**
 
 | Spalte | Typ | Formel | Einheit | NaN% |
 |---|---|---|---|---|
@@ -185,14 +186,14 @@ Analysemonat 2015-01 werden die Delikte aus 2014-01 bis 2014-12 verwendet.
 
 > **Entfallen.** `pct_violent_crime` und `pct_property_crime` wurden am
 > 2026-07-26 durch den Kriminalitätsindex ersetzt (s. Abschnitt 4). Die
-> Berechnung findet nicht mehr in `03_features.py`, sondern in `02_join.py`
+> Berechnet in `prep/join.py` (`berechne_kriminalitaetsindex`)
 > statt, weil sie eine Zeitdimension und die Einwohnerzahl benötigt.
 
 ---
 
 ## 8. Abgeleitete Variablen – Land Use
 
-> Berechnet in `03_compute_features.py`. **Wertebereich: [0, 1]**
+> Berechnet in `prep/join.py` (`berechne_quoten`). **Wertebereich: [0, 1]**
 
 | Spalte | Typ | Formel | Einheit | NaN% |
 |---|---|---|---|---|
@@ -220,7 +221,7 @@ Analysemonat 2015-01 werden die Delikte aus 2014-01 bis 2014-12 verwendet.
 ## 9. Modellmerkmale (Analysepanel Stadtteil × Monat)
 
 Die zehn Prädiktoren, die tatsächlich in die Modelle gehen
-(`PRAEDIKTOREN` in `modellierung/aggregation.py`). Werte bezogen auf das
+(`PRAEDIKTOREN` in `prep/config.py`). Werte bezogen auf das
 Analysepanel 2015-01 – 2025-12, 35 Stadtteile, 4.620 Beobachtungen, keine NaN.
 
 | Merkmal | Gruppe | Min | Median | Max | Zeitvarianz |
@@ -264,3 +265,47 @@ Zusätzlich im Panel enthalten, aber **kein** Modellmerkmal:
   Publikationsversatz von einem Jahr beginnt der Analysezeitraum daher 2015.
 - **Antwortzeit-Filter** (0–60 min) entfernt ~1,7 % der Einsätze bereits in der
   Prep-Pipeline. Alle Zählungen beziehen sich auf den gefilterten Bestand.
+
+---
+
+## Die beiden finalen Datensätze
+
+Aus dieser Tabelle entstehen in `prep/` die zwei Dateien, die die Modelle lesen.
+Alle inhaltlichen Spalten sind oben beschrieben; hinzu kommen abgeleitete
+Merkmale und die CV-Aufteilung.
+
+### `data/processed/regression.parquet` – 4.620 × 24
+
+| Spalte | Bedeutung |
+|---|---|
+| `stadtteil`, `jahr`, `monat`, `jahr_monat` | Schlüssel (`jahr_monat` = `jahr*100 + monat`) |
+| `anzahl_einsaetze` | **Zielgröße**: Einsätze im Stadtteil-Monat (Monate ohne Einsatz = echte 0) |
+| 10 Prädiktoren | `PRAEDIKTOREN` aus `prep/config.py`, s. Abschnitte oben |
+| `log_bevoelkerung` | `log1p(gesamtbevoelkerung)`, Exposure-Kontrolle (#13) |
+| `log_kriminalitaetsindex` | `log(kriminalitaetsindex)`, 0 = Stadtdurchschnitt (#17, #19) |
+| `monat_sin`, `monat_cos` | Kalendermonat zyklisch kodiert |
+| `lag_1`, `lag_12` | Einsatzzahl im Vormonat bzw. Vorjahresmonat, je Stadtteil |
+| `rolling_mean_3` | Mittel der drei Vormonate (`shift(1)` vor `rolling(3)`) |
+| `fold` | 1–3 = Monat liegt im **Testfenster** dieses Folds; 0 = nur Trainingsmaterial |
+| `ist_holdout` | 1 = End-Hold-out 2025-01 – 2025-12, beim Tuning unberührt |
+| `gesamtbevoelkerung`, `kriminalitaetsindex` | Rohwerte, kein Modellmerkmal – für NegBin-Offset, Raten-Sensitivität und Kap. 5.1 |
+
+Das Trainingsfenster eines Folds ist aus `fold` und `ist_holdout` vollständig
+ableitbar: alle Monate vor dem Testfenster, ohne Hold-out
+(`prep/cv.fold_masken`).
+
+### `data/processed/klassifikation.parquet` – 350.481 × 26
+
+| Spalte | Bedeutung |
+|---|---|
+| `einsatz_nummer`, `stadtteil`, `jahr`, `monat`, `jahr_monat` | Schlüssel |
+| `einsatzart_gruppe` | **Zielgröße A**: 4 zusammengefasste NFIRS-Serien (#21) |
+| `ist_brand` | **Zielgröße B**: 1 = NFIRS 100er, binärer Robustheitslauf |
+| Block A (10) | dieselben Strukturmerkmale wie in der Regression |
+| `stunde_sin`, `stunde_cos` | Alarmzeitpunkt zyklisch über 24 Stunden |
+| `monat_sin`, `monat_cos`, `ist_nacht`, `ist_wochenende` | weitere Zeitmerkmale |
+| `wochentag` | kategorial, One-Hot erst im ColumnTransformer |
+| `fold`, `ist_holdout` | wie oben, identische Zeitschnitte |
+
+Ergebnisvariablen sind in beiden Dateien garantiert nicht enthalten; das prüft
+`tests/test_aufbereitung.py`.

@@ -1,6 +1,22 @@
+# Kern
 pandas==2.1.4
-polars==0.20.31
+numpy
 pyarrow==15.0.0
 requests==2.32.3
+
+# Modellierung und Diagnostik
+scikit-learn
+statsmodels
+xgboost
+
+# Geodaten – Spatial Joins in prep/join.py (Crime historisch, Land Use).
+# Nur noetig, wenn die Caches crime_index_monatlich.csv bzw.
+# land_use_2020_neighborhoods.csv neu berechnet werden.
+geopandas
+shapely
+
+# Grafiken
 matplotlib==3.8.3
 seaborn==0.13.1
+
+# Vor der Abgabe Versionen einfrieren:  pip freeze > requirements.txt

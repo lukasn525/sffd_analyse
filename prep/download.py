@@ -1,62 +1,40 @@
 """
-Schritt 1: Rohdaten von DataSF und Census API laden -> data/raw/
+Schritt 1 der Aufbereitung: Rohdaten von DataSF und der Census API laden.
+
+Ausgabe: data/raw/*
+
+Gesteuert wird ausschliesslich ueber die DOWNLOAD_*-Schalter in prep/config.py.
+Stehen dort alle auf False (Default), laeuft dieser Schritt folgenlos durch -
+`python prep/build.py` arbeitet dann allein aus dem vorhandenen data/raw und
+braucht weder Internet noch API-Key.
 
 Ausfuehren:
-  python pipeline/01_fetch.py          # vollstaendiger Download
-  python pipeline/01_fetch.py test     # nur API-Verfuegbarkeit testen
+  python prep/download.py          # laedt, was in config.py auf True steht
+  python prep/download.py test     # nur Erreichbarkeit der Quellen pruefen
 """
 import json
 import sys
 import time
 import warnings
-from pathlib import Path
 
 import pandas as pd
 import requests
 
+from config import (ACS_VARIABLES, ACS_YEARS, CENSUS_API_KEY,
+                    CRIME_HISTORISCH_AB, CRIME_HISTORISCH_BIS,
+                    DATASF_APP_TOKEN, DOWNLOAD_ACS, DOWNLOAD_CRIME,
+                    DOWNLOAD_CRIME_HISTORISCH, DOWNLOAD_CROSSWALK,
+                    DOWNLOAD_LAND_USE, DOWNLOAD_NEIGHBORHOODS, DOWNLOAD_SFFD,
+                    RAW_DIR, ROOT)
+
 warnings.filterwarnings("ignore")
-
-CENSUS_API_KEY   = "f5cb8b553da8a01e351b3804e56e7fe664e12c98"
-DATASF_APP_TOKEN = None
-ACS_YEARS        = [2009, 2014, 2019, 2021, 2023]
-
-DOWNLOAD_SFFD             = False
-DOWNLOAD_CROSSWALK        = False
-DOWNLOAD_ACS              = False
-DOWNLOAD_CRIME            = True   # SFPD ab 2018 (e3si-785i), MIT Datumsspalte
-DOWNLOAD_CRIME_HISTORISCH = True  # SFPD 2014-2017 (tmnf-yvry), fuer den Index
-DOWNLOAD_LAND_USE_2020    = False
-DOWNLOAD_NEIGHBORHOODS    = False
-
-# Startjahr der historischen Crime-Daten. Der Kriminalitaetsindex nutzt ein
-# rollierendes 12-Monats-Fenster, das im VORMONAT endet; fuer den ersten
-# Analysemonat 2015-01 werden daher die Monate 2014-01 bis 2014-12 benoetigt.
-CRIME_HISTORISCH_AB = "2014-01-01"
-# Der historische SFPD-Datensatz endet im Mai 2018, der moderne beginnt im
-# Januar 2018. Sauberer Kalenderschnitt ohne Ueberlappung:
-CRIME_HISTORISCH_BIS = "2018-01-01"   # exklusiv
-
-ROOT    = Path(__file__).parent.parent
-RAW_DIR = ROOT / "data" / "raw"
-
-ACS_VARIABLES = {
-    "B19013_001E": "median_household_income",
-    "B17001_001E": "poverty_universe_total",
-    "B17001_002E": "poverty_below",
-    "B01003_001E": "total_population",
-    "B15003_022E": "bachelor_degree_count",
-    "B15003_001E": "education_universe_total",
-    "B25064_001E": "median_gross_rent",
-    "B25002_003E": "vacant_housing_units",
-    "B25002_001E": "total_housing_units",
-}
 
 ACS_OUTPUT_COLS = ["geoid"] + list(ACS_VARIABLES.values())
 
 
-def _paginiere_datasf(url: str, base_params: dict, app_token: str | None,
-                       beschreibung: str, limit: int = 50_000) -> list[dict]:
-    headers = {"X-App-Token": app_token} if app_token else {}
+def _paginiere_datasf(url: str, base_params: dict, beschreibung: str,
+                      limit: int = 50_000) -> list[dict]:
+    headers = {"X-App-Token": DATASF_APP_TOKEN} if DATASF_APP_TOKEN else {}
     rows, offset = [], 0
     print(f"  Lade {beschreibung}...")
     while True:
@@ -74,7 +52,11 @@ def _paginiere_datasf(url: str, base_params: dict, app_token: str | None,
     return rows
 
 
-def fetch_sffd_incidents(app_token: str | None = None) -> pd.DataFrame:
+# --------------------------------------------------------------------------
+# Einzelne Quellen
+# --------------------------------------------------------------------------
+def fetch_sffd_incidents() -> pd.DataFrame:
+    """SFFD Fire Incidents (wr8u-xric), ~720.000 Einsaetze ab 2003."""
     fields = ",".join([
         "incident_number", "incident_date", "alarm_dttm", "arrival_dttm",
         "neighborhood_district", "battalion", "primary_situation",
@@ -87,8 +69,7 @@ def fetch_sffd_incidents(app_token: str | None = None) -> pd.DataFrame:
         {"$select": fields,
          "$where":  "neighborhood_district IS NOT NULL AND arrival_dttm IS NOT NULL",
          "$order":  ":id"},
-        app_token, "SFFD-Daten von DataSF",
-    )
+        "SFFD-Daten von DataSF")
     df = pd.DataFrame(rows)
     for col in ["alarm_dttm", "arrival_dttm", "incident_date"]:
         df[col] = pd.to_datetime(df[col], errors="coerce")
@@ -99,27 +80,29 @@ def fetch_sffd_incidents(app_token: str | None = None) -> pd.DataFrame:
     return df
 
 
-def fetch_neighborhood_crosswalk(app_token: str | None = None) -> pd.DataFrame:
-    headers = {"X-App-Token": app_token} if app_token else {}
+def fetch_neighborhood_crosswalk() -> pd.DataFrame:
+    """Census-Tract <-> Neighborhood (sevw-6tgi)."""
+    headers = {"X-App-Token": DATASF_APP_TOKEN} if DATASF_APP_TOKEN else {}
     resp = requests.get(
         "https://data.sfgov.org/resource/sevw-6tgi.json",
         params={"$select": "geoid,neighborhoods_analysis_boundaries", "$limit": 300},
-        headers=headers, timeout=30,
-    )
+        headers=headers, timeout=30)
     resp.raise_for_status()
     df = pd.DataFrame(resp.json())
     df.columns = ["geoid", "neighborhood"]
     df["geoid"]        = df["geoid"].astype(str).str.zfill(11)
     df["neighborhood"] = df["neighborhood"].str.strip().str.title()
-    print(f"  {len(df)} Tract-Neighborhood-Paare, {df['neighborhood'].nunique()} Neighborhoods")
+    print(f"  {len(df)} Tract-Neighborhood-Paare, "
+          f"{df['neighborhood'].nunique()} Neighborhoods")
     return df
 
 
-def fetch_acs_sf_tracts(year: int, api_key: str) -> pd.DataFrame:
+def fetch_acs_sf_tracts(year: int) -> pd.DataFrame:
+    """ACS 5-Year Estimates auf Tract-Ebene fuer San Francisco County."""
     var_codes = list(ACS_VARIABLES.keys())
     var_str = ",".join(["NAME"] + var_codes)
     url = (f"https://api.census.gov/data/{year}/acs/acs5"
-           f"?get={var_str}&for=tract:*&in=state:06%20county:075&key={api_key}")
+           f"?get={var_str}&for=tract:*&in=state:06%20county:075&key={CENSUS_API_KEY}")
     resp = requests.get(url, timeout=30)
     resp.raise_for_status()
     data = resp.json()
@@ -133,39 +116,34 @@ def fetch_acs_sf_tracts(year: int, api_key: str) -> pd.DataFrame:
     return df[ACS_OUTPUT_COLS]
 
 
-def fetch_crime_data(app_token: str | None = None) -> pd.DataFrame:
+def fetch_crime_modern() -> pd.DataFrame:
+    """SFPD Incident Reports ab 2018-01 (e3si-785i), monatlich voraggregiert."""
     rows = _paginiere_datasf(
         "https://data.sfgov.org/resource/e3si-785i.json",
         {"$select": "by_month_incident_date,analysis_neighborhood,incident_category,count",
          "$where":  "analysis_neighborhood IS NOT NULL",
          "$order":  ":id"},
-        app_token, "SFPD Crime-Daten von DataSF",
-    )
+        "SFPD Crime-Daten von DataSF")
     df = pd.DataFrame(rows)
     df["count"] = pd.to_numeric(df["count"], errors="coerce").fillna(0)
     return df[["by_month_incident_date", "analysis_neighborhood",
                "incident_category", "count"]]
 
 
-def fetch_crime_historisch(app_token: str | None = None) -> pd.DataFrame:
-    """SFPD Incident Reports 2003 - Mai 2018 (tmnf-yvry), gefiltert ab 2014.
+def fetch_crime_historisch() -> pd.DataFrame:
+    """SFPD Incident Reports 2003 - Mai 2018 (tmnf-yvry), gefiltert.
 
-    Warum ein zweiter Crime-Datensatz? Der aktuelle Datensatz (e3si-785i)
-    beginnt erst 2018-01. Der Analysezeitraum der Arbeit ist 2015-01 bis
-    2025-12; der Kriminalitaetsindex braucht wegen des rollierenden
-    12-Monats-Fensters zusaetzlich das Jahr 2014. Ohne diesen Datensatz gaebe
-    es fuer 2015-2017 keine Kriminalitaetswerte.
+    Warum ein zweiter Crime-Datensatz? Der aktuelle (e3si-785i) beginnt erst
+    2018-01, der Analysezeitraum aber 2015-01. Ohne diese Quelle gaebe es fuer
+    2015-2017 keine Kriminalitaetswerte.
 
     Der historische Datensatz enthaelt KEINE Stadtteilspalte, wohl aber
-    Koordinaten -> die Zuordnung erfolgt in 02_join.py per Spatial Join gegen
-    dieselbe Neighborhood-Geometrie wie bei den Land-Use-Daten (identische
-    Gebietsdefinition, damit beide Quellen vergleichbar bleiben).
+    Koordinaten -> Zuordnung in join.py per Spatial Join gegen dieselbe
+    Neighborhood-Geometrie wie bei den Land-Use-Daten.
 
-    WICHTIG (Limitation fuer Kap. 6): Im Mai 2018 hat SFPD von der
-    Alt-Anwendung CABLE auf das Crime Data Warehouse umgestellt. Absolute
-    Fallzahlen sind ueber diesen Bruch hinweg nicht direkt vergleichbar -
-    genau deshalb wird in 02_join.py ein RELATIVER Index (Stadtteil gegen
-    Stadtdurchschnitt desselben Monats) gebildet und nicht die Rohzahl.
+    Limitation fuer Kap. 6: Im Mai 2018 hat SFPD von CABLE auf das Crime Data
+    Warehouse umgestellt. Absolute Fallzahlen sind ueber diesen Bruch hinweg
+    nicht vergleichbar - genau deshalb bildet join.py einen RELATIVEN Index.
     """
     rows = _paginiere_datasf(
         "https://data.sfgov.org/resource/tmnf-yvry.json",
@@ -174,8 +152,7 @@ def fetch_crime_historisch(app_token: str | None = None) -> pd.DataFrame:
                     f"AND date < '{CRIME_HISTORISCH_BIS}' "
                     f"AND x IS NOT NULL AND y IS NOT NULL",
          "$order":  ":id"},
-        app_token, f"SFPD Crime historisch ({CRIME_HISTORISCH_AB[:4]}-2017)",
-    )
+        f"SFPD Crime historisch ({CRIME_HISTORISCH_AB[:4]}-2017)")
     df = pd.DataFrame(rows)
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     for col in ["x", "y"]:
@@ -189,14 +166,14 @@ def fetch_crime_historisch(app_token: str | None = None) -> pd.DataFrame:
     return df[["date", "x", "y"]]
 
 
-def fetch_land_use_2020(app_token: str | None = None) -> pd.DataFrame:
+def fetch_land_use() -> pd.DataFrame:
+    """Land Use 2020 (ygi5-84iq), Parzellen mit Geometrie."""
     rows = _paginiere_datasf(
         "https://data.sfgov.org/resource/ygi5-84iq.json",
         {"$select": "the_geom,blklot,yrbuilt,landuse,resunits,st_area_sh",
          "$where":  "the_geom IS NOT NULL",
          "$order":  "blklot ASC"},
-        app_token, "Land Use 2020 Parzellen von DataSF",
-    )
+        "Land Use 2020 Parzellen von DataSF")
     df = pd.DataFrame(rows)
     for col in ["yrbuilt", "resunits", "st_area_sh"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
@@ -204,76 +181,96 @@ def fetch_land_use_2020(app_token: str | None = None) -> pd.DataFrame:
     return df
 
 
-def fetch_neighborhood_boundaries(app_token: str | None = None) -> str:
-    headers = {"X-App-Token": app_token} if app_token else {}
-    resp = requests.get(
-        "https://data.sfgov.org/resource/j2bu-swwd.geojson",
-        params={"$limit": 100}, headers=headers, timeout=30,
-    )
+def fetch_neighborhood_boundaries() -> str:
+    """Neighborhood-Grenzen als GeoJSON (j2bu-swwd) fuer die Spatial Joins."""
+    headers = {"X-App-Token": DATASF_APP_TOKEN} if DATASF_APP_TOKEN else {}
+    resp = requests.get("https://data.sfgov.org/resource/j2bu-swwd.geojson",
+                        params={"$limit": 100}, headers=headers, timeout=30)
     resp.raise_for_status()
     print(f"  GeoJSON empfangen ({len(resp.text):,} Bytes).")
     return resp.text
 
 
-def run_fetch():
+# --------------------------------------------------------------------------
+# Ablauf
+# --------------------------------------------------------------------------
+def run_download() -> None:
     RAW_DIR.mkdir(parents=True, exist_ok=True)
-    print("Schritt 1: Daten einladen")
-    print(f"Flags: SFFD={DOWNLOAD_SFFD} CROSSWALK={DOWNLOAD_CROSSWALK} "
-          f"ACS={DOWNLOAD_ACS} CRIME={DOWNLOAD_CRIME} "
-          f"CRIME_HIST={DOWNLOAD_CRIME_HISTORISCH} "
-          f"LAND_USE={DOWNLOAD_LAND_USE_2020} NEIGHBORHOODS={DOWNLOAD_NEIGHBORHOODS}\n")
+    aktiv = {
+        "SFFD":          DOWNLOAD_SFFD,
+        "CROSSWALK":     DOWNLOAD_CROSSWALK,
+        "ACS":           DOWNLOAD_ACS,
+        "CRIME":         DOWNLOAD_CRIME,
+        "CRIME_HIST":    DOWNLOAD_CRIME_HISTORISCH,
+        "LAND_USE":      DOWNLOAD_LAND_USE,
+        "NEIGHBORHOODS": DOWNLOAD_NEIGHBORHOODS,
+    }
+    if not any(aktiv.values()):
+        print("  Alle DOWNLOAD_*-Schalter in config.py stehen auf False "
+              "-> nutze vorhandene Rohdaten in data/raw.")
+        return
+
+    print("  Aktive Downloads: "
+          + ", ".join(k for k, v in aktiv.items() if v) + "\n")
 
     if DOWNLOAD_SFFD:
-        print("[1/6] SFFD Fire Incidents...")
-        fetch_sffd_incidents(DATASF_APP_TOKEN).to_parquet(
-            RAW_DIR / "fire_incidents.parquet", index=False)
+        print("  SFFD Fire Incidents...")
+        fetch_sffd_incidents().to_parquet(RAW_DIR / "fire_incidents.parquet",
+                                          index=False)
     if DOWNLOAD_CROSSWALK:
-        print("[2/6] Neighborhood Crosswalk...")
-        fetch_neighborhood_crosswalk(DATASF_APP_TOKEN).to_csv(
-            RAW_DIR / "crosswalk.csv", index=False)
+        print("  Neighborhood Crosswalk...")
+        fetch_neighborhood_crosswalk().to_csv(RAW_DIR / "crosswalk.csv",
+                                              index=False)
     if DOWNLOAD_ACS:
-        print(f"[3/6] ACS 5-Year - {len(ACS_YEARS)} Jahrgaenge...")
+        print(f"  ACS 5-Year, {len(ACS_YEARS)} Jahrgaenge...")
         for year in ACS_YEARS:
-            fetch_acs_sf_tracts(year, CENSUS_API_KEY).to_csv(
+            fetch_acs_sf_tracts(year).to_csv(
                 RAW_DIR / f"acs_tracts_{year}.csv", index=False)
     if DOWNLOAD_CRIME:
-        print("[4/6] SFPD Crime Data (ab 2018)...")
-        fetch_crime_data(DATASF_APP_TOKEN).to_parquet(
-            RAW_DIR / "crime_raw.parquet", index=False)
+        print("  SFPD Crime ab 2018...")
+        fetch_crime_modern().to_parquet(RAW_DIR / "crime_raw.parquet",
+                                        index=False)
     if DOWNLOAD_CRIME_HISTORISCH:
-        print("[4b/6] SFPD Crime Data (historisch 2014-2017)...")
-        fetch_crime_historisch(DATASF_APP_TOKEN).to_parquet(
+        print("  SFPD Crime historisch...")
+        fetch_crime_historisch().to_parquet(
             RAW_DIR / "crime_historisch_raw.parquet", index=False)
-    if DOWNLOAD_LAND_USE_2020:
-        print("[5/6] Land Use 2020...")
-        fetch_land_use_2020(DATASF_APP_TOKEN).to_parquet(
-            RAW_DIR / "land_use_2020_raw.parquet", index=False)
+    if DOWNLOAD_LAND_USE:
+        print("  Land Use 2020...")
+        fetch_land_use().to_parquet(RAW_DIR / "land_use_2020_raw.parquet",
+                                    index=False)
     if DOWNLOAD_NEIGHBORHOODS:
-        print("[6/6] Neighborhood Boundaries...")
+        print("  Neighborhood Boundaries...")
         (RAW_DIR / "neighborhoods.geojson").write_text(
-            fetch_neighborhood_boundaries(DATASF_APP_TOKEN), encoding="utf-8")
+            fetch_neighborhood_boundaries(), encoding="utf-8")
 
-    print("\nFertig. Naechster Schritt: python pipeline/02_join.py")
+    # Nach einem Crime- oder ACS-Neu-Download ist der Index-Cache ungueltig.
+    if DOWNLOAD_CRIME or DOWNLOAD_CRIME_HISTORISCH or DOWNLOAD_ACS:
+        cache = ROOT / "data" / "processed" / "crime_index_monatlich.csv"
+        if cache.exists():
+            cache.unlink()
+            print("  Cache crime_index_monatlich.csv verworfen "
+                  "(wird in join.py neu berechnet).")
 
 
-def quick_test():
+def quick_test() -> None:
+    """Erreichbarkeit aller Quellen pruefen, ohne etwas zu laden."""
     print("API-Verfuegbarkeitstest (kein Download)\n")
     endpoints = [
-        ("SFFD",         "https://data.sfgov.org/resource/wr8u-xric.json",
+        ("SFFD", "https://data.sfgov.org/resource/wr8u-xric.json",
          {"$select": "incident_number,neighborhood_district", "$limit": 2,
-          "$where":  "neighborhood_district IS NOT NULL"}),
-        ("Crosswalk",    "https://data.sfgov.org/resource/sevw-6tgi.json",
+          "$where": "neighborhood_district IS NOT NULL"}),
+        ("Crosswalk", "https://data.sfgov.org/resource/sevw-6tgi.json",
          {"$select": "geoid,neighborhoods_analysis_boundaries", "$limit": 2}),
-        ("SFPD Crime",   "https://data.sfgov.org/resource/e3si-785i.json",
+        ("SFPD Crime", "https://data.sfgov.org/resource/e3si-785i.json",
          {"$select": "by_month_incident_date,analysis_neighborhood,incident_category,count",
           "$limit": 2}),
-        ("SFPD hist.",   "https://data.sfgov.org/resource/tmnf-yvry.json",
+        ("SFPD hist.", "https://data.sfgov.org/resource/tmnf-yvry.json",
          {"$select": "date,x,y",
-          "$where":  f"date >= '{CRIME_HISTORISCH_AB}' AND x IS NOT NULL",
+          "$where": f"date >= '{CRIME_HISTORISCH_AB}' AND x IS NOT NULL",
           "$limit": 2}),
-        ("Land Use",     "https://data.sfgov.org/resource/ygi5-84iq.json",
+        ("Land Use", "https://data.sfgov.org/resource/ygi5-84iq.json",
          {"$select": "blklot,yrbuilt,landuse,resunits,st_area_sh",
-          "$where":  "yrbuilt IS NOT NULL", "$limit": 2}),
+          "$where": "yrbuilt IS NOT NULL", "$limit": 2}),
         ("Neighborhoods", "https://data.sfgov.org/resource/j2bu-swwd.geojson",
          {"$limit": 2}),
     ]
@@ -298,4 +295,4 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "test":
         quick_test()
     else:
-        run_fetch()
+        run_download()

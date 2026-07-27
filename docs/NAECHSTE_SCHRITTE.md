@@ -1,5 +1,11 @@
 # Nächste Schritte – Data Preparation dauerhaft korrekt
 
+> **Hinweis (2026-07-27):** Dieses Dokument nennt teilweise die alten Dateinamen
+> (`pipeline/`, `modellierung/`, `analyse/`). Seit dem Struktur-Umbau liegt die
+> gesamte Aufbereitung in `prep/`, die Modellskripte in `modelle/`. Die Zuordnung
+> alt → neu steht in `ORIENTIERUNG.md`, Abschnitt 5 (Decision Log #22). Inhaltlich
+> gilt alles Folgende unverändert weiter.
+
 Stand 2026-07-26. Diese Datei ist bewusst in einfacher Sprache geschrieben und
 beschreibt, was zu tun ist und **warum**. Technische Details stehen in
 `CLAUDE.md` (Decision Log) und `docs/PREPROCESSING_AUDIT_2026-07-26.md`.
