@@ -1,0 +1,1340 @@
+\documentclass[12pt,a4paper]{article}
+
+% ---------------------------------------------------
+% GRUNDSPRACHE & SCHRIFT
+% ---------------------------------------------------
+\usepackage[ngerman]{babel}
+
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\usepackage{enumitem}
+
+% ---------------------------------------------------
+% SEITENLAYOUT
+% ---------------------------------------------------
+\usepackage{geometry}
+\geometry{
+    left=4cm,
+    right=2cm,
+    top=4cm,
+    bottom=2cm,
+    headsep=1cm,
+    footskip=2cm
+}
+
+% ---------------------------------------------------
+% FORMATIERUNG
+% ---------------------------------------------------
+\usepackage{setspace}
+\onehalfspacing
+\setlength{\parskip}{6pt}
+\setlength{\parindent}{0pt}
+% Zeilenumbruch-Notreserve gegen Overfull-Boxen bei langen Komposita
+\emergencystretch=1em
+
+% ---------------------------------------------------
+% FUSSNOTENFORMATIERUNG (einzeilig, 10pt)
+% ---------------------------------------------------
+\usepackage{etoolbox}
+\appto{\footnotesize}{\fontsize{10pt}{12pt}\selectfont}
+\renewcommand{\footnotesize}{\fontsize{10pt}{12pt}\selectfont}
+
+\makeatletter
+\renewcommand\@makefntext[1]{%
+  \noindent\makebox[1.8em][l]{\@makefnmark}%
+  \begin{spacing}{1}{\fontsize{10pt}{12pt}\selectfont #1}\end{spacing}}
+\makeatother
+
+\usepackage{titlesec}
+\titlespacing*{\section}{0pt}{12pt}{6pt}
+\titlespacing*{\subsection}{0pt}{12pt}{6pt}
+\titlespacing*{\subsubsection}{0pt}{12pt}{6pt}
+
+\titleformat{\section}
+  {\normalfont\bfseries\normalsize}{\thesection}{1em}{}
+
+\titleformat{\subsection}
+  {\normalfont\bfseries\normalsize}{\thesubsection}{1em}{}
+
+\titleformat{\subsubsection}
+  {\normalfont\bfseries\normalsize}{\thesubsubsection}{1em}{}
+
+% Gliederungstiefe: bis Ebene 3 (x.y.z) nummerieren und ins Inhaltsverzeichnis
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+
+\pretocmd{\section}{\clearpage}{}{}
+
+% ---------------------------------------------------
+% GRAFIKEN, TABELLEN, VERZEICHNISSE
+% ---------------------------------------------------
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\definecolor{codegruen}{rgb}{0.0,0.45,0.0}
+\definecolor{codegrau}{rgb}{0.45,0.45,0.45}
+\definecolor{codeblau}{rgb}{0.10,0.20,0.65}
+\definecolor{codehintergrund}{rgb}{0.97,0.97,0.97}
+\lstdefinestyle{pythonstil}{
+   language=Python,
+   backgroundcolor=\color{codehintergrund},
+   basicstyle=\ttfamily\footnotesize,
+   keywordstyle=\color{codeblau}\bfseries,
+   commentstyle=\color{codegruen}\itshape,
+   stringstyle=\color{codegrau},
+   numbers=left, numberstyle=\tiny\color{codegrau}, numbersep=8pt,
+   frame=single, rulecolor=\color{codegrau},
+   breaklines=true, showstringspaces=false, captionpos=b,
+   literate={ä}{{\"a}}1 {ö}{{\"o}}1 {ü}{{\"u}}1 {ß}{{\ss}}1
+            {Ä}{{\"A}}1 {Ö}{{\"O}}1 {Ü}{{\"U}}1
+}
+\lstset{style=pythonstil}
+\renewcommand{\lstlistingname}{Quellcode}   % Beschriftung "Quellcode 5.1"
+
+% ---------------------------------------------------
+% VERZEICHNISFORMATIERUNG (tocloft)
+% ---------------------------------------------------
+\usepackage{tocloft}
+\tocloftpagestyle{fancy}
+
+% Überschriften der Verzeichnisse: fett, 12pt, schwarz
+\renewcommand{\cfttoctitlefont}{\bfseries\normalsize}
+\renewcommand{\cftlottitlefont}{\bfseries\normalsize}
+\renewcommand{\cftloftitlefont}{\bfseries\normalsize}
+
+\setlength{\cftafterlottitleskip}{0pt}
+\setlength{\cftafterloftitleskip}{0pt}
+
+\renewcommand{\cftsecfont}{\normalfont}
+\renewcommand{\cftsecpagefont}{\normalfont}
+\renewcommand{\cftsubsecfont}{\normalfont}
+\renewcommand{\cftsubsecpagefont}{\normalfont}
+\renewcommand{\cftsubsubsecfont}{\normalfont}
+\renewcommand{\cftsubsubsecpagefont}{\normalfont}
+
+\renewcommand{\cftsecdotsep}{\cftdotsep}
+\renewcommand{\cftsubsecdotsep}{\cftdotsep}
+\renewcommand{\cftsubsubsecdotsep}{\cftdotsep}
+
+\setlength{\cfttabindent}{0pt}
+\setlength{\cftfigindent}{0pt}
+
+\renewcommand{\cfttabdotsep}{\cftdotsep}
+\renewcommand{\cftfigdotsep}{\cftdotsep}
+\renewcommand{\cftdotsep}{1}
+
+% Präfix "Tabelle X:" bzw. "Abbildung X:" in den Verzeichnissen
+\renewcommand{\cfttabpresnum}{Tabelle }
+\renewcommand{\cfttabaftersnum}{:}
+\setlength{\cfttabnumwidth}{5em}
+\renewcommand{\cfttabfont}{\normalfont}
+\renewcommand{\cfttabpagefont}{\normalfont}
+
+\renewcommand{\cftfigpresnum}{Abbildung }
+\renewcommand{\cftfigaftersnum}{:}
+\setlength{\cftfignumwidth}{6em}
+\renewcommand{\cftfigfont}{\normalfont}
+\renewcommand{\cftfigpagefont}{\normalfont}
+
+\renewcommand{\cftbeforetabskip}{12pt}
+\renewcommand{\cftbeforefigskip}{12pt}
+
+% ---- FORMELVERZEICHNIS -----------------------------
+% Eigenes Verzeichnis via tocloft. Nutzung im Text:
+%   \begin{equation} ... \end{equation}
+%   \formeleintrag{Zielfunktion der Ridge Regression}
+\newlistof{formeln}{equ}{Formelverzeichnis}
+\renewcommand{\cftequtitlefont}{\bfseries\normalsize}
+\setlength{\cftbeforeequtitleskip}{0pt}
+\setlength{\cftafterequtitleskip}{0pt}
+\renewcommand{\cftformelnpresnum}{Formel }
+\renewcommand{\cftformelnaftersnum}{:}
+\setlength{\cftformelnnumwidth}{5em}
+\setlength{\cftformelnindent}{0pt}
+\renewcommand{\cftformelnfont}{\normalfont}
+\renewcommand{\cftformelnpagefont}{\normalfont}
+\renewcommand{\cftformelndotsep}{\cftdotsep}
+\renewcommand{\cftbeforeformelnskip}{12pt}
+\newcommand{\formeleintrag}[1]{%
+  \addcontentsline{equ}{formeln}{\protect\numberline{\theequation}#1}}
+
+\usepackage[nottoc]{tocbibind}
+\usepackage{float}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage[justification=raggedright,singlelinecheck=false]{caption}
+\captionsetup{labelfont=bf, textfont=bf}
+
+% ---------------------------------------------------
+% LINKS
+% ---------------------------------------------------
+\usepackage[hidelinks]{hyperref}
+\usepackage{csquotes}
+
+% ---------------------------------------------------
+% FUSSNOTEN-FORMATIERUNG
+% ---------------------------------------------------
+\usepackage[hang,flushmargin]{footmisc}
+\setlength{\footnotemargin}{1.5em}
+\setlength{\footnotesep}{10pt}
+
+% ---------------------------------------------------
+% KOPF-/FUSSZEILEN
+% ---------------------------------------------------
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyhead[C]{\thepage}
+\setlength{\headheight}{15pt}
+\setlength{\headsep}{20pt}
+
+% ---------------------------------------------------
+% LITERATURDATENBANK
+% ---------------------------------------------------
+\begin{filecontents}{literatur.bib}
+@article{Bergmeir2012,
+  author  = {Bergmeir, Christoph and Ben{\'i}tez, Jos{\'e} Manuel},
+  title   = {On the Use of Cross-Validation for Time Series Predictor Evaluation},
+  journal = {Information Sciences},
+  year    = {2012},
+  volume  = {191},
+  pages   = {192--213},
+  doi     = {10.1016/j.ins.2011.12.028}
+}
+
+@article{Breiman2001,
+  author  = {Breiman, Leo},
+  title   = {Random Forests},
+  journal = {Machine Learning},
+  year    = {2001},
+  volume  = {45},
+  number  = {1},
+  pages   = {5--32},
+  doi     = {10.1023/A:1010933404324}
+}
+
+@inproceedings{Bergstra2012,
+  author  = {Bergstra, James and Bengio, Yoshua},
+  title   = {Random Search for Hyper-Parameter Optimization},
+  journal = {Journal of Machine Learning Research},
+  year    = {2012},
+  volume  = {13},
+  pages   = {281--305}
+}
+
+@book{Cameron2013,
+  author    = {Cameron, A. Colin and Trivedi, Pravin K.},
+  title     = {Regression Analysis of Count Data},
+  edition   = {2},
+  series    = {Econometric Society Monographs},
+  number    = {53},
+  year      = {2013},
+  publisher = {Cambridge University Press},
+  address   = {Cambridge},
+  doi       = {10.1017/CBO9781139013567}
+}
+
+@inproceedings{Chen2016,
+  author    = {Chen, Tianqi and Guestrin, Carlos},
+  title     = {{XGBoost}: A Scalable Tree Boosting System},
+  booktitle = {Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
+  year      = {2016},
+  pages     = {785--794},
+  publisher = {ACM},
+  address   = {New York},
+  doi       = {10.1145/2939672.2939785}
+}
+
+@article{FernandezDelgado2014,
+  author  = {Fern{\'a}ndez-Delgado, Manuel and Cernadas, Eva and Barro, Sen{\'e}n and Amorim, Dinani},
+  title   = {Do we Need Hundreds of Classifiers to Solve Real World Classification Problems?},
+  journal = {Journal of Machine Learning Research},
+  year    = {2014},
+  volume  = {15},
+  pages   = {3133--3181},
+  url     = {https://jmlr.org/papers/v15/delgado14a.html}
+}
+
+@inproceedings{Grinsztajn2022,
+  author    = {Grinsztajn, L{\'e}o and Oyallon, Edouard and Varoquaux, Ga{\"e}l},
+  title     = {Why do Tree-Based Models Still Outperform Deep Learning on Typical Tabular Data?},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS 2022) -- Datasets and Benchmarks Track},
+  year      = {2022},
+  url       = {https://proceedings.neurips.cc/paper_files/paper/2022/hash/0378c7692da36807bdec87ab043cdadc-Abstract-Datasets_and_Benchmarks.html}
+}
+
+@book{Hastie2009,
+  author    = {Hastie, Trevor and Tibshirani, Robert and Friedman, Jerome},
+  title     = {The Elements of Statistical Learning: Data Mining, Inference, and Prediction},
+  edition   = {2},
+  year      = {2009},
+  publisher = {Springer},
+  address   = {New York}
+}
+
+@article{Hoerl1970,
+  author  = {Hoerl, Arthur E. and Kennard, Robert W.},
+  title   = {Ridge Regression: Biased Estimation for Nonorthogonal Problems},
+  journal = {Technometrics},
+  year    = {1970},
+  volume  = {12},
+  number  = {1},
+  pages   = {55--67},
+  doi     = {10.1080/00401706.1970.10488634}
+}
+
+@article{Jennings1999,
+  author  = {Jennings, Charles R.},
+  title   = {Socioeconomic Characteristics and Their Relationship to Fire Incidence: A Review of the Literature},
+  journal = {Fire Technology},
+  year    = {1999},
+  volume  = {35},
+  number  = {1},
+  pages   = {7--34},
+  doi     = {10.1023/A:1015330931387}
+}
+
+@article{Jennings2013,
+  author  = {Jennings, Charles R.},
+  title   = {Social and Economic Characteristics as Determinants of Residential Fire Risk in Urban Neighborhoods: A Review of the Literature},
+  journal = {Fire Safety Journal},
+  year    = {2013},
+  volume  = {62},
+  pages   = {13--19},
+  doi     = {10.1016/j.firesaf.2013.07.002}
+}
+
+@inproceedings{Lundberg2017,
+  author    = {Lundberg, Scott M. and Lee, Su-In},
+  title     = {A Unified Approach to Interpreting Model Predictions},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year      = {2017},
+  volume    = {30},
+  url       = {https://proceedings.neurips.cc/paper_files/paper/2017/hash/8a20a8621978632d76c43dfd28b67767-Abstract.html}
+}
+
+@inproceedings{Madaio2016,
+  author    = {Madaio, Michael and Chen, Shang-Tse and Haimson, Oliver L. and Zhang, Wenwen and Cheng, Xiang and Hinds-Aldrich, Matthew and Chau, Duen Horng and Dilkina, Bistra},
+  title     = {Firebird: Predicting Fire Risk and Prioritizing Fire Inspections in Atlanta},
+  booktitle = {Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
+  year      = {2016},
+  pages     = {185--194},
+  publisher = {ACM},
+  address   = {New York},
+  doi       = {10.1145/2939672.2939682}
+}
+
+@book{Molnar2022,
+  author    = {Molnar, Christoph},
+  title     = {Interpretable Machine Learning: A Guide for Making Black Box Models Explainable},
+  edition   = {2},
+  year      = {2022},
+  publisher = {Independently published}
+}
+
+@article{Probst2019,
+  author  = {Probst, Philipp and Wright, Marvin N. and Boulesteix, Anne-Laure},
+  title   = {Hyperparameters and Tuning Strategies for Random Forest},
+  journal = {WIREs Data Mining and Knowledge Discovery},
+  year    = {2019},
+  volume  = {9},
+  number  = {3},
+  pages   = {e1301},
+  doi     = {10.1002/widm.1301}
+}
+
+@article{Rudin2019,
+  author  = {Rudin, Cynthia},
+  title   = {Stop Explaining Black Box Machine Learning Models for High Stakes Decisions and Use Interpretable Models Instead},
+  journal = {Nature Machine Intelligence},
+  year    = {2019},
+  volume  = {1},
+  number  = {5},
+  pages   = {206--215},
+  doi     = {10.1038/s42256-019-0048-x}
+}
+
+@article{Schroeer2021,
+  author  = {Schr{\"o}er, Christoph and Kruse, Felix and G{\'o}mez, Jorge Marx},
+  title   = {A Systematic Literature Review on Applying CRISP-DM Process Model},
+  journal = {Procedia Computer Science},
+  year    = {2021},
+  volume  = {181},
+  pages   = {526--534},
+  doi     = {10.1016/j.procs.2021.01.199}
+}
+
+@article{Shmueli2010,
+  author  = {Shmueli, Galit},
+  title   = {To Explain or to Predict?},
+  journal = {Statistical Science},
+  year    = {2010},
+  volume  = {25},
+  number  = {3},
+  pages   = {289--310},
+  doi     = {10.1214/10-STS330}
+}
+
+@article{ShwartzZiv2022,
+  author  = {Shwartz-Ziv, Ravid and Armon, Amitai},
+  title   = {Tabular Data: Deep Learning is Not All You Need},
+  journal = {Information Fusion},
+  year    = {2022},
+  volume  = {81},
+  pages   = {84--90},
+  doi     = {10.1016/j.inffus.2021.11.011}
+}
+
+@inproceedings{Wirth2000,
+  author    = {Wirth, R{\"u}diger and Hipp, Jochen},
+  title     = {{CRISP-DM}: Towards a Standard Process Model for Data Mining},
+  booktitle = {Proceedings of the 4th International Conference on the Practical Applications of Knowledge Discovery and Data Mining},
+  year      = {2000},
+  pages     = {29--39},
+  address   = {Manchester}
+}
+
+@incollection{Marban2009,
+  author    = {Marb{\'a}n, {\'O}scar and Mariscal, Gonzalo and Segovia, Javier},
+  title     = {A Data Mining \& Knowledge Discovery Process Model},
+  booktitle = {Data Mining and Knowledge Discovery in Real Life Applications},
+  editor    = {Ponce, Julio and Karahoca, Adem},
+  publisher = {I-Tech Education and Publishing},
+  address   = {Vienna},
+  year      = {2009},
+  pages     = {1--16},
+  doi       = {10.5772/6438}
+}
+\end{filecontents}
+
+% ---------------------------------------------------
+% BIBLATEX-KONFIGURATION (Chicago, einheitlich)
+% ---------------------------------------------------
+\usepackage[
+    backend=biber,
+    style=chicago-notes,
+    doi=false,
+    isbn=false,
+    url=false
+]{biblatex}
+\addbibresource{literatur.bib}
+
+\DefineBibliographyStrings{ngerman}{
+    andothers = {et\addabbrvspace al\adddot},
+}
+\renewcommand*{\finalnamedelim}{\addspace\&\addspace}
+
+\setlength{\bibitemsep}{0.5\baselineskip}
+\setlength{\bibhang}{2em}
+\renewcommand*{\bibfont}{\normalfont\singlespacing}
+
+\DeclareFieldFormat{postnote}{S.~#1}
+\DeclareFieldFormat{multipostnote}{S.~#1}
+
+\renewcommand{\thefootnote}{\arabic{footnote}}
+
+\makeatletter
+\renewcommand\@makefntext[1]{%
+  \noindent\makebox[1.8em][l]{\@makefnmark}#1%
+}
+
+\DeclareNameAlias{sortname}{family-given}
+\ExecuteBibliographyOptions{maxnames=2, minnames=1}
+
+\DeclareCiteCommand{\footcite}
+  {}
+  {%
+    \footnote{%
+      \printfield{prenote}%
+      \iffieldundef{prenote}{}{\addspace}%
+      \printnames[labelname]{labelname}\addspace%
+      \mkbibparens{\printfield{year}}%
+      \iffieldundef{postnote}
+        {}
+        {\addcomma\space\printfield{postnote}}%
+    }%
+  }
+  {\multicitedelim}
+  {}
+
+\makeatother
+
+\AtBeginDocument{%
+  \renewcommand{\cfttabfont}{\normalfont}%
+  \renewcommand{\cfttabpagefont}{\normalfont}%
+  \renewcommand{\cftfigfont}{\normalfont}%
+  \renewcommand{\cftfigpagefont}{\normalfont}%
+}
+
+% ---------------------------------------------------
+% DOKUMENTBEGINN
+% ---------------------------------------------------
+\begin{document}
+
+% ---------------------------------------------------
+% TITELBLATT
+% ---------------------------------------------------
+\newgeometry{left=2.5cm, right=2.5cm, top=4cm, bottom=2cm}
+\begin{titlepage}
+\centering
+
+\includegraphics[width=5cm]{FOM_Logo01_2012_rgb.jpg} \\[0.5cm]
+
+\textbf{FOM Hochschule für Oekonomie \& Management} \\
+Hochschulzentrum Bonn \\[1.0cm]
+
+Berufsbegleitender Studiengang Wirtschaftsinformatik \\
+zum \\
+Bachelor of Science (B.Sc.) \\[1.5cm]
+
+Bachelorarbeit zum Thema \\[1.5cm]
+
+{\Large \textbf{„Vorhersage von Feuerwehreinsätzen auf Basis struktureller und
+sozioökonomischer Merkmale -- ein Vergleich ausgewählter Machine-Learning-Methoden
+am Beispiel von Stadtteildaten“}}
+
+\vfill
+
+\begin{flushleft}
+\begin{tabular}{@{}ll}
+1. Gutachter: & Prof. Dr. Julian Schröter \\
+2. Gutachter: & Oliver Bach \\
+Name: & Lukas Nießen \\
+Matrikelnummer: & 728085 \\
+Wortzahl: & XXXXX Wörter \\
+Abgabedatum: & 07.10.2026 \\
+\end{tabular}
+\end{flushleft}
+
+\end{titlepage}
+\restoregeometry
+
+% ---------------------------------------------------
+% DISCLAIMER
+% ---------------------------------------------------
+%\newpage
+%\pagenumbering{Roman}
+%\setcounter{page}{2}
+%\phantomsection
+%\section*{Disclaimer}
+%\addcontentsline{toc}{section}{Disclaimer}
+
+%\textbf{KI-Nutzung:} In dieser wissenschaftlichen Arbeit wurden zur sprachlichen Unterstützung bei der Erstellung des Textes KI-Modelle eingesetzt. Insbesondere wurden Anthropic Claude und Google Gemini zur Verbesserung der Grammatik, Struktur, Rechtschreibung und Lesbarkeit verwendet. Die inhaltliche Konzeption, Argumentation und jedwede Schlussfolgerungen liegen jedoch vollständig in der Verantwortung des Autors. Sollten Fremdwerke verwendet worden sein, sind diese entsprechend durch Fußnoten gekennzeichnet.
+
+%\textbf{Geschlechterinklusive Sprache:} Darüber hinaus wird in der vorliegenden Arbeit das generische Maskulinum zur besseren Lesbarkeit verwendet. Die in dieser Arbeit verwendeten Personenbezeichnungen beziehen sich, sofern nicht anders kenntlich gemacht, auf alle Geschlechter.
+
+% ---------------------------------------------------
+% VERZEICHNISSE
+% ---------------------------------------------------
+\newpage
+\tableofcontents
+
+\newpage
+\listoffigures
+
+\newpage
+\phantomsection
+{\bfseries\normalsize Abkürzungsverzeichnis}
+\vspace{6pt}
+\addcontentsline{toc}{section}{Abkürzungsverzeichnis}
+
+\begin{tabular}{@{}ll}
+ACS & American Community Survey \\[12pt]
+AUROC & Area Under the Receiver Operating Characteristic \\[12pt]
+CRISP-DM & Cross-Industry Standard Process for Data Mining \\[12pt]
+EDA & Explorative Datenanalyse \\[12pt]
+MAE & Mean Absolute Error \\[12pt]
+RMSE & Root Mean Square Error \\[12pt]
+SFFD & San Francisco Fire Department \\[12pt]
+SFPD & San Francisco Police Department \\[12pt]
+SHAP & SHapley Additive exPlanations \\[12pt]
+\end{tabular}
+
+
+\newpage
+\listoftables
+
+\newpage
+\phantomsection
+\addcontentsline{toc}{section}{Formelverzeichnis}
+\listofformeln
+
+% ---------------------------------------------------
+% TEXTTEIL
+% ---------------------------------------------------
+\newpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+% ===================================================
+\section{Einleitung}
+% Umfang: ca. 3 Seiten
+\subsection{Problemstellung und Praxisrelevanz}
+% Einstieg über das Praxisproblem: Ressourcenplanung und Präventionssteuerung
+% der Feuerwehr, nicht über die Algorithmen.
+
+% ---- ÜBERNAHME AUS EXPOSÉ (Kap. 1, Abs. 1--2) -- Tempus angepasst ----
+% VORHER ERGÄNZEN: 1--2 Absätze zum Praxisproblem (Ressourcenplanung,
+% Präventionssteuerung). Das Exposé steigt methodenseitig ein, die Thesis darf das nicht.
+
+Für den Verfahrensvergleich werden drei in der Praxis verbreitete Machine-Learning-Algorithmen
+herangezogen, die jeweils auf grundlegend unterschiedlichen methodischen Ansätzen basieren:
+Ridge Regression, Random Forest und XGBoost. Welches dieser Verfahren für eine konkrete
+Datenkonstellation die beste Prognosegüte liefert, lässt sich theoretisch nicht abschließend
+bestimmen, da die Eignung eines Algorithmus maßgeblich von den spezifischen Eigenschaften des
+jeweiligen Datensatzes abhängt und daher empirisch unter realen Datenbedingungen untersucht
+werden muss.\footcite[3133, 3175]{FernandezDelgado2014}
+
+Als Anwendungsfall dient die Vorhersage von Feuerwehreinsätzen in den Stadtteilen von
+San Francisco. Der zugrundeliegende Datensatz integriert öffentlich verfügbare Quellen zu einem
+stadtteilbezogenen Datenbestand und umfasst Einsatzdaten des San Francisco Fire Department
+(SFFD), sozioökonomische Indikatoren der American Community Survey (ACS), Kriminalitätskennzahlen
+sowie bauliche Strukturmerkmale. Die Datenanalyse wird strukturiert nach dem Cross-Industry
+Standard Process for Data Mining (CRISP-DM) durchgeführt.
+% ---- ENDE ÜBERNAHME ----
+
+\subsection{Zielsetzung und Forschungsfragen}
+% Zentrale Forschungsfrage + vier Unterfragen (UF1--UF4).
+
+% ---- ÜBERNAHME AUS EXPOSÉ (Kap. 1, Abs. 3 + Forschungsfragen) -- nahezu 1:1 ----
+% ACHTUNG: Dieser Absatz war im Exposé mit Fußnote 2 als KI-unterstützt gekennzeichnet
+% (Prompt 1). Der Eintrag muss ins KI-Verzeichnis der Thesis mitwandern.
+
+Die Arbeit verfolgt zwei aufeinander aufbauende Zielsetzungen. Zunächst wird geprüft, ob die
+sozioökonomischen, kriminalitätsbezogenen und baulichen Faktoren in statistisch nachweisbarem
+Zusammenhang mit der Einsatzlast stehen bzw. einen prädiktiven Beitrag leisten. Aufbauend darauf
+werden zwei Zielgrößen modelliert: zum einen die Einsatzhäufigkeit als Anzahl Einsätze pro
+Stadtteil und Monat (Regression auf aggregierten Ereignishäufigkeiten), zum anderen die Einsatzart
+als kategoriale Zielgröße (Klassifikation). Auf beiden Zielgrößen werden die drei Algorithmen
+systematisch trainiert, ihre Hyperparameter optimiert und ihre Prognosegüte anhand etablierter
+Gütemaße -- Root Mean Square Error (RMSE), Mean Absolute Error (MAE) und R² für die Regression
+bzw. F1-Score und Area Under the Receiver Operating Characteristic (AUROC) für die
+Klassifikation -- im Rahmen einer zeitbewussten Validierung gegenübergestellt.\footnote{In
+Anlehnung an Anthropic Claude (2026), KI-Verzeichnis Prompt 1}
+
+Daraus ergibt sich folgende zentrale Forschungsfrage:
+
+\begin{quote}
+Inwiefern lassen sich die Häufigkeit und die Art von Feuerwehreinsätzen in den Stadtteilen
+San Franciscos durch sozioökonomische, kriminalitätsbezogene und bauliche Merkmale statistisch
+beschreiben und vorhersagen, und welches der drei Verfahren -- Ridge Regression, Random Forest
+oder XGBoost -- erzielt dabei die höchste Prognosegüte?
+\end{quote}
+
+Daraus leiten sich folgende Unterfragen ab:
+
+\begin{itemize}[leftmargin=*, itemsep=2pt]
+  \item Lassen sich statistisch nachweisbare Zusammenhänge zwischen sozioökonomischen,
+        kriminalitätsbezogenen und baulichen Merkmalen und der stadtteilbezogenen
+        Einsatzhäufigkeit bzw. Einsatzart feststellen?
+  \item Wie unterscheiden sich Ridge Regression, Random Forest und XGBoost hinsichtlich ihrer
+        Prognosegüte (RMSE/MAE/R² bzw. F1/AUROC) im Vergleich zu naiven Baselines, bewertet
+        mittels zeitreihengerechter Kreuzvalidierung?
+  \item Wie verhalten sich die Modelle hinsichtlich Trainings- und Inferenzaufwand?
+  \item Welche Implikationen ergeben sich aus den Ergebnissen für die Modellauswahl bei
+        vergleichbaren tabellarischen Prognoseaufgaben?
+\end{itemize}
+% ---- ENDE ÜBERNAHME ----
+
+\subsection{Aufbau der Arbeit}
+% Gliederung in Fließtext, inkl. Verweis auf CRISP-DM als Rückgrat von Kap. 3--7.
+Bei der vorliegenden Arbeit handelt es sich um eine quantitativ-empirische Untersuchung auf Basis
+vorhandener Sekundärdaten. Ihr Aufbau orientiert sich am Cross-Industry Standard Process for Data
+Mining (CRISP-DM), einem vom Branchensektor und von der eingesetzten Technologie unabhängigen
+Vorgehensmodell für Data-Mining-Projekte.\footcite{Wirth2000} Aufgrund seiner Herstellerneutralität
+und seiner breiten Anwendung in der Praxis gilt CRISP-DM bis heute als De-facto-Standard für die
+Entwicklung von Data-Mining-Projekten.\footcite[5]{Marban2009}
+
+Das Modell gliedert den Lebenszyklus eines Data-Mining-Projekts in sechs aufeinander aufbauende
+Phasen: Business Understanding, Data Understanding, Data Preparation, Modeling, Evaluation und
+Deployment. Deren Abfolge ist dabei ausdrücklich nicht starr. Zwischen den Phasen bestehen zwar
+typische Abhängigkeiten, welche Phase oder welche konkrete Aufgabe jedoch als nächstes zu
+bearbeiten ist, hängt vom Ergebnis der jeweils vorangegangenen Phase ab; ein Rücksprung auf frühere
+Phasen ist ausdrücklich vorgesehen. Darüber hinaus ist der Prozess zyklisch angelegt, sodass
+gewonnene Erkenntnisse neue Fragestellungen auslösen und den Prozess erneut anstoßen
+können.\footcite{Wirth2000}
+
+Kapitel 2 steht außerhalb des Prozessmodells und legt die theoretischen und methodischen
+Grundlagen der Arbeit. Es ordnet Feuerwehreinsätze als Prognosegegenstand ein, stellt die
+Forschungstradition zu sozioökonomischen und baulichen Einflussfaktoren auf das Brandrisiko dar
+und arbeitet den Stand der Forschung zum Modellvergleich auf tabellarischen Daten sowie zu
+datengetriebenen Modellen im öffentlichen Sektor auf. Darauf folgt die Darstellung der
+untersuchten Verfahren, Ridge Regression, Random Forest und XGBoost, sowie der
+Zähldatenmodelle, die als interpretierbare Baseline dienen. Das Kapitel schließt mit der
+Herleitung der Forschungslücke und der daraus abgeleiteten Erwartungen, die in Kapitel 8 den
+empirischen Befunden gegenübergestellt werden.
+
+Kapitel 3 behandelt die Phase \enquote{Business Understanding}, in der die Projektziele und
+Anforderungen aus fachlicher Perspektive in eine Data-Mining-Problemstellung überführt
+werden.\footcite[5]{Marban2009} Es beschreibt den Anwendungsfall und die fachliche Zielsetzung,
+operationalisiert die beiden Zielgrößen, Einsatzhäufigkeit und Einsatzart, und grenzt den
+prognoseorientierten Charakter der Arbeit gegenüber einem kausalen Erklärungsanspruch ab.
+
+Kapitel 4 deckt die Phase \enquote{Data Understanding} ab.\footcite[5]{Marban2009} Das Kapitel
+stellt zunächst die Datenquellen und die verwendeten Attribute vor. Es folgt eine explorative
+Datenanalyse, welche Verteilungen, räumliche und zeitliche Muster sowie die Klassenverteilung der
+Einsatzart untersucht und die daraus resultierenden Qualitätsbefunde dokumentiert.
+
+Kapitel 5 bildet die Phase \enquote{Data Preparation} ab, die sämtliche Aktivitäten umfasst, mit
+denen aus den Rohdaten der finale Analysedatensatz konstruiert wird.\footcite[6]{Marban2009} Neben
+der Bereinigung und der Behandlung fehlender Werte wird insbesondere die zentrale
+Entwurfsentscheidung zur räumlich-zeitlichen Aggregation begründet. Das Kapitel schließt mit dem
+Feature-Engineering und der Beschreibung des finalen Analysedatensatzes.
+
+Kapitel 6 konzentriert sich auf die Phase \enquote{Modeling}, in der verschiedene
+Modellierungsverfahren ausgewählt, angewendet und ihre Parameter auf optimale Werte kalibriert
+werden.\footcite[6]{Marban2009} Es beschreibt den Versuchsaufbau einschließlich der
+Validierungsstrategie und der technischen Umsetzung, führt die verwendeten Baselines ein und
+dokumentiert die Modellkonfiguration sowie die Hyperparameter-Suchräume. Abschließend werden die
+verfahrensspezifischen Konfigurationsentscheidungen und Tuning-Befunde für jeden der drei
+Algorithmen dargestellt.
+
+Kapitel 7 ist der Phase \enquote{Evaluation} gewidmet.\footcite[6]{Marban2009} Es stellt die
+Prognosegüte für beide Zielgrößen anhand der zuvor festgelegten Gütemaße dar, vergleicht die
+Verfahren hinsichtlich ihres Trainings- und Inferenzaufwands und ordnet die Modelle mittels
+SHAP-Analyse inhaltlich ein. Das Kapitel schließt mit einem Rückblick auf den durchlaufenen
+Analyseprozess.
+
+Die sechste Phase, \enquote{Deployment}, ist nicht Gegenstand dieser Arbeit, da sie einen
+konkreten organisatorischen Adressaten voraussetzt, der im Rahmen einer Untersuchung auf
+öffentlich verfügbaren Sekundärdaten nicht gegeben ist.\footcite[6]{Marban2009} Die Auslassung
+steht im Einklang mit dem dokumentierten Forschungsstand, der die Deployment-Phase als denjenigen
+Prozessschritt identifiziert, der in der Anwendung von CRISP-DM am seltensten adressiert
+wird.\footcite[531--532]{Schroeer2021}
+
+Kapitel 8 diskutiert die Ergebnisse, bewertet die Algorithmen vergleichend, ordnet den
+Erklärungsbeitrag der untersuchten Faktoren ein und reflektiert Limitationen sowie die
+Übertragbarkeit der Befunde. Kapitel 9 fasst die zentralen Erkenntnisse zusammen und gibt einen
+Ausblick auf weiterführenden Forschungsbedarf.
+
+% ===================================================
+\section{Theoretische Grundlagen und Forschungsstand}
+% Umfang: ca. 16 Seiten
+\subsection{Feuerwehreinsätze als Prognosegegenstand}
+% Domäne: Einsatzarten, Einsatzlast, sozioökonomische und bauliche
+% Einflussfaktoren (Jennings 1999/2013).
+
+% ---- ÜBERNAHME AUS EXPOSÉ (Kap. 2, Abs. 4, erster Teil) -- 1:1 ----
+
+Eine etablierte Forschungstradition hat gezeigt, dass sich die Häufigkeit von Wohnbränden in
+städtischen Quartieren systematisch mit sozioökonomischen und baulichen Strukturmerkmalen
+verknüpfen lässt. Jennings zeigt in seinem Review, dass Faktoren wie Armut, Arbeitslosigkeit und
+schlechte Wohnverhältnisse konsistent mit erhöhter Brandinzidenz korrelieren, unter anderem weil
+in einkommensschwachen Haushalten ältere und wartungsärmere Elektrik sowie Baumaterialien
+verbreitet sind. Ergänzend identifiziert er einen ökologischen Erklärungsansatz: Stadtteile mit
+hoher Bevölkerungsdichte und baulicher Verdichtung weisen strukturell höhere Brandrisiken auf,
+unabhängig vom Verhalten einzelner Bewohner.\footcite[7-9]{Jennings1999}
+
+% AUSBAUEN: Jennings (2013) als Aktualisierung; Einsatzarten und Einsatzlast als Begriffe;
+% Abgrenzung Brandinzidenz vs. Einsatzlast (Ihre Zielgröße ist breiter als nur Brände!).
+% ---- ENDE ÜBERNAHME ----
+
+\subsection{Datengetriebene Prognose und Algorithmenvergleiche}
+% Firebird (Madaio et al. 2016); Benchmark-Literatur (Fernández-Delgado et al.
+% 2014, Grinsztajn et al. 2022, Shwartz-Ziv & Armon 2022).
+
+% ---- ÜBERNAHME AUS EXPOSÉ (Kap. 2, Abs. 1--3 + Abs. 4 zweiter Teil) -- 1:1, nur Interpretierbarkeit ausgelagert ----
+
+Die Arbeit ist hinsichtlich der analytischen Verfahren dem Bereich Supervised Machine Learning und
+Predictive Analytics zuzuordnen. Sie ordnet sich in die aktuelle Diskussion zum Modellvergleich auf
+tabellarischen Daten ein, der für die angewandte Datenwissenschaft von zentraler Bedeutung ist:
+Empirische Benchmark-Studien zeigen, dass die Eignung eines Verfahrens stark vom jeweiligen
+Datensatz abhängt und kein Algorithmus auf allen Problemklassen gleichermaßen überlegen ist. Die
+Eignung eines Verfahrens ergibt sich erst aus der Konfrontation mit konkreten Daten. Damit sind
+systematische empirische Algorithmenvergleiche kein Methoden-Beiwerk, sondern wesentlicher
+Bestandteil seriöser angewandter Forschung.\footcite[3133, 3175]{FernandezDelgado2014}
+
+Anders als bei Bild- oder Sprachdaten, bei denen Deep-Learning-Verfahren dominieren, gelten bei
+strukturierten tabellarischen Daten weiterhin baumbasierte Ensemble-Methoden als Stand der Technik.
+Aktuelle Benchmark-Studien zeigen, dass Modelle wie XGBoost und Random Forest auf tabellarischen
+Daten mittlerer Größe gegenüber Deep-Learning-Modellen überlegen bleiben, und zwar auch nach
+umfangreichem Hyperparameter-Tuning und unabhängig von der Behandlung kategorialer
+Variablen.\footcite{Grinsztajn2022} In einer komplementären Untersuchung kommen Shwartz-Ziv und
+Armon zu dem Ergebnis, dass XGBoost neuere Deep-Learning-Architekturen auf einer Vielzahl von
+Datensätzen übertrifft und dabei einen deutlich geringeren Tuning-Aufwand
+erfordert.\footcite[84-90]{ShwartzZiv2022}
+
+Trotz dieser allgemeinen Befunde sind die Ergebnisse einzelner Vergleichsstudien jedoch nicht ohne
+weiteres übertragbar. Die Performance eines Algorithmus hängt empirisch nachweislich von
+Stichprobengröße, Feature-Anzahl, Signalstärke, Multikollinearitätsstruktur und Interaktionseffekten
+ab.\footcite{Grinsztajn2022}
+
+Aktuelle Arbeiten zeigen darüber hinaus, dass datengetriebene Modelle einen substantiellen Beitrag
+zur operativen Ressourcenplanung von Feuerwehren leisten können: Das Firebird-Projekt der Stadt
+Atlanta berechnet mit Random Forest und SVM Brandrisikoscores für über 5.000 Gebäude und erreicht
+True-Positive-Raten von bis zu 71\,\%.\footcite[1-2]{Madaio2016}
+
+% AUSBAUEN: Hsu et al. (2025) -- XGBoost auf Feuerwehr-Einsatzdaten. Steht in der
+% Literaturübersicht des Exposés, aber ohne Textbeleg. Fehlt bislang in literatur.bib.
+% ---- ENDE ÜBERNAHME ----
+
+\subsection{Untersuchte Verfahren}
+
+\subsubsection{Grundlagen des überwachten Lernens}
+% Regression vs. Klassifikation, Bias-Varianz-Zerlegung.
+
+\subsubsection{Ridge Regression}
+% Zielfunktion, L2-Regularisierung, Multikollinearität (Hoerl & Kennard 1970).
+
+\subsubsection{Random Forest}
+% Bagging, Feature-Subsampling, OOB-Fehler (Breiman 2001).
+
+\subsubsection{XGBoost}
+% Gradient Boosting, Objective mit Regularisierung (Chen & Guestrin 2016).
+
+\subsubsection{Zähldatenmodelle als Baseline}
+% Poisson / Negativ-Binomial, Überdispersion (Cameron & Trivedi 2013).
+
+\subsection{Modelloptimierung und Modellbewertung}
+
+\subsubsection{Hyperparameter-Tuning, Overfitting und Underfitting}
+% Random Search (Bergstra & Bengio 2012), RF-Sensitivität (Probst et al. 2019).
+
+% ---- ÜBERNAHME AUS EXPOSÉ (Kap. 3, Abs. 3, letzter Satz) -- Satzfragment, ausbauen ----
+
+% Die besondere Sensitivität von Random Forest gegenüber Hyperparameter-Einstellungen ist gut
+% dokumentiert.\footcite[166]{Probst2019}
+% -> Als Beleg brauchbar, trägt aber keinen eigenen Abschnitt. Hier gehört die
+%    Funktionsweise von Random Search hin (Bergstra & Bengio 2012) sowie
+%    Overfitting/Underfitting -- beides liefert das Exposé nicht.
+% ---- ENDE ÜBERNAHME ----
+
+\subsubsection{Gütemaße für Regression und Klassifikation}
+% RMSE, MAE, R²; F1, AUROC. Hier gehören die Formeln hin.
+
+\subsubsection{Zeitbewusste Validierung}
+% Time-Series-Cross-Validation, Data Leakage (Bergmeir & Benítez 2012).
+
+% ---- ÜBERNAHME AUS EXPOSÉ (Kap. 3, Abs. 4, erster Satz) -- Satzfragment ----
+
+% Die Evaluation erfolgt zeit-bewusst mittels Time-Series-Cross-Validation, die bei zeitlich
+% strukturierten Daten Datenleckagen aus der Zukunft vermeidet.\footcite[192-193]{Bergmeir2012}
+% -> Der Satz beschreibt Ihr Vorgehen und gehört inhaltlich nach 6.1. Hier ist die
+%    allgemeine Darstellung des Verfahrens gefragt (Rolling/Expanding Window).
+% ---- ENDE ÜBERNAHME ----
+
+\subsection{Interpretierbarkeit von Modellen}
+% SHAP (Lundberg & Lee 2017), Zielkonflikt Güte vs. Interpretierbarkeit
+% (Rudin 2019, Molnar 2022), erklärend vs. prognostisch (Shmueli 2010).
+
+% ---- ÜBERNAHME AUS EXPOSÉ (Kap. 2, Abs. 3 zweiter Teil + Kap. 3, Abs. 4) -- 1:1 ----
+
+In der Literatur intensiv diskutiert wird zudem der Zielkonflikt zwischen Prognosegüte und
+Interpretierbarkeit: Bei Entscheidungen mit hohem Risiko werden inhärent interpretierbare Modelle
+gegenüber nachträglich erklärten Black-Box-Modellen häufig bevorzugt; Post-hoc-Erklärungsmethoden
+wie SHapley Additive exPlanations (SHAP) oder Permutation Feature Importance können diesen Konflikt
+teilweise entschärfen.\footcite{Rudin2019} Shmueli weist zudem auf die methodisch häufig
+vernachlässigte Unterscheidung zwischen erklärender und prognostischer Modellierung hin: Ein Modell
+mit hoher Erklärungskraft hat nicht automatisch hohe Prognosegüte und umgekehrt. Algorithmenvergleiche,
+die diese Aspekte systematisch dokumentieren, sind daher ein wesentlicher Beitrag zur
+evidenzbasierten Modellauswahl in der angewandten Praxis.\footcite{Shmueli2010}
+
+% AUSBAUEN: Funktionsweise der Shapley-Werte (Lundberg & Lee 2017, S. 17), Molnar (2022)
+% als Überblick. Das Exposé liefert nur die Einordnung, nicht die Methodik.
+% ---- ENDE ÜBERNAHME ----
+
+\subsection{CRISP-DM als Vorgehensmodell}
+% Sechs Phasen (Wirth & Hipp 2000); Deployment als dokumentierte Lücke
+% (Schröer et al. 2021) und Begründung der Abgrenzung.
+
+% ---- ÜBERNAHME AUS EXPOSÉ (Kap. 3, Abs. 1) -- 1:1, ohne den Satz zur Klassenverteilung (-> 4.2) ----
+
+Methodisch folgt die Arbeit dem CRISP-DM-Schema, das als industrie- und technologieunabhängiges
+Prozessmodell für Data-Mining-Projekte gilt und auch zwei Jahrzehnte nach seiner Veröffentlichung
+als De-facto-Standard angesehen wird.\footcite[1-2]{Wirth2000} CRISP-DM gliedert ein Projekt in
+sechs iterativ durchlaufene Phasen: Business Understanding, Data Understanding, Data Preparation,
+Modeling, Evaluation und Deployment. Da der Schwerpunkt dieser Arbeit auf dem Algorithmenvergleich
+liegt, erhalten insbesondere die Phasen Modeling und Evaluation überproportionales
+Gewicht.\footcite[526-532]{Schroeer2021}
+
+% ERGÄNZEN: Begründung, warum die Deployment-Phase nicht Gegenstand ist. Schröer et al.
+% identifizieren genau diese Phase als dokumentierte Lücke -- lässt sich elegant zitieren.
+% ---- ENDE ÜBERNAHME ----
+
+\subsection{Forschungslücke und abgeleitete Erwartungen}
+% Scharnier zwischen Theorie und Empirie. Ableitung der Erwartungen,
+% die in 8.1 und 8.2 gegen die Befunde gestellt werden.
+
+% ---- ÜBERNAHME AUS EXPOSÉ (Kap. 7 Ergebniserwartung) -- Tempus angepasst, Exposé-Rahmung entfernt ----
+
+Aus den dargestellten Befunden lassen sich für den vorliegenden Anwendungsfall zwei Erwartungen
+ableiten, die in Kapitel 8 den empirischen Ergebnissen gegenübergestellt werden. Methodisch ist zu
+erwarten, dass die baumbasierten Verfahren am stärksten abschneiden.\footcite[9]{Grinsztajn2022}
+
+Inhaltlich lässt sich auf Basis der bestehenden Literatur erwarten, dass Stadtteile mit hoher
+Armutsquote, niedrigem Haushaltseinkommen und hohem Altbauanteil eine überdurchschnittliche
+Einsatzhäufigkeit und ein abweichendes Einsatzart-Profil aufweisen und diese Merkmale in der
+SHAP-Analyse als besonders einflussreiche Prädiktoren hervortreten.\footcite[27-28]{Jennings1999}
+Ob kriminalitätsbezogene Merkmale darüber hinaus eigenständige Erklärungskraft besitzen, ist eine
+offene Frage, die die Arbeit beantworten soll.
+
+% NICHT übernehmen: Absatz 1 Satz 1 („Ziel der Arbeit ist es aufzuzeigen...") und der
+% Schlussabsatz („Als Ergebnis soll eine ... Blaupause ... vorliegen") -- reine Exposé-Rhetorik.
+% ---- ENDE ÜBERNAHME ----
+
+% ===================================================
+\section{Business Understanding}
+% Umfang: ca. 3 Seiten -- CRISP-DM Phase 1
+\subsection{Anwendungsfall und fachliche Zielsetzung}
+% Wozu dient die Prognose? Warum Stadtteil × Monat als Entscheidungseinheit?
+
+% ---- ÜBERNAHME AUS EXPOSÉ (Kap. 1, Abs. 2) -- Dublette zu 1.1, hier fachlich vertiefen ----
+% Der Anwendungsfall ist im Exposé nur in zwei Sätzen umrissen. Für 3.1 fast vollständig
+% neu zu schreiben: Wozu dient die Prognose operativ? Welche Entscheidung stützt sie?
+% Warum ist Stadtteil × Monat die passende Entscheidungseinheit?
+% ---- ENDE ÜBERNAHME ----
+
+\subsection{Zielgrößen, Erfolgskriterien und Abgrenzung}
+% Einsatzhäufigkeit (Regression) und Einsatzart (Klassifikation);
+% prognoseorientiert, kein kausaler Anspruch.
+
+% ---- ÜBERNAHME AUS EXPOSÉ (Kap. 3, Abs. 4, letzte Sätze) -- 1:1 ----
+
+Die Arbeit verfolgt einen explizit prognoseorientierten Ansatz; kausale Schlussfolgerungen werden
+dabei nicht beansprucht.
+
+% ERGÄNZEN: Operationalisierung beider Zielgrößen und Erfolgskriterien.
+% Der Bezug zu Shmueli (2010) aus 2.5 sollte hier aufgegriffen werden.
+% ---- ENDE ÜBERNAHME ----
+
+% ===================================================
+\section{Data Understanding}
+% Umfang: ca. 7 Seiten -- CRISP-DM Phase 2
+\subsection{Datenquellen und Attributübersicht}
+% SFFD-Einsatzdaten, SFPD-Kriminalitätsdaten, Parzellen-/Nutzungsdaten, ACS.
+% Übersichtstabelle im Text (Attribut | Quelle | Typ | Ebene | Erhebungsjahr).
+% Detailbeschreibung in den Anhang -- Bloat-Gefahr!
+
+% ---- ÜBERNAHME AUS EXPOSÉ (Kap. 5, Abs. 2) -- 1:1; der einzige verwertbare Teil aus Exposé-Kapitel 5 ----
+
+Die empirische Grundlage bildet ein integrierter Datensatz aus mehreren öffentlich zugänglichen
+Quellen. Rund 700.000 Einsatzdaten des SFFD, Kriminalitätsdaten des San Francisco Police Department
+(SFPD) sowie Parzellen- und Nutzungsdaten wurden über das Open-Data-Portal der Stadt San Francisco
+bezogen und auf 41 Stadtteile aggregiert. Sozioökonomische Merkmale auf Census-Tract-Ebene
+entstammen den Schätzungen der ACS.
+
+% ERGÄNZEN: Attributtabelle, Erhebungszeiträume, Lizenz-/Abrufdatum der Open-Data-Quellen.
+% NICHT übernehmen: der Rechercheweg (Google Scholar, Vorwärts-/Rückwärtssuche) und die
+% Auswahlkriterien der Literatur -- reine Exposé-Gattung, entfällt ersatzlos.
+% ---- ENDE ÜBERNAHME ----
+
+\subsection{Explorative Datenanalyse und Datenqualität}
+% Verteilungen, räumliche und zeitliche Muster, Klassenverteilung der Einsatzart.
+% Qualitätsprobleme als Befunde der EDA darstellen, nicht getrennt davon:
+% fehlende Werte, Ausreißer, Klassenungleichgewicht, Erhebungsversatz ACS.
+
+% ---- ÜBERNAHME AUS EXPOSÉ (Kap. 3, Abs. 1, letzter Satz) -- Tempus angepasst ----
+
+Im Data Understanding wurde zudem die Klassenverteilung der Einsatzart geprüft; bei ausgeprägten
+Ungleichgewichten werden seltene Kategorien zusammengefasst oder die Klassifikation auf zwei
+Klassen vereinfacht, etwa Brand vs. Nicht-Brand.
+
+% Hinweis: Der zweite Teilsatz beschreibt eine Aufbereitungsentscheidung und gehört
+% streng genommen nach 5.1. Hier nur der Befund, dort die Konsequenz.
+% ---- ENDE ÜBERNAHME ----
+
+% ===================================================
+\section{Data Preparation}
+\label{sec:data-preparation}
+
+% =========================================================================
+% GLIEDERUNG NEU (Stand 28.07.2026). Die Pipeline wurde vollstaendig
+% umgebaut; der frühere Text dieses Kapitels ist inhaltlich ueberholt und
+% wurde entfernt. Grundlage der Neufassung: docs/05_KAPITEL5.md
+% Reihenfolge folgt der Pipeline: prep/s1_daten.py -> s2_datensaetze.py
+% -> s3_baselines.py
+% =========================================================================
+
+Die Data-Preparation-Phase überführt den in Kapitel~4 beschriebenen
+Rohdatenbestand in zwei modellfertige Analysedatensätze. Beide liegen auf
+derselben Analyseeinheit -- \emph{Stadtteil~$\times$~Monat} --; der eine misst
+die \emph{Menge} der Einsatzlast, der andere ihre \emph{Zusammensetzung}. Diese
+Festlegung ist die zentrale Entwurfsentscheidung des Kapitels: Auf
+Einzeleinsatz-Ebene würden sich die nur auf Stadtteilebene variierenden
+Prädiktoren vielfach wiederholen und Pseudo-Signale erzeugen; eine Aggregation
+auf Census-Tract~$\times$~Jahr scheitert daran, dass die Einsatzdaten keine
+Tract-Zuordnung tragen, und würde zugleich die Saisonalität eliminieren.
+
+Ein Grundsatz trägt sämtliche Schritte: Jeder Prädiktor muss zum
+Prognosezeitpunkt tatsächlich verfügbar gewesen sein.\footcite[192-193]{Bergmeir2012}
+Er bestimmt die Auswahl der Spalten ebenso wie die Konstruktion der
+Verlaufsmerkmale und die Aufteilung in Trainings- und Testmengen.
+
+% =========================================================================
+\subsection{Datenauswahl und Bereinigung}
+\label{sec:auswahl-bereinigung}
+
+Dieser Abschnitt beschreibt, welche Daten überhaupt in die Analyse gelangen und
+welche bewusst ausgeschlossen werden.
+
+% INHALT:
+% - Strikte Spaltenauswahl: von 23 Einsatzspalten bleiben 6. Ausgeschlossen
+%   werden Sachschaden, Loeschfahrzeuge, Loeschkraefte, Rettungsdiensteinheiten,
+%   Alarmstufe, zivile Tote/Verletzte, Flammenausbreitung -- sie stehen erst
+%   NACH dem Einsatz fest und waeren Leakage im engeren Sinn. Argument: Was
+%   nicht in den Datensatz kommt, kann nicht versehentlich ins Modell geraten.
+% - Bereinigung: 269 doppelte Einsatznummern (0,04 %) entfernt -> 719.989
+%   Einsaetze; Ausrueckzeit auf 0-60 min begrenzt (~1,7 % entfallen);
+%   Baujahre ausserhalb 1800-2025 als fehlend markiert.
+% - Ausschluss ganzer Analyseeinheiten (41 -> 35 Stadtteile):
+%     * Golden Gate Park, Lincoln Park, McLaren Park -- Parkgebiete mit 45 bis
+%       507 Einwohnern; jede Pro-Kopf-Groesse wird dort beliebig gross
+%       (Median der uebrigen Stadtteile: 14.435 Einwohner)
+%     * Treasure Island, Lakeshore -- in KEINEM ACS-Jahrgang enthalten
+%     * Mission Bay -- erst ab ACS 2021; ein Zutritt mitten in der Zeitreihe
+%       erzeugte ein unbalanciertes Panel
+%   Zu betonen: Unterschied zwischen zeilenweisem dropna und dem Ausschluss
+%   ganzer Einheiten.
+% - Analysezeitraum 2015-01 bis 2025-12, hart in config.py fixiert und nicht
+%   aus den Daten abgeleitet (sonst wandert die Analyse mit jedem Download,
+%   und ein angebrochener Randmonat geraet unbemerkt ins Testfenster).
+% KEIN Code-Listing.
+
+% =========================================================================
+\subsection{Zusammenführung der vier Datenquellen}
+\label{sec:integration}
+
+Dieser Abschnitt bleibt bewusst knapp: Er beschreibt, wie die vier Quellen mit
+drei unterschiedlichen Raumbezügen und zwei Zeitrastern zu einer Tabelle auf
+Einsatzebene zusammengeführt werden.
+
+% INHALT (knapp halten, KEIN Code-Listing):
+% - Join A, ACS: zwei Stufen. Census-Tract -> Stadtteil ueber den Crosswalk
+%   (Mediane bevoelkerungsgewichtet, Zaehler summiert); dann ZEITBEWUSST mit
+%   Publikationsversatz: acs_jahr <= Einsatzjahr - 1. Ohne den Versatz bekaeme
+%   ein Einsatz aus 2023 den Jahrgang 2023, der erst Ende 2024 erschien.
+%   Als Formel im Fliesstext, nicht als Quellcode.
+%   Limitation: Trefferquoten je Jahrgang 2009: 63,1 %; 2014/2019: 79,7 %;
+%   2021/2023: 99,2 % (Census-Tract-Grenzen aendern sich, Crosswalk von 2020).
+% - Join B, Kriminalitaet: zwei SFPD-Quellen mit Systembruch 05/2018 (CABLE ->
+%   Crime Data Warehouse). Die aeltere Quelle hat keine Stadtteilspalte, dafuer
+%   Koordinaten -> Spatial Join gegen DIESELBE Neighborhood-Geometrie wie bei
+%   Land Use. Sonst bezoegen sich Kriminalitaets- und Baumerkmale desselben
+%   Stadtteils auf unterschiedliche Flaechen.
+% - Join C, Land Use: 154.544 Parzellen, Zuordnung ueber den Parzellen-
+%   Mittelpunkt, Match-Rate 99,5 %. Snapshot 2020, einziger Jahrgang ->
+%   zeitkonstantes Strukturmerkmal.
+% - Join-Hygiene: Schluesseleindeutigkeit vor jedem Merge, validate-Parameter,
+%   Match-Quoten, Zeilenzahl vor/nach gegen den Erwartungswert. Schutz vor
+%   kartesischen Produkten.
+% ERGEBNIS: einsaetze.parquet, 719.989 x 50, ein Einsatz je Zeile.
+
+% =========================================================================
+\subsection{Konstruktion der Merkmale und Zielgrößen}
+\label{sec:merkmale}
+
+Dieser Abschnitt ist einer der beiden Schwerpunkte des Kapitels. Er zeigt, wie
+aus den zusammengeführten Rohgrößen die Prädiktoren und die vier Zielgrößen
+entstehen.
+
+% INHALT (Schwerpunkt, Code-Listings 1 und 2):
+% - Quoten aus Zaehlvariablen (Armuts-, Akademiker-, Leerstands-, Altbau-,
+%   Wohnnutzungs-, Risikogewerbe-Anteil). Nenner <= 0 ergibt NaN statt
+%   Division durch Null.                          -> LISTING 1: safe_ratio
+% - Kriminalitaetsindex als Location Quotient, MIT FORMEL:
+%     rate(i,t)     = Delikte(i, Fenster endend in t-1) / Einwohner(i)
+%     rate(Stadt,t) = Delikte(Stadt, gleiches Fenster) / Einwohner(Stadt)
+%     index(i,t)    = rate(i,t) / rate(Stadt,t)
+%   Zwei Begruendungen: (a) warum relativ -- der Systembruch 2018 wirkt
+%   multiplikativ auf Zaehler und Nenner und kuerzt sich heraus; verbleibende
+%   Limitation ist eine Verschiebung der ZUSAMMENSETZUNG der Delikte.
+%   (b) warum das Fenster im Vormonat endet -- sonst erklaert Kriminalitaet in
+%   t die Einsaetze in t: Beschreibung statt Prognose.
+% - Exposure: log_bevoelkerung statt roher Einwohnerzahl. ACHTUNG, die frueher
+%   verwendete Begruendung war falsch: Nicht die Armutsquote wechselt das
+%   Vorzeichen (+0,49 absolut / +0,46 pro Kopf), sondern die BEVOELKERUNG
+%   (+0,20 / -0,42).
+% - Aggregation auf Stadtteil x Monat: vollstaendiges Raster, einsatzfreie
+%   Monate als echte Nullen; nur ffill, KEIN bfill (Zukunfts-Imputation).
+% - Saison als sin/cos statt Monat 1-12 (Dezember und Januar haetten sonst
+%   den Abstand 11).
+% - Lags: lag_1, lag_12, rolling_mean_3; shift(1) VOR rolling(3); Lag-Vorlauf
+%   von 12 Monaten, damit lag_12 schon fuer Januar 2015 definiert ist.
+%   WICHTIG: Sie sind KEIN Modellmerkmal mehr. Unter dem Stadtteil-Split
+%   (Abschnitt 5.4) waere lag_1 die eigene Vergangenheit des Teststadtteils.
+%                                                 -> LISTING 2: Lag-Bildung
+% - Zielgroessen (vier):
+%     anzahl_einsaetze       Zaehldaten; Mittel 75,9, Median 53, Max 451,
+%                            Dispersionsindex 62,8, Nullanteil 0,02 %
+%                            -> begruendet NegBin statt Poisson
+%     einsaetze_je_1000_ew   Mittel 5,71, Median 3,54, Max 67,7
+%     dominante_einsatzart   4 Klassen: Fehlalarm 79,0 %, Techn. Hilfe 16,3 %,
+%                            Rettung/EMS 3,1 %, Brand 1,5 %
+%     anteil_brand u.a.      stetig in [0,1]; im Mittel 11,6 / 14,9 / 26,2 /
+%                            47,4 %
+% - Begruendung der Klassifikationsebene (methodisch staerkster Abschnitt):
+%   Auf Einzeleinsatz-Ebene tragen alle Einsaetze eines Stadtteil-Monats
+%   identische Strukturmerkmale -- 350.481 Zeilen enthielten nur 4.619
+%   verschiedene Profile. Ein PERFEKTES Modell haette dort 49,9 % Treffer
+%   erreicht gegenueber 48,2 % fuer blosses Raten: Obergrenze 1,7 Prozent-
+%   punkte. Auf Stadtteilebene ist die Frage beantwortbar. Die Zielgroesse
+%   bleibt eine echte Klasse (argmax ueber die vier NFIRS-Gruppen), keine
+%   kuenstliche Einteilung einer stetigen Groesse.\footcite{Altman2006}
+
+% =========================================================================
+\subsection{Analyserahmen und Baselines}
+\label{sec:rahmen-baselines}
+
+Der zweite Schwerpunkt. Er legt fest, wie die Datensätze in Trainings- und
+Testmengen zerfallen, und bestimmt die Referenzwerte, an denen sich jedes
+spätere Modell messen lassen muss.
+
+% INHALT (Schwerpunkt, Code-Listing 3):
+% - Warum der Split hierher gehoert und nicht nach Kapitel 6: Die Aufteilung
+%   steht als Spalten fold und ist_holdout IN DEN DATEIEN. Sie ist eine
+%   Eigenschaft des Datensatzes, nicht der Algorithmen -- damit ist die
+%   Fairness-Regel konstruktiv abgesichert statt behauptet.
+% - STADTTEIL-Split statt Zeitschnitt: 5 Folds a 6 Stadtteile, 6 Stadtteile
+%   Hold-out; jeder Stadtteil genau einmal Testfall, mit allen 132 Monaten.
+%   Begruendung (zentrale methodische Aussage der Arbeit): Ein Zeitschnitt
+%   prueft die Forschungsfrage NICHT, weil dort jeder Stadtteil in Training
+%   und Test steht und das Modell sein Niveau bereits kennt.
+%   Beleg: 92,5 % der Varianz liegen zwischen den Stadtteilen; der
+%   Stadtteil-Mittelwert allein erreicht dort R2 0,888.
+% - Doppelte Stratifizierung: sortiert nach brand-dominierten Monaten, bei
+%   Gleichstand nach Bevoelkerung. Von 70 brand-dominierten Monaten liegen 35
+%   allein in Bayview Hunters Point; ohne Stratifizierung hatte in drei von
+%   vier Aufteilungen ein Fold NULL Brand-Testfaelle. Jetzt 13, 9, 6, 3, 2.
+%   Kein Leakage -- vgl. StratifiedGroupKFold.  -> LISTING 3: Fold-Zuteilung
+% - Modelltauglichkeit: alle Merkmale float64, keine fehlenden Werte. Die
+%   Int64-Falle erwaehnen (eine nullable Spalte macht X.to_numpy() zum
+%   object-Array; sklearn faengt das still ab, XGBoost lehnt es ab).
+% - Baselines (Auflage Schroeter 27.07.2026: gehoeren in die Data Preparation):
+%     anzahl_einsaetze       Negative Binomial   R2  0,472 +/- 0,368
+%     anzahl_einsaetze       Gesamtmittelwert    R2 -0,832
+%     einsaetze_je_1000_ew   Gesamtmittelwert    R2 -2,122
+%     anteil_*               Gesamtmittelwert    R2 -0,06 bis -0,11
+%     dominante_einsatzart   Mehrheitsklasse     Macro-F1 0,220 / Acc. 0,786
+%   Zwei Punkte muessen in den Text:
+%     (a) Negative R2 sind korrekt und aussagekraeftig -- wer fuer einen
+%         unbekannten Stadtteil den Gesamtdurchschnitt vorhersagt, liegt
+%         schlechter als dessen eigener Mittelwert. Genau diese Luecke sollen
+%         die Strukturmerkmale schliessen.
+%     (b) Die naive Vormonats-Baseline entfaellt: Sie wuerde die eigene
+%         Vergangenheit des Teststadtteils nutzen.
+%   Zur Auflage "nichtlineare Baseline": Gesamtmittelwert und saisonaler
+%   Durchschnitt sind NICHTPARAMETRISCH, also nicht durch ihre Funktionsform
+%   benachteiligt -- der Beleg bleibt fair.
+% - Steckbrief des finalen Datensatzes als Tabelle:
+%     Analyseeinheit           Stadtteil x Monat, beide Datensaetze
+%     Zeitraum                 2015-01 bis 2025-12 (132 Monate)
+%     Beobachtungen Menge      4.620 (35 x 132)
+%     Beobachtungen Struktur   4.619 (ein Monat ohne Einsatz)
+%     Merkmale                 10 Struktur + 2 Saison = 12
+%     Aufteilung               5 Folds a 6 Stadtteile + 6 Hold-out-Stadtteile
+%     Ausschluesse             3 Parkgebiete, 3 ohne durchgaengige ACS-Abdeckung
+%     Absicherung              19 automatisierte Pruefungen an den Dateien
+
+% ===================================================
+\section{Modelling}
+% Umfang: ca. 8 Seiten -- CRISP-DM Phase 4
+\subsection{Versuchsaufbau und technische Umsetzung}
+% Der VALIDIERUNGSRAHMEN steht jetzt in Abschnitt 5.4 -- die Aufteilung ist
+% eine Eigenschaft des Datensatzes (Spalten fold, ist_holdout) und wird hier
+% nur noch referenziert, nicht erneut hergeleitet.
+% Hier: identischer Datensatz fuer alle Verfahren, Seeds, wiederholte Splits
+% (10 Wiederholungen), Python, Bibliotheken, Versionen. Code in den Anhang.
+
+% ACHTUNG: Der folgende Absatz stammt aus dem Expose und nennt
+% Time-Series-Cross-Validation. Das gilt seit dem Umbau NICHT mehr -- der
+% Hauptvergleich laeuft ueber einen STADTTEIL-Split (siehe 5.4). Der Absatz
+% ist beim Ausformulieren entsprechend zu ersetzen; die Abweichung vom Expose
+% gehoert in die Diskussion (8.3) und in die Sprechstunde.
+
+% ---- ÜBERNAHME AUS EXPOSÉ (Kap. 3, Abs. 2 letzter Satz + Abs. 4) -- 1:1, Tempus angepasst ----
+
+Alle Modelle erhalten denselben aufbereiteten Datensatz, um Performance-Unterschiede ausschließlich
+auf die Verfahren zurückführen zu können. Die Evaluation erfolgt zeitbewusst mittels
+Time-Series-Cross-Validation, die bei zeitlich strukturierten Daten Datenleckagen aus der Zukunft
+vermeidet.\footcite[192-193]{Bergmeir2012} Die technische Umsetzung erfolgt in Python.
+
+% ERGÄNZEN: konkrete Fold-Zahl, Fenstergröße, Split-Datum, Seeds, Bibliotheksversionen.
+% ---- ENDE ÜBERNAHME ----
+
+\subsection{Eignungsprüfung und Begründung der Verfahrenswahl}
+% Die BASELINES sind hierher NICHT mehr zu schreiben -- sie stehen seit dem
+% Umbau in Abschnitt 5.4 (Auflage Schroeter, 27.07.2026). Der frueher hier
+% stehende Expose-Absatz ist dorthin gewandert.
+%
+% Dieser Abschnitt beantwortet stattdessen die Frage, warum ueber ein
+% einfaches Regressionsmodell hinausgegangen wird. Die Begruendung entsteht
+% aus der Regression selbst, in vier Schritten:
+%
+% 1. Das einfache Modell funktioniert. Ridge auf log(1+y) erreicht R2 0,472
+%    und liegt gleichauf mit der Negative-Binomial-Baseline; ein
+%    L2-regularisiertes Poisson-GLM erreicht 0,588. Ein lineares Modell ist
+%    also ein ernstzunehmender Kandidat, kein Strohmann.
+% 2. Der formale Spezifikationstest verwirft es trotzdem. RESET-Test nach
+%    Ramsey (1969), H0 "die lineare Spezifikation ist adaequat":
+%      Potenzen bis 2: F = 215,23  p = 4e-47   -> H0 verworfen
+%      Potenzen bis 3: F = 125,59  p = 4e-53   -> H0 verworfen
+% 3. Die Ursache ist lokalisierbar: KEINES der zehn Merkmale zeigt einen
+%    nennenswerten Abstand zwischen Pearson und Spearman -- die einzelnen
+%    Effekte sind praktisch linear. Ergaenzt man Interaktionsterme, steigt
+%    das adjustierte R2 von 0,805 auf 0,914. Die Ursache sind also
+%    WECHSELWIRKUNGEN, nicht Kruemmung.
+% 4. Daraus folgt die Verfahrenswahl: Ein lineares Modell bildet
+%    Interaktionen nur ab, wenn man sie von Hand spezifiziert -- bei zehn
+%    Merkmalen 45 Terme, willkuerlich ausgewaehlt und bei 30 Trainings-
+%    stadtteilen ueberangepasst. Baumverfahren finden sie konstruktions-
+%    bedingt: Jeder Split bedingt auf die vorherigen.
+%
+% Ebenfalls hierher: die Linearitaetspruefung als Auflage Schroeter (R7,
+% Scatterplots und Residuenanalyse VOR dem Einsatz von Ridge), VIF, sowie die
+% Extrapolationspruefung -- unter dem Stadtteil-Split liegen 31 % der
+% Testzeilen ausserhalb des Trainings-Wertebereichs, was Baumverfahren und
+% Ridge unterschiedlich trifft.
+
+\subsection{Modellkonfiguration und Hyperparameter-Suchräume}
+% Tabelle: Verfahren | Hyperparameter | Suchraum | Iterationen | bester Wert.
+
+% ---- ÜBERNAHME AUS EXPOSÉ (Kap. 3, Abs. 3) -- 1:1, Tempus angepasst ----
+
+In der Modeling-Phase wurden Ridge Regression, Random Forest und XGBoost auf beiden Zielgrößen,
+Einsatzhäufigkeit (Regression) und Einsatzart (Klassifikation), trainiert. Für jedes Modell erfolgt
+ein Hyperparameter-Tuning mittels Randomized Search. Die besondere Sensitivität von Random Forest
+gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166]{Probst2019}
+
+% ERGÄNZEN: die Konfigurationstabelle selbst -- das Exposé liefert nur den Rahmen.
+% ---- ENDE ÜBERNAHME ----
+
+\subsection{Modellspezifische Tuning-Befunde}
+% Auffälligkeiten pro Verfahren -- KEINE Wiederholung der Funktionsweise (steht in 2.3).
+
+% ===================================================
+\section{Evaluation}
+% Umfang: ca. 11 Seiten -- CRISP-DM Phase 5
+\subsection{Ergebnisse Einsatzhäufigkeit (Regression)}
+% LEITFRAGE: Haengen Einsatzhaeufigkeit und Stadtteilmerkmale zusammen --
+% koennen die Modelle die ZAHL der Einsaetze vorhersagen?
+%
+% Zielgroessen: anzahl_einsaetze (Zaehldaten) und einsaetze_je_1000_ew (Rate).
+% Guetemasse RMSE / MAE / R2, je Zeile (Stadtteil x Monat), Mittelwert und
+% Streuung ueber alle Folds und Wiederholungen.
+% Referenz: die Baselines aus Abschnitt 5.4 -- Negative Binomial R2 0,472;
+% Gesamtmittelwert -0,832 (Anzahl) bzw. -2,122 (Rate).
+% Zu berichten: Ridge auf log(1+y), Random Forest, XGBoost. Wo sich die
+% Streuungsbereiche ueberlappen, ist das so zu schreiben (Gutachten R6).
+%                                                          -> UF2
+
+\subsection{Ergebnisse Einsatzart (Klassifikation)}
+% LEITFRAGE: Haengen Einsatzart und Stadtteilmerkmale zusammen -- koennen die
+% Modelle die ART der Einsaetze vorhersagen?
+%
+% Zielgroesse: dominante_einsatzart -- vier Klassen je Stadtteil x Monat
+% (Brand, Rettung/EMS, Technische Hilfe/Gefahr, Fehlalarm/Good Intent).
+% Eine echte Klasse, gebildet als argmax ueber die vier NFIRS-Gruppen des
+% Monats; kein gesetzter Schwellwert und keine kuenstliche Einteilung einer
+% stetigen Groesse.
+%
+% Guetemasse: Macro-F1 (Hauptmass) und Macro-AUROC gegen die
+% Mehrheitsklassen-Baseline aus 5.4 (Macro-F1 0,220 / Accuracy 0,786).
+% ACCURACY IST HIER KEIN HAUPTMASS -- 79 % der Stadtteil-Monate werden von
+% Fehlalarm dominiert, ein Modell das immer "Fehlalarm" sagt erreicht 0,786.
+%
+% Verfahren: logistische Regression mit L2-Strafterm (an Stelle von Ridge --
+% das ist im Text zu benennen, siehe 6.2), Random Forest, XGBoost.
+%
+% Klassenverteilung, gehoert in die Ergebnisdarstellung:
+%   Fehlalarm 79,0 % | Techn. Hilfe 16,3 % | Rettung/EMS 3,1 % | Brand 1,5 %
+% Die duenne Besetzung von Brand ist als Limitation zu benennen: Je Fold
+% liegen 2 bis 13 brand-dominierte Monate im Test.
+%                                                          -> UF2
+
+\subsection{Trainings- und Inferenzaufwand}
+% Laufzeiten, Tuning-Aufwand.                             -> UF3
+
+\subsection{Interpretierbarkeit: SHAP-Analyse}
+% Einflussstärke der Faktorgruppen.                       -> UF1
+
+% ---- ÜBERNAHME AUS EXPOSÉ (Kap. 3, Abs. 4) -- Satzfragment ----
+
+% „Zur inhaltlichen Einordnung werden die Modelle mittels SHAP-Werten analysiert, einem
+% fundierten Erklärungsansatz für komplexe Modelle."\footcite[17]{Lundberg2017}
+% -> Ankündigung, kein Ergebnis. Der Beleg ist verwertbar, der Abschnitt selbst
+%    entsteht vollständig neu aus Ihren Analysen.
+% ---- ENDE ÜBERNAHME ----
+
+\subsection{Evaluation des Analyseprozesses}
+% Rückblick auf den CRISP-DM-Durchlauf; Abgrenzung der Deployment-Phase.
+
+% ===================================================
+\section{Diskussion}
+% Umfang: ca. 5 Seiten
+\subsection{Vergleichende Bewertung der Algorithmen}
+% Erwartung (2.7) gegen Befund.
+% Zwei Punkte gehoeren zwingend hierher:
+% - Spezifikationsasymmetrie: Die NegBin-Baseline erhaelt log(Bevoelkerung)
+%   als OFFSET und modelliert damit direkt Einsaetze je Einwohner; Ridge, RF
+%   und XGBoost bekommen dieselbe Groesse nur als gewoehnliches Merkmal.
+%   Entweder wird der Vorteil ausgeglichen oder offen benannt -- sonst
+%   vergleicht die Arbeit nicht drei Algorithmen, sondern drei
+%   Spezifikationen.
+% - Unterscheidbarkeit: Bei 35 Analyseeinheiten streuen die Fold-Ergebnisse
+%   stark. Wo sich die Streuungsbereiche ueberlappen, ist das so zu
+%   berichten und nicht als Rangfolge zu kaschieren (Gutachten R6).
+
+\subsection{Erklärungsbeitrag der untersuchten Faktoren}
+% Sozioökonomisch / baulich / kriminalitätsbezogen.       -> UF1
+
+\subsection{Limitationen und Übertragbarkeit}
+% Methodenkritik, datensatzspezifische Grenzen der Ergebnisse und daraus
+% abgeleitete Implikationen für die Modellauswahl.       -> UF4
+% Aufzunehmen: effektive Stichprobe von 35 Querschnittseinheiten;
+% Extrapolation bei unbekannten Stadtteilen (31 % der Testzeilen);
+% Hold-out aus nur 6 Stadtteilen; jaehrliche ACS-Merkmale und Land-Use-
+% Snapshot 2020; ACS-Trefferquote 2009 von 63,1 %; sowie die Abweichungen
+% vom Expose (Stadtteil-Split statt Zeitreihen-CV, logistische Regression
+% statt Ridge in der Klassifikation, Einsatzart auf Stadtteilebene).
+
+% ===================================================
+\section{Fazit und Ausblick}
+% Umfang: ca. 2 Seiten
+
+% ---------------------------------------------------
+% LITERATURVERZEICHNIS
+% ---------------------------------------------------
+\newpage
+\nocite{*}  % TODO: entfernen, sobald echte \footcite-Aufrufe im Text stehen
+\printbibliography[heading=bibintoc,title={Literaturverzeichnis}]
+
+% ---------------------------------------------------
+% ANHANG
+% ---------------------------------------------------
+\newpage
+\phantomsection
+\section*{Anhang}
+\addcontentsline{toc}{section}{Anhang}
+
+% A1  Vollständige Attributtabelle
+% A2  Code-Auszüge (Datenaufbereitung, Tuning, Evaluation)
+% A3  Ergänzende Abbildungen (EDA, SHAP)
+
+% ---------------------------------------------------
+% KI-VERZEICHNIS
+% ---------------------------------------------------
+\newpage
+\phantomsection
+\section*{KI-Verzeichnis}
+\addcontentsline{toc}{section}{KI-Verzeichnis}
+
+\begin{table}[H]
+    \centering
+    \caption*{Verzeichnis der verwendeten KI-Hilfsmittel}
+    \vspace{4pt}
+    \small
+    \begin{tabularx}{\textwidth}{@{}p{0.6cm} p{2.8cm} X@{}}
+        \toprule
+        \textbf{Nr.} & \textbf{KI-System} & \textbf{Einsatzzweck / Prompt} \\
+        \midrule
+        \addlinespace
+        1 & Anthropic Claude & \enquote{...} \\
+        \addlinespace
+        2 & Google Gemini & \enquote{...} \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\end{document}

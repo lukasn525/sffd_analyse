@@ -35,8 +35,8 @@ from config import (PFAD_EINSAETZE, PFAD_KLASSIFIKATION, PFAD_REGRESSION,
 
 DATEIEN = [
     (PFAD_EINSAETZE,      "Zwischenstand, ein Einsatz je Zeile"),
-    (PFAD_REGRESSION,     "FINAL - Regression, Stadtteil x Monat"),
-    (PFAD_KLASSIFIKATION, "FINAL - Klassifikation, Einzeleinsatz"),
+    (PFAD_REGRESSION,     "FINAL - Menge, Stadtteil x Monat"),
+    (PFAD_KLASSIFIKATION, "FINAL - Struktur, Stadtteil x Monat"),
 ]
 
 

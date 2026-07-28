@@ -11,10 +11,10 @@ sie erzeugt. Damit fällt auch auf, wenn jemand eine Datei von Hand ändert.
 Gegenstand:
 
   1. Analysedatensatz  rechteckig, vollständig, fester Zeitraum
-  2. Zeitschnitte      Reihenfolge, Disjunktheit, unberührtes Hold-out,
-                       Aufteilungsspalten konsistent zu prep/s2_datensaetze.py
+  2. Stadtteil-Split   kein Stadtteil zugleich Trainings- und Testfall,
+                       unberührtes Hold-out, Aufteilungsspalten konsistent
   3. Merkmale          Lags gegen die Rohdaten verifiziert, kein Leakage
-  4. Klassifikation    keine Ergebnisvariablen, Abgrenzung wie die Regression
+  4. Struktur          keine Ergebnisvariablen, Anteile konsistent
 
 Ausführen:
   python tests/test_aufbereitung.py     # ohne weitere Abhängigkeiten
@@ -31,20 +31,20 @@ import pandas as pd
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "prep"))
 
-from config import (ENDE, ERGEBNISVARIABLEN, FEATURE_SETS,  # noqa: E402
-                    KLASSEN, MERKMALE_KATEGORIAL, MERKMALE_STRUKTUR,
-                    MERKMALE_ZEIT, PFAD_KLASSIFIKATION, PFAD_REGRESSION,
-                    PRAEDIKTOREN, START, VORLAUF_MONATE)
-from s2_datensaetze import (_monat_minus, aggregiere,  # noqa: E402
-                            ergaenze_aufteilung, fold_masken, inneres_fenster,
-                            split_holdout, zeit_folds, zeitachse)
+from config import (ANTEILE, ANZAHLEN, ENDE, ERGEBNISVARIABLEN,  # noqa: E402
+                    FEATURE_SETS, MERKMALE_STRUKTUR, N_FOLDS,
+                    PFAD_KLASSIFIKATION, PFAD_REGRESSION, PRAEDIKTOREN,
+                    SAISON, START, VORLAUF_MONATE)
+from s2_datensaetze import (RATE, ZIELGROESSE, ZIELKLASSE,  # noqa: E402
+                            _monat_minus, aggregiere, ergaenze_aufteilung,
+                            fold_masken)
 
 # Erwartungswerte des festgesetzten Analysedatensatzes
 # (Decision Log #15, #18, #19, #23)
 N_STADTTEILE = 35
 N_MONATE     = 132                              # 2015-01 bis 2025-12
 N_MODELL     = N_STADTTEILE * N_MONATE          # 4.620
-N_EINSAETZE  = 350_481
+N_STRUKTUR   = 4_619                            # ein Monat ohne Einsatz fällt weg
 
 _cache: dict[str, pd.DataFrame] = {}
 
@@ -108,9 +108,8 @@ def test_datentypen_modelltauglich():
     """
     erlaubt = {"float64", "int64"}
     for name, d, feats in [
-        ("regression", regression(), FEATURE_SETS["S+L"]),
-        ("klassifikation", klassifikation(),
-         MERKMALE_STRUKTUR + MERKMALE_ZEIT + MERKMALE_KATEGORIAL),
+        ("menge", regression(), FEATURE_SETS["S"]),
+        ("struktur", klassifikation(), MERKMALE_STRUKTUR + SAISON),
     ]:
         schlecht = {c: str(t) for c, t in d[feats].dtypes.items()
                     if str(t) not in erlaubt}
@@ -133,47 +132,92 @@ def test_exposure_und_kriminalitaetsindex_vorhanden():
 # 2. Zeitschnitte
 # ---------------------------------------------------------------------------
 def test_folds_ordnung_und_holdout():
-    """Testfenster liegen nach dem Training, Hold-out bleibt unberührt."""
-    entwicklung, holdout = split_holdout(zeitachse(regression()))
-    assert set(entwicklung).isdisjoint(holdout)
+    """Kein Stadtteil ist zugleich Trainings- und Testfall.
 
-    for train, test in zeit_folds(entwicklung):
-        assert max(train) < min(test), "Testfenster liegt nicht nach dem Training"
-        assert set(test).isdisjoint(holdout), "Fold-Test greift ins Hold-out"
-        sub, val = inneres_fenster(train)
-        assert max(sub) < min(val) < min(test), "Inneres Fenster falsch geordnet"
+    Das ist der zentrale Punkt des Stadtteil-Splits: Sobald ein Stadtteil in
+    beiden Mengen steht, kennt das Modell sein Niveau bereits und die
+    Strukturmerkmale müssen nichts mehr erklären – genau die Frage, die die
+    Arbeit stellt, bliebe dann unbeantwortet.
+    """
+    d = regression()
+    holdout = set(d.loc[d["ist_holdout"] == 1, "stadtteil"])
+    gesehen = set()
+    for k in range(1, N_FOLDS + 1):
+        train, test = fold_masken(d, k)
+        st_train = set(d.loc[train, "stadtteil"])
+        st_test = set(d.loc[test, "stadtteil"])
+        assert st_train.isdisjoint(st_test), \
+            f"Fold {k}: Stadtteil in Training UND Test: {st_train & st_test}"
+        assert st_test.isdisjoint(holdout), f"Fold {k} greift ins Hold-out"
+        assert st_train.isdisjoint(holdout), f"Fold {k} trainiert auf Hold-out"
+        assert gesehen.isdisjoint(st_test), "Stadtteil in zwei Folds im Test"
+        gesehen |= st_test
+    assert gesehen | holdout == set(d["stadtteil"]), \
+        "Nicht jeder Stadtteil ist genau einmal Testfall oder im Hold-out"
+
+
+def test_jeder_fold_deckt_den_vollen_zeitraum():
+    """Ein Teststadtteil wird mit allen seinen Monaten getestet.
+
+    Andernfalls vermischten sich Stadtteil- und Zeitschnitt, und die Fold-
+    Streuung wäre nicht mehr interpretierbar.
+    """
+    d = regression()
+    n_monate = d.groupby("jahr_monat").ngroups
+    for k in range(1, N_FOLDS + 1):
+        _, test = fold_masken(d, k)
+        assert d.loc[test].groupby("jahr_monat").ngroups == n_monate
 
 
 def test_aufteilungsspalten_konsistent():
     """`fold` und `ist_holdout` in der Datei müssen zu prep/s2_datensaetze.py passen.
 
     Die Spalten sind der Grund, warum die Fairness-Regel nachzählbar ist. Wären
-    sie veraltet – etwa weil jemand den Zeitraum geändert, aber den Datensatz
-    nicht neu gebaut hat –, liefen alle drei Verfahren auf falschen, aber
-    untereinander identischen Splits: der Vergleich bliebe fair, das Ergebnis
-    wäre trotzdem falsch.
+    sie veraltet – etwa weil jemand die Stadtteilliste geändert, aber den
+    Datensatz nicht neu gebaut hat –, liefen alle drei Verfahren auf falschen,
+    aber untereinander identischen Splits: der Vergleich bliebe fair, das
+    Ergebnis wäre trotzdem falsch.
     """
-    d = regression()
-    neu = ergaenze_aufteilung(d.drop(columns=["fold", "ist_holdout"]))
+    d, k = regression(), klassifikation()
+    selten = (k[k[ZIELKLASSE] == "brand"].groupby("stadtteil").size()
+                .reindex(sorted(d["stadtteil"].unique()), fill_value=0))
+    neu = ergaenze_aufteilung(d.drop(columns=["fold", "ist_holdout"]),
+                              selten=selten)
     assert (neu["fold"].to_numpy() == d["fold"].to_numpy()).all()
     assert (neu["ist_holdout"].to_numpy() == d["ist_holdout"].to_numpy()).all()
+    # Die Aufteilung gilt je Stadtteil, nicht je Zeile.
+    assert (d.groupby("stadtteil")["fold"].nunique() == 1).all()
 
-    # Hold-out darf in keinem Fold-Training oder -Test vorkommen.
-    for k in sorted(x for x in d["fold"].unique() if x > 0):
-        train, test = fold_masken(d, k)
-        assert not (train & (d["ist_holdout"] == 1)).any()
-        assert not (test & (d["ist_holdout"] == 1)).any()
-        assert d.loc[train, "jahr_monat"].max() < d.loc[test, "jahr_monat"].min()
+
+def test_folds_decken_die_groessenspanne_ab():
+    """Stratifizierung nach Bevölkerung: Kein Fold besteht nur aus Großstadtteilen.
+
+    Sonst wäre die Streuung über die Folds ein Größeneffekt und kein
+    Modellunterschied.
+    """
+    d = regression()
+    gross = d.groupby("stadtteil")["gesamtbevoelkerung"].mean()
+    median = gross.median()
+    for k in range(1, N_FOLDS + 1):
+        st = d.loc[d["fold"] == k, "stadtteil"].unique()
+        werte = gross[st]
+        assert (werte > median).any() and (werte <= median).any(), \
+            f"Fold {k} enthält nur eine Größenklasse"
 
 
 # ---------------------------------------------------------------------------
 # 3. Merkmale
 # ---------------------------------------------------------------------------
 def test_merkmale_vollstaendig():
-    """Beide Merkmalssätze sind vollständig – auch nach der Lag-Bildung."""
+    """Der Merkmalssatz ist vollständig, die Rate ist gebildet."""
     d = regression()
     for name, spalten in FEATURE_SETS.items():
         assert d[spalten].notna().all().all(), f"NaN im Merkmalssatz {name}"
+    assert d[RATE].notna().all(), "NaN in der Rate"
+    assert np.isfinite(d[RATE]).all(), "Rate mit Nenner null"
+    # Nullmonate sind erlaubt (Anteil 0,02 %), negative Raten nicht.
+    assert (d[RATE] >= 0).all()
+    assert np.allclose(d[RATE], d[ZIELGROESSE] / d["gesamtbevoelkerung"] * 1000)
     assert d["jahr_monat"].max() == ENDE
 
 
@@ -228,35 +272,87 @@ def test_vorlauf_ohne_eigene_zeilen():
 
 
 # ---------------------------------------------------------------------------
-# 4. Klassifikation
+# 4. Struktur der Einsatzlast
 # ---------------------------------------------------------------------------
 def test_keine_ergebnisvariablen():
-    """Wichtigster Test des Klassifikationsteils.
+    """Wichtigster Test des Strukturteils.
 
     Sachschaden, Löschfahrzeuge, Alarmstufe und Antwortzeit stehen erst nach dem
-    Einsatz fest. Rutscht eine dieser Spalten in den Merkmalssatz, springt der
-    AUROC auf über 0,9 und sieht nach einem guten Ergebnis aus.
+    Einsatz fest. Rutscht eine dieser Spalten in den Merkmalssatz, sieht das
+    Ergebnis gut aus und ist wertlos.
     """
     gefunden = [c for c in ERGEBNISVARIABLEN if c in klassifikation().columns]
     assert not gefunden, f"Ergebnisvariable(n) im Datensatz: {gefunden}"
 
 
-def test_klassifikation_gleiche_abgrenzung_wie_regression():
-    """Beide Teile der Arbeit müssen auf demselben Datenbestand beruhen."""
+def test_struktur_gleiche_abgrenzung_wie_regression():
+    """Beide Teile der Arbeit beruhen auf demselben Datenbestand.
+
+    Gleiche Analyseeinheit, gleiche Stadtteile, gleicher Zeitraum und – der
+    entscheidende Punkt – dieselbe Fold-Zuordnung. Nur dann ist der Vergleich
+    zwischen Menge und Struktur überhaupt zulässig (Gutachten R1).
+    """
     k, d = klassifikation(), regression()
     assert set(k["stadtteil"]) == set(d["stadtteil"])
     assert k["jahr_monat"].min() == d["jahr_monat"].min() == START
     assert k["jahr_monat"].max() == d["jahr_monat"].max() == ENDE
-    assert len(k) == N_EINSAETZE, f"{len(k):,} statt {N_EINSAETZE:,} Einsätze"
+    assert len(k) == N_STRUKTUR, f"{len(k):,} statt {N_STRUKTUR:,} Zeilen"
+
+    zuordnung = d.groupby("stadtteil")["fold"].first()
+    assert (k.groupby("stadtteil")["fold"].first() == zuordnung).all(), \
+        "Struktur- und Mengendatensatz nutzen verschiedene Folds"
 
 
-def test_zielgroessen_konsistent():
-    """Mehrklassige und binäre Zielgröße dürfen sich nicht widersprechen."""
-    d = klassifikation()
-    assert set(d["einsatzart_gruppe"]) <= set(KLASSEN)
-    assert ((d["einsatzart_gruppe"] == "Brand") == (d["ist_brand"] == 1)).all()
-    assert not d["einsatz_nummer"].duplicated().any()
-    assert d[MERKMALE_STRUKTUR + MERKMALE_ZEIT].notna().all().all()
+def test_anteile_konsistent():
+    """Die vier Anteile summieren sich je Zeile auf 1 und passen zu den Zählungen."""
+    k = klassifikation()
+    assert np.allclose(k[ANTEILE].sum(axis=1), 1.0), \
+        "Anteile summieren sich nicht auf 1 – eine NFIRS-Gruppe fehlt"
+    assert (k[ANZAHLEN].sum(axis=1) == k[ZIELGROESSE]).all(), \
+        "Zählungen je Gruppe summieren sich nicht auf die Gesamtzahl"
+    assert (k[ANTEILE] >= 0).all().all() and (k[ANTEILE] <= 1).all().all()
+    assert (k[ZIELGROESSE] > 0).all(), "Zeile ohne Einsatz – Anteil wäre 0/0"
+
+
+def test_zielklasse_konsistent():
+    """Die dominante Einsatzart ist argmax ueber die vier Anteile.
+
+    Eine echte Klasse, kein gesetzter Schwellwert - deshalb entfaellt die
+    Begruendungslast einer kuenstlichen Einteilung (Altman & Royston 2006).
+    """
+    k = klassifikation()
+    erwartet = k[ANTEILE].idxmax(axis=1).str.replace("anteil_", "", regex=False)
+    assert (k[ZIELKLASSE] == erwartet).all(), \
+        "dominante_einsatzart passt nicht zu den Anteilen"
+    assert k[ZIELKLASSE].nunique() > 1, "Zielklasse ist konstant"
+
+
+def test_seltene_klasse_in_jedem_fold():
+    """Brand muss in jedem Test-Fold vorkommen.
+
+    Von 70 brand-dominierten Monaten liegen 35 allein in Bayview Hunters Point.
+    Ohne Stratifizierung nach der seltenen Klasse hatte in drei von vier
+    Aufteilungen ein Fold null Brand-Testfaelle - Macro-F1 mittelt dann ueber
+    eine Klasse, die gar nicht vorkommt, und springt zwischen den Folds.
+    """
+    k = klassifikation()
+    for f in range(1, N_FOLDS + 1):
+        _, test = fold_masken(k, f)
+        n = int((k.loc[test, ZIELKLASSE] == "brand").sum())
+        assert n >= 2, f"Fold {f} hat nur {n} brand-dominierte Monate im Test"
+
+
+def test_struktur_hat_signal():
+    """Die Anteile variieren zwischen Stadtteilen – sonst gäbe es nichts zu erklären.
+
+    Der Brandanteil schwankt zwischen den Stadtteilen um mehr als den Faktor 2;
+    genau diese Variation soll durch Strukturmerkmale erklärt werden.
+    """
+    k = klassifikation()
+    je_stadtteil = k.groupby("stadtteil")["anteil_brand"].mean()
+    assert je_stadtteil.max() / je_stadtteil.min() > 2.0, \
+        "Brandanteil variiert kaum zwischen Stadtteilen"
+    assert k[MERKMALE_STRUKTUR + SAISON].notna().all().all()
 
 
 # ---------------------------------------------------------------------------
@@ -276,7 +372,7 @@ def main() -> int:
     if not fehler:
         print(f"Analysedatensatz: {N_STADTTEILE} Stadtteile x {N_MONATE} Monate "
               f"= {N_MODELL:,} Beobachtungen ({START}-{ENDE}); "
-              f"Klassifikation {N_EINSAETZE:,} Einsätze.")
+              f"Struktur {N_STRUKTUR:,} Zeilen; {N_FOLDS} Stadtteil-Folds.")
     return 1 if fehler else 0
 
 

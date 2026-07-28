@@ -134,10 +134,11 @@ VOLLSTAENDIGKEITS_SCHWELLE = 0.5
 # Praediktoren gemaess Expose: soziooekonomisch, kriminalitaetsbezogen, baulich.
 #
 # log_bevoelkerung statt roher Einwohnerzahl (Exposure, Decision Log #13): ohne
-# diese Kontrolle sagt das Modell im Kern die Stadtteilgroesse vorher -
-# armutsquote_pct korreliert +0,20 mit der absoluten Einsatzzahl, aber -0,13 mit
-# Einsaetzen je 1.000 Einwohner. Das Vorzeichen des zentralen Struktur-Befundes
-# haengt an dieser Entscheidung.
+# diese Kontrolle sagt das Modell im Kern die Stadtteilgroesse vorher. Die
+# Bevoelkerung ist die Groesse mit dem Vorzeichenwechsel - sie korreliert +0,20
+# mit der absoluten Einsatzzahl, aber -0,42 mit Einsaetzen je 1.000 Einwohner.
+# (Die frueher hier genannte Armutsquote wechselt das Vorzeichen NICHT: +0,49
+# absolut, +0,46 pro Kopf. Korrektur vom 28.07.2026, docs/02_ENTSCHEIDUNGEN.md)
 #
 # log_kriminalitaetsindex (Decision Log #17/#19): der Index ist ein Quotient,
 # also multiplikativ und rechtsschief. Logarithmiert ist er symmetrisch um 0
@@ -164,26 +165,28 @@ CRIME_ROH    = "kriminalitaetsindex"
 # abbilden. sin/cos legen die Monate auf ein Zifferblatt.
 SAISON = ["monat_sin", "monat_cos"]
 
-# Lags: Vergangenheitswerte der Zielgroesse, je Stadtteil.
-# Die Lag-1-Autokorrelation betraegt 0,96. Ohne diese Merkmale schlaegt keines
-# der Verfahren die naive Vormonats-Baseline (Decision Log #8).
-# Leakage-sicher: strikt rueckwaertsgerichtet, shift() VOR rolling().
+# Lags: Vergangenheitswerte der Zielgroesse, je Stadtteil. Sie bleiben im
+# Datensatz, sind aber KEIN Modellmerkmal mehr (Decision Log #29).
+#
+# Grund: Der Verfahrensvergleich laeuft seit dem 28.07.2026 ueber einen
+# STADTTEIL-Split - trainiert wird auf 30 Stadtteilen, getestet auf unbekannten.
+# Der Vormonatswert eines Teststadtteils waere dabei technisch verfuegbar, denn
+# es ist seine eigene Vergangenheit. Genau dann erklaert aber wieder seine
+# Historie das Ergebnis statt seiner Struktur - und die Forschungsfrage bliebe
+# unbeantwortet. Die Lags werden deshalb nur noch fuer die Nebenbemerkung zur
+# zeitlichen Prognose mitgefuehrt.
+# Leakage-sicher gebildet: strikt rueckwaertsgerichtet, shift() VOR rolling().
 LAGS = ["lag_1", "lag_12", "rolling_mean_3"]
 
-# Die beiden Merkmalssaetze - identisch fuer Ridge, Random Forest und XGBoost.
-#   S    Strukturmerkmale + Saison  -> Unterfrage 1 (Erklaerungsbeitrag)
-#   S+L  zusaetzlich Lags           -> realistische Prognoseaufgabe
-# Zwei Saetze, weil der Vormonatswert sonst fast alles erklaert und Armut oder
-# Altbauanteil in der Feature Importance verschwinden - nicht weil sie
-# irrelevant waeren, sondern weil ihre Wirkung im Vormonatswert steckt.
+# Ein Merkmalssatz - identisch fuer Ridge, Random Forest und XGBoost.
 #
-# Bewusst NICHT enthalten: das rohe `jahr`. Baumverfahren koennen nicht
-# extrapolieren und ordnen unbekannte Jahreswerte dem letzten Blatt zu, waehrend
-# Ridge linear weiterrechnet - das wuerde genau den Verfahrensvergleich
-# verzerren, um den es geht. Das Zeitniveau tragen die Lags.
+# Bewusst NICHT enthalten: das rohe `jahr` und die Stadtteil-ID. Baumverfahren
+# koennen nicht extrapolieren und ordnen unbekannte Werte dem letzten Blatt zu,
+# waehrend Ridge linear weiterrechnet - das wuerde den Verfahrensvergleich
+# verzerren. Eine Stadtteil-ID waere unter einem Stadtteil-Split ohnehin
+# sinnlos: Der Teststadtteil ist im Training nie vorgekommen.
 FEATURE_SETS = {
-    "S":   PRAEDIKTOREN + SAISON,
-    "S+L": PRAEDIKTOREN + SAISON + LAGS,
+    "S": PRAEDIKTOREN + SAISON,
 }
 
 # ==========================================================================
@@ -209,25 +212,26 @@ NFIRS_GRUPPEN = {
 KLASSEN    = ["Brand", "Rettung/EMS", "Technische Hilfe/Gefahr", "Fehlalarm/Good Intent"]
 RESTKLASSE = "Technische Hilfe/Gefahr"
 
-# Block A: Stadtteilstruktur - exakt dieselben Merkmale wie in der Regression.
+# Zielgroessen der Klassifikation: die ZUSAMMENSETZUNG der Einsatzlast je
+# Stadtteil und Monat, nicht die Art des einzelnen Einsatzes (Decision Log #29).
+#
+# Warum der Wechsel: Innerhalb eines Stadtteil-Monats tragen ALLE Einsaetze
+# identische Strukturmerkmale. 350.481 Einzeleinsaetze enthielten nur 4.619
+# verschiedene Profile; ein perfektes Modell auf den Strukturmerkmalen haette
+# 49,9 % Treffer erreicht gegenueber 48,2 % fuer blosses Raten. Auf Stadtteil-
+# ebene ist dieselbe Frage dagegen beantwortbar: Der Fehlalarm-Anteil laesst
+# sich fuer einen unbekannten Stadtteil mit R2 0,66 vorhersagen.
+ANTEILE = [f"anteil_{k}" for k in
+           ["brand", "rettung_ems", "technische_hilfe", "fehlalarm"]]
+
+# Zaehlungen je Gruppe - im Datensatz mitgefuehrt fuer die Deskription und als
+# Nenner-Kontrolle, keine Modellmerkmale.
+ANZAHLEN = [f"anzahl_{k}" for k in
+            ["brand", "rettung_ems", "technische_hilfe", "fehlalarm"]]
+
+# Die Merkmale sind identisch mit denen der Regression - dieselbe Analyseeinheit,
+# dieselben Folds, dieselben Verfahren (Fairness-Regel, Gutachten R1).
 MERKMALE_STRUKTUR = list(PRAEDIKTOREN)
-
-# Block B: Zeitpunkt des Alarms. Zyklisch kodiert, weil der Zusammenhang
-# periodisch und nicht monoton ist: Der Brandanteil schwankt ueber den Tag
-# zwischen 8,5 % und 20,5 %, die lineare Korrelation mit `stunde` betraegt aber
-# nur -0,006.
-MERKMALE_ZEIT = ["stunde_sin", "stunde_cos", "monat_sin", "monat_cos",
-                 "ist_nacht", "ist_wochenende"]
-
-# Kategorial: One-Hot erst im ColumnTransformer, einheitlich fuer alle drei
-# Verfahren (auch XGBoost), damit die Designmatrix identisch ist und
-# Unterschiede rein algorithmisch bleiben.
-MERKMALE_KATEGORIAL = ["wochentag"]
-
-# Optionaler Robustheitslauf: Ortsidentitaet. NICHT im Hauptmodell, analog zur
-# Entscheidung gegen die Stadtteil-ID in der Regression.
-MERKMALE_ORT  = ["bataillon"]
-MIT_BATAILLON = False
 
 # Ergebnisvariablen - duerfen NIEMALS Merkmal sein. Sie stehen erst nach dem
 # Einsatz fest oder sind eine Folge der Einsatzart; ihre Verwendung waere
@@ -239,33 +243,29 @@ ERGEBNISVARIABLEN = [
     "ankunft_zeitpunkt",
 ]
 
-def merkmalslisten(mit_ort: bool = MIT_BATAILLON) -> dict[str, list[str]]:
-    """Merkmalssaetze der geplanten Laeufe.
-
-      A+B  Stadtteilstruktur + Zeitpunkt -> Hauptmodell
-      B    nur Zeitpunkt                 -> zeigt den Beitrag der Struktur
-      A    nur Stadtteilstruktur         -> Gegenprobe
-    """
-    saetze = {
-        "A+B": MERKMALE_STRUKTUR + MERKMALE_ZEIT + MERKMALE_KATEGORIAL,
-        "B":   MERKMALE_ZEIT + MERKMALE_KATEGORIAL,
-        "A":   list(MERKMALE_STRUKTUR),
-    }
-    if mit_ort:
-        saetze["A+B+Ort"] = saetze["A+B"] + MERKMALE_ORT
-    return saetze
-
 
 # ==========================================================================
 # 7  VALIDIERUNG  (Schritt: prep/s2_datensaetze.py, Teil A)
 # ==========================================================================
-# Blockiertes Forward Chaining ueber globale Zeitschnitte; alle Stadtteile
-# teilen dieselbe Trennlinie. Kein Gap zwischen Train und Test noetig, weil
-# saemtliche Lag-Features strikt rueckwaertsgerichtet sind.
-N_FOLDS       = 3    # Folds auf den Entwicklungsdaten
-N_TEST_MONATE = 12   # Laenge eines Testfensters
-N_VAL_MONATE  = 12   # inneres Validierungsfenster fuer die Suche
-N_HOLDOUT     = 12   # End-Hold-out, bei Modellwahl und Tuning nie beruehrt
+# STADTTEIL-SPLIT (Decision Log #29). Die Forschungsfrage lautet: Laesst sich
+# aus Strukturmerkmalen vorhersagen, wie viele und welche Einsaetze ein
+# Stadtteil hat? Diese Frage prueft man, indem man einen Stadtteil komplett
+# zurueckhaelt - nicht, indem man die Zeitachse schneidet. Bei einem Zeitschnitt
+# steht jeder Stadtteil in Training UND Test; das Modell kennt sein Niveau
+# bereits und die Strukturmerkmale muessen nichts erklaeren.
+#
+#     30 Stadtteile -> 5 Folds a 6        5 Stadtteile -> Hold-out
+#     jeder Stadtteil ist genau einmal Testfall, nie zugleich Trainingsfall
+#
+# Zuteilung stratifiziert nach Bevoelkerung: Die Stadtteile werden nach
+# Einwohnerzahl sortiert und reihum auf die Gruppen verteilt. Damit deckt jede
+# Gruppe die gesamte Groessenspanne ab - sonst laege im Test zufaellig nur
+# Downtown oder nur Seacliff. Stratifiziert wird nach einem PRAEDIKTOR, nicht
+# nach der Zielgroesse; sonst floesse Testinformation in die Gruppenbildung ein.
+# Die Stadtteile werden reihum auf N_FOLDS + 1 Gruppen verteilt. Gruppe 0 ist
+# das Hold-out, die Gruppen 1..N_FOLDS sind die Folds. Bei 35 Stadtteilen
+# ergibt das 6 Hold-out-Stadtteile und Folds der Groesse 6, 6, 6, 6, 5.
+N_FOLDS = 5
 
 # ==========================================================================
 # 8  HYPERPARAMETER-SUCHE

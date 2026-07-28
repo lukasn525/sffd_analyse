@@ -122,9 +122,9 @@ Stadtteil-Monats-Profile). Spricht für Priorisierung der Regression (R4).
 - **Inneres Validierungsfenster** (letzte 12 Trainingsmonate) für die Suche.
 - Kein Gap zwischen Train und Test nötig: alle Lag-Features sind strikt
   rückwärtsgerichtet (`shift` vor `rolling`).
-- **Baselines:** naiv (Vormonat), saisonaler Durchschnitt, Negative Binomial –
-  in `prep/s3_baselines.py`, also Teil der Data Preparation.
-  *Offen: Mehrheitsklasse für die Klassifikation (Gutachten R6).*
+- **Baselines:** naiv (Vormonat), saisonaler Durchschnitt, Negative Binomial für
+  die Regression, Mehrheitsklasse für die Klassifikation – alle in
+  `prep/s3_baselines.py`, also Teil der Data Preparation (Auflage Schröter).
 - **Randomized Search** (Bergstra & Bengio 2012), gleiches Budget je Verfahren
   (50 Iterationen). Suchräume in `prep/config.py`.
 

@@ -16,19 +16,23 @@ wird, ob sie methodisch *gelöst* wurden.
 | Auflage | Konsequenz |
 |---|---|
 | **Baseline gehört in die Data Preparation** | Kapitel 5 bekommt einen eigenen Baseline-Abschnitt; die Referenzwerte stehen vor der Modellierung fest |
-| **Die Baseline muss zum Anwendungsfall passen** — bei nichtlinearen Zusammenhängen braucht es eine **nichtlineare** Baseline | Die Leitfrage dahinter: *Bringt der zusätzliche Aufwand der Modelle überhaupt etwas?* Muss ehrlich beantwortet werden |
+| **Die Baseline muss zum Anwendungsfall passen** — bei nichtlinearen Zusammenhängen braucht es eine **nichtlineare** Baseline | Zweck der Baseline ist der *Beleg*, dass die komplexeren Modelle ein besseres Ergebnis liefern. Keine Abstimmungspflicht, aber die Referenz muss fair sein — sonst ist der Beleg wertlos |
 | **Keine Blindabsätze** — zwischen „1." und „1.1" darf kein leerer Übergang stehen | Jede Gliederungsebene braucht Inhalt; Redundanz zwischen Ebenen vermeiden |
 | **Zitate einheitlich, mehrere Quellen pro Seite** | Quellendichte hochhalten, Zitierstil konsistent |
 | **Alles mit dem Stand der Forschung belegen** | Jede methodische Entscheidung braucht eine Referenz |
 | **KI-Verzeichnis: Engine, Jahr, Modell, Prompt, URL** | Kennung im Zitierstil, z. B. `anthropic2026a`, `openai2026b` |
 | Kolloquium: 2 Termine pro Tag | organisatorisch |
 
-### Antwort auf die Auflage „nichtlineare Baseline"
+### Wozu die Baseline dient
 
-Schröters Forderung zielt darauf, dass die Baseline nicht schon durch ihre
-Funktionsform benachteiligt ist — eine rein lineare Referenz auf nichtlinearen
-Zusammenhängen wäre ein Strohmann. Für diesen Datensatz ist die Forderung
-bereits erfüllt, und zwar aus vier Gründen:
+Die Baseline ist **kein Genehmigungspunkt**, sondern ein Beweismittel: Sie soll
+belegen, dass die komplexeren Verfahren tatsächlich ein besseres Ergebnis
+liefern als eine einfache Regel. Daraus folgt die Anforderung an ihre Form —
+eine Referenz, die schon durch ihre Funktionsform benachteiligt ist, wäre ein
+Strohmann und würde den Beleg wertlos machen. Genau das meint die Auflage
+„bei nichtlinearen Zusammenhängen braucht es eine nichtlineare Baseline".
+
+Für diesen Datensatz ist diese Anforderung erfüllt, und zwar aus vier Gründen:
 
 1. **Zwei der drei Baselines unterstellen überhaupt keine Funktionsform.** Der
    Vormonatswert und der saisonale Durchschnitt sind nichtparametrisch — sie
@@ -45,10 +49,25 @@ bereits erfüllt, und zwar aus vier Gründen:
    Binomial, 37,26 ± 13,51). Sie dient der Interpretierbarkeit als
    verteilungsgerechtes Zähldatenmodell, nicht dem Leistungsvergleich.
 
-*Restrisiko:* Schröter könnte auf einem explizit nichtlinearen **parametrischen**
-Verfahren als vierter Baseline bestehen. Rückfalloption: ein einzelner
-Regressionsbaum mit Tiefe 3–4 — zehn Zeilen in `prep/s3_baselines.py`, klar
-nichtlinear, interpretierbar. In der Sprechstunde ansprechen.
+### Was die Baseline derzeit tatsächlich belegt
+
+Ihr Zweck ist der Nachweis, dass sich der Mehraufwand lohnt. Aktuell fällt
+dieser Nachweis **nur für ein Verfahren von dreien** aus:
+
+| Verfahren | RMSE | gegen naiv (17,78 ± 1,29) |
+|---|---|---|
+| Ridge (S+L) | 15,01 ± 0,86 | **schlägt die Baseline klar** |
+| Random Forest (S+L) | 16,96 ± 0,73 | innerhalb der Streuung — nicht unterscheidbar |
+| XGBoost (S+L) | 18,47 ± 1,12 | **schlechter als die Baseline** |
+
+Bemerkenswert ist die Richtung: Ridge ist von den drei Verfahren das
+*einfachste*. Die beiden aufwendigen Baumverfahren schlagen eine Regel nicht,
+die man auf einem Bierdeckel notieren kann. Das ist ein belastbares Ergebnis und
+genau die ehrliche Vergleichsaussage, die R6 verlangt — es muss nur als solches
+ausformuliert werden, statt in einer Rangfolge unterzugehen.
+
+Sobald der Stadtteil-Mittelwert als vierte Baseline dazukommt, verschärft sich
+das Bild noch: Er erreicht R² 0,888, ohne ein einziges Merkmal zu benutzen.
 
 ---
 

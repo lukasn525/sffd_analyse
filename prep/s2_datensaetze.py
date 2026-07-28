@@ -2,11 +2,14 @@
 Schritt 2: die beiden finalen Datensaetze samt Validierungsrahmen.
 
 Eingang:  data/processed/einsaetze.parquet        (ein Einsatz je Zeile)
-Ausgang:  data/processed/regression.parquet       Stadtteil x Monat
-          data/processed/klassifikation.parquet   Einzeleinsatz
+Ausgang:  data/processed/regression.parquet       Stadtteil x Monat, Menge
+          data/processed/klassifikation.parquet   Stadtteil x Monat, Struktur
 
-Beide entstehen in EINER Datei, weil sie dieselbe Abgrenzung teilen muessen:
-Zeitraum und Stadtteilliste werden einmal bestimmt und weitergereicht.
+BEIDE liegen auf derselben Analyseeinheit - Stadtteil x Monat. Die eine misst
+die MENGE der Einsatzlast (Anzahl und Rate), die andere ihre ZUSAMMENSETZUNG
+(Anteile der vier NFIRS-Gruppen). Damit laufen beide Teile der Arbeit durch
+denselben Rahmen: gleiche Zeilen, gleiche Merkmale, gleiche Folds
+(Gutachten R1, Decision Log #29).
 
 Der Validierungsrahmen steht ebenfalls hier, weil die Aufteilung als SPALTEN in
 die Parquet-Dateien geschrieben wird (`fold`, `ist_holdout`). Sie ist damit
@@ -14,13 +17,13 @@ nachzaehlbar und haengt nicht davon ab, dass jedes Modellskript die richtige
 Funktion aufruft. "Alle drei Verfahren sehen identische Folds" ist eine Zusage
 ueber den DATENSATZ, nicht ueber die Algorithmen (Fairness-Regel, CLAUDE.md).
 
-  TEIL A  Zeitschnitte, Folds, End-Hold-out
-  TEIL B  Regression      Aggregation, Exposure, Saison, Lags, Panel
-  TEIL C  Klassifikation  Zielgroessen aus NFIRS, Zeitmerkmale
+  TEIL A  Stadtteil-Split: Folds und Hold-out
+  TEIL B  Menge        Aggregation, Exposure, Rate, Saison, Lags
+  TEIL C  Struktur     Anteile der vier NFIRS-Gruppen
 
 Ausfuehren:
   python prep/s2_datensaetze.py          # beide Datensaetze bauen
-  python prep/s2_datensaetze.py splits   # nur die Zeitschnitte anzeigen
+  python prep/s2_datensaetze.py splits   # nur die Aufteilung anzeigen
 """
 from __future__ import annotations
 
@@ -29,21 +32,23 @@ import sys
 import numpy as np
 import pandas as pd
 
-from config import (CRIME_ROH, ENDE, ERGEBNISVARIABLEN, EXPOSURE_ROH,
-                    FEATURE_SETS, KLASSEN, LAGS, MERKMALE_KATEGORIAL,
-                    MERKMALE_ORT, MERKMALE_STRUKTUR, MERKMALE_ZEIT,
-                    MIT_BATAILLON, N_FOLDS, N_HOLDOUT, N_TEST_MONATE,
-                    N_VAL_MONATE, NFIRS_GRUPPEN, PARKGEBIETE, PFAD_EINSAETZE,
-                    PFAD_KLASSIFIKATION, PFAD_REGRESSION, PRAEDIKTOREN,
-                    RESTKLASSE, ROOT, SAISON, START,
-                    VOLLSTAENDIGKEITS_SCHWELLE, VORLAUF_MONATE, merkmalslisten)
+from config import (ANTEILE, ANZAHLEN, CRIME_ROH, ENDE, ERGEBNISVARIABLEN,
+                    EXPOSURE_ROH, FEATURE_SETS, KLASSEN, LAGS,
+                    MERKMALE_STRUKTUR, N_FOLDS, NFIRS_GRUPPEN, PARKGEBIETE,
+                    PFAD_EINSAETZE, PFAD_KLASSIFIKATION, PFAD_REGRESSION,
+                    PRAEDIKTOREN, RESTKLASSE, ROOT, SAISON, START,
+                    VOLLSTAENDIGKEITS_SCHWELLE, VORLAUF_MONATE)
 
-ZIELGROESSE    = "anzahl_einsaetze"
-R_SCHLUESSEL   = ["stadtteil", "jahr", "monat", "jahr_monat"]
-R_NEBEN        = [EXPOSURE_ROH, CRIME_ROH]   # NegBin-Offset, Deskription 5.1
-K_SCHLUESSEL   = ["einsatz_nummer", "stadtteil", "jahr", "monat", "jahr_monat"]
-K_ZIELGROESSEN = ["einsatzart_gruppe", "ist_brand"]
-AUFTEILUNG     = ["fold", "ist_holdout"]
+ZIELGROESSE  = "anzahl_einsaetze"
+RATE         = "einsaetze_je_1000_ew"   # zweite Zielgroesse der Menge
+ZIELKLASSE   = "dominante_einsatzart"   # Zielgroesse der Klassifikation
+SCHLUESSEL   = ["stadtteil", "jahr", "monat", "jahr_monat"]
+R_NEBEN      = [EXPOSURE_ROH, CRIME_ROH]   # NegBin-Offset, Deskription 5.1
+AUFTEILUNG   = ["fold", "ist_holdout"]
+
+# NFIRS-Gruppe -> Spaltensuffix. Die Reihenfolge folgt KLASSEN aus config.py.
+SUFFIX = dict(zip(KLASSEN, ["brand", "rettung_ems", "technische_hilfe",
+                            "fehlalarm"]))
 
 # Je Stadtteil-Monat aus der Einsatz-Tabelle uebernommen; die log-Merkmale
 # entstehen erst danach.
@@ -53,110 +58,101 @@ _UEBERNOMMEN = ([c for c in PRAEDIKTOREN if c not in _ABGELEITET]
 
 
 # ==========================================================================
-# TEIL A  ZEITSCHNITTE, FOLDS, END-HOLD-OUT
+# TEIL A  STADTTEIL-SPLIT
 # ==========================================================================
-# Aufbau der Zeitachse (Decision Log #14):
+# Die Forschungsfrage lautet: Laesst sich aus Strukturmerkmalen vorhersagen,
+# wie viele und welche Einsaetze ein Stadtteil hat? Geprueft wird das, indem
+# ganze Stadtteile zurueckgehalten werden:
 #
-#     |<---------- Entwicklungsdaten ---------->|<--- HOLD-OUT (12 M) --->|
-#     |  Fold 1: Train .......... | Test (12 M) |                         |
-#     |  Fold 2: Train ......................... | Test (12 M) |          |
-#                                                               ^
-#                                         wird beim Tuning NIE beruehrt
+#     Stadtteile 1-6    Fold 1        \
+#     Stadtteile 7-12   Fold 2         |  30 Entwicklungs-Stadtteile,
+#     ...                              |  jeder genau einmal Testfall
+#     Stadtteile 25-30  Fold 5        /
+#     Stadtteile 31-35  Hold-out         beim Tuning nie beruehrt
 #
-# Blockiertes Forward Chaining ueber GLOBALE Zeitschnitte: alle Stadtteile
-# teilen dieselbe Trennlinie. Kein Gap zwischen Train und Test noetig, weil
-# saemtliche Lag- und Rolling-Features strikt rueckwaertsgerichtet sind (shift
-# vor rolling) - ein Testmonat greift nie auf Werte nach seinem eigenen
-# Zeitpunkt zu. Getunt wird auf dem INNEREN Fenster (letzte val_monate des
-# Trainings), nie auf Testmonaten und nie auf dem Hold-out.
+# Ein Zeitschnitt wuerde die Frage nicht pruefen: Dort steht jeder Stadtteil in
+# Training UND Test, das Modell kennt sein Niveau bereits, und die
+# Strukturmerkmale muessen nichts erklaeren (Decision Log #29).
+#
+# Die Aufteilung steht als Spalten `fold` und `ist_holdout` in beiden
+# Parquet-Dateien. "Alle drei Verfahren sehen identische Folds" ist damit eine
+# Zusage ueber den DATENSATZ, nicht ueber die Algorithmen (Fairness-Regel).
 # ==========================================================================
 def zeitachse(daten: pd.DataFrame, spalte: str = "jahr_monat") -> list[int]:
     """Sortierte, eindeutige Monatsschluessel des Datensatzes."""
     return sorted(int(m) for m in daten[spalte].unique())
 
 
-def split_holdout(monate: list[int],
-                  n_holdout: int = N_HOLDOUT) -> tuple[list[int], list[int]]:
-    """Entwicklungsdaten und End-Hold-out (letzte `n_holdout` Monate).
+def ergaenze_aufteilung(daten: pd.DataFrame, versatz: int = 0,
+                        selten: pd.Series | None = None) -> pd.DataFrame:
+    """Schreibt `fold` (0..N_FOLDS) und `ist_holdout` in den Datensatz.
 
-    Das Hold-out wird bei Modellauswahl und Tuning NICHT verwendet - nur fuer
-    die abschliessende, einmalige Bewertung.
+    Die Stadtteile werden reihum auf N_FOLDS + 1 Gruppen verteilt; Gruppe 0 ist
+    das Hold-out. Wer wohin kommt, haengt allein von der Sortierreihenfolge ab -
+    und die stratifiziert nach zwei Kriterien:
+
+      1. `selten`  Anzahl der Monate, in denen die seltenste Klasse dominiert.
+                   Brand dominiert nur 70 von 4.619 Stadtteil-Monaten, davon 35
+                   allein in Bayview Hunters Point. Ohne diese Stratifizierung
+                   hatte in drei von vier Aufteilungen ein Fold KEINEN einzigen
+                   Brand-Testfall - Macro-F1 mittelt dann ueber eine Klasse, die
+                   im Test gar nicht vorkommt, und springt zwischen den Folds.
+      2. Bevoelkerung bei Gleichstand. 25 der 35 Stadtteile haben ueberhaupt
+                   keine Brand-Monate, fuer sie bleibt die Groessenstratifizierung
+                   damit erhalten: Kein Fold besteht nur aus Grossstadtteilen,
+                   sonst waere die Fold-Streuung ein Groesseneffekt statt eines
+                   Modellunterschieds.
+
+    Beides sind Vorgaben ueber die Gruppenbildung, kein Leakage: Das Modell
+    bekommt keine zusaetzliche Information, es wird nur festgelegt, welche
+    Stadtteile gemeinsam getestet werden - wie bei `StratifiedGroupKFold`.
+
+    `versatz` verschiebt den Startpunkt der Austeilung, fuer WIEDERHOLTE Splits.
+    Bei nur 30 Entwicklungsstadtteilen schwankt ein einzelner Fold stark
+    (Extrapolationsanteil 0 bis 53 %); ueber Wiederholungen gemittelt ist die
+    Schaetzung stabil.
     """
-    assert len(monate) > n_holdout, f"Zeitachse zu kurz: {len(monate)} Monate."
-    return monate[:-n_holdout], monate[-n_holdout:]
+    bev = daten.groupby("stadtteil")[EXPOSURE_ROH].mean()
+    if selten is None:
+        selten = pd.Series(0, index=bev.index)
+    ordnung = (pd.DataFrame({"selten": selten.reindex(bev.index).fillna(0),
+                             "bev": bev})
+                 .sort_values(["selten", "bev"], ascending=False).index)
+    gruppe = {st: (i + versatz) % (N_FOLDS + 1) for i, st in enumerate(ordnung)}
 
-
-def zeit_folds(monate: list[int], n_folds: int = N_FOLDS,
-               test_monate: int = N_TEST_MONATE) -> list[tuple[list[int], list[int]]]:
-    """Expanding-Window-Folds. `monate` sollte das Hold-out ausschliessen."""
-    assert len(monate) >= (n_folds + 1) * test_monate, (
-        f"Zeitachse zu kurz: {len(monate)} Monate fuer {n_folds} Folds "
-        f"a {test_monate} Testmonate.")
-    folds = []
-    for i in range(n_folds):
-        ende = len(monate) - (n_folds - 1 - i) * test_monate
-        folds.append((monate[:ende - test_monate], monate[ende - test_monate:ende]))
-    return folds
-
-
-def inneres_fenster(train_monate: list[int],
-                    val_monate: int = N_VAL_MONATE) -> tuple[list[int], list[int]]:
-    """Sub-Training und Validierung fuer die Hyperparameter-Suche.
-
-    Die letzten `val_monate` des Trainings dienen als Validierung - damit wird
-    nie auf Testmonaten getunt.
-    """
-    assert len(train_monate) > val_monate, "Trainingsfenster zu kurz."
-    return train_monate[:-val_monate], train_monate[-val_monate:]
-
-
-def ergaenze_aufteilung(daten: pd.DataFrame) -> pd.DataFrame:
-    """Schreibt `fold` und `ist_holdout` in den Datensatz.
-
-    `fold`         Nummer des Folds, in dessen TESTfenster der Monat liegt.
-                   0 = der Monat dient ausschliesslich als Trainingsmaterial.
-    `ist_holdout`  1 = Monat gehoert zum unberuehrten End-Hold-out.
-
-    Die Trainingsfenster sind daraus ableitbar (siehe `fold_masken`), weil das
-    Training bei Forward Chaining immer aus allen Monaten VOR dem Testfenster
-    besteht.
-    """
     d = daten.copy()
-    entwicklung, holdout = split_holdout(zeitachse(d))
-    d["fold"] = 0
-    for i, (_, test) in enumerate(zeit_folds(entwicklung), start=1):
-        d.loc[d["jahr_monat"].isin(test), "fold"] = i
-    d["ist_holdout"] = d["jahr_monat"].isin(holdout).astype(int)
-    d["fold"] = d["fold"].astype(int)
+    d["fold"] = d["stadtteil"].map(gruppe).astype(int)
+    d["ist_holdout"] = (d["fold"] == 0).astype(int)
     return d
 
 
 def fold_masken(daten: pd.DataFrame, k: int) -> tuple[pd.Series, pd.Series]:
     """Trainings- und Testmaske des Folds k - allein aus den Spalten der Datei.
 
-    Training = alle Monate vor dem Testfenster, ohne das Hold-out.
+    Test  = die Stadtteile dieses Folds, mit allen ihren Monaten.
+    Train = alle uebrigen Entwicklungs-Stadtteile, ohne das Hold-out.
+    Kein Stadtteil ist je zugleich Trainings- und Testfall.
     """
     test = daten["fold"] == k
     assert test.any(), (f"Kein Fold {k} im Datensatz "
                         f"(vorhanden: {sorted(daten['fold'].unique())}).")
-    train = ((daten["jahr_monat"] < daten.loc[test, "jahr_monat"].min())
-             & (daten["ist_holdout"] == 0))
+    train = (daten["fold"] != k) & (daten["ist_holdout"] == 0)
     return train, test
 
 
-def beschreibe_splits(monate: list[int]) -> str:
-    """Menschenlesbare Zusammenfassung der Zeitschnitte (fuer Kap. 5.2/5.4)."""
-    entwicklung, holdout = split_holdout(monate)
-    zeilen = [f"Zeitachse gesamt: {monate[0]}-{monate[-1]} ({len(monate)} Monate)",
-              f"  Entwicklungsdaten: {entwicklung[0]}-{entwicklung[-1]} "
-              f"({len(entwicklung)} Monate)",
-              f"  End-Hold-out:      {holdout[0]}-{holdout[-1]} "
-              f"({len(holdout)} Monate, beim Tuning unberuehrt)"]
-    for i, (tr, te) in enumerate(zeit_folds(entwicklung), 1):
-        _, val = inneres_fenster(tr)
-        zeilen.append(f"  Fold {i}: Train {tr[0]}-{tr[-1]} ({len(tr)} M) "
-                      f"[inneres Val {val[0]}-{val[-1]}] -> "
-                      f"Test {te[0]}-{te[-1]} ({len(te)} M)")
+def beschreibe_splits(daten: pd.DataFrame) -> str:
+    """Menschenlesbare Zusammenfassung der Aufteilung (fuer Kap. 5.2/5.4)."""
+    monate = zeitachse(daten)
+    zeilen = [f"Zeitraum (in jedem Fold vollstaendig): {monate[0]}-{monate[-1]} "
+              f"({len(monate)} Monate)",
+              f"Stadtteile gesamt: {daten['stadtteil'].nunique()}"]
+    for k in range(1, N_FOLDS + 1):
+        st = sorted(daten.loc[daten["fold"] == k, "stadtteil"].unique())
+        zeilen.append(f"  Fold {k}: Test auf {len(st)} Stadtteilen -> "
+                      + ", ".join(st))
+    ho = sorted(daten.loc[daten["ist_holdout"] == 1, "stadtteil"].unique())
+    zeilen.append(f"  Hold-out: {len(ho)} Stadtteile (unberuehrt) -> "
+                  + ", ".join(ho))
     return "\n".join(zeilen)
 
 
@@ -180,20 +176,19 @@ def _setze_datentypen(d: pd.DataFrame, merkmale: list[str]) -> pd.DataFrame:
     statt float64, und XGBoost lehnt den DataFrame ab - der Fehler traete erst
     beim dritten der drei zu vergleichenden Verfahren auf (Decision Log #24).
 
-    Merkmale float64 · wochentag int64 (kategorial, One-Hot spaeter) ·
-    Schluessel und Steuerspalten int64 · stadtteil und Zielklasse str.
+    Merkmale float64 · Schluessel, Zaehlgroessen und Steuerspalten int64 ·
+    stadtteil str. Anteile bleiben float64.
     """
     d = d.copy()
     for c in merkmale:
-        d[c] = (d[c].astype("int64") if c in MERKMALE_KATEGORIAL
-                else pd.to_numeric(d[c], errors="coerce").astype("float64"))
-    for c in ["jahr", "monat", "jahr_monat", ZIELGROESSE, "ist_brand",
-              "fold", "ist_holdout", EXPOSURE_ROH]:
+        d[c] = pd.to_numeric(d[c], errors="coerce").astype("float64")
+    for c in ["jahr", "monat", "jahr_monat", ZIELGROESSE,
+              "fold", "ist_holdout", EXPOSURE_ROH] + ANZAHLEN:
         if c in d.columns:
             d[c] = pd.to_numeric(d[c], errors="coerce").astype("int64")
     if CRIME_ROH in d.columns:
         d[CRIME_ROH] = d[CRIME_ROH].astype("float64")
-    for c in ["stadtteil", "einsatz_nummer", "einsatzart_gruppe"]:
+    for c in ("stadtteil", ZIELKLASSE):
         if c in d.columns:
             d[c] = d[c].astype(str)
     return d
@@ -335,80 +330,95 @@ def baue_regression(vorlauf: int = VORLAUF_MONATE,
     # Sortierung liefert trotz identischem random_state leicht andere Baeume -
     # empirisch 17,2587 statt 17,2974 RMSE in Fold 1. Ridge ist dagegen
     # reihenfolgeinvariant. Diese Sortierung darf nicht veraendert werden.
-    d = ergaenze_aufteilung(
-        d.sort_values(["jahr_monat", "stadtteil"]).reset_index(drop=True))
-    spalten = (R_SCHLUESSEL + [ZIELGROESSE] + FEATURE_SETS["S+L"]
-               + AUFTEILUNG + R_NEBEN)
-    return _setze_datentypen(d[spalten], FEATURE_SETS["S+L"])
+    # Zweite Zielgroesse: Einsaetze je 1.000 Einwohner. Fuer den Vergleich
+    # zwischen unterschiedlich grossen Stadtteilen ist die Rate die
+    # aussagekraeftigere Groesse - die absolute Zahl bildet vor allem die
+    # Einwohnerzahl ab (Decision Log #29).
+    d[RATE] = d[ZIELGROESSE] / d[EXPOSURE_ROH].astype(float) * 1000
+
+    d = d.sort_values(["jahr_monat", "stadtteil"]).reset_index(drop=True)
+    merkmale = FEATURE_SETS["S"] + LAGS
+    spalten = SCHLUESSEL + [ZIELGROESSE, RATE] + merkmale + R_NEBEN
+    return _setze_datentypen(d[spalten], merkmale)
 
 
 # ==========================================================================
-# TEIL C  KLASSIFIKATION
+# TEIL C  STRUKTUR DER EINSATZLAST
 # ==========================================================================
-def baue_klassifikation(regression: pd.DataFrame, mit_ort: bool = MIT_BATAILLON,
+def baue_klassifikation(regression: pd.DataFrame,
                         verbose: bool = False) -> pd.DataFrame:
-    """Der vollstaendige Klassifikationsdatensatz.
+    """Anteile der vier NFIRS-Gruppen je Stadtteil und Monat.
 
-    Zeitraum und Stadtteilliste werden dem Regressionsdatensatz ENTNOMMEN,
-    nicht neu bestimmt. Damit beziehen sich beide Teile der Arbeit zwingend auf
-    denselben Datenbestand.
+    Zielgroesse ist die ZUSAMMENSETZUNG der Einsatzlast, nicht die Art des
+    einzelnen Einsatzes (Decision Log #29). Innerhalb eines Stadtteil-Monats
+    tragen alle Einsaetze identische Strukturmerkmale; auf Einzeleinsatz-Ebene
+    war deshalb nichts zu holen - ein perfektes Modell haette 49,9 % Treffer
+    erreicht gegenueber 48,2 % fuer blosses Raten. Auf dieser Ebene ist die
+    Frage beantwortbar.
+
+    Zeilen, Zeitraum, Stadtteile, Merkmale und Folds werden dem
+    Regressionsdatensatz ENTNOMMEN. Beide Teile der Arbeit beruhen damit
+    zwingend auf demselben Datenbestand und derselben Aufteilung.
     """
     von, bis = int(regression["jahr_monat"].min()), int(regression["jahr_monat"].max())
-    stadtteile = sorted(regression["stadtteil"].unique())
+    stadtteile = set(regression["stadtteil"])
 
     df = pd.read_parquet(PFAD_EINSAETZE)
     df["jahr_monat"] = df["jahr"] * 100 + df["monat"]
     df = df[df["jahr_monat"].between(von, bis) & df["stadtteil"].isin(stadtteile)]
     df = df.drop_duplicates(subset=["einsatz_nummer"], keep="first").copy()
 
-    # Zielgroessen: NFIRS-Codes sind hierarchisch, die fuehrende Ziffer
-    # bezeichnet die Serie.
+    # NFIRS-Codes sind hierarchisch, die fuehrende Ziffer bezeichnet die Serie.
     serie = df["einsatzart"].astype(str).str.extract(r"^(\d)")[0]
-    df["einsatzart_gruppe"] = serie.map(NFIRS_GRUPPEN).fillna(RESTKLASSE)
-    df["ist_brand"] = (serie == "1").astype(int)
+    df["gruppe"] = serie.map(NFIRS_GRUPPEN).fillna(RESTKLASSE)
 
-    # Block A: Stadtteilstruktur - dieselben Transformationen wie in der
-    # Regression, hier auf Einsatz-Ebene.
-    df["log_bevoelkerung"] = np.log1p(df[EXPOSURE_ROH].astype(float))
-    index_roh = df[CRIME_ROH].astype(float)
-    df["log_kriminalitaetsindex"] = np.log(index_roh.where(index_roh > 0))
+    zaehlung = (df.groupby(["stadtteil", "jahr_monat", "gruppe"]).size()
+                  .unstack(fill_value=0).reindex(columns=KLASSEN, fill_value=0)
+                  .rename(columns={k: f"anzahl_{SUFFIX[k]}" for k in KLASSEN})
+                  .reset_index())
 
-    # Block B: Zeitpunkt des Alarms, zyklisch kodiert - der Zusammenhang ist
-    # periodisch und nicht monoton: Der Brandanteil schwankt ueber den Tag
-    # zwischen 8,5 % und 20,5 %, die lineare Korrelation mit `stunde` betraegt
-    # aber nur -0,006.
-    df["stunde_sin"] = np.sin(2 * np.pi * df["stunde"] / 24)
-    df["stunde_cos"] = np.cos(2 * np.pi * df["stunde"] / 24)
-    df["monat_sin"]  = np.sin(2 * np.pi * df["monat"] / 12)
-    df["monat_cos"]  = np.cos(2 * np.pi * df["monat"] / 12)
+    # gesamtbevoelkerung bleibt: die Fold-Zuteilung stratifiziert danach.
+    d = regression.drop(columns=[RATE, CRIME_ROH] + LAGS).merge(
+        zaehlung, on=["stadtteil", "jahr_monat"], how="left")
+    d[ANZAHLEN] = d[ANZAHLEN].fillna(0).astype("int64")
 
-    merkmale = (MERKMALE_STRUKTUR + MERKMALE_ZEIT + MERKMALE_KATEGORIAL
-                + (MERKMALE_ORT if mit_ort else []))
-    d = ergaenze_aufteilung(df.dropna(subset=MERKMALE_STRUKTUR).reset_index(drop=True))
-    # Reihenfolge wie im Regressionsdatensatz; die Einsatznummer macht die
-    # Sortierung innerhalb eines Monats eindeutig (Reproduzierbarkeitsvertrag).
-    d = (d.sort_values(["jahr_monat", "stadtteil", "einsatz_nummer"])
-           .reset_index(drop=True))
-    ergebnis = _setze_datentypen(
-        d[K_SCHLUESSEL + K_ZIELGROESSEN + merkmale + AUFTEILUNG], merkmale)
+    # Monate ganz ohne Einsatz haben keine Zusammensetzung - der Anteil waere
+    # 0/0. Sie fallen heraus und werden gemeldet, statt still zu NaN zu werden.
+    ohne = d[ZIELGROESSE] == 0
+    if ohne.any():
+        d = d[~ohne].reset_index(drop=True)
+
+    for k in KLASSEN:
+        d[f"anteil_{SUFFIX[k]}"] = d[f"anzahl_{SUFFIX[k]}"] / d[ZIELGROESSE]
+
+    # Zielgroesse der Klassifikation: die haeufigste Einsatzart des Monats.
+    # Eine echte Klasse, kein gesetzter Schwellwert - argmax ueber die vier
+    # NFIRS-Gruppen. Damit entfaellt die Begruendungslast, die eine kuenstliche
+    # Einteilung einer Zaehlgroesse mit sich braechte (Altman & Royston 2006).
+    d[ZIELKLASSE] = d[ANTEILE].idxmax(axis=1).str.replace("anteil_", "",
+                                                          regex=False)
 
     # Keine Ergebnisvariable darf im Datensatz landen - diese Spalten stehen
-    # erst nach dem Einsatz fest oder sind eine Folge der Einsatzart, ihre
-    # Verwendung waere Leakage im engeren Sinn (Decision Log #20).
-    verboten = [c for c in ERGEBNISVARIABLEN if c in ergebnis.columns]
+    # erst nach dem Einsatz fest (Decision Log #20).
+    verboten = [c for c in ERGEBNISVARIABLEN if c in d.columns]
     assert not verboten, f"Ergebnisvariablen im Datensatz: {verboten}"
 
+    spalten = (SCHLUESSEL + [ZIELGROESSE, ZIELKLASSE] + ANZAHLEN + ANTEILE
+               + MERKMALE_STRUKTUR + SAISON + [EXPOSURE_ROH])
+    ergebnis = _setze_datentypen(d[spalten], MERKMALE_STRUKTUR + SAISON)
+
     if verbose:
-        n_raus = len(df) - len(ergebnis)
-        print(f"  Klassifikationsdaten: {len(ergebnis):,} Einsaetze | "
+        if ohne.any():
+            print(f"  {int(ohne.sum())} Stadtteil-Monat(e) ohne Einsatz entfernt "
+                  f"(keine Zusammensetzung definierbar)")
+        print(f"  Strukturdaten: {len(ergebnis):,} Stadtteil-Monate | "
               f"{ergebnis['stadtteil'].nunique()} Stadtteile | {von}-{bis}")
-        if n_raus:
-            print(f"  {n_raus:,} Zeilen ohne vollstaendige Strukturmerkmale entfernt")
-        v = ergebnis["einsatzart_gruppe"].value_counts()
-        print("  Klassen:", " | ".join(
-            f"{k} {int(v.get(k, 0)) / len(ergebnis) * 100:.1f} %" for k in KLASSEN))
-        print(f"  Ungleichgewicht groesste/kleinste: {v.max() / v.min():.1f}:1 | "
-              f"ist_brand {ergebnis['ist_brand'].mean() * 100:.1f} %")
+        print("  Anteile im Mittel:", " | ".join(
+            f"{k} {ergebnis[f'anteil_{SUFFIX[k]}'].mean() * 100:.1f} %"
+            for k in KLASSEN))
+        spanne = ergebnis.groupby("stadtteil")["anteil_brand"].mean()
+        print(f"  Brandanteil je Stadtteil: {spanne.min() * 100:.1f} % bis "
+              f"{spanne.max() * 100:.1f} % (Faktor {spanne.max() / spanne.min():.1f})")
     return ergebnis
 
 
@@ -417,6 +427,17 @@ def baue_klassifikation(regression: pd.DataFrame, mit_ort: bool = MIT_BATAILLON,
 # ==========================================================================
 def run(verbose: bool = True) -> tuple[pd.DataFrame, pd.DataFrame]:
     r = baue_regression(verbose=verbose)
+    print()
+    k = baue_klassifikation(r, verbose=verbose)
+
+    # Fold-Zuteilung EINMAL fuer beide Datensaetze, stratifiziert nach der
+    # seltensten Klasse und der Bevoelkerung. Sie muss identisch sein, sonst
+    # waeren die Ergebnisse der beiden Straenge nicht vergleichbar.
+    selten = (k[k[ZIELKLASSE] == "brand"].groupby("stadtteil").size()
+                .reindex(sorted(r["stadtteil"].unique()), fill_value=0))
+    r = ergaenze_aufteilung(r, selten=selten)
+    k = ergaenze_aufteilung(k, selten=selten)
+
     r.to_parquet(PFAD_REGRESSION, index=False)
     if verbose:
         print(f"\n  => {PFAD_REGRESSION.relative_to(ROOT)}  "
@@ -424,35 +445,33 @@ def run(verbose: bool = True) -> tuple[pd.DataFrame, pd.DataFrame]:
         print(f"  Zeitraum {r['jahr_monat'].min()}-{r['jahr_monat'].max()} | "
               f"{r['stadtteil'].nunique()} Stadtteile | "
               f"{r.groupby(['jahr', 'monat']).ngroups} Monate | "
-              f"Merkmale S={len(FEATURE_SETS['S'])}, S+L={len(FEATURE_SETS['S+L'])}")
-        for j in sorted(x for x in r["fold"].unique() if x > 0):
-            te = r[r["fold"] == j]
-            print(f"    Fold {j}: Test {te['jahr_monat'].min()}-"
-                  f"{te['jahr_monat'].max()} ({len(te):,} Zeilen)")
-        ho = r[r["ist_holdout"] == 1]
-        print(f"    Hold-out: {ho['jahr_monat'].min()}-{ho['jahr_monat'].max()} "
-              f"({len(ho):,} Zeilen)")
+              f"{len(FEATURE_SETS['S'])} Merkmale")
+        for j in range(1, N_FOLDS + 1):
+            n_brand = int((k.loc[k["fold"] == j, ZIELKLASSE] == "brand").sum())
+            print(f"    Fold {j}: {r.loc[r['fold'] == j, 'stadtteil'].nunique()} "
+                  f"Stadtteile, davon {n_brand} brand-dominierte Monate im Test")
+        ho = r["ist_holdout"] == 1
+        print(f"    Hold-out: {r.loc[ho, 'stadtteil'].nunique()} Stadtteile "
+              f"({ho.sum():,} Zeilen, beim Tuning unberuehrt)")
 
-    print()
-    k = baue_klassifikation(r, verbose=verbose)
     k.to_parquet(PFAD_KLASSIFIKATION, index=False)
     if verbose:
         print(f"\n  => {PFAD_KLASSIFIKATION.relative_to(ROOT)}  "
               f"({len(k):,} Zeilen | {len(k.columns)} Spalten)")
-        print("  Merkmalssaetze: "
-              + ", ".join(f"{a} ({len(b)})" for a, b in merkmalslisten().items()))
+        v = k[ZIELKLASSE].value_counts(normalize=True)
+        print(f"  Zielgroesse Klassifikation ({ZIELKLASSE}): "
+              + " | ".join(f"{a} {n * 100:.1f} %" for a, n in v.items()))
     return r, k
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "splits":
         d = pd.read_parquet(PFAD_REGRESSION)
-        print(beschreibe_splits(zeitachse(d)))
-        print("\n  Aufteilung wie im Datensatz gespeichert:")
-        for k in sorted(x for x in d["fold"].unique() if x > 0):
+        print(beschreibe_splits(d))
+        print("\n  Zeilen je Fold:")
+        for k in range(1, N_FOLDS + 1):
             tr, te = fold_masken(d, k)
-            print(f"    Fold {k}: Train {tr.sum():>5,} Zeilen | "
-                  f"Test {te.sum():>5,} Zeilen")
+            print(f"    Fold {k}: Train {tr.sum():>5,} | Test {te.sum():>5,}")
         print(f"    Hold-out: {int(d['ist_holdout'].sum()):,} Zeilen")
     else:
         run()
