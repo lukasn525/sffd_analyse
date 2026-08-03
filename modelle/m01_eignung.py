@@ -1,28 +1,27 @@
 """
-Eignungspruefung und Vergleichsgroessen - der erste Schritt der Modellierung.
+Schritt 1 der Modellierung: Passen die Verfahren ueberhaupt zu diesem Datensatz?
 
-Dieses Skript gehoert NICHT zur Aufbereitung: Es erzeugt keine Daten, sondern
-liest die beiden fertigen Datensaetze. Es prueft die VORAUSSETZUNGEN von Ridge
-Regression, Random Forest und XGBoost, faellt ein Urteil je Verfahren
-(Abschnitt 9) und rechnet die drei Vergleichsgroessen, an denen sich jedes
-spaetere Modell messen lassen muss (Abschnitt 11). Damit ist vor der
-Modellierung belegt, dass die Verfahrenswahl zum Datensatz passt - und nicht
-umgekehrt der Datensatz nachtraeglich zur Verfahrenswahl erklaert wird.
+Dieses Skript erzeugt KEINE Daten. Es liest die beiden fertigen Datensaetze und
+prueft die Voraussetzungen von Ridge, Random Forest und XGBoost, bevor
+verglichen wird. Damit ist die Verfahrenswahl belegt statt behauptet - und nicht
+umgekehrt der Datensatz nachtraeglich zur Verfahrenswahl passend erklaert.
 
-Bezug: Kapitel 5.1 (Data Understanding) / 5.2 (Data Preparation). Vorgabe
-Schroeter: "erst plotten, falls keine lineare Baseline vorliegt, kein lineares
-Regressionsmodell verwenden" -> Linearitaetspruefung in Abschnitt 5.
+  ABSCHNITT 1  Zielgroessen: Verteilung und Overdispersion
+  ABSCHNITT 2  Linearitaet und Residuen          <- Auflage Schroeter (R7)
+  ABSCHNITT 3  Formaler Spezifikationstest       <- RESET, Interaktionen
+  ABSCHNITT 4  Multikollinearitaet (VIF)
+  ABSCHNITT 5  Extrapolation je Fold
+  ABSCHNITT 6  Klassenbalance der Einsatzart
+  ABSCHNITT 7  Urteil je Verfahren
 
-METHODISCHE REGEL: Alle Diagnosen, die eine Modellentscheidung begruenden -
-Linearitaet, Multikollinearitaet, Transformationswahl - werden AUSSCHLIESSLICH
-auf dem Trainingsfenster des ersten CV-Folds gerechnet. Diese Monate sind in
-keinem Fold Testdaten und liegen vollstaendig vor dem End-Hold-out. Rein
-deskriptive Kennzahlen duerfen den vollen Zeitraum nutzen und sind
-entsprechend gekennzeichnet.
+METHODISCHE REGEL: Jede Diagnose, die eine MODELLENTSCHEIDUNG begruendet, wird
+ausschliesslich auf den TRAININGSSTADTTEILEN DES ERSTEN FOLDS gerechnet. Diese
+Stadtteile sind in Fold 1 nie Testfall und liegen nie im Hold-out. Rein
+deskriptive Kennzahlen duerfen den vollen Datensatz nutzen und sind als
+"(deskriptiv)" gekennzeichnet.
 
-Eingang:  data/processed/{regression,klassifikation,einsaetze}.parquet
-Ausgang:  results/eignungspruefung/  (Bericht + 5 Plots)
-          results/regression/baselines_*.csv
+Eingang:  data/processed/{regression,klassifikation}.parquet
+Ausgang:  results/eignungspruefung/eignungspruefung.md  + 4 Abbildungen
 
 Ausfuehren:
   python modelle/m01_eignung.py
@@ -39,666 +38,406 @@ import pandas as pd               # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "prep"))
 
-from config import (CRIME_ROH, ENDE, EXPOSURE_ROH, FEATURE_SETS,  # noqa: E402
-                    KLASSEN, MERKMALE_KATEGORIAL, MERKMALE_STRUKTUR,
-                    MERKMALE_ZEIT, PARKGEBIETE, PFAD_EINSAETZE,
-                    PFAD_KLASSIFIKATION, PFAD_REGRESSION, PRAEDIKTOREN,
-                    RESULTS_DIR, ROOT, START)
-from s2_datensaetze import fold_masken  # noqa: E402
-from s3_baselines import rechne_baselines  # noqa: E402
+from config import (N_FOLDS, PFAD_KLASSIFIKATION, PFAD_REGRESSION,  # noqa: E402
+                    PRAEDIKTOREN, RESULTS_DIR, ROOT, SAISON)
+from s2_datensaetze import (RATE, ZIELGROESSE, ZIELKLASSE,  # noqa: E402
+                            fold_masken)
 
 OUT = RESULTS_DIR / "eignungspruefung"
+MERKMALE = PRAEDIKTOREN + SAISON
 
 bericht: list[str] = []
-# Maschinell geprueft, fuer das Urteil in Abschnitt 9:
-# (Verfahren, Kriterium, Messwert, Schwelle, Urteil)
+# (Verfahren, Kriterium, Messwert, Schwelle, Urteil) - Grundlage fuer Abschnitt 7
 urteile: list[tuple[str, str, str, str, str]] = []
-
-OK, ACHTUNG, KRITISCH = "erfuellt", "mit Auflage", "nicht erfuellt"
 
 
 def log(txt: str = "") -> None:
+    """Eine Zeile gleichzeitig auf die Konsole und in den Bericht schreiben."""
     print(txt)
     bericht.append(txt)
 
 
 def pruefe(verfahren: str, kriterium: str, wert: str, schwelle: str,
-           bestanden: bool, auflage: bool = False) -> None:
+           bestanden: bool) -> None:
+    """Ein Einzelurteil festhalten, das spaeter in die Tabelle wandert."""
     urteile.append((verfahren, kriterium, wert, schwelle,
-                    ACHTUNG if auflage else (OK if bestanden else KRITISCH)))
+                    "erfuellt" if bestanden else "VERLETZT"))
 
 
 def speichere(fig, name: str) -> None:
+    OUT.mkdir(parents=True, exist_ok=True)
     fig.tight_layout()
-    fig.savefig(OUT / name, dpi=150)
+    fig.savefig(OUT / name, dpi=140)
     plt.close(fig)
+    log(f"    -> {name}")
 
 
 # ---------------------------------------------------------------------------
-# 1. Datengrundlage und Analyseeinheiten
+# ABSCHNITT 1  Zielgroessen
 # ---------------------------------------------------------------------------
-def pruefe_datengrundlage(roh: pd.DataFrame, n_spalten: int, panel: pd.DataFrame,
-                          kl: pd.DataFrame, train: pd.DataFrame) -> None:
-    log("## 1. Datengrundlage und Analyseeinheiten\n")
-    log(f"- Einsatz-Ebene (Rohbestand): {len(roh):,} Zeilen, "
-        f"{n_spalten} Spalten, {int(roh['jahr'].min())}-{int(roh['jahr'].max())}")
-    dup = roh.duplicated(subset=["einsatz_nummer"]).sum()
-    log(f"- Duplikate nach `einsatz_nummer`: {dup:,} "
-        + ("(Dedup erfolgt in prep/s1_daten.py)" if dup == 0
-           else "-> ACHTUNG: Dedup greift nicht!"))
-    log(f"- **Analysepanel:** Stadtteil x Monat, {START}-{ENDE}, "
-        f"{len(panel):,} Beobachtungen, {panel['stadtteil'].nunique()} Stadtteile, "
-        f"{panel.groupby(['jahr', 'monat']).ngroups} Monate (rechteckig, "
-        f"{int(panel[PRAEDIKTOREN].isna().sum().sum())} NaN)")
-    log(f"- Ausgeschlossene Analyseeinheiten: Treasure Island, Lakeshore, "
-        f"Mission Bay (keine durchgaengige ACS-Abdeckung) sowie "
-        f"{', '.join(PARKGEBIETE)} (Park-/Institutionsgebiete ohne "
-        f"nennenswerte Wohnbevoelkerung, Decision Log #19)")
-    log(f"- **Trainingsfenster fuer alle Modellentscheidungen:** "
-        f"{train['jahr_monat'].min()}-{train['jahr_monat'].max()} "
-        f"({train.groupby(['jahr', 'monat']).ngroups} Monate, "
-        f"{len(train):,} Beobachtungen)")
+def zielgroessen(panel: pd.DataFrame, train: pd.DataFrame) -> None:
+    """Verteilung beider Mengen-Zielgroessen und der Dispersionsindex."""
+    log("\n## 1  Zielgroessen\n")
 
-    log("\n| Praediktor | Min | Median | Max | NaN% |")
-    log("|---|---|---|---|---|")
-    for col in PRAEDIKTOREN:
-        s = pd.to_numeric(panel[col], errors="coerce")
-        log(f"| {col} | {s.min():.3f} | {s.median():.3f} | {s.max():.3f} | "
-            f"{s.isna().mean() * 100:.1f}% |")
+    y = train[ZIELGROESSE].astype(float)
+    dispersion = y.var() / y.mean()
 
-    log("\n**Zeitvarianz der Merkmale** (Anteil der Stadtteile mit mehr als einem "
-        "Wert ueber den Analysezeitraum). Merkmale ohne Zeitvarianz erklaeren "
-        "Niveauunterschiede zwischen Stadtteilen, nicht deren zeitliche "
-        "Entwicklung - das ist bei der Interpretation zu beachten.\n")
-    log("| Merkmal | Stadtteile mit Zeitvarianz | versch. Werte (Mittel) |")
-    log("|---|---|---|")
-    for col in PRAEDIKTOREN:
-        n = panel.groupby("stadtteil")[col].nunique()
-        log(f"| {col} | {(n > 1).mean() * 100:.0f}% | {n.mean():.0f} |")
+    log(f"`{ZIELGROESSE}` auf den Trainingsstadtteilen von Fold 1:")
+    log(f"  Mittel {y.mean():.1f} | Median {y.median():.0f} | Max {y.max():.0f}")
+    log(f"  Schiefe {y.skew():.2f} | Nullanteil {(y == 0).mean() * 100:.2f} %")
+    log(f"  **Dispersionsindex Var/Mean = {dispersion:.1f}**")
+    log("")
+    log("Bei einer Poisson-Verteilung waere Var/Mean = 1. Der Wert liegt weit")
+    log("darueber - die Zaehldaten sind ueberdispers, Poisson scheidet als")
+    log("Verteilungsannahme aus, und die Negative Binomial ist die richtige")
+    log("Count-Baseline (Decision Log #32).")
+    pruefe("Negative Binomial", "Overdispersion vorhanden",
+           f"Var/Mean = {dispersion:.1f}", "> 1", dispersion > 1)
 
-    # Stichprobengroesse je Merkmal - Voraussetzung fuer beide Baumverfahren.
-    p = len(FEATURE_SETS["S+L"])
-    pruefe("Random Forest / XGBoost", "Beobachtungen je Merkmal",
-           f"{len(train):,} / {p} = {len(train) / p:.0f}", ">= 10",
-           len(train) / p >= 10)
+    log("")
+    log(f"`{RATE}` (deskriptiv, voller Datensatz):")
+    log(f"  Mittel {panel[RATE].mean():.2f} | Median {panel[RATE].median():.2f} "
+        f"| Max {panel[RATE].max():.2f}")
+    st = panel.groupby("stadtteil")[RATE].mean()
+    log(f"  Stadtteil-Mittelwerte: {st.min():.2f} ({st.idxmin()}) bis "
+        f"{st.max():.2f} ({st.idxmax()}) - Faktor {st.max() / st.min():.0f}")
+    log("")
+    log("Diese Spreizung ist der Grund, warum R2 auf der Rate kein tragfaehiges")
+    log("Hauptmass ist: R2 misst gegen den Mittelwert der TESTdaten, und der")
+    log("liegt je nach Fold-Zusammensetzung weit vom Trainingsmittelwert weg.")
+    log("Bei der Rate ist RMSE zu berichten, R2 nur nachrichtlich.")
 
-    # Designmatrix: Geprueft wird, was sonst erst im Modellskript auffaellt -
-    # fehlende, unendliche und konstante Werte sowie pandas-eigene (nullable)
-    # Datentypen. Eine einzige Int64-Spalte macht aus X.to_numpy() ein
-    # object-Array; scikit-learn faengt das still ab, XGBoost lehnt es ab.
-    log("\n**Modelltauglichkeit der Designmatrix**\n")
-    log("| Datensatz | Merkmale | dtypes | X.to_numpy() | NaN | inf | konstant |")
-    log("|---|---|---|---|---|---|---|")
-    alles_ok = True
-    for name, d, feats in [
-        ("Regression (S+L)", panel, FEATURE_SETS["S+L"]),
-        ("Klassifikation (A+B)", kl,
-         MERKMALE_STRUKTUR + MERKMALE_ZEIT + MERKMALE_KATEGORIAL),
-    ]:
-        X = d[feats]
-        matrix = X.to_numpy()
-        n_nan = int(X.isna().sum().sum())
-        n_inf = int(np.isinf(X.astype("float64").to_numpy()).sum())
-        konst = [c for c in feats if X[c].nunique() <= 1]
-        alles_ok &= (matrix.dtype != object and n_nan == 0 and n_inf == 0
-                     and not konst)
-        log(f"| {name} | {len(feats)} | {', '.join(sorted(set(map(str, X.dtypes))))} "
-            f"| {matrix.dtype} | {n_nan} | {n_inf} | {len(konst)} |")
-    pruefe("alle Verfahren", "Designmatrix direkt uebergebbar",
-           "float64, keine NaN/inf/Konstanten" if alles_ok else "Maengel s. Tabelle",
-           "keine nullable dtypes, kein object-Array", alles_ok)
+    fig, ax = plt.subplots(2, 2, figsize=(11, 7))
+    for j, (spalte, titel) in enumerate([(ZIELGROESSE, "Anzahl Einsaetze"),
+                                         (RATE, "Einsaetze je 1.000 Ew.")]):
+        ax[j, 0].hist(train[spalte], bins=50, color="steelblue")
+        ax[j, 0].set_title(f"{titel} - Rohskala")
+        ax[j, 1].hist(np.log1p(train[spalte]), bins=50, color="darkseagreen")
+        ax[j, 1].set_title(f"{titel} - log(1+y)")
+    speichere(fig, "01_zielgroessen.png")
 
 
 # ---------------------------------------------------------------------------
-# 2. Zielgroesse Regression
+# ABSCHNITT 2  Linearitaet - die harte Auflage (R7)
 # ---------------------------------------------------------------------------
-def pruefe_zielgroesse_regression(panel: pd.DataFrame) -> None:
-    log("\n## 2. Zielgroesse Einsatzhaeufigkeit (deskriptiv, voller Zeitraum)\n")
-    y = panel["anzahl_einsaetze"]
-    log(f"- Beobachtungen: {len(panel):,} | Mittelwert {y.mean():.1f} | "
-        f"Median {y.median():.0f} | Varianz {y.var():.1f} | "
-        f"Min {y.min()} | Max {y.max()}")
-    disp = y.var() / y.mean()
-    log(f"- **Dispersionsindex (Var/Mean): {disp:.1f}** -> "
-        + ("starke Overdispersion. Die Poisson-Annahme Var = Mean ist deutlich "
-           "verletzt; als interpretierbare Count-Baseline ist die "
-           "Negative-Binomial-Regression zu verwenden, nicht Poisson."
-           if disp > 1.5 else "keine wesentliche Overdispersion, Poisson zulaessig."))
-    null = (y == 0).mean() * 100
-    log(f"- Anteil Nullmonate: {null:.2f}% -> "
-        + ("keine Zero-Inflation, ein Zero-Inflated-Modell ist nicht erforderlich."
-           if null < 5 else "Zero-Inflation pruefen."))
-    log(f"- Schiefe roh {y.skew():.2f}, nach log(1+y) {np.log1p(y).skew():.2f} "
-        "-> die Log-Transformation macht die Zielgroesse annaehernd symmetrisch.")
+def linearitaet(train: pd.DataFrame) -> None:
+    """Streudiagramme und Residuen, ausschliesslich auf Trainingsstadtteilen.
 
-    pruefe("NegBin-Baseline", "Overdispersion (Var/Mean)", f"{disp:.1f}",
-           "> 1,5 -> NegBin statt Poisson", disp > 1.5)
-    pruefe("NegBin-Baseline", "Zero-Inflation (Anteil Nullmonate)",
-           f"{null:.2f} %", "< 5 % -> kein ZIP-Modell", null < 5)
+    Schroeter woertlich: "erstmal plotten, falls keine lineare Baseline, KEIN
+    lineares Regressionsmodell." Geprueft wird zweierlei - ob die Zusammenhaenge
+    der EINZELNEN Merkmale linear sind (Pearson gegen Spearman), und ob die
+    Residuen der Gesamtregression strukturlos sind.
+    """
+    from sklearn.linear_model import Ridge
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
 
-    fig, ax = plt.subplots(1, 2, figsize=(11, 4))
-    ax[0].hist(y, bins=60, color="#4878A8")
-    ax[0].set(title=f"Einsaetze je Stadtteil-Monat (Schiefe {y.skew():.2f})",
-              xlabel="Einsaetze", ylabel="Haeufigkeit")
-    ax[1].hist(np.log1p(y), bins=60, color="#A85048")
-    ax[1].set(title=f"log(1+y) (Schiefe {np.log1p(y).skew():.2f})",
-              xlabel="log(1+Einsaetze)")
-    speichere(fig, "01_zielgroesse_verteilung.png")
+    log("\n## 2  Linearitaet und Residuen (Auflage Schroeter, R7)\n")
+    log("Gerechnet auf den Trainingsstadtteilen von Fold 1.\n")
 
-
-# ---------------------------------------------------------------------------
-# 3. Kriminalitaetsindex
-# ---------------------------------------------------------------------------
-def pruefe_kriminalitaetsindex(panel: pd.DataFrame) -> None:
-    log("\n## 3. Kriminalitaetsindex: Zeitvarianz und Strukturbruch 2018\n")
-    idx = panel[CRIME_ROH]
-    log(f"- Roher Index: Median {idx.median():.2f}, Spanne "
-        f"{idx.min():.2f}-{idx.max():.2f}, Schiefe {idx.skew():.2f}")
-    log(f"- Logarithmiert (Modellmerkmal): Median "
-        f"{panel['log_kriminalitaetsindex'].median():.2f}, Schiefe "
-        f"{panel['log_kriminalitaetsindex'].skew():.2f} -> annaehernd symmetrisch")
-    n = panel.groupby("stadtteil")[CRIME_ROH].nunique()
-    log(f"- Zeitvarianz: im Mittel {n.mean():.0f} verschiedene Werte je Stadtteil "
-        f"(vor der Umstellung: 1 Wert, 0 % Zeitvarianz)")
-
-    # Der Index soll gegen den SFPD-Systemwechsel 05/2018 robust sein, weil sich
-    # ein stadtweiter Niveausprung im Quotienten kuerzt. Pruefung: Wie stark
-    # veraendert sich der Index je Stadtteil zwischen 2017 (nur Altsystem) und
-    # 2019 (nur Neusystem)?
-    vor  = panel[panel["jahr"] == 2017].groupby("stadtteil")[CRIME_ROH].median()
-    nach = panel[panel["jahr"] == 2019].groupby("stadtteil")[CRIME_ROH].median()
-    verh = (nach / vor).dropna()
-    rang = vor.corr(nach, method="spearman")
-    log("\n**Strukturbruch-Test (2017 vs. 2019, je Stadtteil-Median):**")
-    log(f"- Verhaeltnis nach/vor: Median {verh.median():.2f}, "
-        f"Spanne {verh.min():.2f}-{verh.max():.2f}, "
-        f"Rangkorrelation der Stadtteile {rang:.3f}")
-    stark = verh[(verh < 0.5) | (verh > 2.0)]
-    if len(stark):
-        log(f"- Stadtteile mit Faktor <0,5 oder >2,0: {len(stark)} "
-            f"({', '.join(f'{k} {v:.2f}' for k, v in stark.items())})")
-    else:
-        log("- Kein Stadtteil veraendert sich um mehr als Faktor 2 -> der "
-            "relative Index ist gegen den Systemwechsel robust.")
-    log("- Lesart: Eine hohe Rangkorrelation bedeutet, dass die relative Ordnung "
-        "der Stadtteile ueber den Systemwechsel hinweg stabil bleibt. Ein "
-        "multiplikativer stadtweiter Niveausprung kuerzt sich im Quotienten "
-        "heraus; **nicht** kuerzen wuerde sich eine Verschiebung, die einzelne "
-        "Stadtteile unterschiedlich stark trifft (Limitation Kap. 6.3).")
-
-    pruefe("alle Verfahren", "Kriminalitaetsindex stabil ueber Systemwechsel",
-           f"Rangkorrelation {rang:.3f}", ">= 0,90", rang >= 0.90)
-
-    fig, ax = plt.subplots(1, 2, figsize=(13, 4.5))
-    zeit = panel.assign(t=panel["jahr"] + (panel["monat"] - 1) / 12)
-    for st in ["Tenderloin", "South Of Market", "Mission", "Sunset/Parkside",
-               "Bayview Hunters Point"]:
-        s = zeit[zeit["stadtteil"] == st].sort_values("t")
-        if len(s):
-            ax[0].plot(s["t"], s[CRIME_ROH], lw=1.2, label=st)
-    ax[0].axvline(2018.33, color="red", ls="--", lw=1, label="SFPD-Systemwechsel")
-    ax[0].axhline(1.0, color="grey", lw=0.8)
-    ax[0].set(title="Kriminalitaetsindex im Zeitverlauf", xlabel="Jahr",
-              ylabel="Index (1,0 = Stadtdurchschnitt)")
-    ax[0].legend(fontsize=7)
-    ax[1].scatter(vor, nach, s=18)
-    lim = [0, max(vor.max(), nach.max()) * 1.05]
-    ax[1].plot(lim, lim, color="red", lw=1)
-    ax[1].set(title=f"Index 2017 vs. 2019 (Spearman {rang:.3f})",
-              xlabel="Median 2017 (Altsystem)", ylabel="Median 2019 (Neusystem)")
-    speichere(fig, "05_kriminalitaetsindex.png")
-
-
-# ---------------------------------------------------------------------------
-# 4. Exposure
-# ---------------------------------------------------------------------------
-def pruefe_exposure(train: pd.DataFrame) -> None:
-    log("\n## 4. Exposure-Kontrolle (nur Trainingsfenster)\n")
-    y    = train["anzahl_einsaetze"].astype(float)
-    rate = y / train[EXPOSURE_ROH].astype(float) * 1000
-    log("Warum die Exposure-Entscheidung inhaltlich zaehlt: Ohne Kontrolle der "
-        "Stadtteilgroesse sagt ein Modell im Kern die Einwohnerzahl vorher. Die "
-        "Tabelle zeigt, wie sich die Korrelationen aendern, wenn statt der "
-        "absoluten Einsatzzahl die Rate je 1.000 Einwohner betrachtet wird.\n")
-    log("| Merkmal | r mit Einsatzzahl | r mit Einsaetzen je 1.000 Ew. |")
-    log("|---|---|---|")
-    for col in PRAEDIKTOREN:
-        log(f"| {col} | {train[col].corr(y):+.3f} | {train[col].corr(rate):+.3f} |")
-    log("\n- Konsequenz (Decision Log #13): `log_bevoelkerung` geht als Merkmal in "
-        "alle Modelle ein und dient bei der NegBin-Baseline als Offset. Die "
-        "Zielgroesse bleibt eine Zaehlgroesse, damit die "
-        "Overdispersion-Argumentation gueltig bleibt. Eine Sensitivitaetsanalyse "
-        "mit der Rate als Zielgroesse ist als Robustheitscheck vorgesehen.")
-
-
-# ---------------------------------------------------------------------------
-# 5. Linearitaet (Schroeter-Pruefpunkt) - nur Trainingsfenster
-# ---------------------------------------------------------------------------
-def pruefe_linearitaet(train: pd.DataFrame) -> None:
-    import statsmodels.api as sm
-    from statsmodels.stats.diagnostic import het_breuschpagan
-
-    log("\n## 5. Linearitaetspruefung fuer Ridge Regression (Vorgabe Schroeter)\n")
-    log("Berechnet ausschliesslich auf dem Trainingsfenster des ersten Folds.\n")
-    y = train["anzahl_einsaetze"].astype(float)
-
-    fig, axes = plt.subplots(3, 4, figsize=(16, 10))
-    korr = {}
-    for ax, col in zip(axes.flat, PRAEDIKTOREN):
-        ax.scatter(train[col], y, s=3, alpha=0.15)
-        korr[col] = float(np.corrcoef(train[col], y)[0, 1])
-        ax.set_title(f"{col}\nr={korr[col]:.2f}", fontsize=8)
-    for ax in axes.flat[len(PRAEDIKTOREN):]:
-        ax.axis("off")
-    fig.suptitle("Praediktoren vs. Einsaetze je Stadtteil-Monat (Trainingsfenster)")
-    speichere(fig, "03_linearitaet_streudiagramme.png")
-
-    X = sm.add_constant(train[PRAEDIKTOREN].astype(float))
-    fig, ax = plt.subplots(1, 2, figsize=(11, 4))
-    r2, negativ, bp = {}, {}, {}
-    for i, (name, ziel) in enumerate([("y roh", y), ("log(1+y)", np.log1p(y))]):
-        fit = sm.OLS(ziel, X).fit()
-        r2[name] = fit.rsquared
-        pred = fit.fittedvalues if name == "y roh" else np.expm1(fit.fittedvalues)
-        negativ[name] = float((pred < 0).mean() * 100)
-        # Breusch-Pagan: H0 = Homoskedastizitaet. Kleines p -> Trichterform.
-        bp[name] = float(het_breuschpagan(fit.resid, X)[1])
-        ax[i].scatter(fit.fittedvalues, fit.resid, s=3, alpha=0.15)
-        ax[i].axhline(0, color="red", lw=1)
-        ax[i].set(title=f"Residuen ({name}), R2={fit.rsquared:.3f}",
-                  xlabel="Vorhersage", ylabel="Residuum")
-    speichere(fig, "04_residuenanalyse.png")
-
-    staerkster = max(korr, key=lambda k: abs(korr[k]))
-    log(f"- OLS R2 (y roh):    {r2['y roh']:.3f} | negative Vorhersagen: "
-        f"{negativ['y roh']:.1f} % | Breusch-Pagan p = {bp['y roh']:.2e}")
-    log(f"- OLS R2 (log(1+y)): {r2['log(1+y)']:.3f} | negative Vorhersagen nach "
-        f"Ruecktransformation: {negativ['log(1+y)']:.1f} % | "
-        f"Breusch-Pagan p = {bp['log(1+y)']:.2e}")
-    log(f"- Staerkster Einzelpraediktor: `{staerkster}` (r = {korr[staerkster]:+.2f})")
-    log(f"\n**Befund:** Eine lineare Baseline liegt vor - die Strukturmerkmale "
-        f"erklaeren bereits linear einen erheblichen Teil der Varianz "
-        f"(R2 = {r2['y roh']:.2f} auf der Rohskala). Das Schroeter-Kriterium ist "
-        f"damit erfuellt und Ridge Regression als interpretierbares lineares "
-        f"Verfahren zulaessig. Einschraenkend zeigen die Residuen auf der "
-        f"Rohskala eine Trichterform (Heteroskedastizitaet, erwartbar bei "
-        f"Zaehldaten), und das Modell erzeugt in {negativ['y roh']:.1f} % der "
-        f"Faelle negative Vorhersagen. Beides spricht fuer die "
-        f"Log-Spezifikation: Ridge wird auf log(1+y) geschaetzt, die Guetemasse "
-        f"werden nach Ruecktransformation auf der Originalskala berechnet "
-        f"(Decision Log #2). Ergaenzend dient die Negative-Binomial-Regression "
-        f"als verteilungsgerechte Count-Baseline.")
-
-    pruefe("Ridge Regression", "Lineare Baseline vorhanden (OLS R2, Rohskala)",
-           f"{r2['y roh']:.2f}", ">= 0,50 (Schroeter-Kriterium)",
-           r2["y roh"] >= 0.50)
-    pruefe("Ridge Regression", "Keine negativen Vorhersagen auf Rohskala",
-           f"{negativ['y roh']:.1f} % roh / {negativ['log(1+y)']:.1f} % nach log",
-           "0 % -> sonst log-Spezifikation",
-           negativ["y roh"] == 0, auflage=negativ["y roh"] > 0)
-    pruefe("Ridge Regression", "Homoskedastizitaet (Breusch-Pagan)",
-           f"p = {bp['y roh']:.1e} roh / {bp['log(1+y)']:.1e} nach log",
-           "p > 0,05 -> sonst log-Spezifikation",
-           bp["y roh"] > 0.05, auflage=bp["y roh"] <= 0.05)
-
-    # Wo Spearman deutlich ueber Pearson liegt, ist der Zusammenhang monoton,
-    # aber nicht linear - genau dort haben Baumverfahren einen Vorteil.
-    log("\n**Hinweis auf Nichtlinearitaet** (Rangkorrelation deutlich staerker als "
-        "lineare Korrelation -> Vorteil fuer Baumverfahren):\n")
-    log("| Merkmal | Pearson r | Spearman rho | Differenz |")
+    log("| Merkmal | Pearson | Spearman | Abstand |")
     log("|---|---|---|---|")
-    n_nichtlinear = 0
-    for col in PRAEDIKTOREN:
-        pe = abs(train[col].corr(y))
-        sp = abs(train[col].corr(y, method="spearman"))
-        if sp - pe > 0.10:
-            n_nichtlinear += 1
-            log(f"| {col} | {pe:.2f} | {sp:.2f} | +{sp - pe:.2f} |")
-    if n_nichtlinear == 0:
-        log("| - | - | - | kein Merkmal mit Differenz > 0,10 |")
-    log(f"\n{n_nichtlinear} von {len(PRAEDIKTOREN)} Merkmalen zeigen einen "
-        f"deutlich staerkeren monotonen als linearen Zusammenhang. "
-        + ("Das begruendet, warum neben Ridge auch Random Forest und XGBoost "
-           "gepruft werden: Sie bilden solche Verlaeufe ohne manuelle "
-           "Transformation ab."
-           if n_nichtlinear else
-           "Die Zusammenhaenge sind ueberwiegend linear; der erwartete Vorsprung "
-           "der Baumverfahren duerfte entsprechend gering ausfallen - selbst ein "
-           "Befund fuer Kap. 6."))
-    pruefe("Random Forest / XGBoost", "Nichtlineare Zusammenhaenge vorhanden",
-           f"{n_nichtlinear} von {len(PRAEDIKTOREN)} Merkmalen", ">= 1",
-           n_nichtlinear >= 1, auflage=n_nichtlinear == 0)
+    max_abstand, schlimmstes = 0.0, ""
+    for m in PRAEDIKTOREN:
+        p = train[m].corr(train[ZIELGROESSE])
+        s = train[m].corr(train[ZIELGROESSE], method="spearman")
+        if abs(p - s) > max_abstand:
+            max_abstand, schlimmstes = abs(p - s), m
+        log(f"| `{m}` | {p:+.3f} | {s:+.3f} | {abs(p - s):.3f} |")
+
+    log("")
+    log(f"Groesster Abstand: {max_abstand:.3f} bei `{schlimmstes}`.")
+    log("Ein grosser Abstand zwischen Pearson und Spearman zeigt einen")
+    log("monotonen, aber gekruemmten Zusammenhang. Bleiben alle Abstaende klein,")
+    log("sind die EINZELNEN Effekte praktisch linear - eine etwaige")
+    log("Fehlspezifikation liegt dann nicht an der Kruemmung.")
+    pruefe("Ridge", "Einzeleffekte linear (Pearson vs Spearman)",
+           f"max {max_abstand:.3f}", "< 0,05", max_abstand < 0.05)
+
+    fig, achsen = plt.subplots(2, 5, figsize=(16, 6.5))
+    for ax, m in zip(achsen.ravel(), PRAEDIKTOREN):
+        ax.scatter(train[m], np.log1p(train[ZIELGROESSE]), s=4, alpha=0.25)
+        ax.set_xlabel(m, fontsize=8)
+        ax.set_ylabel("log(1+y)", fontsize=8)
+        ax.tick_params(labelsize=7)
+    fig.suptitle("Strukturmerkmale gegen log(1 + Anzahl Einsaetze), "
+                 "Trainingsstadtteile Fold 1")
+    speichere(fig, "02_linearitaet.png")
+
+    X = train[MERKMALE].astype(float)
+    guete = {}
+    fig, achsen = plt.subplots(1, 2, figsize=(12, 4.5))
+    for ax, (name, y) in zip(achsen, [
+            ("Rohskala", train[ZIELGROESSE].astype(float)),
+            ("log(1+y)", np.log1p(train[ZIELGROESSE].astype(float)))]):
+        modell = make_pipeline(StandardScaler(), Ridge(alpha=1.0)).fit(X, y)
+        residuen = y - modell.predict(X)
+        guete[name] = modell.score(X, y)
+        ax.scatter(modell.predict(X), residuen, s=4, alpha=0.25)
+        ax.axhline(0, color="black", lw=0.8)
+        ax.set_title(f"Residuen, Ridge auf {name}  "
+                     f"(R2 im Training {guete[name]:.3f})")
+        ax.set_xlabel("Vorhersage")
+        ax.set_ylabel("Residuum")
+    speichere(fig, "03_residuen.png")
+
+    log("")
+    log(f"Ridge im Training: Rohskala R2 {guete['Rohskala']:.3f}, "
+        f"log(1+y) R2 {guete['log(1+y)']:.3f}.")
+    log("Massgeblich ist das Residuenbild: Ein Trichter auf der Rohskala zeigt")
+    log("Heteroskedastizitaet - die Streuung waechst mit dem Niveau, was bei")
+    log("Zaehldaten zu erwarten ist. Die log-Spezifikation macht das Modell")
+    log("multiplikativ und begrenzt den Schaden. **Ridge wird deshalb auf")
+    log("log(1+y) geschaetzt**, Guetemasse nach expm1-Ruecktransformation.")
+    pruefe("Ridge", "log-Transformation verbessert die Anpassung",
+           f"R2 {guete['Rohskala']:.3f} -> {guete['log(1+y)']:.3f}",
+           "log besser", guete["log(1+y)"] > guete["Rohskala"])
 
 
 # ---------------------------------------------------------------------------
-# 6. Multikollinearitaet (VIF) - nur Trainingsfenster
+# ABSCHNITT 3  Formaler Spezifikationstest
 # ---------------------------------------------------------------------------
-def pruefe_vif(train: pd.DataFrame) -> None:
+def spezifikation(train: pd.DataFrame) -> None:
+    """RESET-Test nach Ramsey (1969) plus Interaktionsterme.
+
+    Der RESET-Test prueft die Nullhypothese, dass die lineare Spezifikation
+    adaequat ist. Wird sie verworfen, ist der Schritt zu flexibleren Verfahren
+    methodisch begruendet und nicht bloss behauptet. Die Interaktionsterme
+    zeigen anschliessend, WORAN es liegt - das ist der Unterschied zwischen
+    "es ist nichtlinear" und einer belastbaren Aussage.
+    """
+    import statsmodels.api as sm
+    from statsmodels.stats.diagnostic import linear_reset
+
+    log("\n## 3  Formaler Spezifikationstest\n")
+
+    y = np.log1p(train[ZIELGROESSE].astype(float))
+    X = sm.add_constant(train[MERKMALE].astype(float), has_constant="add")
+    ols = sm.OLS(y, X).fit()
+
+    log("| Test | F | p | Urteil |")
+    log("|---|---|---|---|")
+    verworfen = False
+    for potenz in (2, 3):
+        r = linear_reset(ols, power=potenz, test_type="fitted", use_f=True)
+        verworfen |= r.pvalue < 0.05
+        log(f"| RESET, Potenzen bis {potenz} | {r.fvalue:.2f} | {r.pvalue:.2e} | "
+            f"{'**H0 verworfen**' if r.pvalue < 0.05 else 'H0 nicht verworfen'} |")
+
+    log("")
+    log("H0: Die lineare Spezifikation ist adaequat.")
+    pruefe("Ridge", "lineare Spezifikation ausreichend (RESET)",
+           "H0 verworfen" if verworfen else "H0 gehalten", "p >= 0,05",
+           not verworfen)
+
+    inter = train[MERKMALE].astype(float).copy()
+    for i, a in enumerate(PRAEDIKTOREN):
+        for b in PRAEDIKTOREN[i + 1:]:
+            inter[f"{a}_x_{b}"] = train[a].astype(float) * train[b].astype(float)
+    ols_inter = sm.OLS(y, sm.add_constant(inter, has_constant="add")).fit()
+    zusatz = len(inter.columns) - len(MERKMALE)
+
+    log("")
+    log(f"Adjustiertes R2 ohne Interaktionen: {ols.rsquared_adj:.3f}")
+    log(f"Adjustiertes R2 mit  Interaktionen: {ols_inter.rsquared_adj:.3f} "
+        f"({zusatz} zusaetzliche Terme)")
+    log("")
+    log("Steigt das adjustierte R2 durch Interaktionen deutlich, waehrend die")
+    log("Einzeleffekte laut Abschnitt 2 linear sind, liegt die Fehlspezifikation")
+    log("an WECHSELWIRKUNGEN zwischen Merkmalen. Ein lineares Modell bildet die")
+    log(f"nur ab, wenn man sie von Hand angibt - hier waeren es {zusatz} Terme,")
+    log("deren Auswahl willkuerlich waere und die bei 29 Trainingsstadtteilen")
+    log("ueberanpassen. Genau diese Luecke schliessen Baumverfahren")
+    log("konstruktionsbedingt: Jeder Split bedingt auf die vorherigen.")
+    log("")
+    log("**Das ist die Begruendungskette fuer Random Forest und XGBoost.** Ob")
+    log("sich der theoretische Vorteil in Prognosegute uebersetzt, ist die")
+    log("empirische Frage der Arbeit und wird in m02/m03 beantwortet.")
+
+
+# ---------------------------------------------------------------------------
+# ABSCHNITT 4  Multikollinearitaet
+# ---------------------------------------------------------------------------
+def vif(train: pd.DataFrame) -> None:
+    """VIF auf den EINDEUTIGEN Stadtteil-Merkmalskombinationen.
+
+    Die Strukturmerkmale sind innerhalb eines Jahres konstant; ueber alle Zeilen
+    gerechnet zaehlt jede Kombination bis zu zwoelfmal, und der VIF waere
+    kuenstlich stabilisiert. Massgeblich sind die tatsaechlich verschiedenen
+    Merkmalsprofile.
+    """
     import statsmodels.api as sm
     from statsmodels.stats.outliers_influence import variance_inflation_factor
 
-    def vifs(X: pd.DataFrame) -> list[tuple[float, str]]:
-        Xs = sm.add_constant((X - X.mean()) / X.std())
-        return [(float(variance_inflation_factor(Xs.values, i)), c)
-                for i, c in enumerate(Xs.columns) if c != "const"]
+    log("\n## 4  Multikollinearitaet (VIF)\n")
 
-    log("\n## 6. Multikollinearitaet (VIF, nur Trainingsfenster)\n")
-    log("Berechnet auf den eindeutigen Stadtteil-Merkmalskombinationen des "
-        "Trainingsfensters. Wuerde man alle Panelzeilen verwenden, waeren die "
-        "Werte allein durch die Wiederholung derselben Kombination ueber die "
-        "Monate hinweg kuenstlich stabilisiert.\n")
-    d = train[PRAEDIKTOREN].astype(float).drop_duplicates()
-    log(f"- Grundlage: {len(d):,} eindeutige Merkmalskombinationen\n")
-    log("| Praediktor | VIF |")
-    log("|---|---|")
-    werte_s = vifs(d)
-    for vif, col in werte_s:
-        marker = " (>10: stark)" if vif > 10 else (" (>5: erhoeht)" if vif > 5 else "")
-        log(f"| {col} | {vif:.1f}{marker} |")
-    maxvif, maxcol = max(werte_s)
-    log(f"\n**Befund Set S:** Hoechster VIF {maxvif:.1f} (`{maxcol}`). Erhoehte "
-        "Werte bei Einkommen, Miete und Bildung sind sachlich erwartbar - es "
-        "handelt sich um verschiedene Messungen desselben soziooekonomischen "
-        "Gefaelles. Genau diese Konstellation ist der Anwendungsfall der "
-        "L2-Regularisierung (Hoerl & Kennard 1970): Ridge stabilisiert die "
-        "Schaetzung, ohne Merkmale zu entfernen. Fuer Random Forest und XGBoost "
-        "ist Multikollinearitaet unkritisch; fuer die Interpretation einzelner "
-        "SHAP-Werte muss sie jedoch beruecksichtigt werden, weil sich Beitraege "
-        "auf korrelierte Merkmale verteilen.")
-    pruefe("Ridge Regression", "Multikollinearitaet Set S begruendet L2-Strafterm",
-           f"max. VIF {maxvif:.1f} ({maxcol})",
-           "5-30: klassischer Ridge-Fall; > 30 kritisch",
-           5 <= maxvif <= 30, auflage=maxvif < 5)
+    eindeutig = train[PRAEDIKTOREN].astype(float).drop_duplicates()
+    X = sm.add_constant(eindeutig, has_constant="add")
+    werte = {PRAEDIKTOREN[i - 1]: variance_inflation_factor(X.values, i)
+             for i in range(1, X.shape[1])}
 
-    # Set S+L: Der Hauptvergleich laeuft auf DIESEM Satz. Die drei Lags messen
-    # dieselbe Groesse zu verschiedenen Zeitpunkten und sind daher zwangslaeufig
-    # hoch korreliert. Das gehoert berichtet, weil sonst der Eindruck entstuende,
-    # die VIF-Pruefung betreffe den tatsaechlich verwendeten Merkmalssatz.
-    log("\n**Set S+L (der Hauptvergleich laeuft hierauf):**\n")
-    werte = sorted(vifs(train[FEATURE_SETS["S+L"]].astype(float)), reverse=True)
+    log(f"{len(eindeutig):,} eindeutige Merkmalskombinationen "
+        f"(aus {len(train):,} Zeilen).\n")
     log("| Merkmal | VIF |")
     log("|---|---|")
-    for v, c in werte[:5]:
-        log(f"| {c} | {v:.1f} |")
-    maxvif2, maxcol2 = werte[0]
-    log(f"\n**Befund Set S+L:** Hoechster VIF {maxvif2:.1f} (`{maxcol2}`). Die "
-        f"drei Lag-Merkmale messen dieselbe Groesse zu verschiedenen "
-        f"Zeitpunkten; `lag_1` und `rolling_mean_3` korrelieren mit r = "
-        f"{train['lag_1'].corr(train['rolling_mean_3']):.2f}. Das ist keine "
-        f"Fehlspezifikation, sondern liegt in der Natur autoregressiver "
-        f"Merkmale. Fuer Ridge ist es unschaedlich - der L2-Strafterm verteilt "
-        f"das Gewicht auf die korrelierten Merkmale, statt einzelne Koeffizienten "
-        f"instabil werden zu lassen; genau dafuer wurde das Verfahren "
-        f"entwickelt. Konsequenz fuer die Interpretation: **Einzelkoeffizienten "
-        f"und SHAP-Werte der Lags sind nicht einzeln zu deuten, sondern nur als "
-        f"Block** (Kap. 5.5).")
-    pruefe("Ridge Regression", "Multikollinearitaet Set S+L beherrschbar",
-           f"max. VIF {maxvif2:.1f} ({maxcol2})",
-           "durch L2 abgedeckt; Lags nur blockweise interpretieren",
-           True, auflage=maxvif2 > 10)
+    for m, v in sorted(werte.items(), key=lambda x: -x[1]):
+        log(f"| `{m}` | {v:.1f} |")
+
+    hoechster = max(werte.values())
+    log("")
+    log("Faustregel: VIF > 10 gilt als kritisch. Ridge ist gegen")
+    log("Multikollinearitaet durch den L2-Strafterm robust - der VIF ist hier")
+    log("vor allem fuer die INTERPRETATION relevant: Bei hohen Werten verteilen")
+    log("sich Koeffizienten und SHAP-Beitraege auf korrelierte Merkmale und sind")
+    log("einzeln nicht mehr sinnvoll deutbar (blockweise interpretieren).")
+    pruefe("Ridge", "Multikollinearitaet beherrschbar",
+           f"max VIF {hoechster:.1f}", "< 10", hoechster < 10)
 
 
 # ---------------------------------------------------------------------------
-# 7. Extrapolation - koennen Baumverfahren den Wertebereich abdecken?
+# ABSCHNITT 5  Extrapolation
 # ---------------------------------------------------------------------------
-def pruefe_extrapolation(panel: pd.DataFrame) -> None:
-    log("\n## 7. Extrapolationsbedarf (Voraussetzung fuer Random Forest und XGBoost)\n")
-    log("Baumverfahren koennen nicht extrapolieren: Ausserhalb des im Training "
-        "gesehenen Wertebereichs geben sie den Randwert des letzten Blatts "
-        "zurueck. Ridge rechnet dagegen linear weiter. Liegt die Zielgroesse in "
-        "spaeteren Perioden systematisch oberhalb des Trainingsbereichs, misst "
-        "der Vergleich diesen strukturellen Nachteil statt der Modellguete.\n")
+def extrapolation(panel: pd.DataFrame) -> None:
+    """Wie viele Testzeilen liegen ausserhalb des Trainings-Wertebereichs?
 
-    train, _ = fold_masken(panel, 1)
-    y_train = panel.loc[train, "anzahl_einsaetze"]
-    ueber = float((panel.loc[~train, "anzahl_einsaetze"] > y_train.max()).mean() * 100)
+    Unter einem Stadtteil-Split ist das keine Randerscheinung: Ein unbekannter
+    Stadtteil kann in jedem Merkmal ausserhalb liegen. Ridge rechnet dort linear
+    weiter, Baumverfahren ordnen dem letzten Blatt zu - die Verfahren sind also
+    unterschiedlich betroffen, und das gehoert in die Limitationen.
+    """
+    log("\n## 5  Extrapolation je Fold\n")
+    log("| Fold | Trainingszeilen | Testzeilen | ausserhalb des Wertebereichs |")
+    log("|---|---|---|---|")
 
-    # Stadtweiter Zeittrend: Wenn die Einsatzzahl systematisch steigt, betrifft
-    # das Baumverfahren staerker als Ridge.
-    stadt = panel.groupby("jahr_monat")["anzahl_einsaetze"].sum()
-    steigung = float(np.polyfit(np.arange(len(stadt)), stadt.values, 1)[0])
+    anteile = []
+    for k in range(1, N_FOLDS + 1):
+        tr, te = fold_masken(panel, k)
+        lo, hi = panel.loc[tr, MERKMALE].min(), panel.loc[tr, MERKMALE].max()
+        aussen = ((panel.loc[te, MERKMALE] < lo)
+                  | (panel.loc[te, MERKMALE] > hi)).any(axis=1)
+        anteile.append(aussen.mean())
+        log(f"| {k} | {tr.sum():,} | {te.sum():,} | {aussen.mean() * 100:.1f} % |")
 
-    log(f"- Trainingsbereich (Fold 1): {y_train.min():.0f} bis {y_train.max():.0f} "
-        f"Einsaetze je Stadtteil-Monat")
-    log(f"- Spaetere Perioden ueber dem Trainingsmaximum: {ueber:.2f} % der "
-        f"Beobachtungen")
-    log(f"- Stadtweiter Trend ueber den Analysezeitraum: "
-        f"{steigung * len(stadt) / stadt.iloc[0] * 100:+.1f} % "
-        f"(lineare Steigung {steigung:+.2f} Einsaetze je Monat)")
-    log("\n**Befund:** "
-        + (f"Der Extrapolationsbedarf ist gering ({ueber:.2f} % der spaeteren "
-           f"Beobachtungen liegen ueber dem Trainingsmaximum). Zusaetzlich "
-           f"tragen die Lag-Merkmale das Zeitniveau mit, sodass die "
-           f"Baumverfahren nicht auf das rohe `jahr` angewiesen sind - dieses "
-           f"ist bewusst kein Merkmal (vgl. FEATURE_SETS in config.py)."
-           if ueber < 5 else
-           f"ACHTUNG: {ueber:.1f} % der spaeteren Beobachtungen liegen ueber dem "
-           f"Trainingsmaximum. Der Nachteil der Baumverfahren ist im "
-           f"Ergebniskapitel zu diskutieren."))
-
-    pruefe("Random Forest / XGBoost", "Kein wesentlicher Extrapolationsbedarf",
-           f"{ueber:.2f} % ueber Trainingsmaximum", "< 5 %", ueber < 5)
+    log("")
+    log(f"Im Mittel {np.mean(anteile) * 100:.1f} %, Spanne "
+        f"{min(anteile) * 100:.1f} bis {max(anteile) * 100:.1f} %.")
+    log("Diese Spanne erklaert einen erheblichen Teil der Fold-Streuung und ist")
+    log("der Grund fuer die wiederholten Splits mit unterschiedlichem Versatz.")
+    for verfahren in ("Ridge", "Random Forest / XGBoost"):
+        pruefe(verfahren, "Extrapolationsanteil begrenzt",
+               f"{np.mean(anteile) * 100:.1f} % im Mittel", "< 20 %",
+               np.mean(anteile) < 0.20)
 
 
 # ---------------------------------------------------------------------------
-# 8. Zielgroesse Klassifikation
+# ABSCHNITT 6  Klassenbalance
 # ---------------------------------------------------------------------------
-def pruefe_zielgroesse_klassifikation(kl: pd.DataFrame) -> None:
-    log("\n## 8. Zielgroesse Einsatzart (Klassifikation)\n")
-    log(f"- Grundgesamtheit: {len(kl):,} Einzeleinsaetze "
-        f"({kl['jahr_monat'].min()}-{kl['jahr_monat'].max()}, "
-        f"{kl['stadtteil'].nunique()} Stadtteile) - identisch abgegrenzt wie das "
-        f"Regressionspanel, weil beide in prep/s2_datensaetze.py entstehen und "
-        f"Zeitraum sowie Stadtteilliste einmal bestimmt und weitergereicht werden")
+def klassenbalance(kl: pd.DataFrame) -> None:
+    """Traegt die Zielgroesse der Klassifikation vier Klassen?"""
+    log("\n## 6  Klassenbalance der Einsatzart\n")
 
-    v = kl["einsatzart_gruppe"].value_counts()
-    log("\n| Klasse | Anzahl | Anteil |")
+    v = kl[ZIELKLASSE].value_counts()
+    anteil = kl[ZIELKLASSE].value_counts(normalize=True)
+    log("| Klasse | Stadtteil-Monate | Anteil |")
     log("|---|---|---|")
-    for k in KLASSEN:
-        n = int(v.get(k, 0))
-        log(f"| {k} | {n:,} | {n / len(kl) * 100:.1f}% |")
-    ungleich = float(v.max() / v.min())
-    log(f"\n- **Ungleichgewicht groesste/kleinste Klasse: {ungleich:.1f}:1** -> "
-        + ("mit `class_weight='balanced'` bzw. `sample_weight` beherrschbar; "
-           "Bewertung ueber Macro-F1 und Macro-AUROC statt Accuracy."
-           if ungleich <= 10 else
-           "stark unbalanciert, Resampling oder Klassenzusammenfassung pruefen."))
+    for klasse in v.index:
+        log(f"| {klasse} | {v[klasse]:,} | {anteil[klasse] * 100:.1f} % |")
 
-    b = float(kl["ist_brand"].mean())
-    log(f"- Binaerer Robustheitslauf `ist_brand`: {b * 100:.1f} % Brand "
-        f"(Verhaeltnis 1:{(1 - b) / b:.1f}) -> `scale_pos_weight = "
-        f"{(1 - b) / b:.2f}`. Ein Modell, das immer 'kein Brand' sagt, erreicht "
-        f"bereits {100 - b * 100:.1f} % Accuracy - Accuracy ist hier wertlos.")
+    seltenste = anteil.idxmin()
+    n_stadtteile = kl[kl[ZIELKLASSE] == seltenste]["stadtteil"].nunique()
+    log("")
+    log(f"Seltenste Klasse: **{seltenste}** mit {anteil.min() * 100:.1f} % "
+        f"({v[seltenste]} Stadtteil-Monate in {n_stadtteile} Stadtteilen).")
+    log("")
+    log("| Fold | Testfaelle der seltensten Klasse |")
+    log("|---|---|")
+    je_fold = []
+    for k in range(1, N_FOLDS + 1):
+        n = int((kl.loc[kl["fold"] == k, ZIELKLASSE] == seltenste).sum())
+        je_fold.append(n)
+        log(f"| {k} | {n} |")
 
-    # Basisratendrift: verschiebt sich der Brandanteil zwischen Training und Test?
-    train, test = fold_masken(kl, 1)
-    drift_tr = kl.loc[train, "ist_brand"].mean()
-    drift_te = kl.loc[test, "ist_brand"].mean()
-    drift = abs(drift_te - drift_tr) * 100
-    log(f"\n- **Basisratendrift:** Brandanteil im Training des ersten Folds "
-        f"{drift_tr * 100:.1f} %, im Testfenster {drift_te * 100:.1f} % "
-        f"(Differenz {drift:.1f} Prozentpunkte). AUROC ist davon unberuehrt, F1 "
-        f"nicht -> der Schwellenwert des binaeren Laufs wird je Fold auf dem "
-        f"inneren Validierungsfenster kalibriert, nicht blind auf 0,5 gesetzt. "
-        f"Bei der mehrklassigen Hauptvariante entfaellt das Problem, weil ueber "
-        f"`argmax` zugeordnet wird (Decision Log #21).")
+    log("")
+    log("Kein Fold darf null Testfaelle der seltensten Klasse haben - Macro-F1")
+    log("mittelt sonst ueber eine Klasse, die im Test gar nicht vorkommt. Genau")
+    log("dafuer wird die Fold-Zuteilung doppelt stratifiziert (Decision Log #30).")
+    log("")
+    log(f"Die Mehrheitsklasse allein erreicht Accuracy {anteil.max():.3f} - ")
+    log("**Accuracy ist als Hauptmass wertlos**, massgeblich ist Macro-F1.")
+    pruefe("Random Forest / XGBoost", "seltenste Klasse in jedem Fold vertreten",
+           f"min {min(je_fold)} Testfaelle", "> 0", min(je_fold) > 0)
 
-    je_monat = kl.groupby(["stadtteil", "jahr", "monat"]).size()
-    log(f"\n- **Pseudo-Signal-Problem:** Die Stadtteilmerkmale sind je "
-        f"Stadtteil-Monat konstant. Im Mittel teilen sich {je_monat.mean():.0f} "
-        f"Einsaetze (Median {je_monat.median():.0f}, Maximum {je_monat.max():,}) "
-        f"dieselbe Merkmalsauspraegung. {len(kl):,} Zeilen enthalten damit nur "
-        f"{len(je_monat):,} verschiedene Stadtteil-Monats-Profile. Konsequenz: "
-        f"SHAP nur blockweise auswerten, keine Signifikanztests auf "
-        f"Einsatz-Ebene rechnen.")
-
-    jahre = kl.groupby("jahr")["ist_brand"].mean() * 100
-    log(f"- Brandanteil je Jahr: {jahre.min():.1f} % bis {jahre.max():.1f} %")
-
-    pruefe("Klassifikation (alle 3)", "Klassenbalance beherrschbar",
-           f"{ungleich:.1f}:1", "<= 10:1 mit class_weight", ungleich <= 10)
-    pruefe("Klassifikation (alle 3)", "Basisratendrift Training -> Test",
-           f"{drift:.1f} Prozentpunkte",
-           "< 10 pp; sonst Schwelle je Fold kalibrieren", drift < 10,
-           auflage=drift >= 5)
-
-    fig, ax = plt.subplots(1, 2, figsize=(13, 4.5))
-    (v / len(kl) * 100).sort_values().plot.barh(ax=ax[0], color="#4878A8")
-    ax[0].set(title="Klassenverteilung Einsatzart (4 Gruppen)", xlabel="Anteil in %")
-    ax[1].plot(jahre.index, jahre.values, marker="o")
-    ax[1].set(title="Brandanteil je Jahr", xlabel="Jahr", ylabel="Anteil in %")
-    ax[1].set_ylim(0, max(20, jahre.max() * 1.2))
-    speichere(fig, "02_klassenbalance_einsatzart.png")
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.bar(anteil.index, anteil.values * 100, color="steelblue")
+    ax.set_ylabel("Anteil der Stadtteil-Monate in %")
+    ax.set_title("Verteilung der dominanten Einsatzart")
+    plt.setp(ax.get_xticklabels(), rotation=20, ha="right")
+    speichere(fig, "04_klassenbalance.png")
 
 
 # ---------------------------------------------------------------------------
-# 9. Eignungsurteil
+# ABSCHNITT 7  Urteil
 # ---------------------------------------------------------------------------
-def schreibe_urteil() -> bool:
-    log("\n## 9. Eignungsurteil je Verfahren\n")
-    log("Maschinell gepruefte Kriterien. `mit Auflage` bedeutet: Das Verfahren "
-        "ist einsetzbar, aber nur in der angegebenen Spezifikation.\n")
+def urteil() -> None:
+    """Alle Einzelbefunde als Tabelle, plus die Konsequenzen fuer m02/m03."""
+    log("\n## 7  Urteil je Verfahren\n")
     log("| Verfahren | Kriterium | Messwert | Schwelle | Urteil |")
     log("|---|---|---|---|---|")
-    for verfahren, kriterium, wert, schwelle, urteil in urteile:
-        log(f"| {verfahren} | {kriterium} | {wert} | {schwelle} | **{urteil}** |")
+    for zeile in urteile:
+        log("| " + " | ".join(zeile) + " |")
 
-    kritisch = [u for u in urteile if u[4] == KRITISCH]
-    auflagen = [u for u in urteile if u[4] == ACHTUNG]
-
-    log("\n**Gesamturteil:**\n")
-    if kritisch:
-        log(f"- {len(kritisch)} Kriterium/Kriterien **nicht erfuellt**: "
-            + "; ".join(f"{v} - {k}" for v, k, *_ in kritisch))
-        log("- Die Verfahrenswahl ist in dieser Form nicht begruendbar. Vor der "
-            "Modellierung klaeren.")
+    verletzt = [u for u in urteile if u[4] == "VERLETZT"]
+    log("")
+    if verletzt:
+        log(f"**{len(verletzt)} Kriterium/Kriterien verletzt.** Eine Verletzung")
+        log("ist kein Ausschluss, sondern eine Begruendungspflicht: Sie muss in")
+        log("Kapitel 6.2 benannt und beantwortet werden. Betroffen sind:")
+        for v in verletzt:
+            log(f"  - {v[0]}: {v[1]} ({v[2]}, erwartet {v[3]})")
     else:
-        log("- **Alle harten Kriterien sind erfuellt.** Ridge Regression, Random "
-            "Forest und XGBoost sind fuer diesen Datensatz geeignet, die "
-            "Negative-Binomial-Regression ist die korrekte Count-Baseline.")
-    if auflagen:
-        log(f"- {len(auflagen)} Auflage(n), die die Spezifikation festlegen:")
-        for v, k, wert, _, _ in auflagen:
-            log(f"    - {v}: {k} ({wert})")
-        log("    Konkret: Ridge wird auf log(1+y) geschaetzt und die Lags werden "
-            "log(1+x)-transformiert (Decision Log #2, #9); die Guetemasse werden "
-            "nach Ruecktransformation auf der Originalskala berechnet.")
-    log("\n- Nicht maschinell pruefbar und daher im Text zu begruenden: die "
-        "Fairness-Regel (identische Zeilen, Merkmale und Folds fuer alle drei "
-        "Verfahren) und das gleiche Tuning-Budget. Beides ist konstruktiv "
-        "abgesichert - die Folds stehen als Spalten im Datensatz, die Suchraeume "
-        "und das Budget in prep/config.py.")
-    return not kritisch
+        log("Alle geprueften Kriterien erfuellt.")
+
+    log("")
+    log("**Konsequenzen fuer die Modellierung:**")
+    log("- Ridge wird auf `log(1+y)` geschaetzt, nicht auf der Rohskala.")
+    log("- Der RESET-Test begruendet den Schritt zu Baumverfahren formal.")
+    log("- Der Extrapolationsanteil gehoert in die Limitationen (Kap. 8.3).")
+    log("- Auf der Rate ist RMSE das Hauptmass, R2 nur nachrichtlich.")
+    log("- SHAP nur blockweise interpretieren (Multikollinearitaet).")
 
 
 # ---------------------------------------------------------------------------
-# 11. Vergleichsgroessen (Baselines)
-# ---------------------------------------------------------------------------
-# Gerechnet werden sie in prep/s3_baselines.py - sie gehoeren zur Data
-# Preparation (Auflage Schroeter, 27.07.2026). Hier werden sie nur berichtet.
-# ---------------------------------------------------------------------------
-def berichte_baselines(panel: pd.DataFrame) -> None:
-    df, mittel = rechne_baselines(panel)
-    log("\n## 11. Vergleichsgroessen der Regression\n")
-    log("Referenzwerte, an denen sich Ridge, Random Forest und XGBoost messen "
-        "lassen muessen. Identische Folds, identische Zeilen, Bewertung auf "
-        "der Originalskala. Das End-Hold-out bleibt unberuehrt.\n")
-    log("| Modell | RMSE (Mittel +/- Std) | MAE | R2 |")
-    log("|---|---|---|---|")
-    for name, r in mittel.iterrows():
-        log(f"| {name} | {r['RMSE_mean']:.2f} +/- {r['RMSE_std']:.2f} | "
-            f"{r['MAE_mean']:.2f} | {r['R2_mean']:.2f} |")
-    log(f"\n**Zu schlagende Latte:** {mittel.index[0]} "
-        f"(RMSE {mittel.iloc[0]['RMSE_mean']:.2f}). Ein Verfahren, das diese "
-        f"Referenz nicht schlaegt, ist ein Ergebnis - kein Makel.")
-    print("\nVergleichsgroessen je Fold:\n", df.round(2).to_string(index=False))
-    print("\nMittelwert +/- Std ueber die Folds:\n", mittel.to_string())
+def main() -> None:
+    for pfad in (PFAD_REGRESSION, PFAD_KLASSIFIKATION):
+        if not pfad.exists():
+            raise SystemExit(f"{pfad.relative_to(ROOT)} fehlt - "
+                             f"erst 'python prep/build.py' ausfuehren.")
 
+    panel = pd.read_parquet(PFAD_REGRESSION)
+    kl = pd.read_parquet(PFAD_KLASSIFIKATION)
+    train = panel[fold_masken(panel, 1)[0]]
 
-# ---------------------------------------------------------------------------
-# Ablauf
-# ---------------------------------------------------------------------------
-def _lade() -> tuple[pd.DataFrame, pd.DataFrame]:
-    fehlend = [p.relative_to(ROOT) for p in
-               (PFAD_REGRESSION, PFAD_KLASSIFIKATION, PFAD_EINSAETZE)
-               if not p.exists()]
-    if fehlend:
-        raise SystemExit(f"{fehlend} fehlt - erst 'python prep/build.py' ausfuehren.")
-    return pd.read_parquet(PFAD_REGRESSION), pd.read_parquet(PFAD_KLASSIFIKATION)
+    log("# Eignungspruefung")
+    log("")
+    log(f"Stand {pd.Timestamp.today():%Y-%m-%d}. Datensatz: {len(panel):,} "
+        f"Zeilen, {panel['stadtteil'].nunique()} Stadtteile, "
+        f"{panel['jahr_monat'].min()}-{panel['jahr_monat'].max()}.")
+    log(f"Diagnosen auf den {train['stadtteil'].nunique()} Trainingsstadtteilen "
+        f"von Fold 1 ({len(train):,} Zeilen).")
 
-
-def main() -> bool:
-    import pyarrow.parquet as pq
+    zielgroessen(panel, train)
+    linearitaet(train)
+    spezifikation(train)
+    vif(train)
+    extrapolation(panel)
+    klassenbalance(kl)
+    urteil()
 
     OUT.mkdir(parents=True, exist_ok=True)
-    panel, kl = _lade()
-    # Nur die noetigen Spalten laden - die volle Tabelle hat 720.000 Zeilen.
-    n_spalten = len(pq.ParquetFile(PFAD_EINSAETZE).schema_arrow)
-    roh = pd.read_parquet(PFAD_EINSAETZE,
-                          columns=["einsatz_nummer", "jahr", "monat", "stadtteil"])
-    train = panel[fold_masken(panel, 1)[0]].copy()
-
-    log("# Eignungspruefung: Ridge Regression, Random Forest, XGBoost\n")
-    log(f"Stand {pd.Timestamp.today():%Y-%m-%d}. Grundlage sind die fertigen "
-        "Datensaetze `regression.parquet` und `klassifikation.parquet`. Alle "
-        "Diagnosen, die eine Modellentscheidung begruenden, werden ausschliesslich "
-        "auf dem Trainingsfenster des ersten CV-Folds gerechnet - diese Monate "
-        "sind in keinem Fold Testdaten und liegen vollstaendig vor dem "
-        "End-Hold-out. Rein deskriptive Kennzahlen nutzen den vollen "
-        "Analysezeitraum und sind entsprechend gekennzeichnet.\n")
-    log("Das abschliessende Urteil je Verfahren steht in Abschnitt 9, die "
-        "Vergleichsgroessen in Abschnitt 11.\n")
-
-    pruefe_datengrundlage(roh, n_spalten, panel, kl, train)
-    pruefe_zielgroesse_regression(panel)
-    pruefe_kriminalitaetsindex(panel)
-    pruefe_exposure(train)
-    pruefe_linearitaet(train)
-    pruefe_vif(train)
-    pruefe_extrapolation(panel)
-    pruefe_zielgroesse_klassifikation(kl)
-    bestanden = schreibe_urteil()
-
-    log("\n## 10. Leakage- und Strukturpruefung\n")
-    log("| Punkt | Status |")
-    log("|---|---|")
-    for punkt, status in [
-        ("ACS-Join", "**behoben**: letzter *publizierter* Snapshot "
-                     "(`acs_jahr <= Einsatzjahr - 1`), Decision Log #4 und #11"),
-        ("Kriminalitaetsmerkmale", "**behoben**: relativer Index je Stadtteil x "
-                                   "Monat, rollierendes 12-Monats-Fenster endend "
-                                   "im Vormonat, Decision Log #17"),
-        ("Randmonat", f"**behoben**: fester Analysezeitraum {START}-{ENDE}, "
-                      "Decision Log #12 und #18"),
-        ("Fehlende Werte", "**behoben**: kein `bfill` mehr "
-                           "(Zukunfts-Imputation), Decision Log #10"),
-        ("Exposure", "**behoben**: `log_bevoelkerung` als Merkmal, Rohwert fuer "
-                     "NegBin-Offset erhalten, Decision Log #13"),
-        ("Analyseeinheiten", "**behoben**: Park-/Institutionsgebiete "
-                             "ausgeschlossen, Decision Log #19"),
-        ("End-Hold-out", "**eingerichtet**: letzte 12 Monate, beim Tuning "
-                         "unberuehrt, als Spalte `ist_holdout` im Datensatz, "
-                         "Decision Log #14"),
-        ("Lag-Vorlauf", "**eingerichtet**: Aggregation ab 2014-01, Zuschnitt auf "
-                        "2015-01 nach der Lag-Bildung; Vorlaufmonate nur ueber "
-                        "`shift()`, nie als eigene Zeile, Decision Log #23"),
-        ("Land Use", "**offen (Limitation)**: Snapshot 2020, ueber den gesamten "
-                     "Zeitraum konstant -> als quasi-stabiles Strukturmerkmal zu "
-                     "interpretieren, Kap. 6.3"),
-        ("Response-Time-Filter", "**dokumentieren**: 0-60 min entfernt ~1,7 % der "
-                                 "Einsaetze bereits in prep/s1_daten.py; alle "
-                                 "Zaehlungen beziehen sich auf den gefilterten "
-                                 "Bestand"),
-    ]:
-        log(f"| {punkt} | {status} |")
-
-    berichte_baselines(panel)
-
-    (OUT / "eignungspruefung_summary.md").write_text("\n".join(bericht),
-                                                     encoding="utf-8")
-    print(f"\n  => {OUT.relative_to(ROOT)}/eignungspruefung_summary.md + 5 Plots")
-    return bestanden
+    (OUT / "eignungspruefung.md").write_text("\n".join(bericht), encoding="utf-8")
+    print(f"\n  => {(OUT / 'eignungspruefung.md').relative_to(ROOT)}")
+    print("  Naechster Schritt: modelle/m02_menge.py")
 
 
 if __name__ == "__main__":
-    raise SystemExit(0 if main() else 1)
+    main()

@@ -607,11 +607,14 @@ sozioökonomischen, kriminalitätsbezogenen und baulichen Faktoren in statistisc
 Zusammenhang mit der Einsatzlast stehen bzw. einen prädiktiven Beitrag leisten. Aufbauend darauf
 werden zwei Zielgrößen modelliert: zum einen die Einsatzhäufigkeit als Anzahl Einsätze pro
 Stadtteil und Monat (Regression auf aggregierten Ereignishäufigkeiten), zum anderen die Einsatzart
-als kategoriale Zielgröße (Klassifikation). Auf beiden Zielgrößen werden die drei Algorithmen
-systematisch trainiert, ihre Hyperparameter optimiert und ihre Prognosegüte anhand etablierter
-Gütemaße -- Root Mean Square Error (RMSE), Mean Absolute Error (MAE) und R² für die Regression
-bzw. F1-Score und Area Under the Receiver Operating Characteristic (AUROC) für die
-Klassifikation -- im Rahmen einer zeitbewussten Validierung gegenübergestellt.\footnote{In
+als kategoriale Zielgröße (Klassifikation). Auf der Einsatzhäufigkeit werden Ridge Regression,
+Random Forest und XGBoost trainiert, auf der Einsatzart Random Forest und XGBoost. Die
+unterschiedliche Verfahrenszahl folgt der Skalierung der jeweiligen Zielgröße und wird in
+Kapitel 6 begründet. Für alle Verfahren werden die Hyperparameter optimiert und die
+Prognosegüte anhand etablierter Gütemaße -- Root Mean Square Error (RMSE), Mean Absolute
+Error (MAE) und R² für die Regression bzw. Macro-F1 und Area Under the Receiver Operating
+Characteristic (AUROC) für die Klassifikation -- im Rahmen einer stadtteilweisen
+Kreuzvalidierung gegenübergestellt.\footnote{In
 Anlehnung an Anthropic Claude (2026), KI-Verzeichnis Prompt 1}
 
 Daraus ergibt sich folgende zentrale Forschungsfrage:
@@ -900,8 +903,95 @@ dabei nicht beansprucht.
 % ---- ENDE ÜBERNAHME ----
 
 % ===================================================
+% #########################################################################
+% ABGRENZUNG DER KAPITEL 4 BIS 8 -- vor dem Schreiben lesen
+% #########################################################################
+% Die haeufigste Schwaeche in CRISP-DM-Arbeiten ist, dass dieselbe Sache in
+% zwei Kapiteln auftaucht: der Befund im Data Understanding und noch einmal
+% als Begruendung in der Data Preparation, die Verfahrensbeschreibung in den
+% Grundlagen und noch einmal im Modelling. Schroeter hat "keine Dopplungen,
+% Tiefe richtig" ausdruecklich angemerkt (27.07.2026), und das Gutachten zum
+% Anwendungsprojekt hat "umfangreich, aber nicht fokussiert" abgestraft (R8).
+%
+% DIE TRENNUNG IN EINEM SATZ JE KAPITEL:
+%
+%   Kap. 4  Data Understanding  BEFUND    Was ist da, was faellt auf?
+%   Kap. 5  Data Preparation    EINGRIFF  Was wurde damit gemacht, warum?
+%   Kap. 6  Modelling           VERFAHREN Was wurde angewandt, warum diese?
+%   Kap. 7  Evaluation          ERGEBNIS  Wie gut war es?
+%   Kap. 8  Diskussion          DEUTUNG   Was heisst das, was gilt nicht?
+%
+% DREI TESTFRAGEN, wenn unklar ist, wohin ein Absatz gehoert:
+%
+%   1. "Gaelte der Satz auch, wenn ich die Daten gar nicht verarbeiten
+%       wuerde?"                                    -> ja  = Kapitel 4
+%   2. "Veraendert dieser Schritt die Datei auf der Platte?"
+%                                                   -> ja  = Kapitel 5
+%   3. "Passiert das je Fold, innerhalb der sklearn-Pipeline?"
+%                                                   -> ja  = Kapitel 6
+%
+% GRENZFAELLE, konkret entschieden -- diese Liste ist der eigentliche Nutzen
+% des Blocks, weil genau hier sonst doppelt geschrieben wird:
+%
+%   Klassenverteilung der Einsatzart (79/16/3/1,5 %)          -> 4  Befund
+%   Zusammenfassung der NFIRS-Serien zu vier Klassen          -> 5  Eingriff
+%   Overdispersion / Dispersionsindex der Zielgroesse         -> 4  Befund
+%   Wahl der Negative Binomial als Baseline                   -> 5  Festlegung
+%   Baseline-WERTE (R2 0,472 usw.)                            -> 5  Auflage
+%                                                                  Schroeter:
+%                                                                  Baseline in
+%                                                                  die Data
+%                                                                  Preparation
+%   Golden Gate Park hat 45 Einwohner                         -> 4  Befund
+%   Ausschluss der drei Parkgebiete                           -> 5  Eingriff
+%   ACS erscheint erst ein Jahr spaeter                       -> 4  Befund
+%   Publikationsversatz acs_jahr <= Einsatzjahr - 1           -> 5  Eingriff
+%   Stadtteil-Split                                           -> 5  steht als
+%                                                                  Spalte IN
+%                                                                  der Datei
+%   Linearitaetspruefung, Residuen, RESET-Test                -> 6  prueft ein
+%                                                                  VERFAHREN,
+%                                                                  nicht die
+%                                                                  Daten
+%   VIF / Multikollinearitaet                                 -> 6  betrifft
+%                                                                  Ridge
+%   StandardScaler, log(1+y), Label-Encoder                   -> 6  laeuft je
+%                                                                  Fold
+%   class_weight="balanced"                                   -> 6  Modell-
+%                                                                  parameter
+%   Hyperparameter-Suchraeume und Tuning-Budget               -> 6
+%   Fold-Ergebnisse der drei bzw. zwei Verfahren              -> 7
+%   Trainings- und Inferenzzeiten                             -> 7
+%   Vergleich der Verfahren untereinander, Rangfolge oder     -> 8
+%     deren Verweigerung bei ueberlappender Streuung
+%   Effektive Stichprobe von 35 Einheiten, Extrapolation      -> 8  Limitation
+%
+% ZWEI SONDERFAELLE, die erfahrungsgemaess Aerger machen:
+%
+%  (a) 4.2 EDA gegen 6.2 Eignungspruefung. Beide schauen Verteilungen an, und
+%      derselbe Scatterplot koennte in beiden stehen. Die Regel: In 4.2 steht,
+%      WIE DIE DATEN BESCHAFFEN SIND ("die Zielgroesse ist rechtsschief,
+%      Dispersionsindex X"). In 6.2 steht, OB EIN VERFAHREN DAZU PASST ("weil
+%      sie rechtsschief ist, wird Ridge auf log(1+y) geschaetzt; der
+%      RESET-Test verwirft die lineare Spezifikation"). Jede Abbildung
+%      erscheint GENAU EINMAL -- im Zweifel dort, wo sie ein Argument traegt,
+%      also in 6.2. In 4.2 wird dann darauf verwiesen.
+%
+%  (b) 2.3 Grundlagen der Verfahren gegen 6. Kapitel 2 erklaert, WIE ein
+%      Verfahren funktioniert -- allgemein, lehrbuchhaft, ohne diesen
+%      Datensatz. Kapitel 6 sagt, WARUM es hier eingesetzt wird und MIT
+%      WELCHEN Einstellungen. Keine Wiederholung der Funktionsweise in 6;
+%      wer in 6 erklaeren muss, wie Boosting arbeitet, hat es in 2.3
+%      versaeumt.
+%
+% MERKSATZ: Ein Befund gehoert einmal genannt und danach nur noch zitiert.
+% Wer ihn beim zweiten Mal erneut herleitet, schreibt das Kapitel doppelt.
+% #########################################################################
+
 \section{Data Understanding}
 % Umfang: ca. 7 Seiten -- CRISP-DM Phase 2
+% Hier steht NUR der Befund. Jede Konsequenz daraus gehoert nach Kapitel 5,
+% jede Verfahrenseignung nach 6.2 -- siehe Abgrenzungsblock oben.
 \subsection{Datenquellen und Attributübersicht}
 % SFFD-Einsatzdaten, SFPD-Kriminalitätsdaten, Parzellen-/Nutzungsdaten, ACS.
 % Übersichtstabelle im Text (Attribut | Quelle | Typ | Ebene | Erhebungsjahr).
@@ -944,6 +1034,13 @@ Klassen vereinfacht, etwa Brand vs. Nicht-Brand.
 % umgebaut; der frühere Text dieses Kapitels ist inhaltlich ueberholt und
 % wurde entfernt. Alle ZAHLEN fuer dieses Kapitel kommen aus docs/03_STAND.md
 % -- dort stehen sie, und nur dort. Nicht aus aelteren Fassungen abschreiben.
+%
+% ABGRENZUNG (Block vor Kapitel 4): Hier steht der EINGRIFF, nicht der
+% Befund. Jeder Befund wurde in Kapitel 4 genannt und wird hier nur noch
+% zitiert, nicht erneut hergeleitet. Was je Fold in der Pipeline passiert
+% -- Skalierung, log(1+y), Klassengewichte -- gehoert nach Kapitel 6.
+% Die Baselines stehen hier und nicht in 6 oder 7: Auflage Schroeter vom
+% 27.07.2026, sie gehoeren in die Data Preparation.
 % Reihenfolge folgt der Pipeline: prep/s1_daten.py -> s2_datensaetze.py
 % -> s3_baselines.py
 % =========================================================================
@@ -1115,9 +1212,22 @@ spätere Modell messen lassen muss.
 %         die Strukturmerkmale schliessen.
 %     (b) Die naive Vormonats-Baseline entfaellt: Sie wuerde die eigene
 %         Vergangenheit des Teststadtteils nutzen.
-%   Zur Auflage "nichtlineare Baseline": Gesamtmittelwert und saisonaler
-%   Durchschnitt sind NICHTPARAMETRISCH, also nicht durch ihre Funktionsform
-%   benachteiligt -- der Beleg bleibt fair.
+%   Zur Auflage "nichtlineare Baseline" (Schroeter 27.07.2026) -- HIER IST
+%   EHRLICHKEIT NOETIG: Die frueher gegebene Begruendung (Vormonatswert und
+%   saisonaler Durchschnitt seien nichtparametrisch) traegt nicht mehr. Der
+%   Vormonatswert ist mit dem Stadtteil-Split entfallen, siehe (b) oben.
+%   Gesamtmittelwert und saisonaler Durchschnitt benutzen KEIN EINZIGES
+%   MERKMAL und fielen nachgerechnet praktisch zusammen -- faktisch eine
+%   triviale Referenz, nicht zwei.
+%   Gewaehlt wurde deshalb die NEGATIVE BINOMIAL als alleinige Referenz der
+%   Regression (Decision Log #32). Sie ist kein Strohmann (dieselben zwoelf
+%   Merkmale, dieselben Folds), ueber den Log-Link auf der Originalskala
+%   nichtlinear und verteilungsgerecht fuer Zaehldaten. Entscheidend ist die
+%   Trennlinie, die sie zieht: Sie kann Kruemmung, aber KEINE Wechselwirkungen
+%   zwischen Merkmalen -- genau die finden RF und XGBoost konstruktionsbedingt.
+%   Damit wird der Vergleich zum Beleg statt zur Behauptung.
+%   Offen zu benennen: In der Klassifikation gibt es kein Pendant, dort bleibt
+%   die Mehrheitsklasse die einzige Referenz und die Latte liegt niedriger.
 % - Steckbrief des finalen Datensatzes als Tabelle:
 %     Analyseeinheit           Stadtteil x Monat, beide Datensaetze
 %     Zeitraum                 2015-01 bis 2025-12 (132 Monate)
@@ -1131,6 +1241,13 @@ spätere Modell messen lassen muss.
 % ===================================================
 \section{Modelling}
 % Umfang: ca. 8 Seiten -- CRISP-DM Phase 4
+% ABGRENZUNG (Block vor Kapitel 4): Hier steht, WELCHE Verfahren auf den
+% fertigen Datensatz angewandt werden und WARUM -- nicht, wie sie
+% funktionieren (das steht in 2.3) und nicht, wie gut sie waren (Kapitel 7).
+% Alles, was je Fold in der Pipeline laeuft, gehoert hierher: Skalierung,
+% log(1+y), Klassengewichte, Label-Encoding, Tuning. Die Eignungspruefung in
+% 6.2 prueft VERFAHREN gegen Daten, nicht die Daten selbst -- der Unterschied
+% zu 4.2 ist im Abgrenzungsblock unter (a) beschrieben.
 \subsection{Versuchsaufbau und technische Umsetzung}
 % Der VALIDIERUNGSRAHMEN steht jetzt in Abschnitt 5.4 -- die Aufteilung ist
 % eine Eigenschaft des Datensatzes (Spalten fold, ist_holdout) und wird hier

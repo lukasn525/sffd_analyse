@@ -96,6 +96,20 @@ nach der seltensten Klasse (#30) — Brand-Testfälle je Fold: 13 · 9 · 6 · 3
 Training und Test, das Modell kennte sein Niveau bereits — die Forschungsfrage
 wäre nicht geprüft.
 
+**Fold-Größen und Extrapolation:**
+
+| Fold | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| Trainingszeilen | 3.036 | 3.036 | 3.036 | 3.036 | 3.168 |
+| Testzeilen | 792 | 792 | 792 | 792 | 660 |
+| Testzeilen außerhalb des Trainings-Wertebereichs | 40,9 % | 33,3 % | 57,4 % | 33,3 % | **3,6 %** |
+
+Im Mittel liegen **33,7 %** der Testzeilen in mindestens einem Merkmal außerhalb
+der Spanne, die das Modell im Training gesehen hat. Das trifft Ridge und die
+Baumverfahren unterschiedlich: Ridge rechnet linear weiter, Bäume ordnen dem
+letzten Blatt zu. Die Spanne von 3,6 % bis 57,4 % erklärt einen erheblichen Teil
+der Fold-Streuung und ist ein Grund für die wiederholten Splits.
+
 Das Hold-out wird **genau einmal** ausgewertet, nach Abschluss von Modellwahl
 und Tuning.
 
@@ -110,13 +124,28 @@ dieselben Merkmale wie die Modelle.
 |---|---|---|---|---|
 | `anzahl_einsaetze` | **Negative Binomial** | **0,472 ± 0,368** | 37,44 | 25,71 |
 | `anzahl_einsaetze` | Gesamtmittelwert (Nullmarke) | −0,832 | 71,19 | 53,27 |
-| `einsaetze_je_1000_ew` | Negative Binomial | *nach dem nächsten Lauf* | | |
+| `einsaetze_je_1000_ew` | **Negative Binomial** | **−0,237 ± 1,682** | 4,14 | 2,42 |
 | `einsaetze_je_1000_ew` | Gesamtmittelwert (Nullmarke) | −2,122 | 7,45 | 5,01 |
 
-Fold-Ergebnisse der Negative Binomial auf `anzahl_einsaetze`:
-**0,70 · −0,17 · 0,60 · 0,50 · 0,73**. Diese Spanne ist die Aussage — bei 29
-Stadtteilen hängt viel daran, welche sechs im Test liegen. Berichtet wird
-Mittelwert ± Standardabweichung, nie ein Punktwert (R6).
+Fold-Ergebnisse der Negative Binomial:
+
+| Fold | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| R² `anzahl_einsaetze` | 0,70 | −0,17 | 0,60 | 0,50 | 0,73 |
+| R² `einsaetze_je_1000_ew` | 0,75 | −0,02 | 0,62 | **−3,19** | 0,66 |
+
+**Auf der Rate ist R² kein tragfähiges Hauptmaß.** Der Mittelwert ist negativ,
+obwohl die Negative Binomial die Nullmarke in **jedem einzelnen Fold** bei RMSE
+schlägt (4,71/10,34 · 1,54/4,09 · 8,78/15,01 · 3,75/4,03 · 1,94/3,78). Ursache:
+R² misst gegen den Mittelwert der *Testdaten*. Die Rate streut zwischen den
+Stadtteilen um den Faktor 32 (Excelsior 1,04 · Financial District 33,80), also
+liegt der Testmittelwert je nach Fold weit vom Trainingsmittelwert entfernt. In
+Fold 4 kippt R² dadurch auf −3,19, während RMSE weiter besser ist als die
+Nullmarke.
+
+**Konsequenz für Kapitel 7:** Bei der Rate ist RMSE bzw. MAE zu berichten und
+R² nur nachrichtlich — mit dieser Begründung. Bei `anzahl_einsaetze` bleibt R²
+aussagekräftig.
 
 | Zielgröße | Baseline | Macro-F1 | Accuracy |
 |---|---|---|---|

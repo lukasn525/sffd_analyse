@@ -225,8 +225,6 @@ def run_download() -> None:
 # ==========================================================================
 def prepare_sffd(df: pd.DataFrame) -> pd.DataFrame:
     """Dedup, Antwortzeit, Zeit-Features, Stadtteilnamen normalisieren."""
-    # Mehrfach gemeldete Einsatznummern der Quelldaten (269 Zeilen / 0,04 %,
-    # Decision Log #7).
     n_vorher = len(df)
     df = df.drop_duplicates(subset=["incident_number"], keep="first").copy()
     if n_vorher - len(df):

@@ -1,10 +1,19 @@
 """
-Zentrale Konfiguration der gesamten Datenaufbereitung.
+Konfiguration der Datenaufbereitung.
 
-DIESE DATEI IST DIE EINZIGE WAHRHEIT. Jede Festlegung - Zeitraum, ausgeschlossene
-Stadtteile, Praediktoren, Merkmalssaetze, Zeitschnitte, Suchraeume - steht hier
-und nirgendwo sonst. Wer wissen will, ab wann die Analyse laeuft oder welche
-Merkmale ins Modell gehen, oeffnet ausschliesslich diese Datei.
+HIER STEHT, WAS IN DIE PARQUET-DATEIEN GESCHRIEBEN WIRD: Analysezeitraum,
+ausgeschlossene Stadtteile, Praediktoren, Zielgroessen, Klassen und die Zahl der
+Folds. Jede dieser Festlegungen bestimmt, welche Spalten die Datensaetze haben
+oder wie sie belegt sind.
+
+Was nur beim Rechnen gilt - Suchraeume, Tuning-Budget, Random State, Zahl der
+Wiederholungen - steht in modelle/config_modelle.py und beruehrt keine Datei auf
+der Platte.
+
+Die Trennlinie ist also nicht "Daten gegen Modelle". N_FOLDS zum Beispiel steht
+hier, obwohl es nach Modellierung klingt: Es bestimmt die Spalte `fold` in
+beiden Datensaetzen. Die Modellskripte lesen diese Festlegung, sie treffen sie
+nicht.
 
 Bezug: docs/03_STAND.md, docs/02_ENTSCHEIDUNGEN.md
 """
@@ -268,41 +277,7 @@ ERGEBNISVARIABLEN = [
 N_FOLDS = 5
 
 # ==========================================================================
-# 8  HYPERPARAMETER-SUCHE
-# ==========================================================================
-# Nur die SUCHRAEUME stehen hier - die Suche selbst laeuft im jeweiligen
-# Modellskript unter modelle/. Ein separates Tuning-Skript wuerde die besten
-# Parameter in eine Datei auslagern, die veralten kann, ohne dass es auffaellt.
-#
-# Gleiches Budget fuer alle Verfahren -> fairer Vergleich (Bergstra & Bengio
-# 2012 zur Randomized Search, Probst et al. 2019 zu den RF-Raeumen).
-TUNING_BUDGET = 50
-RANDOM_STATE  = 42
-
-SUCHRAEUME = {
-    "ridge": {
-        "alpha": ("loguniform", 1e-3, 1e3),
-    },
-    "random_forest": {
-        "n_estimators":     ("int", 200, 1000),
-        "max_depth":        ("choice", [None, 8, 12, 16, 24]),
-        "min_samples_leaf": ("int", 1, 20),
-        "max_features":     ("choice", ["sqrt", "log2", 0.3, 0.5, 1.0]),
-    },
-    "xgboost": {
-        "n_estimators":     ("int", 200, 1000),
-        "learning_rate":    ("loguniform", 0.01, 0.3),
-        "max_depth":        ("int", 3, 10),
-        "subsample":        ("uniform", 0.6, 1.0),
-        "colsample_bytree": ("uniform", 0.6, 1.0),
-        "reg_lambda":       ("loguniform", 1e-2, 1e2),
-    },
-    # NegBin-Baseline: kein Tuning, interpretierbare Referenz.
-}
-
-
-# ==========================================================================
-# 9  SPALTENNAMEN  englisch -> deutsch
+# 8  SPALTENNAMEN  englisch -> deutsch
 # ==========================================================================
 # Die Rohquellen (DataSF, Census) liefern englische Namen; ab dem Ende von
 # prep/s1_daten.py heisst im Projekt alles deutsch. Dieses Mapping ist die
