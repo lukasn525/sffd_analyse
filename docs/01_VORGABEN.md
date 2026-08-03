@@ -168,51 +168,31 @@ vollständiges Literaturverzeichnis, Rechtschreib-Korrekturdurchgang einplanen,
 
 ---
 
-## 3. Was positiv bewertet wurde — beibehalten
+## 3. Beibehalten, weil positiv bewertet
 
-1. Keine kausalen Überdeutungen, Ergebnisse vorsichtig und explorativ beschrieben
-2. Detaillierte Beschreibung von Datenquellen, Lag-Variablen und Zielvariablen
-3. Offene Reflexion methodischer Grenzen — mit der Auflage, erkannte Probleme
-   nicht nur zu benennen, sondern zu **lösen**
-4. Angemessener Umfang (bester Einzelwert: 1,7) und dokumentierte KI-Nutzung
+Keine kausalen Überdeutungen · detaillierte Beschreibung von Datenquellen und
+Zielvariablen · offene Reflexion methodischer Grenzen (mit der Auflage, Probleme
+nicht nur zu benennen, sondern zu **lösen**) · angemessener Umfang und
+dokumentierte KI-Nutzung.
 
 ---
 
-## 4. Formale Vorgaben
+## 4. Formales und Abgabe
 
-- mindestens 3/4 Fließtext, Code nur als Beleg
-- wissenschaftliche Arbeit, keine Projektarbeit
+- mindestens 3/4 Fließtext, Code nur als Beleg; wissenschaftliche Arbeit, keine
+  Projektarbeit; Story und roter Faden
 - 30–100 Quellen (Zotero); Lehrbücher für Grundlagen, Paper für den Forschungsstand
 - Methodenkapitel so präzise, dass die Arbeit reproduzierbar ist
-- Story und roter Faden
-- Abgabe-Zip max. 250 MB inkl. flüchtiger Quellen als PDF/A
+- Abgabe-Zip max. 250 MB, flüchtige Quellen als PDF/A
+
+**Ins Zip:** `prep/`, `modelle/`, `tests/`, die beiden finalen Parquet-Dateien,
+`results/`, `docs/`, `README.md`, `requirements.txt`.
+**Nicht ins Zip:** `venv/`, `data/raw/`, `einsaetze.parquet` (Zwischenstand),
+`prep/_archiv/` — alles über `requirements.txt` bzw. `s1_daten.py` reproduzierbar.
 
 ---
 
-## 5. Was ins Abgabe-Zip gehört
-
-```
-prep/config.py             alle Festlegungen an einer Stelle
-prep/s1_daten.py           1  laden, auswählen, joinen, Raten
-prep/s2_datensaetze.py     2  aggregieren, Anteile, Lags, Zielgrößen, Folds
-prep/s3_baselines.py       3  die Vergleichswerte
-prep/build.py              der eine Befehl
-modelle/                   Eignungsprüfung, Menge, Struktur, SHAP
-tests/test_aufbereitung.py 19 Prüfungen an den fertigen Dateien
-data/processed/regression.parquet        die zwei finalen Datensätze
-data/processed/klassifikation.parquet
-results/                   Eignungsprüfung, Fold-Ergebnisse, Abbildungen
-docs/                      die fünf Dokumentationsdateien
-README.md, requirements.txt
-```
-
-**Nicht ins Zip:** `venv/` (über `requirements.txt` reproduzierbar), `data/raw/`
-(über `prep/s1_daten.py` reproduzierbar), `data/processed/einsaetze.parquet`
-(Zwischenstand), `prep/_archiv/`.
-
----
-
-## 6. Kolloquiums-Fragen, auf die eine Antwort vorliegen muss
+## 5. Kolloquiums-Fragen, auf die eine Antwort vorliegen muss
 
 - „Warum genau diese Algorithmen — und wieso überhaupt Machine Learning?"
 - „Warum drei Verfahren für die Regression, aber nur zwei für die Klassifikation?"

@@ -26,7 +26,9 @@ Zahl an sechs Stellen, von denen fünf falsch werden, ohne dass es auffällt.
 | `docs/02_ENTSCHEIDUNGEN.md` | wächst, wird nie umgeschrieben | Decision Log: jede Abweichung vom Exposé mit Begründung |
 | `docs/03_STAND.md` | **bei jedem `build.py`** | Was die Aufbereitung tut, Datensatz-Steckbrief, Baseline-Werte |
 | `docs/04_MODELLIERUNG.md` | wenn sich die Modellplanung ändert | Spezifikation für `modelle/`: Verfahren, Validierungsrahmen, Verbote |
-| `docs/05_KAPITEL5.md` | beim Schreiben | Schreibvorlage für das Kapitel Data Preparation |
+
+Die Schreibanleitung für die Kapitel steht als Kommentarblöcke **in `main.tex`**,
+nicht in `docs/` — sonst laufen zwei Fassungen derselben Anleitung auseinander.
 
 ### Die eine Regel, die den Aufbau trägt
 
@@ -129,7 +131,7 @@ stehen.
 | Kapitel | Inhalt | Artefakt |
 |---|---|---|
 | 4 Anwendungsfall & Daten | Datenquellen, Variablen, Zielgrößen | `docs/03_STAND.md` |
-| 5 Data Preparation | Aufbereitung Schritt für Schritt, Split, Baselines | `docs/05_KAPITEL5.md`, `prep/` |
+| 5 Data Preparation | Aufbereitung Schritt für Schritt, Split, Baselines | `docs/03_STAND.md`, `prep/` |
 | 6 Modelling | Eignungsprüfung, Verfahrenswahl, Tuning | `modelle/`, `docs/04_MODELLIERUNG.md` |
 | 7 Evaluation | Fold-Ergebnisse, Baselines, Laufzeiten | `results/` |
 | 8 Diskussion | Verfahrensvergleich, Limitationen | `docs/02_ENTSCHEIDUNGEN.md` |

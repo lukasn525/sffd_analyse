@@ -41,7 +41,7 @@ modelle/    rechnet Zahlen      m01_eignung · m02_menge · m03_struktur · m04_
 tests/      prüft die Dateien   test_aufbereitung.py
 data/       raw · processed
 results/    eignungspruefung · regression · klassifikation
-docs/       01_VORGABEN · 02_ENTSCHEIDUNGEN · 03_STAND · 04_MODELLIERUNG · 05_KAPITEL5
+docs/       01_VORGABEN · 02_ENTSCHEIDUNGEN · 03_STAND · 04_MODELLIERUNG
 ```
 
 **Faustregel:** Erzeugt ein Schritt *Daten*, gehört er nach `prep/`. Erzeugt er
@@ -58,15 +58,14 @@ dadurch sehen alle Verfahren zwangsläufig dieselben Folds.
 
 ## Dokumentation
 
-Die Dateien sind nach ihrer Lebensdauer geschnitten — danach, wodurch sie
-veralten. **Ergebniszahlen stehen ausschließlich in `03_STAND.md`**, alles
-andere verweist darauf.
+Vier Dateien, geschnitten danach, **wodurch sie veralten**:
 
-| Datei | Ändert sich | Inhalt |
-|---|---|---|
-| `docs/01_VORGABEN.md` | nur wenn Schröter etwas sagt | Auflagen, Gutachten-Regeln R1–R10, Formales, Abgabe |
-| `docs/02_ENTSCHEIDUNGEN.md` | wächst, wird nie umgeschrieben | Decision Log mit Begründungen |
-| `docs/03_STAND.md` | bei jedem `build.py` | Pipeline, Datensatz-Steckbrief, Baseline-Werte |
-| `docs/04_MODELLIERUNG.md` | bei Änderung der Modellplanung | Spezifikation für `modelle/` |
-| `docs/05_KAPITEL5.md` | beim Schreiben | Schreibvorlage Kapitel Data Preparation |
-| `CLAUDE.md` | selten | Rahmenplan, Arbeitsregeln, KI-Verzeichnis |
+| Datei | Ändert sich durch |
+|---|---|
+| `docs/01_VORGABEN.md` | Ansagen von Schröter |
+| `docs/02_ENTSCHEIDUNGEN.md` | neue Entscheidungen — wächst, wird nie umgeschrieben |
+| `docs/03_STAND.md` | jeden Lauf von `build.py` |
+| `docs/04_MODELLIERUNG.md` | Änderungen an der Modellplanung |
+
+**Ergebniszahlen stehen ausschließlich in `03_STAND.md`**, alles andere verweist
+darauf. Rahmenplan, Arbeitsregeln und KI-Verzeichnis: `CLAUDE.md`.
