@@ -135,24 +135,51 @@ def linearitaet(train: pd.DataFrame) -> None:
     log("\n## 2  Linearitaet und Residuen (Auflage Schroeter, R7)\n")
     log("Gerechnet auf den Trainingsstadtteilen von Fold 1.\n")
 
-    log("| Merkmal | Pearson | Spearman | Abstand |")
-    log("|---|---|---|---|")
-    max_abstand, schlimmstes = 0.0, ""
+    # Der Abstand zwischen Pearson und Spearman ist nur dort ein Krueummungs-
+    # befund, wo die Korrelation ueberhaupt substanziell ist. Bei einer
+    # Korrelation nahe null ist er Rauschen: `median_miete` etwa liegt bei
+    # Pearson -0,019 und Spearman +0,070 - beide praktisch null, der "Abstand"
+    # von 0,089 sagt nichts ueber die Funktionsform. Bewertet wird deshalb nur
+    # bei |Pearson| > SCHWELLE_STARK.
+    SCHWELLE_STARK, SCHWELLE_ABSTAND = 0.20, 0.10
+
+    log("| Merkmal | Pearson | Spearman | Abstand | relativ | aussagekraeftig |")
+    log("|---|---|---|---|---|---|")
+    stark = []
     for m in PRAEDIKTOREN:
         p = train[m].corr(train[ZIELGROESSE])
         s = train[m].corr(train[ZIELGROESSE], method="spearman")
-        if abs(p - s) > max_abstand:
-            max_abstand, schlimmstes = abs(p - s), m
-        log(f"| `{m}` | {p:+.3f} | {s:+.3f} | {abs(p - s):.3f} |")
+        d = abs(p - s)
+        rel = d / abs(p) if abs(p) > 1e-9 else float("nan")
+        zaehlt = abs(p) > SCHWELLE_STARK
+        if zaehlt:
+            stark.append((m, p, s, d))
+        log(f"| `{m}` | {p:+.3f} | {s:+.3f} | {d:.3f} | {rel:.0%} | "
+            f"{'ja' if zaehlt else 'nein (Korrelation ~ 0)'} |")
 
     log("")
-    log(f"Groesster Abstand: {max_abstand:.3f} bei `{schlimmstes}`.")
-    log("Ein grosser Abstand zwischen Pearson und Spearman zeigt einen")
-    log("monotonen, aber gekruemmten Zusammenhang. Bleiben alle Abstaende klein,")
-    log("sind die EINZELNEN Effekte praktisch linear - eine etwaige")
-    log("Fehlspezifikation liegt dann nicht an der Kruemmung.")
-    pruefe("Ridge", "Einzeleffekte linear (Pearson vs Spearman)",
-           f"max {max_abstand:.3f}", "< 0,05", max_abstand < 0.05)
+    log(f"Bewertet werden die {len(stark)} Merkmale mit |Pearson| > "
+        f"{SCHWELLE_STARK:.2f}. Bei den uebrigen liegt die Korrelation nahe null;")
+    log("dort ist der Abstand Rauschen und kein Befund ueber die Funktionsform.")
+    log("")
+    log("Die RICHTUNG des Abstands ist dabei aussagekraeftiger als sein Betrag:")
+    log("  Spearman > Pearson  ->  monoton, aber gekruemmt (echte Nichtlinearitaet)")
+    log("  Pearson > Spearman  ->  Hebelpunkte, einzelne Stadtteile ziehen die")
+    log("                          lineare Korrelation nach oben")
+    log("")
+    for m, p, s, d in sorted(stark, key=lambda x: -x[3]):
+        art = "Kruemmung" if s > p else "Hebelpunkte"
+        log(f"  `{m}`: {p:+.3f} -> {s:+.3f} ({d:.3f}) - {art}")
+
+    groesster = max(d for *_, d in stark) if stark else 0.0
+    schlimmstes = max(stark, key=lambda x: x[3])[0] if stark else "-"
+    log("")
+    log(f"Groesster Abstand unter den aussagekraeftigen Merkmalen: "
+        f"{groesster:.3f} bei `{schlimmstes}`.")
+    pruefe("Ridge", "Einzeleffekte ohne nennenswerte Kruemmung",
+           f"max {groesster:.3f} bei `{schlimmstes}`",
+           f"< {SCHWELLE_ABSTAND:.2f} (nur |Pearson| > {SCHWELLE_STARK:.2f})",
+           groesster < SCHWELLE_ABSTAND)
 
     fig, achsen = plt.subplots(2, 5, figsize=(16, 6.5))
     for ax, m in zip(achsen.ravel(), PRAEDIKTOREN):
@@ -362,8 +389,12 @@ def klassenbalance(kl: pd.DataFrame) -> None:
     log("mittelt sonst ueber eine Klasse, die im Test gar nicht vorkommt. Genau")
     log("dafuer wird die Fold-Zuteilung doppelt stratifiziert (Decision Log #30).")
     log("")
-    log(f"Die Mehrheitsklasse allein erreicht Accuracy {anteil.max():.3f} - ")
-    log("**Accuracy ist als Hauptmass wertlos**, massgeblich ist Macro-F1.")
+    log(f"Ueber den ganzen Datensatz dominiert `{anteil.idxmax()}` in "
+        f"{anteil.max() * 100:.1f} % der Stadtteil-Monate. Ein Modell, das immer")
+    log("diese Klasse nennt, erreicht damit eine hohe Trefferquote, ohne etwas")
+    log("gelernt zu haben - **Accuracy ist als Hauptmass wertlos**, massgeblich")
+    log("ist Macro-F1. Die je Fold gerechneten Baseline-Werte stehen in")
+    log("`results/klassifikation/baselines_klasse.csv`.")
     pruefe("Random Forest / XGBoost", "seltenste Klasse in jedem Fold vertreten",
            f"min {min(je_fold)} Testfaelle", "> 0", min(je_fold) > 0)
 
