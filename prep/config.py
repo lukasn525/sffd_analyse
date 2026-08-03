@@ -6,7 +6,7 @@ Stadtteile, Praediktoren, Merkmalssaetze, Zeitschnitte, Suchraeume - steht hier
 und nirgendwo sonst. Wer wissen will, ab wann die Analyse laeuft oder welche
 Merkmale ins Modell gehen, oeffnet ausschliesslich diese Datei.
 
-Bezug: docs/01_PIPELINE.md, docs/02_ENTSCHEIDUNGEN.md
+Bezug: docs/03_STAND.md, docs/02_ENTSCHEIDUNGEN.md
 """
 from pathlib import Path
 
@@ -254,7 +254,7 @@ ERGEBNISVARIABLEN = [
 # steht jeder Stadtteil in Training UND Test; das Modell kennt sein Niveau
 # bereits und die Strukturmerkmale muessen nichts erklaeren.
 #
-#     30 Stadtteile -> 5 Folds a 6        5 Stadtteile -> Hold-out
+#     29 Stadtteile -> 5 Folds (6/6/6/6/5)   6 Stadtteile -> Hold-out
 #     jeder Stadtteil ist genau einmal Testfall, nie zugleich Trainingsfall
 #
 # Zuteilung stratifiziert nach Bevoelkerung: Die Stadtteile werden nach

@@ -1,5 +1,9 @@
 # Anforderungen an die Modellierung
 
+> **Lebensdauer dieses Dokuments:** Spezifikation, keine Ergebnisse. Zahlen zu
+> Datensätzen und Baselines stehen in `03_STAND.md` und werden hier **nicht**
+> wiederholt. Erwartungswerte aus Vortests sind als solche gekennzeichnet.
+
 Verbindliche Vorgabe für den Neuaufbau von `modelle/`. Die Data Preparation ist
 abgeschlossen und wird **nicht mehr angefasst** — die Modellskripte lesen
 ausschließlich die fertigen Parquet-Dateien.
@@ -12,14 +16,12 @@ Die bestehenden Skripte `m01_eignung.py`, `m02_regression.py` und
 
 ## 1. Was geliefert wird
 
-| Datei | Zeilen × Spalten | Analyseeinheit |
-|---|---|---|
-| `data/processed/regression.parquet` | 4.620 × 25 | Stadtteil × Monat |
-| `data/processed/klassifikation.parquet` | 4.619 × 28 | Stadtteil × Monat |
-
-Beide decken 2015-01 bis 2025-12 ab, 35 Stadtteile, **keine fehlenden Werte**,
-alle Merkmale `float64`. Ein Stadtteil-Monat ohne Einsatz fehlt im
+Beide Datensätze liegen auf der Analyseeinheit **Stadtteil × Monat**, decken
+denselben Zeitraum und dieselben Stadtteile ab, haben keine fehlenden Werte und
+Merkmale durchgehend `float64`. Ein Stadtteil-Monat ohne Einsatz fehlt im
 Klassifikationsdatensatz, weil sein Anteil 0/0 wäre.
+
+**Steckbrief mit Zeilen, Spalten und Zeitraum: `03_STAND.md`, Abschnitt 2.**
 
 ### Merkmale (identisch in beiden Dateien, 12 Stück)
 
@@ -54,10 +56,9 @@ per `argmax` gebildet, und sie dienen der Deskription in Kapitel 5. Sie sind
 Vorhersage wäre Regression, und der Klassifikationsstrang soll die *Art*
 vorhersagen. Das hält Kapitel 7 fokussiert (Gutachten R8).
 
-Die Klassenverteilung von `dominante_einsatzart` ist stark schief: Fehlalarm
-79,0 %, Technische Hilfe 16,3 %, Rettung/EMS 3,1 %, Brand 1,5 %. **Accuracy ist
-hier wertlos** — die Mehrheitsklasse allein erreicht 0,786. Maßgeblich ist
-Macro-F1.
+Die Klassenverteilung von `dominante_einsatzart` ist stark schief (Werte in
+`03_STAND.md`). **Accuracy ist hier wertlos** — die Mehrheitsklasse allein
+erreicht über 0,8. Maßgeblich ist Macro-F1.
 
 ---
 
@@ -71,19 +72,20 @@ from s2_datensaetze import fold_masken
 train, test = fold_masken(daten, k)     # k = 1..5
 ```
 
-Es ist ein **Stadtteil-Split**: 5 Folds à 6 Stadtteile, dazu 6
-Hold-out-Stadtteile. Kein Stadtteil ist je zugleich Trainings- und Testfall; ein
-Teststadtteil wird mit allen 132 Monaten getestet. Die Zuteilung ist nach
-Bevölkerung stratifiziert, damit kein Fold nur aus Großstadtteilen besteht.
+Es ist ein **Stadtteil-Split** (Aufteilung siehe `03_STAND.md`, Abschnitt 3).
+Kein Stadtteil ist je zugleich Trainings- und Testfall; ein Teststadtteil wird
+mit allen Monaten des Zeitraums getestet. Die Zuteilung ist nach Bevölkerung
+stratifiziert, damit kein Fold nur aus Großstadtteilen besteht, und zusätzlich
+nach der seltensten Klasse, damit kein Fold ohne Brand-Testfälle bleibt (#30).
 
 **Das Hold-out (`ist_holdout == 1`) bleibt bis zum Schluss unberührt.** Es wird
 genau einmal ausgewertet, nach Abschluss von Modellwahl und Tuning.
 
 ### Wiederholte Splits — verbindlich
 
-Bei nur 30 Entwicklungsstadtteilen schwankt das Ergebnis eines einzelnen Folds
-massiv. Gemessene Streuungen im Vortest: bis ±0,89 R². Mit fünf Folds allein
-lässt sich nicht sagen, welches Verfahren besser ist.
+Bei 29 Entwicklungsstadtteilen schwankt das Ergebnis eines einzelnen Folds
+massiv — die Baseline allein streut über die fünf Folds von R² −0,17 bis 0,73.
+Mit fünf Folds lässt sich nicht sagen, welches Verfahren besser ist.
 
 Deshalb: **10 Wiederholungen mit unterschiedlichem Versatz**, Mittelung über
 alle 50 Fold-Ergebnisse.
@@ -110,12 +112,12 @@ Zu dokumentieren ist dabei: Die Strukturmerkmale sind innerhalb eines Jahres
 nahezu konstant, das Modell sagt also für alle zwölf Monate eines Stadtteils
 fast denselben Wert vorher. Die Monatsschwankung geht damit vollständig in das
 Residuum ein. Ergänzend darf eine auf Stadtteilebene aggregierte Auswertung als
-Zusatzangabe berichtet werden — sie fällt deutlich höher aus (bei
-`anzahl_einsaetze` 0,580 statt 0,276) und ist getrennt zu kennzeichnen.
+Zusatzangabe berichtet werden — sie fällt deutlich höher aus und ist getrennt zu
+kennzeichnen.
 
 ---
 
-## 3. Die drei Verfahren
+## 3. Die Verfahren — drei für die Menge, zwei für die Struktur
 
 Identische Zeilen, identische Merkmale, identische Folds, identisches
 Tuning-Budget. Modellspezifisch ist nur, was **innerhalb der sklearn-Pipeline je
@@ -123,24 +125,58 @@ Fold** passiert — sonst entsteht Leakage über die Skalierung.
 
 | | Regression | Klassifikation |
 |---|---|---|
-| linear | `Ridge` | `LogisticRegression(penalty="l2")` |
+| linear | `Ridge` | — (entfällt, siehe unten) |
 | Bagging | `RandomForestRegressor` | `RandomForestClassifier` |
 | Boosting | `XGBRegressor` | `XGBClassifier` |
 
-**Wichtig für den Text:** In der Klassifikation ist es nicht Ridge, sondern
-logistische Regression mit L2-Strafterm. Das ist das sachlich richtige
-Gegenstück, aber ein anderes Verfahren mit anderer Link-Funktion. Das Exposé
-verspricht dreimal dieselben drei — bleibt das unerwähnt, ist es genau der im
-Gutachten kritisierte Punkt „heterogene Spezifikationen" (R1).
+Die Klassifikationsmenge ist eine **echte Teilmenge** der Regressionsmenge: Es
+kommt kein Verfahren hinzu, genau eines fällt weg. Freigegeben von Schröter per
+E-Mail vom 03.08.2026, festgehalten als Decision Log #31.
+
+**Warum RF und XGBoost sich übertragen:** Zwischen Regression und Klassifikation
+wechselt bei ihnen ausschließlich die Verlustfunktion — Gini bzw. Entropie statt
+Varianzreduktion beim Splitkriterium, `multi:softprob` statt
+`reg:squarederror` als Objective. Der Ensemble-Mechanismus (Bagging über
+Bootstrap-Stichproben, sequenzielles Gradient Boosting) bleibt identisch, beide
+sind nativ mehrklassenfähig.
+
+**Warum Ridge sich nicht überträgt:** Ridge minimiert den quadratischen Fehler
+auf einer metrischen Zielgröße. `dominante_einsatzart` ist nominal skaliert mit
+vier ungeordneten Klassen — ohne Ordnung und ohne Abstandsbegriff ist der
+quadratische Fehler als Verlustfunktion nicht definiert. Der `RidgeClassifier`
+aus scikit-learn wurde geprüft und verworfen: ±1-Kodierung, One-vs-Rest, keine
+kalibrierten Klassenwahrscheinlichkeiten.
+
+**Warum keine logistische Regression:** Sie wäre das sachlich korrekte lineare
+Gegenstück (L2-penalisiert wie Ridge, andere Link-Funktion) und schlägt im
+Vortest die Baseline. Sie wäre aber ein vierter Verfahrensstrang — bei zwei
+Zielgrößen genau die Verbreiterung, die das Gutachten unter R4 als größtes
+Notenrisiko benennt und die R8 untersagt. Entschieden am 03.08.2026, nicht
+wieder aufzunehmen ohne Revision von Decision Log #31.
+
+**Wichtig für den Text:** Das Exposé verspricht dreimal dieselben drei
+Verfahren. Die Abweichung ist in 6.2 zu benennen und zu begründen (Auflage
+Schröter) — bleibt sie unerwähnt, ist sie genau der im Gutachten kritisierte
+Punkt „heterogene Spezifikationen" (R1). Die Begründung lautet, dass die
+Verfahrensauswahl der Skalierung der jeweiligen Zielgröße folgt, nicht der
+Bequemlichkeit: metrisch → drei, nominal → die zwei, die eine nominale
+Zielgröße überhaupt verarbeiten können.
 
 ### Auflagen aus der Eignungsprüfung
 
 - Ridge auf `log(1+y)` schätzen, Gütemaße nach `expm1`-Rücktransformation auf
   der Originalskala berechnen
 - `StandardScaler` in die Pipeline, nicht vorher
-- Klassifikation mit `class_weight="balanced"` bzw. `sample_weight`
+- Klassifikation mit `class_weight="balanced"` bzw. `sample_weight` — als
+  Modellhyperparameter, **nicht** als Preprocessing-Schritt (kein Resampling),
+  konsistent zur Metrik Macro-F1
 - Für `XGBClassifier` numerische Klassenlabels, Wahrscheinlichkeitsspalten
-  danach auf die Reihenfolge von `KLASSEN` zurückbringen
+  danach auf die Reihenfolge von `KLASSEN` zurückbringen. Der Label-Encoder ist
+  **einmal global auf allen vier Klassen** zu fitten, nicht je Fold — sonst
+  verschiebt sich das Mapping in Folds, in denen eine Klasse nicht auftritt
+- Da beide Klassifikationsverfahren baumbasiert sind, braucht der
+  Klassifikationsstrang **keine Skalierung**. `StandardScaler` betrifft nur
+  Ridge. Die Data Preparation bleibt davon unberührt und wird nicht angefasst
 
 ### Hyperparameter-Suche
 
@@ -153,16 +189,15 @@ dem Hold-out.
 
 ## 4. Baselines — bereits gerechnet, nicht neu bauen
 
-Sie liegen in `results/` und stammen aus `prep/s3_baselines.py`. Jedes Modell
-wird gegen sie gestellt.
+Sie stammen aus `prep/s3_baselines.py` und liegen in `results/`. Jedes Modell
+wird gegen sie gestellt. **Die Werte stehen in `03_STAND.md`, Abschnitt 4** —
+hier nicht wiederholen, sonst laufen die beiden Stellen auseinander.
 
-| Zielgröße | Baseline | Wert |
-|---|---|---|
-| `anzahl_einsaetze` | **Negative Binomial** | R² **0,472 ± 0,368** |
-| `anzahl_einsaetze` | Gesamtmittelwert | R² −0,832 |
-| `einsaetze_je_1000_ew` | Gesamtmittelwert | R² −2,122 |
-| `anteil_*` | Gesamtmittelwert | R² −0,06 bis −0,11 |
-| `dominante_einsatzart` | Mehrheitsklasse | Macro-F1 0,220 · Accuracy 0,786 |
+Festgelegt in Decision Log #32: **Negative Binomial** für die Regression,
+**Mehrheitsklasse** für die Klassifikation, Gesamtmittelwert als Nullmarke.
+Die Negative Binomial ist bewusst ein starker Gegner — sie bekommt dieselben
+zwölf Merkmale und dieselben Folds. Was sie nicht kann, sind Wechselwirkungen
+zwischen Merkmalen; genau daran hängt die Rechtfertigung der Baumverfahren.
 
 Negative R² sind korrekt und aussagekräftig: Wer für einen unbekannten Stadtteil
 den Gesamtdurchschnitt vorhersagt, liegt schlechter als dessen eigener
@@ -172,8 +207,13 @@ Mittelwert. Genau diese Lücke sollen die Strukturmerkmale schließen.
 
 ## 5. Erwartungswerte aus dem Vortest
 
-Gerechnet mit Standardparametern ohne Tuning, 5 Stadtteil-Folds, Auswertung je
-Zeile, Zielgröße `anzahl_einsaetze`.
+> **Herkunft:** Vortest vom 28.07.2026, Standardparameter ohne Tuning, 5
+> Stadtteil-Folds, Auswertung je Zeile. **Seit dem Lauf vom 03.08.2026 nicht
+> reproduziert.** Die Werte dienen der Orientierung, welche Größenordnung zu
+> erwarten ist — sie gehören **nicht** in die Arbeit, bevor `m02_menge.py` sie
+> neu gerechnet hat.
+
+Zielgröße `anzahl_einsaetze`.
 
 | Verfahren | R² | Std |
 |---|---|---|
@@ -192,9 +232,15 @@ begrenzt den Schaden. Wer diese Auflage übersieht, kommt zu dem falschen
 Schluss, Ridge sei für diese Aufgabe untauglich.
 
 Bei `einsaetze_je_1000_ew` liegt Random Forest mit 0,377 ± 0,29 vorn, Ridge auf
-der Rohskala bei −3,601. Bei `dominante_einsatzart` erreichen logistische
-Regression 0,282 und Random Forest 0,301 Macro-F1 gegen 0,220 der
-Mehrheitsklasse.
+der Rohskala bei −3,601. Bei `dominante_einsatzart` erreicht Random Forest 0,301
+Macro-F1 gegen 0,220 der Mehrheitsklasse.
+
+Für die logistische Regression lag der Vortestwert bei 0,282 — sie schlägt die
+Baseline also ebenfalls und liegt nah am Forest. Der Verzicht auf sie (#31)
+erfolgt aus Fokusgründen, nicht mangels Eignung; **das ist in 6.2 so zu
+schreiben.** Eine verworfene Option als untauglich darzustellen, die es nicht
+ist, wäre genau die Art unbelegter Behauptung, die das Gutachten unter R9
+kritisiert.
 
 ---
 
@@ -202,7 +248,9 @@ Mehrheitsklasse.
 
 Die Arbeit muss belegen, dass der Schritt über ein einfaches Regressionsmodell
 hinaus gerechtfertigt ist. Diese Begründung entsteht **aus der Regression
-selbst**, nicht aus einer Behauptung. Vier Schritte, alle bereits gerechnet:
+selbst**, nicht aus einer Behauptung. Vier Schritte — die Zahlen stammen alle
+aus dem Vortest vom 28.07.2026 und sind mit `m01_eignung.py` **neu zu rechnen**,
+bevor sie in die Arbeit gehen:
 
 **Schritt 1 — Das einfache Modell funktioniert.** Ridge auf `log(1+y)` erreicht
 R² 0,472 und liegt damit gleichauf mit der Negative-Binomial-Baseline; das
@@ -234,7 +282,7 @@ konkret, statt nur „es ist nichtlinear" zu sagen:
 **Schritt 4 — Daraus folgt die Verfahrenswahl.** Ein lineares Modell kann
 Interaktionen nur abbilden, wenn man sie von Hand spezifiziert — bei zehn
 Merkmalen sind das 45 zusätzliche Terme, deren Auswahl willkürlich wäre und die
-bei 30 Trainingsstadtteilen zu Überanpassung führt. Genau diese Lücke schließen
+bei 29 Trainingsstadtteilen zu Überanpassung führt. Genau diese Lücke schließen
 Baumverfahren konstruktionsbedingt: Jeder Split bedingt auf die vorherigen,
 Interaktionen entstehen also automatisch und datengetrieben. Random Forest
 (Bagging) und XGBoost (Boosting) sind damit **theoretisch** im Vorteil.
@@ -253,7 +301,7 @@ modelle/m01_eignung.py         Eignungsprüfung: Linearität, VIF, Verteilungen,
                                Urteil je Verfahren  -> results/eignungspruefung/
 modelle/m02_menge.py           Anzahl und Rate, drei Verfahren
                                -> results/regression/
-modelle/m03_struktur.py        dominante Einsatzart + vier Anteile
+modelle/m03_struktur.py        dominante Einsatzart, zwei Verfahren
                                -> results/klassifikation/
 modelle/m04_shap.py            Interpretation, nur für Modelle mit Signal
 ```
@@ -272,18 +320,18 @@ Neu zu prüfen sind:
 - VIF auf den eindeutigen Stadtteil-Merkmalskombinationen
 - **Extrapolation neu bewerten:** Unter einem Stadtteil-Split kann ein
   Teststadtteil Merkmalswerte außerhalb des Trainingsbereichs haben. Ridge
-  rechnet dann linear weiter — das erklärt vermutlich die Streuung von ±0,89 bei
-  der Rate. Der Anteil solcher Fälle ist zu quantifizieren.
+  rechnet dann linear weiter — das erklärt vermutlich die große Streuung bei der
+  Rate. Der Anteil solcher Fälle ist zu quantifizieren.
 - Klassenbalance von `dominante_einsatzart` und die Frage, ob vier Klassen bei
-  1,5 % Brand tragfähig sind
+  so dünn besetzter Brandklasse tragfähig sind
 
 ### Was `m04_shap.py` beachten muss
 
-SHAP nur für Modelle, die ihre Baseline schlagen. Für `anteil_brand` und
-`anteil_rettung_ems` wäre es die Erklärung von Rauschen. Die Lag-Merkmale sind
-nicht enthalten, das frühere Blockproblem entfällt; die Strukturmerkmale sind
-untereinander aber weiterhin korreliert (max. VIF 7,1), Beiträge verteilen sich
-also — blockweise interpretieren.
+SHAP nur für Modelle, die ihre Baseline schlagen — sonst erklärt man Rauschen.
+Die Lag-Merkmale sind nicht enthalten, das frühere Blockproblem entfällt; die
+Strukturmerkmale sind untereinander aber weiterhin korreliert, Beiträge
+verteilen sich also — blockweise interpretieren. Der VIF-Wert ist mit
+`m01_eignung.py` neu zu bestimmen.
 
 ---
 
@@ -294,5 +342,8 @@ also — blockweise interpretieren.
 - Auswertung des Hold-outs vor Abschluss des Tunings
 - Lag-Merkmale im Hauptvergleich
 - Accuracy als Hauptmaß der Klassifikation
+- Ridge oder `RidgeClassifier` auf die nominale Zielgröße anwenden
+- Die logistische Regression als drittes Klassifikationsverfahren wieder
+  aufnehmen, ohne Decision Log #31 zu revidieren
 - Rangfolgen der drei Verfahren, wo sich die Streuungsbereiche überlappen
 - Änderungen an `prep/` — die Aufbereitung ist abgeschlossen und getestet

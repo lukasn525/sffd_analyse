@@ -1186,6 +1186,37 @@ vermeidet.\footcite[192-193]{Bergmeir2012} Die technische Umsetzung erfolgt in P
 % Extrapolationspruefung -- unter dem Stadtteil-Split liegen 31 % der
 % Testzeilen ausserhalb des Trainings-Wertebereichs, was Baumverfahren und
 % Ridge unterschiedlich trifft.
+%
+% AUFLAGE SCHROETER (E-Mail 03.08.2026): Hierher gehoert ausserdem die
+% Begruendung, WARUM Regression und Klassifikation unterschiedlich viele
+% Verfahren einsetzen -- drei gegen zwei. Schroeter woertlich: "Sie muessen
+% nicht fuer Regression und Klassifikation dieselbe Anzahl oder dieselben
+% Algorithmen verwenden. Entscheidend ist, dass die Verfahren zur jeweiligen
+% Zielgroesse passen." Die Argumentation, ausformuliert in Decision Log #31:
+%
+% a) Die Klassifikationsmenge ist eine ECHTE TEILMENGE der Regressionsmenge.
+%    Es kommt kein Verfahren hinzu, genau eines faellt weg. Damit entstehen
+%    gerade KEINE heterogenen Spezifikationen (Gutachten R1) -- beide
+%    Zielgroessen laufen durch denselben Preprocessing- und
+%    Validierungsrahmen und werden von denselben Modellfamilien bearbeitet.
+% b) RF und XGBoost uebertragen sich, weil bei ihnen nur die Verlustfunktion
+%    wechselt (Gini/Entropie statt Varianzreduktion beim Split;
+%    multi:softprob statt reg:squarederror). Der Ensemble-Mechanismus ist
+%    identisch, beide sind nativ mehrklassenfaehig.
+% c) Ridge uebertraegt sich nicht: Es minimiert den quadratischen Fehler auf
+%    einer metrischen Zielgroesse. dominante_einsatzart ist nominal mit vier
+%    ungeordneten Klassen -- ohne Ordnung und Abstand ist der quadratische
+%    Fehler nicht definiert. RidgeClassifier wurde geprueft und verworfen
+%    (+-1-Kodierung, One-vs-Rest, keine kalibrierten Wahrscheinlichkeiten).
+%    Das Pruefen und Verwerfen gehoert in den Text -- es zeigt, dass die
+%    Option gesehen und nicht uebersehen wurde.
+% d) Die logistische Regression waere das korrekte lineare Gegenstueck und
+%    schlaegt im Vortest die Baseline (Macro-F1 0,282 gegen 0,220 der
+%    Mehrheitsklasse, RF 0,301). Sie entfaellt aus FOKUSGRUENDEN, nicht
+%    mangels Eignung: ein vierter Verfahrensstrang bei zwei Zielgroessen ist
+%    genau die Verbreiterung, die das Gutachten unter R4 als groesstes
+%    Notenrisiko benennt. DAS IST SO ZU SCHREIBEN -- eine funktionierende
+%    Option als untauglich darzustellen waere unbelegt (R9).
 
 \subsection{Modellkonfiguration und Hyperparameter-Suchräume}
 % Tabelle: Verfahren | Hyperparameter | Suchraum | Iterationen | bester Wert.
@@ -1234,8 +1265,13 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 % ACCURACY IST HIER KEIN HAUPTMASS -- 79 % der Stadtteil-Monate werden von
 % Fehlalarm dominiert, ein Modell das immer "Fehlalarm" sagt erreicht 0,786.
 %
-% Verfahren: logistische Regression mit L2-Strafterm (an Stelle von Ridge --
-% das ist im Text zu benennen, siehe 6.2), Random Forest, XGBoost.
+% Verfahren: NUR Random Forest und XGBoost -- zwei statt drei. Ridge hat auf
+% einer nominalen Zielgroesse keine Entsprechung, die logistische Regression
+% wurde aus Fokusgruenden gestrichen. Freigabe Schroeter 03.08.2026, begruendet
+% in 6.2, festgehalten als Decision Log #31. Im Text ist zu benennen, dass der
+% Klassifikationsstrang damit bewusst schmaler ist als der Regressionsstrang
+% -- nicht stillschweigend zwei Verfahren berichten, wo das Expose drei
+% verspricht.
 %
 % Klassenverteilung, gehoert in die Ergebnisdarstellung:
 %   Fehlalarm 79,0 % | Techn. Hilfe 16,3 % | Rettung/EMS 3,1 % | Brand 1,5 %
@@ -1286,8 +1322,13 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 % Extrapolation bei unbekannten Stadtteilen (31 % der Testzeilen);
 % Hold-out aus nur 6 Stadtteilen; jaehrliche ACS-Merkmale und Land-Use-
 % Snapshot 2020; ACS-Trefferquote 2009 von 63,1 %; sowie die Abweichungen
-% vom Expose (Stadtteil-Split statt Zeitreihen-CV, logistische Regression
-% statt Ridge in der Klassifikation, Einsatzart auf Stadtteilebene).
+% vom Expose (Stadtteil-Split statt Zeitreihen-CV, Klassifikation mit nur
+% zwei statt drei Verfahren, Einsatzart auf Stadtteilebene).
+% Zur Verfahrenszahl gehoert hierher der ehrliche Preis der Entscheidung
+% (#31): In der Klassifikation fehlt ein lineares Referenzverfahren, die
+% Symmetrie linear/Bagging/Boosting besteht also nur im Regressionsstrang.
+% Der Vergleich dort ist damit einer zwischen zwei Baumverfahren, die sich
+% konstruktionsbedingt aehnlicher sind als Ridge, RF und XGBoost einander.
 
 % ===================================================
 \section{Fazit und Ausblick}

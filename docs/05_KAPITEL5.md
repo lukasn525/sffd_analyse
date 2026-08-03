@@ -1,9 +1,14 @@
 # Kapitel 5 „Data Preparation" — Gliederung und Inhalte
 
-Arbeitsvorlage für die Neufassung. Der bestehende Text in `main.tex`
-(Zeilen 939–1289) beschreibt eine Pipeline, die es nicht mehr gibt — **er ist
-vollständig neu zu schreiben**, nicht zu überarbeiten. Abschnitt 5 dieses
-Dokuments listet auf, welche Aussagen konkret falsch geworden sind.
+> **Lebensdauer dieses Dokuments:** Schreibvorlage. Sie sagt, *was* wohin gehört
+> und *wie* es zu argumentieren ist — die konkreten Zahlen holst du beim
+> Schreiben aus `03_STAND.md`. Hier stehen bewusst keine, damit die beiden
+> Stellen nicht auseinanderlaufen.
+
+Arbeitsvorlage für die Neufassung. Der bestehende Text in `main.tex` beschreibt
+eine Pipeline, die es nicht mehr gibt — **er ist vollständig neu zu schreiben**,
+nicht zu überarbeiten. Abschnitt 5 dieses Dokuments listet auf, welche Aussagen
+konkret falsch geworden sind.
 
 ---
 
@@ -169,24 +174,28 @@ Teststadtteils — dann erklärt wieder seine Historie das Ergebnis statt seiner
 Struktur. Sie bleiben im Datensatz für eine Nebenbemerkung zur zeitlichen
 Prognose.
 
-**Zielgrößen.** Vier statt bisher zwei:
+**Zielgrößen.** Drei, die modelliert werden:
 
-| Zielgröße | Typ | Kennzahlen |
+| Zielgröße | Typ | Strang |
 |---|---|---|
-| `anzahl_einsaetze` | Zähldaten | Mittel 75,9 · Median 53 · Max 451 · Dispersionsindex **62,8** · Nullanteil 0,02 % |
-| `einsaetze_je_1000_ew` | stetig | Mittel 5,71 · Median 3,54 · Max 67,7 |
-| `dominante_einsatzart` | 4 Klassen | Fehlalarm 79,0 % · Techn. Hilfe 16,3 % · Rettung/EMS 3,1 % · Brand 1,5 % |
-| `anteil_brand` u. a. | stetig in [0,1] | Brand 11,6 % · Rettung 14,9 % · Techn. Hilfe 26,2 % · Fehlalarm 47,4 % |
+| `anzahl_einsaetze` | Zähldaten | Menge |
+| `einsaetze_je_1000_ew` | stetig | Menge |
+| `dominante_einsatzart` | 4 Klassen | Struktur |
 
-Der Dispersionsindex von 62,8 begründet die Negative-Binomial-Regression als
+Die vier `anteil_*`-Spalten sind Rechenbasis der Zielgröße und Deskription,
+**keine eigene Zielgröße** — ihre Vorhersage wäre Regression, der
+Klassifikationsstrang soll die *Art* vorhersagen (R8).
+
+Kennzahlen und Klassenverteilung: `03_STAND.md`, Abschnitt 2. Der hohe
+**Dispersionsindex** begründet die Negative-Binomial-Regression als
 Count-Baseline; Poisson mit Var = Mean ist deutlich verletzt.
 
 Zur **Klassifikation** ist die Begründung neu zu schreiben — sie ist der stärkste
 methodische Abschnitt des Kapitels. Auf Einzeleinsatz-Ebene tragen alle Einsätze
-eines Stadtteil-Monats identische Strukturmerkmale: 350.481 Zeilen enthielten
-nur 4.619 verschiedene Profile. Ein *perfektes* Modell auf den Strukturmerkmalen
-hätte 49,9 % Treffer erreicht gegenüber 48,2 % für bloßes Raten — eine
-Obergrenze von 1,7 Prozentpunkten. Auf Stadtteilebene ist dieselbe Frage
+eines Stadtteil-Monats identische Strukturmerkmale: Die 350.481 Einzeleinsätze
+enthielten nur 4.619 verschiedene Merkmalsprofile. Ein *perfektes* Modell auf den
+Strukturmerkmalen hätte dort kaum mehr erreicht als bloßes Raten (Zahlen und
+Herleitung in Decision Log #29). Auf Stadtteilebene ist dieselbe Frage
 beantwortbar. Die Zielgröße bleibt dabei eine **echte Klasse** (`argmax` über
 die vier NFIRS-Gruppen), keine künstliche Einteilung einer stetigen Größe — das
 ist wichtig, weil Dichotomisierung stetiger Zielgrößen methodisch als Fehler
@@ -204,11 +213,11 @@ weil die Aufteilung als Spalten `fold` und `ist_holdout` **in den Dateien
 steht** — sie ist eine Eigenschaft des Datensatzes, nicht der Algorithmen. Damit
 ist die Fairness-Regel konstruktiv abgesichert statt nur behauptet.
 
-Aufbau: 5 Folds à 6 Stadtteile, 6 Stadtteile Hold-out, jeder Stadtteil genau
-einmal Testfall, mit allen 132 Monaten. Die Begründung ist die zentrale
-methodische Aussage der Arbeit: Ein Zeitschnitt prüft die Forschungsfrage nicht,
-weil dort jeder Stadtteil in Training *und* Test steht und das Modell sein
-Niveau bereits kennt.
+Aufbau: fünf Folds plus Hold-out, jeder Stadtteil genau einmal Testfall, mit
+allen Monaten des Zeitraums (genaue Aufteilung in `03_STAND.md`, Abschnitt 3).
+Die Begründung ist die zentrale methodische Aussage der Arbeit: Ein Zeitschnitt
+prüft die Forschungsfrage nicht, weil dort jeder Stadtteil in Training *und*
+Test steht und das Modell sein Niveau bereits kennt.
 
 **Doppelte Stratifizierung.** Sortiert wird nach der Anzahl brand-dominierter
 Monate, bei Gleichstand nach Bevölkerung. Grund: Von 70 brand-dominierten
@@ -225,40 +234,34 @@ es ab — der Fehler träte erst beim dritten der drei Verfahren auf.
 *Code-Listing 3:* die Fold-Zuteilung. Vier Zeilen Sortierlogik, an denen hängt,
 ob der Verfahrensvergleich überhaupt aussagekräftig wird.
 
-**Baselines** (Auflage Schröter, 27.07.2026: gehören in die Data Preparation):
+**Baselines** (Auflage Schröter, 27.07.2026: gehören in die Data Preparation).
+Festlegung in Decision Log #32, **Werte in `03_STAND.md`, Abschnitt 4** — von
+dort abschreiben, nicht aus älteren Fassungen.
 
-| Zielgröße | Baseline | R² bzw. Macro-F1 |
-|---|---|---|
-| `anzahl_einsaetze` | Negative Binomial | 0,472 ± 0,368 |
-| `anzahl_einsaetze` | Gesamtmittelwert | −0,832 |
-| `einsaetze_je_1000_ew` | Gesamtmittelwert | −2,122 |
-| `anteil_*` | Gesamtmittelwert | −0,06 bis −0,11 |
-| `dominante_einsatzart` | Mehrheitsklasse | Macro-F1 0,220 · Accuracy 0,786 |
+Vier Punkte gehören unbedingt in den Text:
 
-Zwei Punkte gehören unbedingt in den Text. Erstens: **Negative R² sind korrekt**
-und aussagekräftig — wer für einen unbekannten Stadtteil den Gesamtdurchschnitt
-vorhersagt, liegt schlechter als dessen eigener Mittelwert. Genau diese Lücke
-sollen die Strukturmerkmale schließen. Zweitens: Die naive Vormonats-Baseline
-aus dem alten Text **entfällt**, weil sie die eigene Vergangenheit des
-Teststadtteils nutzen würde.
+1. **Negative Binomial für die Regression, und warum sie ein starker Gegner
+   ist:** dieselben zwölf Merkmale, dieselben Zeilen, dieselben Folds, über den
+   Log-Link auf der Originalskala nichtlinear, verteilungsgerecht für Zähldaten.
+   Kein Strohmann.
+2. **Was sie nicht kann, ist die eigentliche Pointe:** Wechselwirkungen zwischen
+   Merkmalen. Genau die finden Random Forest und XGBoost konstruktionsbedingt.
+   Damit wird der Vergleich zum Beleg — schlagen die Baumverfahren sie, existieren
+   solche Wechselwirkungen; schlagen sie sie nicht, reicht die einfachere Struktur.
+   Das beantwortet zugleich die Auflage zur nichtlinearen Baseline.
+3. **Negative R² sind korrekt** und aussagekräftig — wer für einen unbekannten
+   Stadtteil den Gesamtdurchschnitt vorhersagt, liegt schlechter als dessen
+   eigener Mittelwert. Genau diese Lücke sollen die Strukturmerkmale schließen.
+   Der Gesamtmittelwert läuft deshalb als Nullmarke mit, nicht als Gegner.
+4. **Offen zu benennen:** In der Klassifikation gibt es keine Entsprechung — eine
+   Zahl kann keine von vier ungeordneten Kategorien vorhersagen. Dort bleibt die
+   Mehrheitsklasse die einzige Referenz, die Latte liegt also niedriger als in
+   der Regression. Ebenfalls hierher: Die naive Vormonats-Baseline aus dem alten
+   Text entfällt, weil sie die eigene Vergangenheit des Teststadtteils nutzen würde.
 
-Zur Auflage „bei nichtlinearen Zusammenhängen braucht es eine nichtlineare
-Baseline": Gesamtmittelwert und saisonaler Durchschnitt sind
-**nichtparametrisch** — sie schätzen keine Koeffizienten und sind damit nicht
-durch ihre Funktionsform benachteiligt. Der Beleg bleibt fair.
-
-**Steckbrief** am Kapitelende, komplett neu:
-
-| | |
-|---|---|
-| Analyseeinheit | Stadtteil × Monat, beide Datensätze |
-| Zeitraum | 2015-01 bis 2025-12 (132 Monate) |
-| Beobachtungen Menge | 4.620 (35 × 132) |
-| Beobachtungen Struktur | 4.619 (ein Monat ohne Einsatz) |
-| Merkmale | 10 Struktur + 2 Saison = 12 |
-| Aufteilung | 5 Folds à 6 Stadtteile + 6 Hold-out-Stadtteile |
-| Ausschlüsse | 3 Parkgebiete, 3 ohne durchgängige ACS-Abdeckung |
-| Absicherung | 19 automatisierte Prüfungen an den fertigen Dateien |
+**Steckbrief** am Kapitelende: Zahlen aus `03_STAND.md`, Abschnitt 2 und 3
+übernehmen — Analyseeinheit, Zeitraum, Beobachtungen je Datensatz, Merkmalszahl,
+Aufteilung, Ausschlüsse und die Zahl der automatisierten Prüfungen.
 
 ---
 
