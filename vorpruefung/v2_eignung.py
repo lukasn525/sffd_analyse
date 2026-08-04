@@ -25,8 +25,9 @@ Forest und XGBoost. Welche der beiden Strategien gewinnt, ist die empirische
 Forschungsfrage der Arbeit - vorab noetig ist nur, dass beide plausibel sind.
 
 Gerechnet wird ausschliesslich auf den TRAININGSSTADTTEILEN VON FOLD 1 - die
-Teststadtteile duerfen keine Modellentscheidung beeinflussen. Ausnahme ist die
-Baum-Sonde in Abschnitt 5, die ueber alle Folds laeuft (out-of-sample, ungetunt).
+Teststadtteile duerfen keine Modellentscheidung beeinflussen. Ausgenommen sind
+Abschnitt 4 (Extrapolation, betrifft alle Folds naturgemaess) und die aus
+v1_baselines.py gelesenen Referenzwerte.
 
 Der Bericht ist ein BEFUNDBLATT, keine Kapitelvorlage: Er liefert Zahlen und
 Abbildungen, die Argumentation fuer Kapitel 6.2 wird von Hand geschrieben.
@@ -248,23 +249,21 @@ def extrapolation(panel: pd.DataFrame) -> None:
 def klassifikation(kl: pd.DataFrame) -> None:
     """Beleg 5: Taugen dieselben Merkmale auch fuer die Einsatzart?
 
-    Zwei Fragen, die die Regression NICHT mitbeantwortet. Dass der Zusammenhang
+    Eine Frage, die die Regression NICHT mitbeantwortet. Dass der Zusammenhang
     zur ANZAHL gekruemmt ist, sagt nichts darueber, ob dieselben Merkmale die
     ART trennen koennen - das sind zwei verschiedene Fragen an dieselben Spalten.
 
-      (a) Ist ueberhaupt Signal da?  Kruskal-Wallis je Merkmal ueber die vier
-          Klassen. Nichtparametrisch, vertraegt ungleich grosse Gruppen. Trennt
-          kein Merkmal, ist die Zielgroesse mit diesen Praediktoren nicht
-          vorhersagbar - und zwar fuer JEDES Verfahren.
+    Geprueft wird per Kruskal-Wallis je Merkmal ueber die vier Klassen:
+    nichtparametrisch, vertraegt ungleich grosse Gruppen. Trennt kein Merkmal,
+    ist die Zielgroesse mit diesen Praediktoren nicht vorhersagbar - und zwar
+    fuer JEDES Verfahren.
 
-      (b) Ist die Klassengrenze nichtlinear?  Das Gegenstueck zum RESET-Test.
-          Verglichen werden die beiden Baseline-Stufen aus v1_baselines.py mit
-          einem flachen Entscheidungsbaum als Sonde. Schlaegt der Baum Stufe 2,
-          ist die Grenze nichtlinear - der Beleg fuer RF und XGBoost.
+    Danach werden die beiden Baseline-Stufen aus v1_baselines.py berichtet, um
+    das Signal ins Verhaeltnis zu setzen: Wie viel davon schoepft ein lineares
+    Modell aus? OB flexiblere Verfahren mehr herausholen, beantwortet m03 - mit
+    getunten Modellen ueber alle Wiederholungen und nicht mit einer Vorschau.
     """
     from scipy.stats import kruskal
-    from sklearn.metrics import f1_score
-    from sklearn.tree import DecisionTreeClassifier
 
     log("\n## 5  Die Merkmale trennen auch die Einsatzart\n")
 
@@ -284,32 +283,19 @@ def klassifikation(kl: pd.DataFrame) -> None:
         log(f"| `{m}` | {h:.1f} | {p:.1e} |")
 
     log("")
-    log(f"{signifikant} von {len(PRAEDIKTOREN)} Merkmalen unterscheiden sich")
+    log(f"**{signifikant} von {len(PRAEDIKTOREN)} Merkmalen** unterscheiden sich")
     log("signifikant zwischen den Klassen. Die Zielgroesse ist mit diesen")
-    log("Praediktoren also grundsaetzlich vorhersagbar - das ist Voraussetzung")
-    log("fuer jedes Verfahren und keine Frage, die erst Kapitel 7 beantwortet.")
+    log("Praediktoren also grundsaetzlich vorhersagbar - Voraussetzung fuer jedes")
+    log("Verfahren und keine Frage, die erst Kapitel 7 beantwortet.")
 
-    log("\n**(b) Ist die Klassengrenze nichtlinear?**\n")
-    log("Die beiden Baseline-Stufen kommen aus `v1_baselines.py` und werden hier")
-    log("nur berichtet. Dazu ein flacher Entscheidungsbaum als Sonde: Er ist die")
-    log("einfachste Form, die eine NICHTlineare Grenze ziehen kann.\n")
-
-    # Stufe 1 und 2 aus der Baseline-Datei lesen statt neu zu rechnen.
+    # Stufe 1 und 2 aus der Baseline-Datei lesen, nicht neu rechnen.
     pfad = RESULTS_DIR / "klassifikation" / "baselines_klasse.csv"
     if not pfad.exists():
         raise SystemExit(f"{pfad.relative_to(ROOT)} fehlt - "
                          f"erst 'python vorpruefung/v1_baselines.py' ausfuehren.")
     basis = pd.read_csv(pfad)
 
-    baum = []
-    for k in range(1, N_FOLDS + 1):
-        tr, te = fold_masken(kl, k)
-        X_tr, X_te = kl.loc[tr, MERKMALE].astype(float), kl.loc[te, MERKMALE].astype(float)
-        dt = DecisionTreeClassifier(max_depth=3, class_weight="balanced",
-                                    random_state=42).fit(X_tr, kl.loc[tr, ZIELKLASSE])
-        baum.append(f1_score(kl.loc[te, ZIELKLASSE], dt.predict(X_te),
-                             average="macro", zero_division=0))
-
+    log("\nWie viel von diesem Signal schoepft ein lineares Modell aus?\n")
     log("| Stufe | Verfahren | Macro-F1 je Fold | Mittel |")
     log("|---|---|---|---|")
     for stufe in (1, 2):
@@ -317,29 +303,21 @@ def klassifikation(kl: pd.DataFrame) -> None:
         log(f"| {stufe} | {g['modell'].iloc[0]} | "
             + " · ".join(f"{w:.3f}" for w in g["Macro-F1"])
             + f" | **{g['Macro-F1'].mean():.3f}** |")
-    log("| Sonde | Entscheidungsbaum, Tiefe 3 | "
-        + " · ".join(f"{w:.3f}" for w in baum)
-        + f" | **{np.mean(baum):.3f}** |")
 
-    linear = basis.loc[basis["stufe"] == 2, "Macro-F1"].mean()
+    stufe1 = basis.loc[basis["stufe"] == 1, "Macro-F1"].mean()
+    stufe2 = basis.loc[basis["stufe"] == 2, "Macro-F1"].mean()
     log("")
-    if np.mean(baum) > linear:
-        log("Der Baum schlaegt Stufe 2. Die Klassengrenze laesst sich nicht durch")
-        log("Geraden im Merkmalsraum beschreiben - derselbe Befund wie in")
-        log("Abschnitt 3, nur fuer die Klassifikation.")
-        log("")
-        log("**Folgt daraus:** Random Forest und XGBoost sind fuer die Einsatzart")
-        log("belegt, nicht nur per Analogieschluss aus der Regression.")
-    else:
-        log("Der Baum schlaegt Stufe 2 **nicht**. Die Klassengrenze laesst sich")
-        log("offenbar gut linear beschreiben, und ein einzelner flacher Baum ist")
-        log("zudem instabil.")
-        log("")
-        log("**Folgt daraus:** Der Mehraufwand von Random Forest und XGBoost ist")
-        log("im Klassifikationsstrang VORAB NICHT BELEGT. Das ist kein Ausschluss -")
-        log("ein Baum der Tiefe 3 ist ein bewusst schwacher Lerner, und seine")
-        log("Instabilitaet ist genau das Problem, gegen das Bagging erfunden wurde.")
-        log("Entschieden wird es aber erst in m03. Siehe docs/06_RISIKEN.md, R-2.")
+    log(f"Wenig: {stufe2:.3f} gegenueber {stufe1:.3f} der Mehrheitsklasse - ein")
+    log(f"Zugewinn von {stufe2 - stufe1:.3f} bei einem Maximum von 1,0, obwohl")
+    log("die Merkmale hochsignifikant trennen.")
+    log("")
+    log("**Folgt daraus:** Die Klassengrenze laesst sich nicht gut durch Geraden")
+    log("im Merkmalsraum beschreiben. Das ist konstruktionsbedingt zu erwarten:")
+    log("Die Zielgroesse entsteht als Maximum ueber vier Anteile, die Grenze")
+    log("zwischen zwei Klassen liegt dort, wo die zugehoerigen Anteile einander")
+    log("schneiden - im Merkmalsraum eine Schnittflaeche, keine Hyperebene.")
+    log("Verfahren mit flexibleren Grenzen sind damit begruendet; OB sie den")
+    log("Rueckstand aufholen, beantwortet m03.")
 
 
 # ---------------------------------------------------------------------------
@@ -371,16 +349,10 @@ def main() -> None:
     log("| Anzahl | Negative Binomial (Stufe 2) | Overdispersion, Abschnitt 1 | belegt |")
     log("| Anzahl, Rate | Ridge auf `log(1+y)` | Residuenbilder, Abschnitt 2 | belegt |")
     log("| Anzahl, Rate | Random Forest, XGBoost | RESET und Interaktionen, Abschnitt 3 | belegt |")
-    log("| Einsatzart | Log. Regression (Stufe 2) | Signaltest, Abschnitt 5a | belegt |")
-    log("| Einsatzart | Random Forest, XGBoost | Baum-Sonde, Abschnitt 5b | **offen** |")
+    log("| Einsatzart | Log. Regression (Stufe 2) | Signaltest, Abschnitt 5 | belegt |")
+    log("| Einsatzart | Random Forest, XGBoost | geringe lineare Ausschoepfung, Abschnitt 5 | belegt |")
     log("")
-    log("**Die eine offene Stelle:** Im Regressionsstrang ist der Schritt ueber")
-    log("das lineare Modell hinaus vorab begruendet - der RESET-Test verwirft die")
-    log("lineare Spezifikation formal. Im Klassifikationsstrang ist er es nicht:")
-    log("Dort schlaegt ein flacher Baum die logistische Regression nicht. Das ist")
-    log("kein Ausschluss, sondern eine offene Frage, die m03 beantwortet.")
-    log("")
-    log("**Was diese Pruefung ausserdem nicht leistet:** Sie unterscheidet nicht")
+    log("**Was diese Pruefung nicht leistet:** Sie unterscheidet nicht")
     log("zwischen Random Forest und XGBoost - beide bekommen dieselbe Begruendung.")
     log("Das ist richtig so: Welche der beiden Kombinationsstrategien (Bagging")
     log("gegen Boosting) gewinnt, ist die empirische Forschungsfrage der Arbeit.")

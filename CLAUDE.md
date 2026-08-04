@@ -62,6 +62,14 @@ markiert und mit Datum.
 4. Welche Implikationen ergeben sich für die Modellauswahl bei vergleichbaren
    tabellarischen Prognoseaufgaben?
 
+**Wie die Frage beantwortet wird** (#34, festgelegt vor dem ersten Modelllauf):
+über drei einzeln messbare Bausteine — Prognosegüte je Verfahren **gegen die
+Stufe-2-Baseline** (UF2), Trainings- und Inferenzaufwand (UF3), daraus die
+Eignungsaussage für diesen Datensatz (UF4). Eine Rangfolge *zwischen* den
+Verfahren nur, wenn der gepaarte Wilcoxon-Test sie hergibt. Grund: Der Abstand
+Verfahren↔Baseline ist messbar, der Abstand Verfahren↔Verfahren bei 29
+Entwicklungsstadtteilen nicht.
+
 **Dokumentierte Abweichungen vom Exposé:** Stadtteil-Split statt
 zeitreihengerechter Kreuzvalidierung (#29), Klassifikation auf Stadtteil × Monat
 statt Einzeleinsatz (#29), zwei statt drei Verfahren in der Klassifikation (#31).

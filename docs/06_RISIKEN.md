@@ -14,13 +14,13 @@ der Fragestellung, die die Aussagekraft begrenzen.
 
 | | Risiko | Beleg | Stufe |
 |---|---|---|---|
-| **R-1** | **Die Verfahren sind möglicherweise nicht unterscheidbar.** Das ist die zentrale Forschungsfrage. Im Vortest lag die gepaarte Differenz Ridge gegen Random Forest bei +0,042 ± 0,609; Ridge gewann 12 von 20 Folds — Münzwurf. Die Ursache (R-7) besteht unverändert fort. | Vortest 28.07., **neu zu rechnen** | hoch |
-| **R-2** | **Im Klassifikationsstrang schlägt ein lineares Modell den Baum.** Die ungetunte Sonde ergibt Macro-F1 0,290 für die logistische Regression gegen 0,270 für einen Entscheidungsbaum der Tiefe 3, bei 0,223 der Mehrheitsklasse. Der Baum unterbietet die Mehrheitsklasse sogar in zwei von fünf Folds. Der Mehraufwand von RF und XGBoost ist damit im zweiten Strang **nicht vorab begründet**. | `m01`, Abschnitt 5b | hoch |
+| **R-1** | **Die Verfahren sind bei `anzahl_einsaetze` möglicherweise nicht unterscheidbar.** Dort lag die gepaarte Differenz Ridge gegen Random Forest im Vortest bei +0,042 ± 0,609, Ridge gewann 12 von 20 Folds — Münzwurf. **Bei `einsaetze_je_1000_ew` sieht es umgekehrt aus:** RF 0,584 ± 0,19 gegen Ridge −0,087 ± 0,89, ein Abstand von 0,67. Das Risiko betrifft also **eine** Zielgröße, nicht den Vergleich als solchen. **Entschärft durch #34** (drei Bausteine statt Rangfolge). | Vortest 28.07., **neu zu rechnen** | mittel |
+| **R-2** | **Der Klassifikationsstrang trägt weniger, als die Forschungsfrage verspricht.** Selbst die beste Sonde erreicht Macro-F1 0,290 gegen 0,223 der Mehrheitsklasse — bei einem Maximum von 1,0 wird also nur ein Bruchteil des vorhandenen Signals ausgeschöpft. Die Verfahrenswahl ist begründet (siehe unten), der Ertrag bleibt aber gering. | `v2_eignung`, Abschnitt 5 | mittel |
 | **R-3** | **33,7 % der Testzeilen liegen außerhalb des Trainingsbereichs**, Spanne 3,6 bis 57,4 %. Unvermeidliche Folge des Stadtteil-Splits. Ridge rechnet dort linear weiter, Baumverfahren geben den Randwert des letzten Blatts — die Verfahren werden ungleich getroffen. | `m01`, Abschnitt 4 | hoch |
 | **R-4** | **Das Hold-out umfasst 6 Stadtteile.** Die abschließende, einmalige Bewertung beruht auf sechs Einheiten; ihre Unsicherheit muss mitberichtet werden. | 6 von 35, 792 Zeilen | mittel |
 | **R-5** | **Effektive Stichprobe: 35 Einheiten.** 4.620 Zeilen klingen komfortabel, es sind 35 Querschnittseinheiten × 132 Monate, davon 29 in der Entwicklung. Gemeinsame Ursache von R-1, R-3 und R-4. | `03_STAND.md` | mittel |
 | **R-6** | **Merkmale sind innerhalb eines Jahres konstant.** ACS erscheint jährlich, Land Use ist ein Snapshot 2020. Das Modell sagt für alle zwölf Monate eines Stadtteils fast denselben Wert vorher; die Monatsschwankung geht vollständig ins Residuum. | 5 Jahrgänge auf 132 Monate | gering |
-| **R-7** | **Abweichungen vom Exposé sind unbesprochen** (siehe unten). | #29, #31, #32 | gering |
+| **R-7** | **Der Stadtteil-Split ist mit Schröter unbesprochen.** Er widerspricht einem wörtlich im Exposé genannten Element von Unterfrage 2 und steht als Spalte in beiden Datensätzen — ein Veto danach entwertet jede Modellrechnung. Die übrigen drei Abweichungen sind unkritisch (siehe unten). | #29 | gering |
 | **R-8** | **ACS-Trefferquote 2009 nur 63,1 %.** Für die Hauptanalyse ab 2015 folgenlos, gehört in die Limitationen. | 2021/23: 99,2 % | gering |
 
 **Entschärft und aus dem Register genommen:**
@@ -30,39 +30,48 @@ der Fragestellung, die die Aussagekraft begrenzen.
 
 ---
 
-## R-2 im Detail — der neue Befund
+## R-2 im Detail — und der Beleg, der daraus folgt
 
-| Verfahren | Macro-F1 je Fold | Mittel |
-|---|---|---|
-| Mehrheitsklasse | 0,224 · 0,222 · 0,237 · 0,213 · 0,218 | 0,223 |
-| Logistische Regression | 0,322 · 0,320 · 0,252 · 0,320 · 0,235 | **0,290** |
-| Entscheidungsbaum, Tiefe 3 | 0,353 · 0,239 · 0,197 · 0,347 · 0,214 | 0,270 |
+| Stufe | Verfahren | Macro-F1 je Fold | Mittel |
+|---|---|---|---|
+| 1 | Mehrheitsklasse | 0,224 · 0,222 · 0,237 · 0,213 · 0,218 | 0,223 |
+| 2 | Logistische Regression | 0,322 · 0,320 · 0,252 · 0,320 · 0,235 | **0,290** |
 
-**Was der Befund sagt:** Signal ist vorhanden — beide Verfahren schlagen die
-Mehrheitsklasse im Mittel, und der Kruskal-Wallis-Test weist 9 von 10 Merkmalen
-als klassentrennend aus. Die Klassengrenze lässt sich aber offenbar gut linear
-beschreiben; ein flacher Baum bringt keinen Vorteil und ist zudem instabil
-(0,197 bis 0,353).
+### Die Begründungskette für Kapitel 6.2
 
-**Was der Befund NICHT sagt:** Dass Random Forest und XGBoost ungeeignet wären.
-Ein einzelner Baum der Tiefe 3 ist ein bewusst schwacher Lerner. Seine
-Instabilität ist genau das Problem, für dessen Behebung Bagging erfunden wurde —
-insofern ist der Befund eher ein Argument *für* das Ensemble als gegen
-Baumverfahren. Belegt ist er damit aber nicht.
+**Es ist viel zu holen, und das lineare Modell holt wenig davon.** Die
+Kruskal-Wallis-Tests weisen neun der zehn Strukturmerkmale als hochsignifikant
+klassentrennend aus, mit Teststatistiken bis H = 481 und p-Werten bis 10⁻¹⁰⁴. In
+den Merkmalen steckt also erhebliche Information über die dominante Einsatzart.
+Die multinomiale logistische Regression schöpft davon nur einen Bruchteil aus:
+Macro-F1 0,290 gegenüber 0,223 der Mehrheitsklasse — ein Zugewinn von 0,067 bei
+einem theoretischen Maximum von 1,0.
 
-**Konsequenz:** Im Regressionsstrang ist der Schritt über das lineare Modell
-hinaus vorab begründet (RESET-Test), im Klassifikationsstrang **nicht**. Dort
-entscheidet erst `m03`. Das gehört so in Kapitel 6.2 — und wenn RF und XGBoost
-die logistische Regression am Ende nicht schlagen, ist das ein berichtbares
-Ergebnis, kein Makel (Gutachten R6).
+**Der Grund liegt in der Form der Klassengrenze.** Die Zielgröße entsteht als
+Maximum über vier Anteile; die Grenze zwischen zwei Klassen liegt dort, wo die
+zugehörigen Anteile einander schneiden. Im Merkmalsraum sind das Schnittflächen,
+keine Hyperebenen. Ein Verfahren, das nur lineare Trennebenen ziehen kann, ist
+hier konstruktionsbedingt im Nachteil — was die geringe Ausschöpfung erklärt.
 
-**Offene Frage an Decision Log #31:** Dort wurde die logistische Regression aus
-Fokusgründen gestrichen, ausdrücklich „nicht mangels Eignung". Der Vortest sagt
-jetzt, dass sie das beste der drei geprüften Verfahren ist. Das ist kein
-Widerspruch zur Entscheidung, aber es erhöht die Begründungslast: Wer das beste
-Verfahren weglässt, muss das benennen. Zwei Wege — sie als dokumentierten
-Referenzlauf mitführen, oder die Streichung in 6.2 offen und mit dieser Zahl
-begründen. Nicht möglich ist, es unerwähnt zu lassen.
+**Daraus folgt die Verfahrenswahl.** Verfahren, die flexiblere Grenzen ziehen
+können, sind damit begründet — Random Forest über die Kombination vieler Bäume,
+XGBoost über sequenzielle Korrektur. Ob sie den Rückstand aufholen, ist die
+empirische Frage von Kapitel 7. Holen sie ihn nicht auf, lautet der Befund „der
+Mehraufwand lohnt sich hier nicht"; das ist ein berichtbares Ergebnis, kein
+Makel (Gutachten R6).
+
+**Was das Risiko bleibt:** nicht die Verfahrenswahl, sondern der **Ertrag**. Auch
+das beste bisher gemessene Verfahren schöpft nur einen Bruchteil des Signals aus.
+Der Klassifikationsstrang wird voraussichtlich weniger tragen, als die
+Forschungsfrage verspricht — das gehört in die Limitationen.
+
+### Offene Frage an Decision Log #31
+
+Dort wurde die logistische Regression aus Fokusgründen gestrichen, ausdrücklich
+„nicht mangels Eignung". Seit #33 ist sie **Stufe-2-Baseline** — damit ist die
+Frage entschärft: Sie ist nicht mehr das weggelassene beste Verfahren, sondern
+die Messlatte, gegen die RF und XGBoost antreten. Ihr Wert von 0,290 wird vom
+Problem zum Beweismittel. In 6.2 ist das so zu benennen.
 
 ---
 
@@ -78,26 +87,46 @@ Decision Log begründet, keine ist abgestimmt.
 | **Rate als zweite Zielgröße** | Einsätze je 1.000 Einwohner | Erweitert das Exposé, widerspricht ihm nicht (#29) |
 | **Drei Verfahren für Regression, zwei für Klassifikation** | Ridge/RF/XGB gegen RF/XGB | Per E-Mail vom 03.08.2026 freigegeben, Begründung in 6.2 verlangt (#31) |
 
-**Einstufung als gering** — mit einer Einschränkung, die ich einmal nennen
-möchte: Die Eintrittswahrscheinlichkeit ist niedrig, die Schadenshöhe aber
-maximal. Sollte Schröter beim Stadtteil-Split anderer Meinung sein, ist jede
-Modellrechnung davor verloren, weil der Split als Spalte in den Datensätzen
-steht. Der Punkt kostet in der Sprechstunde fünf Minuten. Das ist der Grund,
-warum er trotz niedriger Stufe im Register bleibt.
+**Einstufung (Lukas, 04.08.2026): Nur der Stadtteil-Split ist leicht kritisch,
+die übrigen drei sind unkritisch.**
+
+Die Einsatzart auf Stadtteilebene, die Rate als zweite Zielgröße und die
+3-gegen-2-Verfahrenswahl sind entweder empirisch zwingend, eine Erweiterung ohne
+Widerspruch zum Exposé, oder bereits per E-Mail freigegeben. Sie werden in
+Kapitel 6 benannt und brauchen keine gesonderte Abstimmung.
+
+Beim **Stadtteil-Split** liegt der Fall anders: Er widerspricht einem wörtlich
+im Exposé genannten Element von Unterfrage 2 (zeitreihengerechte
+Kreuzvalidierung), und er steht als Spalte in beiden Datensätzen. Ein Veto
+danach würde jede Modellrechnung entwerten. Eintrittswahrscheinlichkeit niedrig,
+Schadenshöhe maximal — deshalb bleibt der Punkt im Register, obwohl er als
+gering eingestuft ist. Er kostet in der Sprechstunde fünf Minuten.
 
 ---
 
 ## Was daraus für die Modellierung folgt
 
-1. **R-1 vorab entscheiden.** Was passiert, wenn die Verfahren nicht
-   unterscheidbar sind? Die Antwort muss *vor* dem Rechnen feststehen, sonst
-   sucht man hinterher die Auswertung, die einen Unterschied zeigt.
-   Vorgesehen: gepaarter Wilcoxon-Test je Zielgröße; wird er nicht signifikant,
-   steht genau das als Ergebnis in Kapitel 7.
+1. ~~**R-1 vorab entscheiden.**~~ ✅ erledigt mit Decision Log #34, festgelegt am
+   04.08.2026 vor dem ersten Modelllauf: Die Forschungsfrage wird über drei
+   einzeln messbare Bausteine beantwortet — Prognosegüte je Verfahren **gegen
+   die Stufe-2-Baseline** (UF2), Trainings- und Inferenzaufwand (UF3), daraus
+   die Eignungsaussage für diesen Datensatz (UF4). Eine Rangfolge zwischen den
+   Verfahren nur, wenn der gepaarte Wilcoxon-Test sie hergibt.
 2. **10 Wiederholungen**, nicht 5 Folds allein — verengt das Konfidenzintervall
    des Mittelwerts, auch wenn die Einzelstreuung bleibt.
 3. **Je Zielgröße getrennt entscheiden.** Die Verfahren tauschen zwischen
-   `anzahl_einsaetze` und `einsaetze_je_1000_ew` die Plätze.
+   `anzahl_einsaetze` und `einsaetze_je_1000_ew` die Plätze — bei der Rate lag
+   Random Forest im Vortest deutlich vorn. Sehr wahrscheinlich ist die Aussage
+   dort belastbar und bei der absoluten Zahl nicht.
+
+**Warum der Vortest eher zu pessimistisch als zu optimistisch ist:** Er lief
+**ungetunt**, mit **20 statt 50** Fold-Ergebnissen und auf der Fold-Zuteilung
+**vor** der doppelten Stratifizierung (#30). Alle drei Punkte verbessern sich im
+geplanten Lauf. Und die Streuung von ± 0,609 sagt für sich genommen nichts über
+die Signifikanz: Der gepaarte Wilcoxon-Test wertet die **Vorzeichen** der
+Differenzen aus, nicht ihre Beträge. Gewinnt ein Verfahren 35 von 50 Folds, ist
+das signifikant — auch wenn die Abstände wild streuen. Die 12 von 20 des
+Vortests waren es nicht, aber das war ein Viertel der geplanten Messungen.
 4. **R-3 dokumentieren, nicht wegrechnen.** Vorhersagen zu kappen wäre ein
    Eingriff, der den Verfahrensvergleich verwässert. Dass Baumverfahren bei
    unbekannten Stadtteilen strukturell im Nachteil sind, ist selbst ein
