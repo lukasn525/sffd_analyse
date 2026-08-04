@@ -194,7 +194,7 @@ Genau diese Lücke sollen die Strukturmerkmale schließen.
 
 | Punkt | Stand |
 |---|---|
-| Klassifikationsstrang: Baum-Sonde schlägt Stufe 2 nicht | offen, entscheidet `m03` — `06_RISIKEN.md`, R-2 |
+| Ertrag des Klassifikationsstrangs | Stufe 2 schöpft nur 0,067 von maximal 1,0 aus — der Strang trägt voraussichtlich weniger als erhofft (`06_RISIKEN.md`, R-2) |
 | Linearitätsprüfung vor Ridge (R7) | ✅ gerechnet, `results/eignungspruefung/` |
 | Abweichungen mit Schröter besprechen | offen — `06_RISIKEN.md`, R-7 |
 | `modelle/m01`–`m04` | vollständig neu zu schreiben, Spezifikation in `04_MODELLIERUNG.md` |

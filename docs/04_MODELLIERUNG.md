@@ -72,8 +72,12 @@ geschrieben wird. ✅ erledigt · ⬜ offen · ⚠️ offen und blockierend.
 - [x] Rangfolge zwischen den Verfahren nur bei signifikantem gepaartem Wilcoxon-Test, α = 0,05, je Zielgröße getrennt
 - [x] Bei Nichtsignifikanz: „nicht unterscheidbar" mit Konfidenzintervall der Differenz
 - [ ] ⬜ **Trainings- und Inferenzzeiten mitmessen** (UF3) — leicht zu vergessen, nachträglich teuer
-- [x] Ausgabe: `*_folds.csv` (je Wiederholung und Fold) · `*_mittel.csv` · `tuning.csv`
+- [x] Ausgabe: `*_folds.csv` · `*_mittel.csv` · `tuning.csv` · `vergleich.csv`
 - [x] Keine nachträgliche Zuschneidung der Auswertung (kein Aufteilen nach Extrapolationsgrad)
+- [ ] ⬜ **Streuung zweistufig aggregieren** — `std_wiederholungen` statt `std_folds` als maßgeblicher Wert (R-5)
+- [ ] ⬜ **`vergleich.csv` trennt primär und sekundär**, Zahl der Tests wird mitgeführt (R-10)
+- [ ] ⬜ **Hold-out nur mit Argument** `m02_menge.py holdout` — kein Nebenbei-Blick
+- [ ] ⬜ **NegBin ohne Offset als Zusatzvariante** in `v1_baselines.py`, um den Offset-Vorteil zu beziffern (R-9)
 
 ### H · Modellspezifische Auflagen
 
@@ -90,6 +94,81 @@ geschrieben wird. ✅ erledigt · ⬜ offen · ⚠️ offen und blockierend.
 - [x] Decision Log vollständig bis #34
 
 ---
+
+## 1. Alle Stellschrauben auf einen Blick
+
+Grundlage für Kapitel 6.3 („Modellkonfiguration und Hyperparameter-Suchräume").
+Die Spalte **Art** entscheidet, *wie* der Wert zu begründen ist.
+
+| Größe | Wert | Wo | Art |
+|---|---|---|---|
+| Analysezeitraum | 2015-01 bis 2025-12 | `config.START/ENDE` | zwingend |
+| Lag-Vorlauf | 12 Monate | `config.VORLAUF_MONATE` | zwingend |
+| ACS-Publikationsversatz | 1 Jahr | `config.ACS_PUBLIKATIONS_LAG` | zwingend |
+| Kriminalitäts-Fenster | 12 Monate, endet im Vormonat | `config.CRIME_FENSTER_MONATE` | Abwägung |
+| Antwortzeit-Filter | 0–60 Minuten | `config.ANTWORTZEIT_*` | Abwägung |
+| Randmonat-Warnschwelle | 50 % des Medians | `config.VOLLSTAENDIGKEITS_SCHWELLE` | Konvention |
+| **Anzahl Folds** | **5** | `config.N_FOLDS` | **Abwägung** |
+| Hold-out-Größe | 6 Stadtteile | folgt aus `N_FOLDS + 1` | Folge |
+| Stratifizierung | Bevölkerung + seltenste Klasse | `ergaenze_aufteilung` | zwingend |
+| **Wiederholungen** | **10** | `config_modelle.WIEDERHOLUNGEN` | **Abwägung** |
+| **Tuning-Budget** | **50 Iterationen** | `config_modelle.TUNING_BUDGET` | **Abwägung** |
+| Suchverfahren | Randomized statt Grid | `SUCHRAEUME` | begründbar |
+| Innere Folds beim Tuning | 4, gruppiert nach Stadtteil | `GroupKFold(4)` | Abwägung |
+| Tuning-Zeitpunkt | einmal auf Wiederholung 0 | #34 | Abwägung |
+| Signifikanzniveau | α = 0,05 | #34 | Konvention |
+| Zufallszahl | 42 | `config_modelle.RANDOM_STATE` | Konvention |
+
+### Vier Sorten von Zahlen — vier Sorten von Sätzen
+
+Der häufigste Fehler ist, alle wie die erste Sorte zu behandeln. Das fällt auf,
+sobald jemand nachfragt.
+
+**Zwingend** — folgt aus den Daten oder einer Auflage. Der Satz benennt den Zwang:
+
+> „Der ACS-Jahrgang für ein Jahr erscheint erst rund ein Jahr später. Ein
+> Prädiktor, der zum Prognosezeitpunkt nicht publiziert war, wäre nicht
+> verfügbar; der Versatz ist deshalb keine Einstellung, sondern eine Konsequenz."
+
+**Abwägung** — man hätte auch anders gewählt, aber mit Grund. Der Satz nennt
+**beide Seiten**. Diese Sorte macht eine Arbeit stark, weil sie zeigt, dass die
+Alternative bedacht wurde:
+
+> „Gewählt wurden fünf Folds. Bei zehn Folds enthielte jeder Test nur drei
+> Stadtteile, das Ergebnis hinge dann noch stärker von einzelnen Einheiten ab;
+> bei drei Folds stünden nur 19 statt 23 Stadtteile im Training."
+
+**Konvention** — ein Standardwert ohne inhaltlichen Grund. Genau so benennen;
+ein erfundener Grund ist schlechter als die ehrliche Auskunft:
+
+> „Das Signifikanzniveau von 0,05 folgt der Konvention; ein inhaltlicher Grund
+> für gerade diesen Wert besteht nicht."
+
+**Folge** — ergibt sich aus einer anderen Entscheidung:
+
+> „Die Stadtteile werden auf `N_FOLDS + 1` Gruppen verteilt. Die Hold-out-Größe
+> ist damit eine Folge der Fold-Zahl und keine unabhängige Festlegung."
+
+### Die drei Zahlen, nach denen am ehesten gefragt wird
+
+**Fünf Folds.** Siehe oben. Zusatz: Bei sechs Teststadtteilen je Fold verschiebt
+ein einzelner ungewöhnlicher Stadtteil das Ergebnis um höchstens ein Sechstel.
+
+**Zehn Wiederholungen.** Abwägung Präzision gegen Rechenzeit — jeder Stadtteil
+wird in zehn verschiedenen Fold-Konstellationen getestet. Unbedingt dazusagen:
+Der Präzisionsgewinn ist **kleiner als √10**, weil die Läufe nicht unabhängig
+sind (R-5).
+
+**50 Tuning-Iterationen.** Bergstra & Bengio (2012) zeigen, dass Zufallssuche
+mit wenigen Dutzend Iterationen eine Gittersuche meist schlägt, weil sie den
+Suchraum in den relevanten Dimensionen dichter abtastet. Der eigentliche Punkt
+ist aber die **Gleichheit**: Ridge hat nur einen Hyperparameter und bräuchte
+weniger — ein ungleiches Budget wäre kein Algorithmenvergleich mehr, sondern
+ein Budgetvergleich.
+
+---
+
+## 1b. Merkmale und Zielgrößen
 
 **Zwölf Merkmale**, in beiden Datensätzen identisch (`PRAEDIKTOREN + SAISON` aus
 `prep/config.py`): zehn Strukturmerkmale plus `monat_sin`, `monat_cos`.
@@ -211,28 +290,217 @@ eine bewusste Vereinfachung und im Text zu benennen.
 ## 4. Aufbau der Skripte
 
 ```
-m01_eignung.py    Linearität + Residuen (nur Trainingsstadtteile, R7), VIF,
-                  Extrapolationsanteil, Klassenbalance   -> results/eignungspruefung/
-m02_menge.py      Anzahl und Rate, drei Verfahren        -> results/regression/
-m03_struktur.py   dominante Einsatzart, zwei Verfahren   -> results/klassifikation/
-m04_shap.py       nur für Modelle, die ihre Baseline schlagen
+m02_menge.py       Anzahl und Rate, drei Verfahren       -> results/regression/
+m03_struktur.py    dominante Einsatzart, zwei Verfahren  -> results/klassifikation/
+m04_shap.py        nur für Modelle, die Stufe 2 schlagen -> results/shap/
+m05_abbildungen.py alle Abbildungen aus den CSV-Dateien  -> results/abbildungen/
 ```
 
-Jedes Skript liest ausschließlich die Parquet-Dateien und die beiden
-Config-Dateien, schreibt CSV nach `results/` und legt **nichts** fest, was in
-`prep/` gehört.
+`m05` rechnet **nichts** — es liest ausschließlich die CSV-Dateien und erzeugt
+daraus die Abbildungen. Dadurch lassen sich Darstellungen ändern, ohne die
+Modelle neu zu rechnen, und nach einem neuen Lauf ist ein Befehl genug.
 
-`m01_eignung.py` ist **gerechnet** (03.08.2026). Der Befund, auf dem Kapitel 6.2
-ruht: Der RESET-Test verwirft die lineare Spezifikation, und sie scheitert an
-**zwei** Dingen — an der Krümmung einzelner Effekte (am deutlichsten
-`log_bevoelkerung`, Pearson +0,416 gegen Spearman +0,559) und an fehlenden
-Wechselwirkungen (adjustiertes R² 0,805 → 0,919 mit 45 Interaktionstermen).
-Baumverfahren fangen beides konstruktionsbedingt ab: Ein Split kann an
-beliebiger Stelle schneiden, und jeder Split bedingt auf die vorherigen.
+### Struktur von `m02_menge.py` — die Vorlage
 
-SHAP nur blockweise interpretieren — die Strukturmerkmale sind untereinander
-korreliert (max VIF 11,5 bei `median_haushaltseinkommen`, 7,1 bei
-`median_miete`), Beiträge verteilen sich.
+`m03_struktur.py` spiegelt sie, mit zwei statt drei Verfahren und Macro-F1
+statt RMSE. Sieben Funktionen, jede mit einer Aufgabe:
+
+```
+verfahren(name, ziel)      -> Pipeline
+    Baut die sklearn-Pipeline. Ridge bekommt StandardScaler und
+    TransformedTargetRegressor(log1p / expm1), RF und XGBoost nur das nackte
+    Modell. Gibt eine noch ungetunte Pipeline zurueck.
+
+tune(pipeline, train, ziel) -> dict
+    RandomizedSearchCV mit GroupKFold(4), groups = train["stadtteil"].
+    Budget und Suchraeume aus config_modelle. Gibt die besten Parameter
+    zurueck, NICHT das Modell - trainiert wird spaeter neu.
+
+ein_lauf(pipeline, train, test, ziel) -> dict
+    Ein Fit, eine Vorhersage, mit Zeitmessung um beides herum.
+    Rueckgabe: RMSE, MAE, R2, train_sekunden, inferenz_sekunden,
+    n_train, n_test, extrapolationsanteil.
+
+phase_tuning(panel)        -> DataFrame
+    Fuer jede Zielgroesse, jedes Verfahren, jeden Fold auf Wiederholung 0:
+    tune() aufrufen. 30 Zeilen -> tuning.csv.
+
+phase_bewertung(panel, parameter) -> DataFrame
+    Versatz 0..9 x Fold 1..5 x Verfahren x Zielgroesse: ergaenze_aufteilung(),
+    dann ein_lauf() mit den Parametern aus Phase 1. 300 Zeilen -> menge_folds.csv.
+
+aggregiere(folds)          -> DataFrame
+    Zweistufig: erst je Wiederholung ueber die 5 Folds mitteln, dann ueber die
+    10 Wiederholungen. Liefert mittelwert, std_folds und std_wiederholungen.
+    -> menge_mittel.csv
+
+vergleiche(folds, baselines) -> DataFrame
+    Gepaarter Wilcoxon. Primaer: jedes Verfahren gegen Stufe 2. Sekundaer:
+    Verfahrenspaare. Spalten rolle und n_tests_familie. -> vergleich.csv
+
+main(argv)
+    Ohne Argument: Phase 1, Phase 2, Aggregation, Vergleich.
+    Mit "holdout": zusaetzlich auf allen 29 Entwicklungsstadtteilen
+    trainieren und auf den 6 Hold-out-Stadtteilen bewerten -> holdout.csv.
+```
+
+**Der Ablauf in einem Bild:**
+
+```
+regression.parquet
+   │
+   ├─ phase_tuning     30 Suchlaeufe a 200 Fits   ─→ tuning.csv
+   │        │
+   │        └─ beste Parameter je (Ziel, Verfahren, Fold)
+   │                    │
+   ├─ phase_bewertung   300 Laeufe mit Zeitmessung ─→ menge_folds.csv
+   │                    │
+   ├─ aggregiere        zweistufig                 ─→ menge_mittel.csv
+   │                    │
+   └─ vergleiche        Wilcoxon primaer/sekundaer ─→ vergleich.csv
+
+   nur mit Argument "holdout":                     ─→ holdout.csv
+```
+
+**Zwei Stellen, an denen es schiefgeht, wenn man nicht aufpasst:**
+
+`tune()` gibt **Parameter** zurueck, kein Modell. Wer das gefittete
+`best_estimator_` weiterverwendet, trainiert auf dem inneren Trainingsanteil
+statt auf allen Trainingsstadtteilen des Folds — und verschenkt Daten.
+
+`ein_lauf()` misst die Zeit **um `fit` und `predict` herum**, nicht um die ganze
+Funktion. Sonst steckt die Metrikberechnung mit in der Zahl.
+
+Die Vorprüfung liegt in `vorpruefung/` und ist gerechnet. Jedes Modellskript
+liest ausschließlich die Parquet-Dateien, die beiden Config-Dateien und die
+Baseline-CSVs, schreibt nach `results/` und legt **nichts** fest, was in `prep/`
+gehört.
+
+**Kein gemeinsames Hilfsmodul.** `m02` und `m03` teilen die Struktur, aber nicht
+die Metriken, Modelle und Zielgrößenbehandlung. Ein geteiltes Modul für zwei
+Aufrufer bringt mehr Indirektion als Ersparnis — die etwa 30 doppelten Zeilen
+sind der bessere Tausch. Jedes Skript bleibt von oben nach unten lesbar.
+
+### Ausgabeformat — Spalten vorab festgelegt
+
+Damit Kapitel 7 planbar ist und nichts nachträglich fehlt.
+
+**`results/regression/menge_folds.csv`** — eine Zeile je Lauf, 300 Zeilen
+(2 Zielgrößen × 3 Verfahren × 10 Wiederholungen × 5 Folds):
+
+```
+zielgroesse · verfahren · wiederholung · fold
+RMSE · MAE · R2
+train_sekunden · inferenz_sekunden
+n_train · n_test · extrapolationsanteil
+```
+
+**`results/klassifikation/struktur_folds.csv`** — 100 Zeilen
+(1 Zielgröße × 2 Verfahren × 10 × 5), statt der drei Regressionsmaße:
+
+```
+macro_f1 · macro_auroc · accuracy · n_brand_test
+```
+
+**`*_mittel.csv`** — je Zielgröße und Verfahren: Mittelwert, `std_folds`
+(über alle 50 Läufe) und **`std_wiederholungen`** (über die 10
+Wiederholungsmittel). Maßgeblich ist die zweite — siehe Fallstrick 1 unten.
+
+**`tuning.csv`** — je Zielgröße, Verfahren und Fold die gewählten
+Hyperparameter. Das ist Kapitel 6.3 und darf nicht rekonstruiert werden müssen.
+
+**`vergleich.csv`** — je Zielgröße und Paarung: mittlere gepaarte Differenz,
+Anzahl gewonnener Folds, Wilcoxon-p, dazu `rolle` (`primaer` = gegen die
+Stufe-2-Baseline, `sekundaer` = Verfahren gegen Verfahren) und
+`n_tests_familie`. Grundlage für #34.
+
+**`holdout.csv`** — nur mit ausdrücklichem Argument, siehe Fallstrick 4.
+
+`extrapolationsanteil` und `n_brand_test` wandern mit, weil sie erklären, warum
+ein Fold aus der Reihe fällt — ohne sie steht man später vor Ausreißern ohne
+Erklärung.
+
+### Sonderfälle, die auftreten werden
+
+- **Negative Vorhersagen nach `expm1`.** Ridge auf `log(1+y)` kann bei starker
+  Extrapolation Werte unter −1 liefern; `expm1` ergibt dann etwas unter null.
+  Auf null kappen wäre ein Eingriff — stattdessen unverändert lassen und die
+  Häufigkeit im Bericht ausweisen. Es ist ein Befund über das Verfahren.
+- **Fehlende Klasse im Testfold.** Macro-AUROC ist nicht definiert, wenn eine
+  Klasse im Test fehlt. Durch die Stratifizierung (#30) sollte das nicht
+  vorkommen; falls doch, wird der Wert als fehlend geführt und **nicht** durch
+  null ersetzt — sonst zieht er den Mittelwert nach unten.
+- **Konvergenzwarnungen der logistischen Regression** bei `max_iter`. Nicht
+  unterdrücken, sondern zählen und berichten.
+- **`zero_division=0`** bei Macro-F1 ist gesetzt und muss gesetzt bleiben, sonst
+  bricht der Lauf bei einer nicht vorhergesagten Klasse ab.
+
+### Hold-out — die Schlussbewertung
+
+Genau **einmal**, nach Abschluss von Modellwahl und Tuning. Ablauf: Je Verfahren
+und Zielgröße wird auf **allen 29 Entwicklungsstadtteilen** mit den in der
+Kreuzvalidierung gewählten Hyperparametern neu trainiert und auf den 6
+Hold-out-Stadtteilen bewertet.
+
+**Nur mit ausdrücklichem Argument** — `python modelle/m02_menge.py holdout`.
+Ohne das Argument rührt das Skript die Hold-out-Zeilen nicht an. Grund: Wer das
+Ergebnis einmal gesehen hat, kann es nicht ungesehen machen, und jede spätere
+Entscheidung ist davon berührt. Der Schalter macht Hinsehen zu einer bewussten
+Handlung.
+
+Zu berichten ist, dass es **eine einzige Messung an sechs Einheiten** ist — kein
+Mittelwert, keine Streuung. Die Zahl ist deutlich unsicherer als die
+Kreuzvalidierungswerte und darf nicht als deren Bestätigung gelesen werden
+(`06_RISIKEN.md`, R-4).
+
+### Abbildungen für Kapitel 7 — `m05_abbildungen.py`
+
+Drei Abbildungen, alle aus den CSV-Dateien erzeugt, keine von Hand:
+
+| | Inhalt | Beantwortet |
+|---|---|---|
+| **A1** | Boxplot je Verfahren über die 50 Läufe, je Zielgröße | zeigt die Streuung ehrlich statt sie zu mitteln |
+| **A2** | Balkendiagramm Verfahren gegen Stufe-2-Baseline, mit Fehlerbalken aus `std_wiederholungen` | die Primäraussage nach #34 (UF2) |
+| **A3** | Streudiagramm Trainingszeit (log) gegen Prognosegüte, ein Punkt je Verfahren | UF3 und UF4 in einem Bild |
+
+**Anforderungen an die Darstellung** — sie landen im gedruckten Dokument:
+
+- **Vektorformat.** PDF, nicht PNG. Rasterbilder werden im Druck unscharf, und
+  Schröter hat Gestaltung als eigenes Kriterium bewertet.
+- **Schriftgröße mindestens 9 pt** in der Abbildung, damit sie nach dem
+  Verkleinern auf Textbreite lesbar bleibt. Faustregel: die Abbildung in der
+  Endgröße erzeugen, nicht groß erzeugen und dann skalieren.
+- **Keine Titel in der Abbildung.** Die Bildunterschrift in LaTeX ist der Titel;
+  beides doppelt sich sonst.
+- **Graustufentauglich.** Verfahren zusätzlich über Schraffur oder Marker
+  unterscheiden, nicht allein über Farbe.
+- **Achsenbeschriftung mit Einheit**, deutsches Dezimalkomma.
+- **Bei A1 die Nulllinie einzeichnen**, wo R² dargestellt wird — negative Werte
+  sind hier normal und müssen als solche erkennbar sein.
+- **Fehlerbalken immer beschriften**: `std_wiederholungen`, nicht `std_folds`.
+  Ohne Angabe ist ein Fehlerbalken bedeutungslos.
+
+Ausgabe nach `results/abbildungen/`, Dateinamen `a1_boxplot_menge.pdf` usw. —
+so lassen sie sich in der tex direkt einbinden.
+
+### `m04_shap.py`
+
+Nur für Modelle, die Stufe 2 schlagen — sonst erklärt man Rauschen. `TreeExplainer`
+für RF und XGBoost, für Ridge genügen die Koeffizienten. Gerechnet wird auf einem
+Fold, nicht auf allen; die Auswahl ist zu begründen.
+
+**Blockweise interpretieren.** Die Strukturmerkmale sind untereinander korreliert
+(max VIF 11,5 bei `median_haushaltseinkommen`, 7,1 bei `median_miete`) — SHAP
+verteilt den Beitrag dann auf mehrere Merkmale, und einzelne Werte sind nicht
+sinnvoll deutbar. Zusammenfassen zu den drei Faktorgruppen des Exposés:
+sozioökonomisch, kriminalitätsbezogen, baulich.
+
+### Reproduzierbarkeit
+
+`RANDOM_STATE` ist gesetzt. Zusätzlich beim Lauf festhalten: Python-Version und
+die Versionen von scikit-learn, XGBoost, statsmodels und pandas. Ohne sie ist
+„reproduzierbar" eine Behauptung — Baumverfahren können zwischen Versionen
+abweichen.
 
 ---
 
@@ -263,6 +531,52 @@ lassen (`06_RISIKEN.md`, R-1).
 Unterschied sichtbar wird — etwa nach Extrapolationsgrad getrennt. Das weicht
 die Fairness-Regel auf, weil die Verfahren dann nicht mehr auf identischen
 Zeilen verglichen werden.
+
+### Vier Fallstricke der Auswertung — und was der Code dagegen tut
+
+Begründungen stehen in `06_RISIKEN.md`; hier nur die Umsetzung.
+
+**1 · Die Streuung über 50 Läufe ist zu optimistisch (R-5).** Die 50
+Fold-Ergebnisse sind nicht unabhängig — es sind dieselben 29 Stadtteile in zehn
+verschiedenen Gruppierungen. Ein Konfidenzintervall aus σ/√50 wäre zu eng.
+
+> **Umsetzung:** Zweistufig aggregieren. Erst je Wiederholung über die 5 Folds
+> mitteln — das ergibt **10 Werte** je Verfahren und Zielgröße. Die
+> Standardabweichung *dieser zehn* ist die zu berichtende Streuung. In
+> `*_mittel.csv` beide Spalten führen: `std_folds` (über alle 50, optimistisch)
+> und `std_wiederholungen` (über die 10, maßgeblich).
+
+**2 · Sieben Tests, keine Korrektur (R-10).** Bei α = 0,05 liegt die
+Wahrscheinlichkeit für mindestens einen Zufallstreffer bei rund 30 %.
+
+> **Umsetzung:** Keine Bonferroni-Korrektur — sie würde bei der geringen
+> Trennschärfe jeden Befund kassieren. Stattdessen die Ausgabe strukturell
+> trennen: `vergleich.csv` bekommt eine Spalte `rolle` mit den Werten
+> `primaer` (Verfahren gegen Stufe-2-Baseline, keine Testfamilie) und
+> `sekundaer` (paarweise Verfahrensvergleiche). Zusätzlich eine Spalte
+> `n_tests_familie`. Im Text wird die Zahl der Tests genannt.
+
+**3 · Die Baseline hat einen strukturellen Vorteil (R-9).** Die Negative
+Binomial bekommt `log(Bevölkerung)` als **Offset** — mit fest auf 1 gesetztem
+Koeffizienten. Ridge, RF und XGBoost bekommen dieselbe Größe als gewöhnliches
+Merkmal und müssen den Zusammenhang schätzen.
+
+> **Umsetzung:** Den Vorteil nicht ausgleichen — das würde die Spezifikation der
+> Vergleichsverfahren ändern. Stattdessen **beziffern**: In `v1_baselines.py`
+> zusätzlich eine Negative Binomial **ohne** Offset rechnen, mit
+> `log_bevoelkerung` als normalem Prädiktor. Die Differenz beider Varianten ist
+> der Wert des Offsets — fünf Zeilen Code, und aus einem Vorbehalt wird eine
+> Zahl. In Kapitel 8 als Fußnote zur Ergebnistabelle.
+
+**4 · Das Hold-out darf man nicht versehentlich sehen.** Die Regel „genau
+einmal, ganz am Schluss" ist eine Disziplinfrage — und Disziplin verliert man,
+sobald das Ergebnis nebenbei mitläuft.
+
+> **Umsetzung:** `holdout.csv` wird **nicht** bei jedem `m02`-Lauf erzeugt,
+> sondern nur mit ausdrücklichem Argument:
+> `python modelle/m02_menge.py holdout`. Ohne dieses Argument berührt das
+> Skript die Hold-out-Zeilen nicht. Damit ist Hinsehen eine bewusste
+> Handlung und kein Versehen.
 
 ---
 

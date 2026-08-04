@@ -18,10 +18,12 @@ der Fragestellung, die die Aussagekraft begrenzen.
 | **R-2** | **Der Klassifikationsstrang trägt weniger, als die Forschungsfrage verspricht.** Selbst die beste Sonde erreicht Macro-F1 0,290 gegen 0,223 der Mehrheitsklasse — bei einem Maximum von 1,0 wird also nur ein Bruchteil des vorhandenen Signals ausgeschöpft. Die Verfahrenswahl ist begründet (siehe unten), der Ertrag bleibt aber gering. | `v2_eignung`, Abschnitt 5 | mittel |
 | **R-3** | **33,7 % der Testzeilen liegen außerhalb des Trainingsbereichs**, Spanne 3,6 bis 57,4 %. Unvermeidliche Folge des Stadtteil-Splits. Ridge rechnet dort linear weiter, Baumverfahren geben den Randwert des letzten Blatts — die Verfahren werden ungleich getroffen. | `m01`, Abschnitt 4 | hoch |
 | **R-4** | **Das Hold-out umfasst 6 Stadtteile.** Die abschließende, einmalige Bewertung beruht auf sechs Einheiten; ihre Unsicherheit muss mitberichtet werden. | 6 von 35, 792 Zeilen | mittel |
-| **R-5** | **Effektive Stichprobe: 35 Einheiten.** 4.620 Zeilen klingen komfortabel, es sind 35 Querschnittseinheiten × 132 Monate, davon 29 in der Entwicklung. Gemeinsame Ursache von R-1, R-3 und R-4. | `03_STAND.md` | mittel |
+| **R-5** | **Effektive Stichprobe: 35 Einheiten.** 4.620 Zeilen klingen komfortabel, es sind 35 Querschnittseinheiten × 132 Monate, davon 29 in der Entwicklung. Gemeinsame Ursache von R-1, R-3 und R-4. **Zwei Folgen für die Auswertung:** Die Gütemaße werden je Zeile gerechnet, aber die 132 Zeilen eines Stadtteils sind hochkorreliert — der effektive Stichprobenumfang der Metrik ist weit kleiner als *n*. Und die 50 Fold-Ergebnisse aus 10 Wiederholungen sind **nicht unabhängig**: Es sind dieselben 29 Stadtteile, nur anders gruppiert. Der Gewinn an Präzision ist kleiner als √10 (Nadeau & Bengio 2003). | `03_STAND.md` | mittel |
 | **R-6** | **Merkmale sind innerhalb eines Jahres konstant.** ACS erscheint jährlich, Land Use ist ein Snapshot 2020. Das Modell sagt für alle zwölf Monate eines Stadtteils fast denselben Wert vorher; die Monatsschwankung geht vollständig ins Residuum. | 5 Jahrgänge auf 132 Monate | gering |
 | **R-7** | **Der Stadtteil-Split ist mit Schröter unbesprochen.** Er widerspricht einem wörtlich im Exposé genannten Element von Unterfrage 2 und steht als Spalte in beiden Datensätzen — ein Veto danach entwertet jede Modellrechnung. Die übrigen drei Abweichungen sind unkritisch (siehe unten). | #29 | gering |
 | **R-8** | **ACS-Trefferquote 2009 nur 63,1 %.** Für die Hauptanalyse ab 2015 folgenlos, gehört in die Limitationen. | 2021/23: 99,2 % | gering |
+| **R-9** | **Spezifikationsasymmetrie zwischen Baseline und Vergleichsverfahren.** Die Negative Binomial erhält `log(Bevölkerung)` als **Offset** — sie modelliert damit direkt Einsätze je Einwohner. Ridge, RF und XGBoost bekommen dieselbe Größe nur als gewöhnliches Merkmal und müssen den Zusammenhang erst lernen. Die Baseline hat damit einen strukturellen Vorteil; wer ihn nicht benennt, vergleicht nicht Verfahren, sondern Spezifikationen. | `v1_baselines.py`, `negative_binomial()` | mittel |
+| **R-10** | **Mehrfachvergleiche ohne Korrektur.** Der gepaarte Wilcoxon-Test läuft je Zielgröße und Verfahrenspaar: 3 Paare × 2 Mengen-Zielgrößen plus 1 Paar in der Klassifikation = **7 Tests**. Bei α = 0,05 liegt die Wahrscheinlichkeit für mindestens einen falsch-positiven Befund bei rund 30 %. | #34 | mittel |
 
 **Entschärft und aus dem Register genommen:**
 
@@ -131,3 +133,14 @@ Vortests waren es nicht, aber das war ein Viertel der geplanten Messungen.
    Eingriff, der den Verfahrensvergleich verwässert. Dass Baumverfahren bei
    unbekannten Stadtteilen strukturell im Nachteil sind, ist selbst ein
    Vergleichsergebnis.
+5. **R-9 offen benennen statt ausgleichen.** Den Offset auch den
+   Vergleichsverfahren zu geben wäre möglich, würde aber ihre Spezifikation
+   ändern und den Vergleich mit dem Exposé brechen. Stattdessen in Kapitel 8
+   benennen: Die Baseline ist an dieser Stelle strukturell im Vorteil, ein
+   knapper Sieg über sie ist deshalb vorsichtig zu lesen.
+6. **R-10 durch Struktur entschärfen, nicht durch Korrektur.** Eine
+   Bonferroni-Korrektur auf α = 0,007 würde bei der ohnehin geringen Trennschärfe
+   praktisch jeden Befund kassieren. Besser: Die **Primäraussage nach #34 ist
+   Verfahren gegen Baseline**, nicht der paarweise Vergleich — dort gibt es
+   keine Testfamilie. Die paarweisen Wilcoxon-Tests laufen als Sekundäranalyse
+   mit, und die Zahl der Tests wird im Text genannt.

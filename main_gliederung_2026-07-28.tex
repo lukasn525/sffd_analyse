@@ -1365,6 +1365,58 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 % ===================================================
 \section{Evaluation}
 % Umfang: ca. 11 Seiten -- CRISP-DM Phase 5
+%
+% =========================================================================
+% ERGEBNISINVENTAR -- was am Ende vorliegt und was davon in die Arbeit kommt
+% =========================================================================
+% Gerechnet werden 400 Einzellaeufe. Sie kommen NICHT in die Arbeit, sondern
+% ins Abgabe-Zip; berichtet werden Aggregate.
+%
+%   Rohdaten in results/          Regression   Klassifikation
+%     Einzellaeufe (*_folds.csv)         300              100
+%       = Zielgroessen x Verfahren x 10 Wiederholungen x 5 Folds
+%     Aggregate (*_mittel.csv)             6                2
+%     Tuning-Ergebnisse                   30               10
+%     Hold-out                             6                2
+%     Baselines je Fold (liegen vor)      20               10
+%
+%   Berichtete Aussagen          Regression   Klassifikation
+%     PRIMAER: gegen Stufe-2-Baseline      6                2
+%     sekundaer: paarweise Verfahren       6                1
+%     Laufzeitpaare (Training/Inferenz)    6                2
+%     Hold-out-Messungen                   6                2
+%
+% ACHT PRIMAERAUSSAGEN tragen das Kapitel. Jede lautet: "Verfahren X schlaegt
+% auf Zielgroesse Y die Stufe-2-Baseline um Z, bei Streuung S ueber zehn
+% Wiederholungen." Das ist die Antwort auf Unterfrage 2 (Decision Log #34).
+% Jede steht fuer sich - sie haengt nicht davon ab, ob sich die Verfahren
+% UNTEREINANDER trennen lassen.
+%
+% Die sieben paarweisen Vergleiche sind die Rangfolge. Sie kommen nur ins
+% Kapitel, wenn der gepaarte Wilcoxon-Test sie hergibt.
+%
+% EHRLICHKEIT BEI DER TESTZAHL: Insgesamt sind es 15 Signifikanztests - acht
+% primaere und sieben paarweise. Die Gesamtzahl gehoert in den Text, sonst
+% entsteht der Eindruck, sie sei verschwiegen worden (docs/06_RISIKEN.md, R-10).
+%
+% MASSGEBLICHE STREUUNG ist std_wiederholungen (ueber die 10
+% Wiederholungsmittel), NICHT std_folds ueber alle 50 Laeufe - die 50 sind
+% nicht unabhaengig, es sind dieselben 29 Stadtteile in anderer Gruppierung
+% (R-5). Beide Spalten stehen in *_mittel.csv.
+%
+% VIER TABELLEN, DREI ABBILDUNGEN decken alles ab:
+%   T1  Aggregate Regression (6 Zeilen)
+%   T2  Aggregate Klassifikation (2 Zeilen)
+%   T3  Vergleichstabelle mit Wilcoxon-Ergebnissen
+%   T4  Hold-out (eine einzige Messung an 6 Stadtteilen, KEIN Mittelwert)
+%   A1  Boxplot je Verfahren ueber die 50 Laeufe, je Strang
+%   A2  Balken: Verfahren gegen Stufe-2-Baseline -- die Primaeraussage
+%   A3  Streudiagramm Laufzeit gegen Prognoseguete -- beantwortet UF3 und UF4
+%
+% Alle Abbildungen erzeugt modelle/m05_abbildungen.py aus den CSV-Dateien,
+% nicht von Hand. Sie sind damit reproduzierbar und bei neuen Laeufen in einem
+% Befehl aktualisiert.
+% =========================================================================
 \subsection{Ergebnisse Einsatzhäufigkeit (Regression)}
 % LEITFRAGE: Haengen Einsatzhaeufigkeit und Stadtteilmerkmale zusammen --
 % koennen die Modelle die ZAHL der Einsaetze vorhersagen?
