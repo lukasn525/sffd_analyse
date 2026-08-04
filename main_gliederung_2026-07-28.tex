@@ -1085,7 +1085,15 @@ welche bewusst ausgeschlossen werden.
 %       erzeugte ein unbalanciertes Panel
 %   Zu betonen: Unterschied zwischen zeilenweisem dropna und dem Ausschluss
 %   ganzer Einheiten.
-% - Analysezeitraum 2015-01 bis 2025-12, hart in config.py fixiert und nicht
+% - Analysezeitraum 2015-01 bis 2025-12, hart in config.py fixiert
+% ZU FORMULIEREN -- der Start ist eine KONSEQUENZ, keine Setzung:
+%   "Der Analysebeginn 2015-01 folgt nicht aus einer Setzung, sondern aus der
+%    Publikationsrealitaet des ACS."
+%   Herleitung: Die Regel lautet acs_jahr <= Einsatzjahr - 1. Verfuegbar sind
+%   die Jahrgaenge 2009, 2014, 2019, 2021, 2023. Ein Einsatz aus 2014 bekaeme
+%   damit ACS 2009 - und der enthaelt die Tabelle B15003 nicht, aus der die
+%   akademikerquote_pct stammt. Erst ab 2015 greift ACS 2014 (Decision Log #11).
+%   NICHT als Wahl darstellen: Es gab keine. und nicht
 %   aus den Daten abgeleitet (sonst wandert die Analyse mit jedem Download,
 %   und ein angebrochener Randmonat geraet unbemerkt ins Testfenster).
 % KEIN Code-Listing.
@@ -1498,6 +1506,17 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 \subsection{Limitationen und Übertragbarkeit}
 % Methodenkritik, datensatzspezifische Grenzen der Ergebnisse und daraus
 % abgeleitete Implikationen für die Modellauswahl.       -> UF4
+% ZU FORMULIEREN -- wo das Erkenntnislimit wirklich sitzt:
+%   "Eine Ausweitung des Zeitraums wuerde die Aussagekraft nicht erhoehen -
+%    die Beschraenkung liegt bei 35 Analyseeinheiten, nicht bei der Zahl der
+%    Beobachtungen."
+%   Begruendung: Ein zusaetzliches Jahr braechte 35 x 12 = 420 Zeilen (+9 %),
+%   aber NULL zusaetzliche Stadtteile. Unter einem Stadtteil-Split besteht die
+%   Testmenge aus Stadtteilen; ob ein unbekannter Stadtteil mit 132 oder 144
+%   Monaten beschrieben wird, aendert nichts - zumal die Strukturmerkmale
+%   innerhalb eines Jahres nahezu konstant sind.
+%   Das nimmt der naheliegenden Pruefungsfrage "warum nicht mehr Daten?" die
+%   Spitze und zeigt, dass das Limit verstanden ist.
 % Aufzunehmen: effektive Stichprobe von 35 Querschnittseinheiten;
 % Extrapolation bei unbekannten Stadtteilen (31 % der Testzeilen);
 % Hold-out aus nur 6 Stadtteilen; jaehrliche ACS-Merkmale und Land-Use-

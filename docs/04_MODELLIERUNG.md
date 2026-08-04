@@ -628,12 +628,17 @@ verschiedenen Gruppierungen. Ein Konfidenzintervall aus σ/√50 wäre zu eng.
 **2 · Sieben Tests, keine Korrektur (R-10).** Bei α = 0,05 liegt die
 Wahrscheinlichkeit für mindestens einen Zufallstreffer bei rund 30 %.
 
-> **Umsetzung:** Keine Bonferroni-Korrektur — sie würde bei der geringen
-> Trennschärfe jeden Befund kassieren. Stattdessen die Ausgabe strukturell
-> trennen: `vergleich.csv` bekommt eine Spalte `rolle` mit den Werten
-> `primaer` (Verfahren gegen Stufe-2-Baseline, keine Testfamilie) und
-> `sekundaer` (paarweise Verfahrensvergleiche). Zusätzlich eine Spalte
-> `n_tests_familie`. Im Text wird die Zahl der Tests genannt.
+> **Umsetzung, zweifach.** Erstens strukturell: `vergleich.csv` bekommt eine
+> Spalte `rolle` mit `primaer` (Verfahren gegen Stufe-2-Baseline — keine
+> Testfamilie, jede Frage ist vorab einzeln formuliert) und `sekundaer`
+> (paarweise Verfahrensvergleiche), dazu `n_tests_familie`.
+>
+> Zweitens rechnerisch: **Holm-Bonferroni innerhalb der sekundären Familie.**
+> p-Werte aufsteigend sortieren, den kleinsten gegen α/7 prüfen, den nächsten
+> gegen α/6, und so fort bis zur ersten Nichtablehnung. Gleiche Fehlerkontrolle
+> wie Bonferroni, aber uniform stärker — es gibt keinen Grund, darauf zu
+> verzichten. Zusätzliche Spalte `p_holm`; `wilcoxon_p` bleibt als Rohwert
+> daneben stehen.
 
 **3 · Die Baseline hat einen strukturellen Vorteil (R-9).** Die Negative
 Binomial bekommt `log(Bevölkerung)` als **Offset** — mit fest auf 1 gesetztem

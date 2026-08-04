@@ -138,9 +138,15 @@ Vortests waren es nicht, aber das war ein Viertel der geplanten Messungen.
    ändern und den Vergleich mit dem Exposé brechen. Stattdessen in Kapitel 8
    benennen: Die Baseline ist an dieser Stelle strukturell im Vorteil, ein
    knapper Sieg über sie ist deshalb vorsichtig zu lesen.
-6. **R-10 durch Struktur entschärfen, nicht durch Korrektur.** Eine
-   Bonferroni-Korrektur auf α = 0,007 würde bei der ohnehin geringen Trennschärfe
-   praktisch jeden Befund kassieren. Besser: Die **Primäraussage nach #34 ist
-   Verfahren gegen Baseline**, nicht der paarweise Vergleich — dort gibt es
-   keine Testfamilie. Die paarweisen Wilcoxon-Tests laufen als Sekundäranalyse
-   mit, und die Zahl der Tests wird im Text genannt.
+6. **R-10 zweifach entschärfen — strukturell UND rechnerisch.** Erstens ist die
+   Primäraussage nach #34 „Verfahren gegen Baseline", nicht der paarweise
+   Vergleich; dort gibt es keine Testfamilie. Zweitens wird innerhalb der
+   sekundären Familie (7 paarweise Tests) **Holm-Bonferroni** angewandt: p-Werte
+   aufsteigend sortieren, den kleinsten gegen α/7 prüfen, den nächsten gegen
+   α/6, und so fort bis zur ersten Nichtablehnung.
+
+   *Korrektur einer früheren Einschätzung (04.08.2026):* Hier stand zunächst,
+   eine Korrektur würde „jeden Befund kassieren". Das war überzogen — bei 50
+   gepaarten Werten reicht α = 0,007 aus, wenn rund 35 Folds in dieselbe
+   Richtung zeigen. Und Holm ist bei gleicher Fehlerkontrolle uniform stärker
+   als Bonferroni. Es gibt keinen Grund, darauf zu verzichten.

@@ -132,6 +132,23 @@ Transformationen laufen innerhalb der sklearn-Pipeline je Fold.
 **`prep/` ist abgeschlossen** und wird nicht mehr angefasst. Die Modellskripte
 lesen ausschließlich die fertigen Parquet-Dateien.
 
+### Arbeitsregel für die Implementierung
+
+Jedes Skript in `modelle/` trägt am Ende seines Docstrings einen Block
+**Prüfaufträge**. Diese sind nach jedem Lauf abzuarbeiten, nicht nur beim ersten
+Mal — sie prüfen, ob das Ergebnis zu den Entscheidungen passt, die es tragen
+soll.
+
+Zwei Regeln, die dabei gelten:
+
+- **Ein Ergebnis, das einer Entscheidung widerspricht, ist ein Befund, kein
+  Fehler.** Es gehört in `06_RISIKEN.md` und in die Arbeit, nicht wegoptimiert.
+  Beispiel: Wenn RF und XGBoost die Stufe-2-Baseline der Klassifikation nicht
+  schlagen, lautet das Ergebnis „der Mehraufwand lohnt sich hier nicht".
+- **Jede Zahl, die in die Arbeit geht, steht in `03_STAND.md`** — und dort wird
+  sie nach jedem Lauf aktualisiert. Zahlen aus älteren Läufen sind die
+  häufigste Fehlerquelle dieses Projekts.
+
 ---
 
 ## 5. CRISP-DM-Status
