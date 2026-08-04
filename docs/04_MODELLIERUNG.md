@@ -191,6 +191,12 @@ monat_sin                   monat_cos
 Stadtteil-Split die eigene Vergangenheit des Teststadtteils), `gesamtbevoelkerung`
 und `kriminalitaetsindex` in Rohform (Offset und Deskription).
 
+Die Lags werden **in keinem Analysestrang verwendet** — auch nicht in einem
+Zusatzlauf mit Zeitschnitt. Ein zweiter Validierungsrahmen verstieße gegen R1
+und R8; die zeitreihengerechte Variante wird in Kapitel 8 begründet verworfen
+statt gerechnet (#29, präzisiert 04.08.2026). Im Datensatz bleiben sie zur
+Deskription der zeitlichen Struktur in Kapitel 4.
+
 **Keine eigene Zielgröße:** die vier `anteil_*`-Spalten. Aus ihnen entsteht die
 Klasse per `argmax`; ihre Vorhersage wäre Regression, der Strang soll die *Art*
 vorhersagen (R8). Accuracy ist als Hauptmaß ungeeignet — die Mehrheitsklasse
@@ -253,6 +259,79 @@ tex-Kommentar zu 6.2:
   Zielgröße ist nicht definiert. `RidgeClassifier` geprüft und verworfen.
 - **Logistische Regression entfällt** aus Fokusgründen (R4/R8), nicht mangels
   Eignung — das ist im Text so zu schreiben.
+
+### Warum genau diese drei — Begründung für Kapitel 6.2
+
+Die Auswahl ist keine Dreierliste aus dem Exposé, sondern eine **systematische
+Abdeckung der Fehlerquellen**. Jedes Prognosemodell macht zwei Sorten Fehler:
+zu starre Annahmen (Bias) und zu große Empfindlichkeit gegenüber den
+Trainingsdaten (Varianz).
+
+| Verfahren | Bias | Varianz | Strategie |
+|---|---|---|---|
+| Ridge | hoch (linear) | niedrig (Strafterm) | Struktur vorgeben |
+| Random Forest | niedrig | durch Mittelung reduziert | Bagging |
+| XGBoost | niedrig (sequenziell korrigiert) | durch Regularisierung kontrolliert | Boosting |
+
+Drei Verfahren, drei verschiedene Antworten auf dasselbe Dilemma. Das ist der
+Satz, der aus „standen im Exposé" eine begründete Auswahl macht.
+
+**Ridge Regression.** Zwölf Merkmale bei 23 unabhängigen Trainingseinheiten,
+maximaler VIF 11,5 — Einkommen und Miete messen weitgehend dasselbe. Genau für
+diese Konstellation wurde der L2-Strafterm entwickelt: Bei korrelierten
+Prädiktoren werden Kleinste-Quadrate-Schätzer instabil, kleine Datenänderungen
+bewegen die Koeffizienten stark. Ridge verhindert das (`Hoerl1970`).
+
+*Warum nicht Lasso oder Elastic Net:* Lasso setzt Koeffizienten auf exakt null,
+betreibt also Merkmalsselektion. Die zwölf Merkmale sind aber vorab aus drei
+Faktorgruppen begründet, und **Unterfrage 1 fragt nach dem Erklärungsbeitrag
+aller Gruppen**. Ein Verfahren, das eine Gruppe eliminiert, umgeht die Frage.
+Ridge behält alle Merkmale und schrumpft nur.
+
+**Random Forest.** 33,7 % Extrapolation, große Fold-Streuung, Wechselwirkungen
+zwischen Merkmalen (adjustiertes R² 0,805 → 0,919). Bäume finden Wechselwirkungen
+datengetrieben, weil jeder Split auf den vorherigen bedingt. Und Splits nutzen
+nur die **Ordnung** der Werte, nicht ihre Größe — das macht sie robust gegen
+Ausreißer in den Prädiktoren (`Breiman2001`).
+
+*Warum das Ensemble und nicht ein einzelner Baum:* gemessen in der eigenen
+Vorprüfung. Ein Baum der Tiefe 3 schwankte in der Klassifikation zwischen
+Macro-F1 0,197 und 0,353 — in zwei Folds der beste Wert überhaupt, in anderen
+unter der Mehrheitsklasse. Genau diese Instabilität behebt Bagging.
+Praktisch relevant: Random Forest ist vergleichsweise unempfindlich gegenüber
+den Voreinstellungen (`Probst2019`), was bei begrenztem Tuning-Budget zählt.
+
+**XGBoost.** 4.620 Zeilen, zwölf numerische Merkmale — ein mittelgroßer
+tabellarischer Datensatz. `Grinsztajn2022` zeigen über 45 Datensätze, dass
+Baumverfahren auf genau dieser Größenordnung führen, begründet durch ihre
+Fähigkeit, **nicht-glatte Zielfunktionen** abzubilden. Das passt direkt auf den
+Befund gekrümmter Zusammenhänge.
+
+*Warum zusätzlich zu Random Forest:* Boosting greift die **andere** Fehlerquelle
+an. Random Forest baut Bäume parallel und mittelt — das senkt Varianz. XGBoost
+baut sie sequenziell, jeder korrigiert die Fehler des vorigen — das senkt Bias
+(`Chen2016`). Beide zu vergleichen ist deshalb keine Doppelung, sondern der
+eigentliche Erkenntnisgewinn: **Welche Fehlerquelle dominiert bei diesen Daten?**
+Datenbezogen relevant ist außerdem die eingebaute Regularisierung
+(`reg_lambda`, `subsample`, `colsample_bytree`) — bei 23 Trainingseinheiten ist
+Überanpassung die Hauptgefahr, und die Gegenmittel stehen im Suchraum.
+
+### Warum nicht die naheliegenden Alternativen
+
+Dieser Absatz macht die Auswahl stark, weil er zeigt, dass auch das Verworfene
+bedacht wurde:
+
+| Alternative | Warum nicht |
+|---|---|
+| Neuronale Netze | Bei 35 Analyseeinheiten nicht sinnvoll trainierbar; auf tabellarischen Daten dieser Größe unterlegen (`Grinsztajn2022`) |
+| LightGBM, CatBoost | Leistungsgleich zu XGBoost, aber eine vierte Variante derselben Familie ohne neue Frage (R8) |
+| Support Vector Machines | Kernelwahl wäre selbst zu begründen; keine interpretierbaren Beiträge für die SHAP-Analyse |
+| Einzelner Entscheidungsbaum | In der eigenen Vorprüfung als zu instabil gemessen |
+
+**Literaturstatus:** Alle fünf Quellen stehen bereits in der Bibliografie
+(`Hoerl1970`, `Breiman2001`, `Chen2016`, `Grinsztajn2022`, `Probst2019`).
+`Grinsztajn2022` wurde am 03.08.2026 verifiziert; die übrigen sind Standardwerke
+und vor der Verwendung im Text gegenzuprüfen.
 
 ### Auflagen je Verfahren
 

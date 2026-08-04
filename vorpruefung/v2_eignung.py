@@ -111,6 +111,14 @@ def linearitaet(train: pd.DataFrame) -> None:
     log("`anzahl_einsaetze` ist eine Zaehlung, `einsaetze_je_1000_ew` eine Quote.\n")
     log("| Merkmal | Pearson (Anzahl) | Spearman | Pearson (Rate) | Spearman |")
     log("|---|---|---|---|---|")
+    # Massgeblich ist das MAXIMUM beider Korrelationen, nicht Pearson allein.
+    # Grund: Ist ein Zusammenhang stark gekruemmt, faellt Pearson gerade
+    # deshalb ab - ein reiner Pearson-Filter wuerde also ausgerechnet den
+    # staerksten Kruemmungsbefund aussortieren. Umgekehrt bleibt der Zweck
+    # erhalten: Liegen BEIDE Korrelationen nahe null, ist ihr Abstand Rauschen
+    # und sagt nichts ueber die Funktionsform.
+    SCHWELLE = 0.20
+
     stark = {ZIELGROESSE: [], RATE: []}
     for m in PRAEDIKTOREN:
         werte = []
@@ -118,18 +126,23 @@ def linearitaet(train: pd.DataFrame) -> None:
             p = train[m].corr(train[ziel])
             s = train[m].corr(train[ziel], method="spearman")
             werte += [p, s]
-            if abs(p) > 0.20:
+            if max(abs(p), abs(s)) > SCHWELLE:
                 stark[ziel].append((m, p, s, abs(p - s)))
         log(f"| `{m}` | " + " | ".join(f"{w:+.3f}" for w in werte) + " |")
 
     log("")
+    log(f"Bewertet werden Merkmale, bei denen **mindestens eine** der beiden")
+    log(f"Korrelationen ueber {SCHWELLE:.2f} liegt. Bei starker Kruemmung faellt")
+    log("Pearson ab - ein reiner Pearson-Filter wuerde den staerksten Befund")
+    log("aussortieren.\n")
     for ziel in (ZIELGROESSE, RATE):
         if not stark[ziel]:
-            log(f"`{ziel}`: kein Merkmal mit |Pearson| > 0,20 - nicht bewertbar.")
+            log(f"`{ziel}`: kein Merkmal ueber der Schwelle - nicht bewertbar.")
             continue
         m, p, s, d = max(stark[ziel], key=lambda x: x[3])
-        log(f"`{ziel}`: {len(stark[ziel])} Merkmale mit |Pearson| > 0,20, "
-            f"groesster Abstand **`{m}`** ({p:+.3f} gegen {s:+.3f}).")
+        art = "Kruemmung" if abs(s) > abs(p) else "Hebelpunkte"
+        log(f"`{ziel}`: {len(stark[ziel])} Merkmale bewertet, groesster Abstand "
+            f"**`{m}`** ({p:+.3f} gegen {s:+.3f}, {d:.3f}) - {art}.")
 
     fig, achsen = plt.subplots(2, 5, figsize=(16, 6.5))
     for ax, merkmal in zip(achsen.ravel(), PRAEDIKTOREN):

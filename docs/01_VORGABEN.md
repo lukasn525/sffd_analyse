@@ -129,8 +129,10 @@ Pipeline" ausdrücklich erwähnt. Der Split gehört **grafisch dargestellt**.
 Validierung. Die Arbeit verwendet stattdessen einen **Stadtteil-Split**, weil ein
 Zeitschnitt die Forschungsfrage nicht prüft — dort steht jeder Stadtteil in
 Training und Test und das Modell kennt sein Niveau bereits. Begründung und Beleg
-in Decision Log #29; die zeitreihengerechte Variante wird als Nebenbemerkung
-geführt. **Diese Abweichung ist mit Schröter zu besprechen.**
+in Decision Log #29. Die zeitreihengerechte Variante wird **nicht gerechnet**,
+sondern in Kapitel 8 begründet verworfen — ein zweiter Validierungsrahmen
+verstieße gegen R1 und R8, und der Beleg liegt vor (der Stadtteil-Mittelwert
+allein erklärt R² 0,925). **Diese Abweichung ist mit Schröter zu besprechen.**
 
 ### R6 — Baselines und ehrliche Vergleichsaussagen
 Baselines sind Pflicht, je Zielgröße. Aktuell: Negative Binomial für die

@@ -178,12 +178,18 @@ SAISON = ["monat_sin", "monat_cos"]
 # Datensatz, sind aber KEIN Modellmerkmal mehr (Decision Log #29).
 #
 # Grund: Der Verfahrensvergleich laeuft seit dem 28.07.2026 ueber einen
-# STADTTEIL-Split - trainiert wird auf 30 Stadtteilen, getestet auf unbekannten.
-# Der Vormonatswert eines Teststadtteils waere dabei technisch verfuegbar, denn
-# es ist seine eigene Vergangenheit. Genau dann erklaert aber wieder seine
-# Historie das Ergebnis statt seiner Struktur - und die Forschungsfrage bliebe
-# unbeantwortet. Die Lags werden deshalb nur noch fuer die Nebenbemerkung zur
-# zeitlichen Prognose mitgefuehrt.
+# STADTTEIL-Split - trainiert wird auf 23 Stadtteilen je Fold, getestet auf
+# unbekannten. Der Vormonatswert eines Teststadtteils waere dabei technisch
+# verfuegbar, denn es ist seine eigene Vergangenheit. Genau dann erklaert aber
+# wieder seine Historie das Ergebnis statt seiner Struktur - und die
+# Forschungsfrage bliebe unbeantwortet.
+#
+# Wozu sie dann noch da sind: zur DESKRIPTION der zeitlichen Struktur in
+# Kapitel 4 (Autokorrelation Lag 1 innerhalb eines Stadtteils). Es ist KEIN
+# zweiter Analysestrang mit Zeitschnitt geplant - der waere ein zweiter
+# Validierungsrahmen und verstiesse gegen R1 und R8 (praezisiert 04.08.2026,
+# Decision Log #29). Sie formen den Datensatz auch nicht: Das dropna auf die
+# Lags entfernt dank Vorlauf null Zeilen.
 # Leakage-sicher gebildet: strikt rueckwaertsgerichtet, shift() VOR rolling().
 LAGS = ["lag_1", "lag_12", "rolling_mean_3"]
 
