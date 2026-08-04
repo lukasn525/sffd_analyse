@@ -18,7 +18,7 @@ wird, ob sie methodisch *gelöst* wurden.
 
 | Auflage | Datum | Umsetzung |
 |---|---|---|
-| Baseline gehört in die Data Preparation | 27.07. | `prep/s3_baselines.py`, Kapitel 5.4 |
+| Baseline gehört in die Data Preparation | 27.07. | `vorpruefung/v1_baselines.py`, Kapitel 5.4 |
 | Die Baseline muss zum Anwendungsfall passen — bei nichtlinearen Zusammenhängen braucht es eine nichtlineare Baseline | 27.07. | siehe unten |
 | Keine Blindabsätze zwischen Gliederungsebenen | 27.07. | jede Ebene trägt Inhalt |
 | Zitate einheitlich, mehrere Quellen pro Seite | 27.07. | biblatex/Chicago-notes |
@@ -146,7 +146,7 @@ Ridge, dokumentiert in der Arbeit, gerechnet ausschließlich auf den
 Trainingsstadtteilen. Bei Zähldaten ist Negativ-Binomial die naheliegende
 Ergänzung — sie ist als Baseline gesetzt.
 
-*Umsetzung:* `modelle/m01_eignung.py` → `results/eignungspruefung/`.
+*Umsetzung:* `vorpruefung/v2_eignung.py` → `results/eignungspruefung/`.
 **Steht noch aus** — die vorhandenen Ergebnisse stammen aus der Zeitschnitt-Welt.
 
 ### R8 — Fokus statt Breite

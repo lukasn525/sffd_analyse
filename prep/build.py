@@ -9,16 +9,16 @@ Ablauf:
                           -> data/processed/einsaetze.parquet   Zwischenstand
     2  s2_datensaetze.py  -> data/processed/regression.parquet      FINAL
                           -> data/processed/klassifikation.parquet  FINAL
-    3  s3_baselines.py    -> results/regression/baselines_*.csv
 
 Danach ist die Aufbereitung fertig. Die beiden FINAL markierten Dateien sind
-modellfertig: identische Zeilen, Merkmale und Folds fuer alle drei Verfahren.
-Schritt 3 legt die Referenzwerte fest, bevor modelliert wird (Auflage
-Schroeter, 27.07.2026). Alles Weitere liegt unter modelle/.
+modellfertig: identische Zeilen, Merkmale und Folds fuer alle Verfahren.
+
+Dieser Ordner erzeugt DATEN und sonst nichts. Die Messlatte (Baselines) und die
+Eignungspruefung liegen in vorpruefung/, der Verfahrensvergleich in modelle/.
 
 Argumente (optional):
     python prep/build.py daten        wie ohne Argument
-    python prep/build.py tests        anschliessend die 14 Pruefungen laufen lassen
+    python prep/build.py tests        anschliessend die Pruefungen laufen lassen
 
 Downloads werden ueber die DOWNLOAD_*-Schalter in config.py gesteuert. Stehen
 sie auf False (Default), arbeitet der Befehl allein aus data/raw und braucht
@@ -60,27 +60,22 @@ def uebersicht() -> None:
         print(f"  {'':<26} {beschreibung}")
     print(f"\n  Die beiden FINAL-Dateien liegen in "
           f"{PROCESSED_DIR.relative_to(ROOT)} und sind modellfertig.")
-    print("  Naechster Schritt: python modelle/m01_eignung.py")
+    print("  Naechster Schritt: python vorpruefung/run.py")
 
 
 def main() -> int:
     import s1_daten
     import s2_datensaetze
-    import s3_baselines
 
     t_gesamt = time.time()
 
-    t = schritt("1/3", "Rohdaten laden und joinen (s1_daten.py)")
+    t = schritt("1/2", "Rohdaten laden und joinen (s1_daten.py)")
     s1_daten.run_download()
     s1_daten.run_join()
     print(f"\n  Dauer: {time.time() - t:.1f}s")
 
-    t = schritt("2/3", "Beide finalen Datensaetze (s2_datensaetze.py)")
+    t = schritt("2/2", "Beide finalen Datensaetze (s2_datensaetze.py)")
     s2_datensaetze.run()
-    print(f"\n  Dauer: {time.time() - t:.1f}s")
-
-    t = schritt("3/3", "Vergleichsgroessen (s3_baselines.py)")
-    s3_baselines.run()
     print(f"\n  Dauer: {time.time() - t:.1f}s")
 
     uebersicht()

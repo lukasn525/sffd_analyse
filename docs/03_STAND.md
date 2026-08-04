@@ -20,7 +20,7 @@ python tests/test_aufbereitung.py    # zuletzt 19/19 bestanden
 | `config.py` | alle Festlegungen an einer Stelle | – |
 | `s1_daten.py` | vier Quellen laden, säubern, zu einer Zeile je Einsatz verbinden | `einsaetze.parquet` 719.989 × 50 |
 | `s2_datensaetze.py` | auf Stadtteil × Monat aggregieren, Zielgrößen, Fold-Zuteilung | die zwei finalen Datensätze |
-| `s3_baselines.py` | Vergleichswerte festlegen, bevor modelliert wird | `results/*/baselines_*.csv` |
+| `vorpruefung/v1_baselines.py` | Messlatte in zwei Stufen festlegen | `results/*/baselines_*.csv` |
 
 Quellen: SFFD Feuerwehreinsätze · ACS (US-Zensus) · SFPD Kriminalität · Land Use 2020.
 
@@ -73,6 +73,12 @@ stehen erst nach dem Einsatz fest.
 | kleinster Stadtteil (Seacliff) | 6,4 |
 | größter Stadtteil (Tenderloin) | 279,7 |
 | Autokorrelation Lag 1, innerhalb Stadtteil | 0,368 |
+| Dispersionsindex Var/Mean, voller Datensatz | 62,8 |
+| Dispersionsindex Var/Mean, Trainingsstadtteile Fold 1 | 54,2 |
+
+Beide Dispersionswerte sind korrekt und beziehen sich auf unterschiedliche
+Mengen — der Wert aus der Eignungsprüfung (54,2) ist der auf den
+Trainingsstadtteilen, weil dort keine Testinformation einfließen darf.
 
 ---
 
@@ -147,21 +153,36 @@ Nullmarke.
 R² nur nachrichtlich — mit dieser Begründung. Bei `anzahl_einsaetze` bleibt R²
 aussagekräftig.
 
-| Zielgröße | Baseline | Macro-F1 | Accuracy |
+### Klassifikation — `dominante_einsatzart`
+
+| Stufe | Baseline | Macro-F1 | Accuracy |
 |---|---|---|---|
-| `dominante_einsatzart` | Mehrheitsklasse („Fehlalarm") | **0,223 ± 0,009** | 0,806 |
+| 1 | Mehrheitsklasse („Fehlalarm") | 0,223 | **0,806** |
+| 2 | **Multinomiale logistische Regression** | **0,290** | 0,578 |
 
-**Was die Negative Binomial stützt:** Sie kann Krümmung, aber keine
-Wechselwirkungen zwischen Merkmalen. Genau die finden Random Forest und XGBoost
-konstruktionsbedingt. Schlagen sie die Baseline, ist belegt, dass solche
-Wechselwirkungen existieren und der Mehraufwand sich lohnt — schlagen sie sie
-nicht, reicht die einfachere Struktur. Beides ist ein Ergebnis.
+Seit #33 hat auch die Klassifikation eine Stufe 2 — eine Referenz, die dieselben
+zwölf Merkmale benutzt. **Stufe 2 ist die Latte, die Random Forest und XGBoost
+schlagen müssen**, nicht die Mehrheitsklasse. Die Negative Binomial ist hier
+nicht anwendbar (sie sagt eine Zahl vorher, die Zielgröße ist eine von vier
+ungeordneten Kategorien); die logistische Regression ist ihr Gegenstück.
 
-**Was offen zu benennen ist:** In der Klassifikation gibt es kein Pendant. Eine
-Zahl kann keine von vier ungeordneten Kategorien vorhersagen; dort bleibt die
-Mehrheitsklasse die einzige Referenz und die Latte liegt niedriger. Der Abstand
-zwischen Macro-F1 0,223 und Accuracy 0,806 ist selbst ein Argument: Accuracy
-sieht hervorragend aus, obwohl das Modell nichts kann.
+**Der Vergleich der beiden Zeilen ist selbst ein Argument.** Die logistische
+Regression hat die deutlich *schlechtere* Trefferquote (0,578 gegen 0,806) und
+zugleich das deutlich *bessere* Macro-F1. Das ist kein Widerspruch, sondern die
+Wirkung von `class_weight="balanced"`: Das Modell gibt Treffer bei der
+dominanten Klasse auf, um die drei seltenen überhaupt zu finden. Wer Accuracy
+als Hauptmaß nähme, käme zu dem Schluss, das Modell sei schlechter geworden.
+Genau deshalb ist Macro-F1 maßgeblich.
+
+**Was Stufe 2 stützt.** In der Regression: Die Negative Binomial kann Krümmung,
+aber keine Wechselwirkungen — genau die finden RF und XGBoost
+konstruktionsbedingt. Schlagen sie die Latte, ist der Mehraufwand belegt;
+schlagen sie sie nicht, reicht die einfachere Struktur. Beides ist ein Ergebnis.
+
+**Was in der Klassifikation offen ist.** Dort schlägt ein flacher
+Entscheidungsbaum (Macro-F1 0,270) die logistische Regression **nicht**. Der
+Mehraufwand von RF und XGBoost ist im zweiten Strang vorab nicht begründet —
+siehe `06_RISIKEN.md`, R-2.
 
 Negative R² sind korrekt: Wer für einen unbekannten Stadtteil den
 Gesamtdurchschnitt vorhersagt, liegt schlechter als dessen eigener Mittelwert.
@@ -173,7 +194,7 @@ Genau diese Lücke sollen die Strukturmerkmale schließen.
 
 | Punkt | Stand |
 |---|---|
-| NegBin-Referenz für die Rate | Code steht, Wert nach dem nächsten `build.py` eintragen |
-| `results/eignungspruefung/` | vom 27.07., noch aus der Zeitschnitt-Welt |
-| Linearitätsprüfung vor Ridge (R7) | Teil der Neufassung von `m01_eignung.py` |
+| Klassifikationsstrang: Baum-Sonde schlägt Stufe 2 nicht | offen, entscheidet `m03` — `06_RISIKEN.md`, R-2 |
+| Linearitätsprüfung vor Ridge (R7) | ✅ gerechnet, `results/eignungspruefung/` |
+| Abweichungen mit Schröter besprechen | offen — `06_RISIKEN.md`, R-7 |
 | `modelle/m01`–`m04` | vollständig neu zu schreiben, Spezifikation in `04_MODELLIERUNG.md` |

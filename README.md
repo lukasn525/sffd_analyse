@@ -14,8 +14,9 @@ pip install -r requirements.txt
 ## Ausführen
 
 ```bash
-python prep\build.py                   # Aufbereitung -> zwei Datensätze + Baselines
-python tests\test_aufbereitung.py      # Prüfungen an den fertigen Dateien
+python prep\build.py                   # 1  Aufbereitung -> zwei Datensätze
+python tests\test_aufbereitung.py      #    Prüfungen an den fertigen Dateien
+python vorpruefung\run.py              # 2  Messlatte + Verfahrenseignung
 ```
 
 `prep\build.py` läuft ohne Internet aus `data\raw`. Rohdaten werden nur geladen,
@@ -24,9 +25,10 @@ wenn der jeweilige `DOWNLOAD_*`-Schalter in `prep\config.py` auf `True` steht.
 Einzelschritte:
 
 ```bash
-python prep\s1_daten.py join           # nur joinen, ohne Download
-python prep\s2_datensaetze.py splits   # Fold-Zuteilung anzeigen
-python prep\s3_baselines.py            # nur die Vergleichswerte
+python prep\s1_daten.py join            # nur joinen, ohne Download
+python prep\s2_datensaetze.py splits    # Fold-Zuteilung anzeigen
+python vorpruefung\v1_baselines.py      # nur die Messlatte
+python vorpruefung\v2_eignung.py        # nur die Eignungsprüfung
 ```
 
 Die Skripte unter `modelle/` werden gerade neu geschrieben — Spezifikation in
@@ -34,18 +36,23 @@ Die Skripte unter `modelle/` werden gerade neu geschrieben — Spezifikation in
 
 ## Aufbau
 
+Drei Arbeitsschritte, drei Ordner:
+
 ```
-prep/       erzeugt Daten       config.py · s1_daten.py · s2_datensaetze.py
-                                s3_baselines.py · build.py
-modelle/    rechnet Zahlen      m01_eignung · m02_menge · m03_struktur · m04_shap
-tests/      prüft die Dateien   test_aufbereitung.py
-data/       raw · processed
-results/    eignungspruefung · regression · klassifikation
-docs/       01_VORGABEN · 02_ENTSCHEIDUNGEN · 03_STAND · 04_MODELLIERUNG
+prep/          die Daten        config · s1_daten · s2_datensaetze · build
+vorpruefung/   die Messlatte    v1_baselines  Stufe 1 (ohne Merkmale)
+               und die Eignung                Stufe 2 (einfachste passende Form)
+                                v2_eignung    welche Verfahrensklasse passt?
+modelle/       der Vergleich    m02_menge · m03_struktur · m04_shap
+tests/                          test_aufbereitung
+data/          raw · processed
+results/       regression · klassifikation · eignungspruefung
+docs/          01_VORGABEN · 02_ENTSCHEIDUNGEN · 03_STAND · 04_MODELLIERUNG · 06_RISIKEN
 ```
 
-**Faustregel:** Erzeugt ein Schritt *Daten*, gehört er nach `prep/`. Erzeugt er
-*Zahlen über Daten*, nach `modelle/`.
+**Faustregel:** Erzeugt ein Schritt *Daten*, gehört er nach `prep/`. Legt er
+fest, *was ein Modell mindestens leisten muss und warum diese Verfahren*, nach
+`vorpruefung/`. Vergleicht er Verfahren, nach `modelle/`.
 
 ## Die zwei finalen Datensätze
 
@@ -66,6 +73,7 @@ Vier Dateien, geschnitten danach, **wodurch sie veralten**:
 | `docs/02_ENTSCHEIDUNGEN.md` | neue Entscheidungen — wächst, wird nie umgeschrieben |
 | `docs/03_STAND.md` | jeden Lauf von `build.py` |
 | `docs/04_MODELLIERUNG.md` | Änderungen an der Modellplanung |
+| `docs/06_RISIKEN.md` | eingetretene oder weggefallene Risiken |
 
 **Ergebniszahlen stehen ausschließlich in `03_STAND.md`**, alles andere verweist
 darauf. Rahmenplan, Arbeitsregeln und KI-Verzeichnis: `CLAUDE.md`.

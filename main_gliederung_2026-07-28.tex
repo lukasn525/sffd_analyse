@@ -1288,16 +1288,26 @@ vermeidet.\footcite[192-193]{Bergmeir2012} Die technische Umsetzung erfolgt in P
 %    Ramsey (1969), H0 "die lineare Spezifikation ist adaequat":
 %      Potenzen bis 2: F = 215,23  p = 4e-47   -> H0 verworfen
 %      Potenzen bis 3: F = 125,59  p = 4e-53   -> H0 verworfen
-% 3. Die Ursache ist lokalisierbar: KEINES der zehn Merkmale zeigt einen
-%    nennenswerten Abstand zwischen Pearson und Spearman -- die einzelnen
-%    Effekte sind praktisch linear. Ergaenzt man Interaktionsterme, steigt
-%    das adjustierte R2 von 0,805 auf 0,914. Die Ursache sind also
-%    WECHSELWIRKUNGEN, nicht Kruemmung.
-% 4. Daraus folgt die Verfahrenswahl: Ein lineares Modell bildet
-%    Interaktionen nur ab, wenn man sie von Hand spezifiziert -- bei zehn
-%    Merkmalen 45 Terme, willkuerlich ausgewaehlt und bei 30 Trainings-
-%    stadtteilen ueberangepasst. Baumverfahren finden sie konstruktions-
-%    bedingt: Jeder Split bedingt auf die vorherigen.
+% 3. Die Ursache ist lokalisierbar, und sie ist ZWEIFACH (Lauf 03.08.2026):
+%    (a) KRUEMMUNG. Von den sechs Merkmalen mit substanzieller Korrelation
+%        (|Pearson| > 0,2) zeigt log_bevoelkerung den groessten Abstand
+%        zwischen Pearson (+0,416) und Spearman (+0,559) -- ein monotoner,
+%        aber gekruemmter Zusammenhang. Wichtig fuer den Text: Bei den
+%        uebrigen vier Merkmalen liegt die Korrelation nahe null, dort ist
+%        der Pearson-Spearman-Abstand Rauschen und KEIN Befund.
+%    (b) WECHSELWIRKUNGEN. Ergaenzt man die 45 Interaktionsterme, steigt das
+%        adjustierte R2 von 0,805 auf 0,919.
+%    ACHTUNG: Eine fruehere Fassung dieses Kommentars behauptete, die
+%    Einzeleffekte seien praktisch linear und nur Wechselwirkungen fehlten.
+%    Das ist durch den Lauf vom 03.08.2026 widerlegt und NICHT mehr zu
+%    schreiben.
+% 4. Daraus folgt die Verfahrenswahl: Ein lineares Modell bildet Kruemmung
+%    nur ueber vorab gewaehlte Transformationen ab und Interaktionen nur,
+%    wenn man sie von Hand spezifiziert -- bei zehn Merkmalen 45 Terme,
+%    willkuerlich ausgewaehlt und bei 23 Trainingsstadtteilen (Fold 1)
+%    ueberangepasst. Baumverfahren fangen beides konstruktionsbedingt ab:
+%    Ein Split kann an beliebiger Stelle schneiden, und jeder Split bedingt
+%    auf die vorherigen.
 %
 % Ebenfalls hierher: die Linearitaetspruefung als Auflage Schroeter (R7,
 % Scatterplots und Residuenanalyse VOR dem Einsatz von Ridge), VIF, sowie die

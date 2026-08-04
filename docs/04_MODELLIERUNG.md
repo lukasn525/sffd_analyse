@@ -112,9 +112,21 @@ Modellspezifisch ist nur, was **innerhalb der Pipeline je Fold** passiert.
 
 ### Hyperparameter-Suche
 
-`RandomizedSearchCV`, Suchräume und `TUNING_BUDGET` aus `prep/config.py`,
-gleiches Budget für jedes Verfahren. Getunt wird ausschließlich auf den
-Trainingsstadtteilen des jeweiligen Folds.
+`RandomizedSearchCV`, Suchräume und `TUNING_BUDGET` aus
+`modelle/config_modelle.py`, gleiches Budget für jedes Verfahren. Getunt wird
+ausschließlich auf den Trainingsstadtteilen des jeweiligen Folds.
+
+**Der innere CV muss nach Stadtteil gruppieren** — `GroupKFold`, nicht das
+voreingestellte `KFold`. Sonst stünde derselbe Stadtteil im inneren Training und
+in der inneren Validierung, die Hyperparameter würden auf einen geleakten
+Schätzwert optimiert, und der Vorteil des äußeren Stadtteil-Splits wäre im
+Tuning wieder verspielt. Das ist die häufigste Fehlerquelle an dieser Stelle und
+von außen nicht sichtbar — die Zahlen sähen nur zu gut aus.
+
+Getunt wird **einmal auf Wiederholung 0**; die gewählten Parameter gelten für
+die Wiederholungen 1–9. Die Wiederholungen unterscheiden sich nur im Versatz der
+Fold-Zuteilung und dienen der Streuungsschätzung, nicht der Modellwahl. Das ist
+eine bewusste Vereinfachung und im Text zu benennen.
 
 ---
 
@@ -128,15 +140,21 @@ m03_struktur.py   dominante Einsatzart, zwei Verfahren   -> results/klassifikati
 m04_shap.py       nur für Modelle, die ihre Baseline schlagen
 ```
 
-Jedes Skript liest ausschließlich die Parquet-Dateien und `prep/config.py`,
-schreibt CSV nach `results/` und legt **nichts** fest, was in `prep/` gehört.
+Jedes Skript liest ausschließlich die Parquet-Dateien und die beiden
+Config-Dateien, schreibt CSV nach `results/` und legt **nichts** fest, was in
+`prep/` gehört.
 
-`m01_eignung.py` ist der nächste Schritt: Die Linearitätsprüfung vor Ridge ist
-Schröters harte Auflage (R7) und muss vor dem Verfahrensvergleich stehen. Die
-vorhandenen Ergebnisse stammen aus der Zeitschnitt-Welt.
+`m01_eignung.py` ist **gerechnet** (03.08.2026). Der Befund, auf dem Kapitel 6.2
+ruht: Der RESET-Test verwirft die lineare Spezifikation, und sie scheitert an
+**zwei** Dingen — an der Krümmung einzelner Effekte (am deutlichsten
+`log_bevoelkerung`, Pearson +0,416 gegen Spearman +0,559) und an fehlenden
+Wechselwirkungen (adjustiertes R² 0,805 → 0,919 mit 45 Interaktionstermen).
+Baumverfahren fangen beides konstruktionsbedingt ab: Ein Split kann an
+beliebiger Stelle schneiden, und jeder Split bedingt auf die vorherigen.
 
 SHAP nur blockweise interpretieren — die Strukturmerkmale sind untereinander
-korreliert, Beiträge verteilen sich.
+korreliert (max VIF 11,5 bei `median_haushaltseinkommen`, 7,1 bei
+`median_miete`), Beiträge verteilen sich.
 
 ---
 
