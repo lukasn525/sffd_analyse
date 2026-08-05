@@ -20,7 +20,7 @@ der Fragestellung, die die Aussagekraft begrenzen.
 | **R-4** | **Das Hold-out umfasst 6 Stadtteile.** Die abschließende, einmalige Bewertung beruht auf sechs Einheiten; ihre Unsicherheit muss mitberichtet werden. | 6 von 35, 792 Zeilen | mittel |
 | **R-5** | **Effektive Stichprobe: 35 Einheiten.** 4.620 Zeilen klingen komfortabel, es sind 35 Querschnittseinheiten × 132 Monate, davon 29 in der Entwicklung. Gemeinsame Ursache von R-1, R-3 und R-4. **Zwei Folgen für die Auswertung:** Die Gütemaße werden je Zeile gerechnet, aber die 132 Zeilen eines Stadtteils sind hochkorreliert — der effektive Stichprobenumfang der Metrik ist weit kleiner als *n*. Und die 50 Fold-Ergebnisse aus 10 Wiederholungen sind **nicht unabhängig**: Es sind dieselben 29 Stadtteile, nur anders gruppiert. Der Gewinn an Präzision ist kleiner als √10 (Nadeau & Bengio 2003). | `03_STAND.md` | mittel |
 | **R-6** | **Merkmale sind innerhalb eines Jahres konstant.** ACS erscheint jährlich, Land Use ist ein Snapshot 2020. Das Modell sagt für alle zwölf Monate eines Stadtteils fast denselben Wert vorher; die Monatsschwankung geht vollständig ins Residuum. | 5 Jahrgänge auf 132 Monate | gering |
-| **R-7** | **Der Stadtteil-Split ist mit Schröter unbesprochen.** Er widerspricht einem wörtlich im Exposé genannten Element von Unterfrage 2 und steht als Spalte in beiden Datensätzen — ein Veto danach entwertet jede Modellrechnung. Die übrigen drei Abweichungen sind unkritisch (siehe unten). | #29 | gering |
+| ~~R-7~~ | ~~**Der Stadtteil-Split ist mit Schröter unbesprochen.**~~ **✅ ERLEDIGT am 04.08.2026.** Schröter per E-Mail: „Der Stadtteil-Split ist für die von Ihnen formulierte Forschungsfrage methodisch gut begründet. […] Insofern können Sie wie geplant vorgehen." Auch die beiden Baselines sind ausdrücklich bestätigt. Zwei Auflagen daraus — siehe unten. | E-Mail 04.08.2026 | entfallen |
 | **R-8** | **ACS-Trefferquote 2009 nur 63,1 %.** Für die Hauptanalyse ab 2015 folgenlos, gehört in die Limitationen. | 2021/23: 99,2 % | gering |
 | **R-9** | **Spezifikationsasymmetrie zwischen Baseline und Vergleichsverfahren.** Die Negative Binomial erhält `log(Bevölkerung)` als **Offset** — sie modelliert damit direkt Einsätze je Einwohner. Ridge, RF und XGBoost bekommen dieselbe Größe nur als gewöhnliches Merkmal und müssen den Zusammenhang erst lernen. Die Baseline hat damit einen strukturellen Vorteil; wer ihn nicht benennt, vergleicht nicht Verfahren, sondern Spezifikationen. | `v1_baselines.py`, `negative_binomial()` | mittel |
 | **R-10** | **Mehrfachvergleiche ohne Korrektur.** Der gepaarte Wilcoxon-Test läuft je Zielgröße und Verfahrenspaar: 3 Paare × 2 Mengen-Zielgrößen plus 1 Paar in der Klassifikation = **7 Tests**. Bei α = 0,05 liegt die Wahrscheinlichkeit für mindestens einen falsch-positiven Befund bei rund 30 %. | #34 | mittel |
@@ -77,7 +77,31 @@ Problem zum Beweismittel. In 6.2 ist das so zu benennen.
 
 ---
 
-## R-7 im Detail — was mit Schröter unbesprochen ist
+## R-7 — erledigt, mit zwei Auflagen
+
+Schröter hat am **04.08.2026** zugestimmt: Stadtteil-Split und beide Baselines
+sind freigegeben, „Insofern können Sie wie geplant vorgehen." Daraus folgen zwei
+Auflagen, die in die Arbeit müssen:
+
+**Auflage A — die Abweichung transparent erläutern.** Wörtlich: „Wichtig ist,
+dass Sie die Abweichung von der ursprünglich angekündigten zeitreihengerechten
+Kreuzvalidierung transparent erläutern." Damit ist das begründete Verwerfen in
+Kapitel 8 nicht mehr optional, sondern verlangt (#29).
+
+**Auflage B — die Zielsetzung als Generalisierung formulieren.** Wörtlich: „und
+die Zielsetzung der Validierung klar als **Generalisierung auf unbekannte
+Stadtteile** formulieren." Das ist eine Formulierungsvorgabe. Der Begriff gehört
+in Kapitel 5.4 und in die Zielsetzung, nicht nur sinngemäß.
+
+**Auflage C — identische Merkmale und Splits.** Wörtlich: „Achten Sie darauf,
+für alle Vergleichsmodelle identische Merkmale und Splits zu verwenden." Das ist
+erfüllt, muss aber **gezeigt** werden: Die Fairness ist konstruktiv abgesichert,
+weil `fold` und `ist_holdout` als Spalten in den Dateien stehen und die
+Merkmalsliste einmal in `prep/config.py` definiert ist. Kein Modellskript kann
+davon abweichen. Dieser Mechanismus gehört in Kapitel 5.4 beschrieben — als
+Beleg, nicht als Zusicherung.
+
+### Die übrigen Abweichungen — unkritisch
 
 Vier Festlegungen weichen vom Exposé ab oder gehen darüber hinaus. Alle sind im
 Decision Log begründet, keine ist abgestimmt.

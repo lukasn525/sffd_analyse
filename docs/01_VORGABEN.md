@@ -23,8 +23,13 @@ wird, ob sie methodisch *gelöst* wurden.
 | Keine Blindabsätze zwischen Gliederungsebenen | 27.07. | jede Ebene trägt Inhalt |
 | Zitate einheitlich, mehrere Quellen pro Seite | 27.07. | biblatex/Chicago-notes |
 | Jede methodische Entscheidung mit dem Stand der Forschung belegen | 27.07. | — |
-| KI-Verzeichnis: Kennung, Engine, Jahr, Modell, Prompt, URL | 27.07. | `CLAUDE.md` |
+| KI-Verzeichnis: Kennung, Engine, Jahr, Modell, Prompt, URL | 27.07. | ✅ Form geklärt, Verzeichnis in `CLAUDE.md` |
 | Regression und Klassifikation dürfen unterschiedlich viele Verfahren nutzen, wenn die Auswahl fachlich begründet wird | 03.08. | Decision Log #31, Kapitel 6.2 |
+| **Stadtteil-Split freigegeben** — „methodisch gut begründet" | 04.08. | #29 |
+| Die Abweichung von der zeitreihengerechten Kreuzvalidierung **transparent erläutern** | 04.08. | Kapitel 8 |
+| Die Zielsetzung der Validierung als **„Generalisierung auf unbekannte Stadtteile"** formulieren | 04.08. | Kapitel 5.4 und Zielsetzung — wörtlich so |
+| **Negative Binomial und multinomiale logistische Regression als Baselines freigegeben** | 04.08. | #32, #33 |
+| Für alle Vergleichsmodelle **identische Merkmale und Splits** verwenden | 04.08. | erfüllt; Mechanismus in Kapitel 5.4 belegen |
 
 ### Wozu die Baseline dient
 

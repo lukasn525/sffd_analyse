@@ -54,7 +54,7 @@ geschrieben wird. ✅ erledigt · ⬜ offen · ⚠️ offen und blockierend.
 
 - [x] Stadtteil-Split, `fold` und `ist_holdout` stehen in den Dateien
 - [x] Wiederholungen festgelegt: `WIEDERHOLUNGEN = 10`
-- [ ] ⚠️ **Innerer CV muss nach Stadtteil gruppieren** (`GroupKFold`, nicht `KFold`) — spezifiziert, noch nicht implementiert
+- [x] **Innerer CV gruppiert nach Stadtteil** (`GroupKFold(4)`, `groups=train["stadtteil"]`) — umgesetzt in `m02_menge.tune()`
 - [x] Hold-out wird genau einmal ausgewertet, nach Abschluss des Tunings
 - [x] Auswertungsebene: je Zeile (Stadtteil × Monat), einheitlich für beide Stränge
 
@@ -71,7 +71,7 @@ geschrieben wird. ✅ erledigt · ⬜ offen · ⚠️ offen und blockierend.
 - [x] Primäraussage: **je Verfahren gegen die Stufe-2-Baseline** (UF2)
 - [x] Rangfolge zwischen den Verfahren nur bei signifikantem gepaartem Wilcoxon-Test, α = 0,05, je Zielgröße getrennt
 - [x] Bei Nichtsignifikanz: „nicht unterscheidbar" mit Konfidenzintervall der Differenz
-- [ ] ⬜ **Trainings- und Inferenzzeiten mitmessen** (UF3) — leicht zu vergessen, nachträglich teuer
+- [x] **Trainings- und Inferenzzeiten** werden gemessen (UF3) — umgesetzt in `m02_menge.ein_lauf()`
 - [x] Ausgabe: `*_folds.csv` · `*_mittel.csv` · `tuning.csv` · `vergleich.csv`
 - [x] Keine nachträgliche Zuschneidung der Auswertung (kein Aufteilen nach Extrapolationsgrad)
 - [ ] ⬜ **Streuung zweistufig aggregieren** — `std_wiederholungen` statt `std_folds` als maßgeblicher Wert (R-5)
@@ -89,7 +89,7 @@ geschrieben wird. ✅ erledigt · ⬜ offen · ⚠️ offen und blockierend.
 
 ### I · Was nicht blockiert, aber benannt sein muss
 
-- [ ] ⬜ **Sprechstunde: der Stadtteil-Split.** Als einzige der vier Abweichungen leicht kritisch, weil er einem wörtlich genannten Element von Unterfrage 2 widerspricht (`06_RISIKEN.md`, R-7). Die übrigen drei sind unkritisch
+- [x] **Stadtteil-Split und Baselines freigegeben** (Schröter, 04.08.2026, #35) — drei Auflagen daraus in `01_VORGABEN.md`, Abschnitt 0
 - [x] Risikoregister aktuell (`06_RISIKEN.md`, Stand 04.08.)
 - [x] Decision Log vollständig bis #34
 

@@ -73,7 +73,9 @@ Entwicklungsstadtteilen nicht.
 **Dokumentierte Abweichungen vom Exposé:** Stadtteil-Split statt
 zeitreihengerechter Kreuzvalidierung (#29), Klassifikation auf Stadtteil × Monat
 statt Einzeleinsatz (#29), zwei statt drei Verfahren in der Klassifikation (#31).
-Alle mit Begründung im Decision Log, alle mit Schröter zu besprechen.
+**Stadtteil-Split und beide Baselines sind seit 04.08.2026 freigegeben** (#35,
+drei Auflagen daraus in `01_VORGABEN.md`); die übrigen sind begründet und werden
+in Kapitel 6 benannt.
 
 ---
 
