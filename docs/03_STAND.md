@@ -126,12 +126,43 @@ und Tuning.
 Festgelegt in Decision Log #32. Sie laufen über denselben Split und sehen
 dieselben Merkmale wie die Modelle.
 
+Seit **05.08.2026** laufen die Baselines über **alle 10 Wiederholungen**, also
+über dieselben 50 Läufe wie die Vergleichsverfahren. Nur so lässt sich gepaart
+testen (`07_BEFUNDE.md`, B-4). Beide Fassungen stehen in
+`baselines_mittel.csv`, unterschieden durch die Spalte `basis`.
+
+**Maßgeblich — 50 Läufe** (`basis = alle_wiederholungen`). Streuung ist
+`std_wiederholungen` über die 10 Wiederholungsmittel, nicht `std_folds`:
+
 | Zielgröße | Baseline | R² | RMSE | MAE |
 |---|---|---|---|---|
-| `anzahl_einsaetze` | **Negative Binomial** | **0,472 ± 0,368** | 37,44 | 25,71 |
-| `anzahl_einsaetze` | Gesamtmittelwert (Nullmarke) | −0,832 | 71,19 | 53,27 |
-| `einsaetze_je_1000_ew` | **Negative Binomial** | **−0,237 ± 1,682** | 4,14 | 2,42 |
-| `einsaetze_je_1000_ew` | Gesamtmittelwert (Nullmarke) | −2,122 | 7,45 | 5,01 |
+| `anzahl_einsaetze` | **Negative Binomial** | **0,477 ± 0,086** | 37,27 ± 3,23 | 24,79 |
+| `anzahl_einsaetze` | Gesamtmittelwert (Nullmarke) | −0,744 ± 0,325 | 69,93 | 52,33 |
+| `einsaetze_je_1000_ew` | **Negative Binomial** | **0,024 ± 0,679** | 4,41 ± 0,59 | 2,43 |
+| `einsaetze_je_1000_ew` | Gesamtmittelwert (Nullmarke) | −1,054 ± 0,875 | 7,54 | 4,92 |
+
+**Stand vor dem Modelllauf — 5 Folds der Wiederholung 0**
+(`basis = wiederholung_0`). Diese Werte standen bis zum 05.08.2026 hier und
+sind unverändert reproduzierbar; Streuung ist `std_folds`:
+
+| Zielgröße | Baseline | R² | RMSE | MAE |
+|---|---|---|---|---|
+| `anzahl_einsaetze` | Negative Binomial | 0,472 ± 0,368 | 37,44 | 25,71 |
+| `anzahl_einsaetze` | Gesamtmittelwert | −0,832 | 71,19 | 53,27 |
+| `einsaetze_je_1000_ew` | Negative Binomial | −0,237 ± 1,682 | 4,14 | 2,42 |
+| `einsaetze_je_1000_ew` | Gesamtmittelwert | −2,122 | 7,45 | 5,01 |
+
+**Der Vergleich beider Tabellen ist selbst ein Beleg.** Bei der Rate springt R²
+von −0,237 auf **+0,024**, sobald über zehn Fold-Konstellationen gemittelt
+wird. Der negative Wert war kein Modellbefund, sondern der Fold 4 einer
+einzelnen Aufteilung (R² −3,19). Genau dafür sind die wiederholten Splits da —
+und es zeigt, wie stark ein einzelner Fold bei 29 Einheiten durchschlägt (R-5).
+
+**Der Offset-Vorteil der Negative Binomial ist gemessen und beträgt null.**
+Eine zweite Variante ohne Offset (`log_bevoelkerung` als gewöhnlicher
+Prädiktor) liegt bei `anzahl_einsaetze` um **0,0017 RMSE besser**, bei der Rate
+um 0,0000. Grund: `log_bevoelkerung` ist auch in der Offset-Variante ein freies
+Merkmal. Damit entfällt R-9 (`07_BEFUNDE.md`, B-19).
 
 Fold-Ergebnisse der Negative Binomial:
 
@@ -155,10 +186,16 @@ aussagekräftig.
 
 ### Klassifikation — `dominante_einsatzart`
 
-| Stufe | Baseline | Macro-F1 | Accuracy |
-|---|---|---|---|
-| 1 | Mehrheitsklasse („Fehlalarm") | 0,223 | **0,806** |
-| 2 | **Multinomiale logistische Regression** | **0,290** | 0,578 |
+| Stufe | Baseline | Macro-F1 | Macro-AUROC | Accuracy |
+|---|---|---|---|---|
+| 1 | Mehrheitsklasse („Fehlalarm") | 0,223 | – | **0,806** |
+| 2 | **Multinomiale logistische Regression** | **0,298** | 0,711 | 0,588 |
+
+Über 50 Läufe gerechnet; auf den 5 Folds der Wiederholung 0 lauteten die Werte
+0,223 und **0,290** / 0,578. Macro-AUROC wird seit 05.08.2026 mitgeführt — ohne
+sie gäbe es für das zweite Gütemaß der Klassifikation keine Messlatte. Für die
+Mehrheitsklasse ist sie nicht definiert und bleibt leer, nicht 0,5.
+Konvergenzwarnungen der logistischen Regression: **0 von 50 Läufen**.
 
 Seit #33 hat auch die Klassifikation eine Stufe 2 — eine Referenz, die dieselben
 zwölf Merkmale benutzt. **Stufe 2 ist die Latte, die Random Forest und XGBoost

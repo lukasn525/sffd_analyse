@@ -3,11 +3,12 @@ Interpretation: Welche Merkmale tragen die Vorhersage?
 
     python modelle/m04_shap.py
 
-Eingang: results/regression/menge_mittel.csv · results/klassifikation/struktur_mittel.csv
-         data/processed/{regression,klassifikation}.parquet
-Ausgang: results/shap/
+Eingang: results/regression/{menge_folds,vergleich}.csv
+         results/klassifikation/{struktur_folds,vergleich}.csv
+         results/*/tuning.csv · data/processed/{regression,klassifikation}.parquet
+Ausgang: results/shap/beitraege.csv · gruppen.csv · vif.csv · uebersprungen.csv
 
-STAND: noch zu implementieren. Setzt m02 und m03 voraus.
+STAND: vollstaendig, 05.08.2026. Setzt m02 und m03 voraus.
 
 --------------------------------------------------------------------------
 DIE EINE REGEL
@@ -15,17 +16,26 @@ DIE EINE REGEL
 SHAP wird NUR fuer Modelle gerechnet, die ihre Stufe-2-Baseline schlagen. Fuer
 alle anderen erklaert man Rauschen - und eine Abbildung, die Beitraege zeigt, wo
 kein Signal ist, ist schlimmer als keine Abbildung. Das Skript prueft das selbst
-und ueberspringt Modelle, die die Latte reissen.
+und ueberspringt Modelle, die die Latte reissen; die uebersprungenen stehen mit
+Begruendung in `uebersprungen.csv`, damit die Auswahl nachvollziehbar ist und
+nicht wie Rosinenpicken aussieht.
+
+Massgeblich ist der PRIMAERTEST auf den Wiederholungsmitteln (teststufe
+"wiederholung"): mittlere Differenz zugunsten des Verfahrens UND signifikant.
 
 --------------------------------------------------------------------------
-WAS ZU RECHNEN IST
+WAS GERECHNET WIRD
 --------------------------------------------------------------------------
   TreeExplainer   fuer Random Forest und XGBoost
-  Koeffizienten   fuer Ridge - dort braucht es kein SHAP, die standardisierten
-                  Koeffizienten sind direkt interpretierbar
-  Fold            EIN Fold, nicht alle. Die Auswahl ist zu begruenden und im
-                  Text zu nennen (Vorschlag: der Fold mit dem geringsten
-                  Extrapolationsanteil, also der "normalste").
+  Koeffizienten   fuer Ridge - dort braucht es kein SHAP. Der StandardScaler
+                  steht in der Pipeline, also sind die Koeffizienten bereits
+                  standardisiert und untereinander vergleichbar.
+  Fold            EIN Fold, nicht alle - der mit dem GERINGSTEN
+                  Extrapolationsanteil in Wiederholung 0. Begruendung: Dort
+                  liegen die wenigsten Testzeilen ausserhalb des gelernten
+                  Wertebereichs, die Beitraege beruhen also am ehesten auf
+                  Interpolation. Die Wahl steht in der Ausgabe und ist im Text
+                  zu nennen.
 
 --------------------------------------------------------------------------
 FALLSTRICK: BLOCKWEISE INTERPRETIEREN
@@ -34,19 +44,10 @@ Die Strukturmerkmale sind untereinander korreliert. SHAP verteilt den Beitrag
 dann auf mehrere Merkmale, und einzelne Werte sind nicht sinnvoll deutbar -
 "median_haushaltseinkommen traegt 8 %" waere eine Scheinpraezision.
 
-Deshalb zusammenfassen zu den drei Faktorgruppen des Exposes:
-
-    soziooekonomisch   median_haushaltseinkommen · armutsquote_pct
-                       akademikerquote_pct · median_miete · leerstandsquote_pct
-    kriminalitaets-    log_kriminalitaetsindex
-      bezogen
-    baulich            anteil_altbau_vor_1940_pct · anteil_wohngebaeude_pct
-                       anteil_risikogewerbe_pct
-
-    (log_bevoelkerung ist Groessenkontrolle, monat_sin/cos Saison - beide
-     gehoeren in keine der drei Gruppen und werden getrennt ausgewiesen.)
-
-Das beantwortet Unterfrage 1 direkt: Welche Faktorgruppe traegt wie viel?
+Deshalb zusammenfassen zu den drei Faktorgruppen des Exposes; `log_bevoelkerung`
+(Groessenkontrolle) und die Saison werden getrennt ausgewiesen, weil sie in
+keine der drei Gruppen gehoeren. Das beantwortet Unterfrage 1 direkt: Welche
+Faktorgruppe traegt wie viel?
 
 --------------------------------------------------------------------------
 HIERHER VERSCHOBEN: DER VIF
@@ -56,12 +57,10 @@ dort aber nichts - Ridge ist durch den L2-Strafterm robust dagegen, Baumverfahre
 interessiert sie nicht. Ihre einzige echte Konsequenz betrifft genau diese
 Interpretation. Deshalb steht sie hier.
 
-Zu rechnen auf den EINDEUTIGEN Stadtteil-Merkmalskombinationen, nicht auf allen
+Gerechnet auf den EINDEUTIGEN Stadtteil-Merkmalskombinationen, nicht auf allen
 Zeilen: Die Strukturmerkmale sind innerhalb eines Jahres konstant, ueber alle
 Zeilen zaehlte jede Kombination bis zu zwoelfmal und der VIF waere kuenstlich
-stabilisiert. Der gemessene Wert (max 11,5 bei `median_haushaltseinkommen`,
-7,1 bei `median_miete`) ist die Begruendung fuer die blockweise Auswertung und
-gehoert als solche in den Text.
+stabilisiert.
 
 --------------------------------------------------------------------------
 PRUEFAUFTRAEGE
@@ -72,5 +71,251 @@ PRUEFAUFTRAEGE
     log_kriminalitaetsindex und anteil_risikogewerbe_pct vorn.
   - Wird eine Faktorgruppe als praktisch bedeutungslos ausgewiesen? Das waere
     eine der wenigen wirklich inhaltlichen Aussagen der Arbeit.
+  - Liegt der maximale VIF noch bei rund 11,5? Ein deutlich anderer Wert hiesse,
+    dass sich die Merkmalsbasis geaendert hat.
 """
-raise SystemExit(__doc__)
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(_ROOT / "prep"))
+sys.path.insert(0, str(_ROOT / "vorpruefung"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from config import (PFAD_KLASSIFIKATION, PFAD_REGRESSION,  # noqa: E402
+                    PRAEDIKTOREN, RESULTS_DIR, ROOT, SAISON)
+from s2_datensaetze import ZIELKLASSE, fold_masken  # noqa: E402
+from v0_aufteilung import (selten_je_stadtteil,  # noqa: E402
+                           wiederholte_aufteilung)
+
+OUT = RESULTS_DIR / "shap"
+MERKMALE = PRAEDIKTOREN + SAISON
+
+# Die drei Faktorgruppen des Exposes, plus zwei getrennt gefuehrte Groessen.
+GRUPPEN = {
+    "soziooekonomisch": ["median_haushaltseinkommen", "armutsquote_pct",
+                         "akademikerquote_pct", "median_miete",
+                         "leerstandsquote_pct"],
+    "kriminalitaetsbezogen": ["log_kriminalitaetsindex"],
+    "baulich": ["anteil_altbau_vor_1940_pct", "anteil_wohngebaeude_pct",
+                "anteil_risikogewerbe_pct"],
+    "groessenkontrolle": ["log_bevoelkerung"],
+    "saison": SAISON,
+}
+
+
+def schlagen_die_latte(vergleich: pd.DataFrame) -> tuple[list, pd.DataFrame]:
+    """Welche (Zielgroesse, Verfahren) schlagen ihre Stufe-2-Baseline?
+
+    Grundlage ist der Primaertest auf den Wiederholungsmitteln. Verlangt werden
+    BEIDE Bedingungen: die mittlere Differenz muss zugunsten des Verfahrens
+    ausfallen UND der Test muss signifikant sein. Ein positiver Mittelwert
+    allein waere zu wenig - genau davor warnt R-6.
+    """
+    p = vergleich[(vergleich["rolle"] == "primaer")
+                  & (vergleich["teststufe"] == "wiederholung")].copy()
+    p["verfahren"] = p["paarung"].str.split(" vs ").str[0]
+    p["schlaegt"] = (p["differenz_mittel"] > 0) & p["signifikant"]
+    genommen = [(z["zielgroesse"], z["verfahren"])
+                for _, z in p[p["schlaegt"]].iterrows()]
+    verworfen = p[~p["schlaegt"]][["zielgroesse", "verfahren",
+                                   "differenz_mittel", "wilcoxon_p"]].copy()
+    verworfen["grund"] = np.where(
+        verworfen["differenz_mittel"] <= 0,
+        "schlaegt die Stufe-2-Baseline im Mittel nicht",
+        "Vorsprung nicht signifikant (alpha = 0,05)")
+    return genommen, verworfen
+
+
+def ruhigster_fold(folds: pd.DataFrame) -> int:
+    """Der Fold mit dem geringsten Extrapolationsanteil in Wiederholung 0."""
+    w0 = folds[folds["wiederholung"] == 0]
+    je_fold = w0.groupby("fold")["extrapolationsanteil"].first()
+    return int(je_fold.idxmin())
+
+
+def _beitraege(modell, X: pd.DataFrame, name: str) -> np.ndarray:
+    """Mittlerer absoluter Beitrag je Merkmal - SHAP oder Koeffizient.
+
+    Bei Ridge stehen standardisierte Koeffizienten; sie sind der direkte
+    Gegenwert zu SHAP-Beitraegen und brauchen keinen Explainer. Bei den
+    Baumverfahren rechnet der TreeExplainer exakt statt zu approximieren.
+
+    Mehrklassige Ausgaben werden ueber die Klassen gemittelt - die Frage lautet
+    "welche Faktorgruppe traegt", nicht "fuer welche Klasse".
+
+    WARUM XGBOOST EINEN EIGENEN WEG GEHT: `shap.TreeExplainer` kann den
+    mehrklassigen `base_score` von XGBoost 3.x nicht lesen und bricht mit
+    `could not convert string to float` ab (geprueft mit shap 0.52.0 und
+    xgboost 3.2.0, docs/07_BEFUNDE.md, B-17). XGBoost bringt TreeSHAP aber
+    selbst mit - `pred_contribs=True` liefert exakt dieselben Werte, gerechnet
+    vom selben Algorithmus. Kein Naeherungsverfahren, nur ein anderer Aufrufweg.
+    """
+    if name == "ridge":
+        return np.abs(modell[-1].regressor_.coef_).ravel()
+
+    if name == "xgboost":
+        import xgboost as xgb
+        roh = modell.get_booster().predict(
+            xgb.DMatrix(X, feature_names=list(X.columns)), pred_contribs=True)
+        werte = np.abs(np.asarray(roh))[..., :-1]     # letzte Spalte = Bias
+    else:
+        import shap
+        werte = shap.TreeExplainer(modell).shap_values(X)
+        if isinstance(werte, list):                   # aeltere shap-Fassungen
+            werte = np.stack(werte, axis=-1)
+        werte = np.abs(np.asarray(werte))
+
+    if werte.ndim == 3:            # (n, klassen, p) oder (n, p, klassen)
+        achse = 1 if werte.shape[1] != len(X.columns) else 2
+        werte = werte.mean(axis=achse)
+    return werte.mean(axis=0)
+
+
+def _vif(panel: pd.DataFrame) -> pd.DataFrame:
+    """VIF auf zwei Bezugsmengen - und der Grund, warum es zwei sein muessen.
+
+    Die Absicht der Spezifikation war, jede Merkmalskombination nur EINMAL zu
+    zaehlen: Die Strukturmerkmale sind innerhalb eines Jahres konstant, ueber
+    alle Zeilen zaehlte jede Kombination bis zu zwoelfmal, und der VIF waere
+    kuenstlich stabilisiert.
+
+    Ein `drop_duplicates()` auf allen Praediktoren leistet das aber NICHT: Seit
+    Decision Log #17 ist `log_kriminalitaetsindex` ein MONATLICH rollierender
+    Index. Damit ist fast jede Zeile eindeutig - gemessen 3.757 von 3.828 - und
+    die Entdopplung laeuft ins Leere (docs/07_BEFUNDE.md, B-18).
+
+    Deshalb zwei ausgewiesene Bezugsmengen:
+
+      stadtteil_jahr   eine Zeile je Stadtteil und Jahr. Das ist die Ebene, auf
+                       der die ACS- und Land-Use-Merkmale tatsaechlich variieren,
+                       und die Zahl, die in den Text gehoert.
+      alle_zeilen      zum Vergleich, damit der Unterschied sichtbar ist.
+    """
+    from statsmodels.stats.outliers_influence import variance_inflation_factor
+    from statsmodels.tools.tools import add_constant
+
+    mengen = {
+        "stadtteil_jahr": panel.drop_duplicates(subset=["stadtteil", "jahr"]),
+        "alle_zeilen": panel,
+    }
+    zeilen = []
+    for basis, teil in mengen.items():
+        X = add_constant(teil[PRAEDIKTOREN].astype(float), has_constant="add")
+        for i, s in enumerate(X.columns):
+            if s == "const":
+                continue
+            zeilen.append({"basis": basis, "merkmal": s, "n_zeilen": len(teil),
+                           "vif": round(float(variance_inflation_factor(
+                               X.to_numpy(), i)), 2)})
+    return (pd.DataFrame(zeilen)
+            .sort_values(["basis", "vif"], ascending=[True, False]))
+
+
+def main() -> int:
+    for pfad, wer in ((RESULTS_DIR / "regression" / "vergleich.csv", "m02"),
+                      (RESULTS_DIR / "klassifikation" / "vergleich.csv", "m03")):
+        if not pfad.exists():
+            raise SystemExit(f"{pfad.relative_to(ROOT)} fehlt - erst {wer} "
+                             f"ausfuehren.")
+    OUT.mkdir(parents=True, exist_ok=True)
+
+    import m02_menge as m02
+    import m03_struktur as m03
+
+    reg = pd.read_parquet(PFAD_REGRESSION)
+    kl = pd.read_parquet(PFAD_KLASSIFIKATION)
+    selten = selten_je_stadtteil(kl)
+    reg = reg[reg["ist_holdout"] == 0].reset_index(drop=True)
+    kl = kl[kl["ist_holdout"] == 0].reset_index(drop=True)
+
+    beitraege, verworfen_alle = [], []
+
+    for strang, panel, ordner, modul in (
+            ("menge", reg, "regression", m02),
+            ("struktur", kl, "klassifikation", m03)):
+        basis = RESULTS_DIR / ordner
+        folds = pd.read_csv(basis / ("menge_folds.csv" if strang == "menge"
+                                     else "struktur_folds.csv"))
+        vergleich = pd.read_csv(basis / "vergleich.csv")
+        tuning = pd.read_csv(basis / "tuning.csv")
+
+        genommen, verworfen = schlagen_die_latte(vergleich)
+        verworfen_alle.append(verworfen.assign(strang=strang))
+        k = ruhigster_fold(folds)
+        d = wiederholte_aufteilung(panel, wiederholung=0, selten=selten)
+        tr, te = fold_masken(d, k)
+        train, test = d[tr], d[te]
+        extra = float(folds[(folds["wiederholung"] == 0) & (folds["fold"] == k)]
+                      ["extrapolationsanteil"].iloc[0])
+        print(f"  {strang}: Fold {k} gewaehlt (Extrapolation {extra:.1%}), "
+              f"{len(genommen)} Modell(e) ueber der Latte")
+
+        for ziel, name in genommen:
+            zeile = tuning[(tuning["verfahren"] == name)
+                           & (tuning["fold"] == k)
+                           & (tuning["zielgroesse"] == ziel)].iloc[0]
+            parameter = json.loads(zeile["parameter_json"])
+            X_te = test[MERKMALE].astype(float)
+
+            if strang == "menge":
+                modell = modul.verfahren(name).set_params(**parameter)
+                modell.fit(train[MERKMALE].astype(float),
+                           train[ziel].astype(float))
+            else:
+                modell = modul.verfahren(name).set_params(**parameter)
+                y_tr = modul.kodiere(train[ZIELKLASSE])
+                if name == "xgboost":
+                    modell.fit(train[MERKMALE].astype(float), y_tr,
+                               sample_weight=modul._gewichte(y_tr))
+                else:
+                    modell.fit(train[MERKMALE].astype(float), y_tr)
+
+            werte = _beitraege(modell, X_te, name)
+            anteil = werte / werte.sum() if werte.sum() else werte
+            for merkmal, roh, rel in zip(MERKMALE, werte, anteil):
+                beitraege.append({"strang": strang, "zielgroesse": ziel,
+                                  "verfahren": name, "fold": k,
+                                  "merkmal": merkmal,
+                                  "beitrag": float(roh),
+                                  "anteil": float(rel)})
+            print(f"    {name:<14} {ziel}")
+
+    if not beitraege:
+        print("\n  Kein Modell schlaegt seine Stufe-2-Baseline - es gibt nichts "
+              "zu erklaeren.\n  Das ist ein Ergebnis, kein Fehler "
+              "(docs/06_RISIKEN.md, R-2).")
+
+    b = pd.DataFrame(beitraege)
+    b.to_csv(OUT / "beitraege.csv", index=False)
+    pd.concat(verworfen_alle, ignore_index=True).to_csv(
+        OUT / "uebersprungen.csv", index=False)
+
+    if len(b):
+        zu_gruppe = {m: g for g, ms in GRUPPEN.items() for m in ms}
+        g = (b.assign(gruppe=b["merkmal"].map(zu_gruppe))
+              .groupby(["strang", "zielgroesse", "verfahren", "gruppe"],
+                       sort=False)["anteil"].sum().reset_index()
+              .sort_values(["zielgroesse", "verfahren", "anteil"],
+                           ascending=[True, True, False]))
+        g.round(4).to_csv(OUT / "gruppen.csv", index=False)
+        print("\n  Beitrag je Faktorgruppe:")
+        print(g.to_string(index=False))
+
+    vif = _vif(reg)
+    vif.to_csv(OUT / "vif.csv", index=False)
+    print("\n  Multikollinearitaet (hoechster VIF je Bezugsmenge):")
+    for basis, g in vif.groupby("basis"):
+        oben = g.iloc[0]
+        print(f"    {basis:<15} {int(oben['n_zeilen']):>5} Zeilen  "
+              f"{oben['merkmal']} {oben['vif']}")
+    print(f"\n  => {OUT}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

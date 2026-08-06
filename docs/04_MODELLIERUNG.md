@@ -74,10 +74,13 @@ geschrieben wird. ✅ erledigt · ⬜ offen · ⚠️ offen und blockierend.
 - [x] **Trainings- und Inferenzzeiten** werden gemessen (UF3) — umgesetzt in `m02_menge.ein_lauf()`
 - [x] Ausgabe: `*_folds.csv` · `*_mittel.csv` · `tuning.csv` · `vergleich.csv`
 - [x] Keine nachträgliche Zuschneidung der Auswertung (kein Aufteilen nach Extrapolationsgrad)
-- [ ] ⬜ **Streuung zweistufig aggregieren** — `std_wiederholungen` statt `std_folds` als maßgeblicher Wert (R-5)
-- [ ] ⬜ **`vergleich.csv` trennt primär und sekundär**, Zahl der Tests wird mitgeführt (R-10)
-- [ ] ⬜ **Hold-out nur mit Argument** `m02_menge.py holdout` — kein Nebenbei-Blick
-- [ ] ⬜ **NegBin ohne Offset als Zusatzvariante** in `v1_baselines.py`, um den Offset-Vorteil zu beziffern (R-9)
+- [x] **Streuung zweistufig aggregieren** — `std_wiederholungen` statt `std_folds` als maßgeblicher Wert (R-5)
+- [x] **`vergleich.csv` trennt primär und sekundär**, Zahl der Tests wird mitgeführt (R-10)
+- [x] **Hold-out nur mit Argument** `m02_menge.py holdout` — konstruktiv abgesichert: ohne das Argument filtert `main()` die Hold-out-Zeilen heraus, bevor irgendetwas rechnet
+- [x] **NegBin ohne Offset als Zusatzvariante** in `v1_baselines.py` — gerechnet, Vorteil des Offsets **−0,0017 RMSE**, R-9 entfällt (`07_BEFUNDE.md`, B-19)
+- [x] **Wiederholte Splits neu gebaut** — `vorpruefung/v0_aufteilung.py`, weil der `versatz` das Hold-out rotiert und keine 10 verschiedenen Aufteilungen liefert (B-1 bis B-3)
+- [x] **Baselines über alle 10 Wiederholungen**, sonst gibt es für 45 von 50 Läufen keinen gepaarten Gegenwert (B-4)
+- [x] **`xgboost` und `shap` in `requirements.txt`** — beide fehlten, beide blockierend (B-7, B-8)
 
 ### H · Modellspezifische Auflagen
 
@@ -220,12 +223,31 @@ Deshalb 10 Wiederholungen mit unterschiedlichem Versatz, Mittelung über alle 50
 Fold-Ergebnisse:
 
 ```python
-from s2_datensaetze import ergaenze_aufteilung
-for versatz in range(10):
-    d = ergaenze_aufteilung(daten, versatz=versatz)
+from v0_aufteilung import selten_je_stadtteil, wiederholte_aufteilung
+selten = selten_je_stadtteil(pd.read_parquet(PFAD_KLASSIFIKATION))
+for w in range(WIEDERHOLUNGEN):
+    d = wiederholte_aufteilung(daten, wiederholung=w, selten=selten)
     for k in range(1, N_FOLDS + 1):
-        train, test = fold_masken(d, k)
+        tr, te = fold_masken(d, k)      # MASKEN, nicht DataFrames
+        train, test = d[tr], d[te]
 ```
+
+**Korrigiert am 05.08.2026.** Hier stand zuvor
+`ergaenze_aufteilung(daten, versatz=versatz)`. Das war aus drei Gründen nicht
+durchführbar, alle am Datensatz nachgewiesen (`07_BEFUNDE.md`, B-1 bis B-3,
+B-12):
+
+1. Ohne `selten` entfällt die Stratifizierung nach der seltensten Klasse (#30);
+   30 von 35 Stadtteilen landen in einem anderen Fold als in der Datei.
+2. Der `versatz` rotiert nur die Gruppen*nummern*. Über 0–9 entstehen 6
+   Partitionen statt 10 — und hielte man das Hold-out fest, sogar nur eine.
+3. Gruppe 0 **ist** das Hold-out. Bei `versatz = 1` liegt keiner der sechs
+   Hold-out-Stadtteile mehr im Hold-out.
+
+`wiederholte_aufteilung()` hält das Hold-out fest, erhält die doppelte
+Stratifizierung und mischt je Wiederholung innerhalb der Rangblöcke. Wiederholung 0
+reproduziert die `fold`-Spalte der Datei bitgenau — geprüft per `assert` bei
+jedem Aufruf.
 
 Berichtet wird Mittelwert ± Standardabweichung. Überlappen die Bereiche zweier
 Verfahren, ist das **so zu schreiben**, nicht als Rangfolge zu kaschieren (R6).
@@ -634,11 +656,34 @@ Wahrscheinlichkeit für mindestens einen Zufallstreffer bei rund 30 %.
 > (paarweise Verfahrensvergleiche), dazu `n_tests_familie`.
 >
 > Zweitens rechnerisch: **Holm-Bonferroni innerhalb der sekundären Familie.**
-> p-Werte aufsteigend sortieren, den kleinsten gegen α/7 prüfen, den nächsten
-> gegen α/6, und so fort bis zur ersten Nichtablehnung. Gleiche Fehlerkontrolle
-> wie Bonferroni, aber uniform stärker — es gibt keinen Grund, darauf zu
-> verzichten. Zusätzliche Spalte `p_holm`; `wilcoxon_p` bleibt als Rohwert
-> daneben stehen.
+> p-Werte aufsteigend sortieren, den kleinsten gegen α/m prüfen, den nächsten
+> gegen α/(m−1), und so fort bis zur ersten Nichtablehnung. Gleiche
+> Fehlerkontrolle wie Bonferroni, aber uniform stärker. Zusätzliche Spalte
+> `p_holm`; `wilcoxon_p` bleibt als Rohwert daneben stehen.
+
+**Präzisiert am 05.08.2026: es sind ZWEI Familien, nicht eine mit sieben Tests**
+(`07_BEFUNDE.md`, B-6). Regression und Klassifikation beantworten verschiedene
+Teilfragen; ein Zufallstreffer im einen Strang macht den anderen nicht falsch.
+
+| Strang | Skript | sekundäre Tests | m | kleinste Schwelle |
+|---|---|---|---|---|
+| Regression | `m02_menge.py` | 3 Paare × 2 Zielgrößen | 6 | α/6 = 0,0083 |
+| Klassifikation | `m03_struktur.py` | 1 Paar (RF vs. XGBoost) | 1 | α = 0,05 |
+
+Der Klassifikationsvergleich läuft damit **ungekorrigiert** — das ist in
+Kapitel 7 ausdrücklich zu benennen, nicht zu verschweigen. Der praktische
+Unterschied bei der Regression ist gering (0,0083 statt 0,0071).
+
+**Fallstrick 2b · Der Test setzt Unabhängigkeit voraus, die es nicht gibt
+(R-11).** Holm korrigiert Mehrfachvergleiche, nicht Pseudoreplikation. Die 50
+Fold-Ergebnisse stammen von denselben 29 Stadtteilen.
+
+> **Umsetzung:** Der **Primärtest läuft auf den 10 Wiederholungsmitteln**
+> (Spalte `teststufe = wiederholung`), nicht auf den 50 Einzelläufen — dieselbe
+> zweistufige Logik wie bei der Streuung. Kleinstes erreichbares zweiseitiges p
+> bei n = 10: 0,00195, also auch nach Holm erreichbar. Bei n = 5 wäre es 0,0625
+> und Signifikanz strukturell unmöglich. Der Test über alle 50 steht als
+> `teststufe = lauf` daneben, ausdrücklich als Sensitivität.
 
 **3 · Die Baseline hat einen strukturellen Vorteil (R-9).** Die Negative
 Binomial bekommt `log(Bevölkerung)` als **Offset** — mit fest auf 1 gesetztem

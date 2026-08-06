@@ -1,0 +1,714 @@
+# Befunde der Umsetzung
+
+> **Lebensdauer:** waechst waehrend der Implementierung von `modelle/`, wird nie
+> umgeschrieben. Grundlage fuer die Limitationen in Kapitel 8 und die kritische
+> Reflexion, die das Gutachten verlangt (R6, R9).
+>
+> Hier steht, was beim Bauen aufgefallen ist: luckenhafte oder widerspruechliche
+> Stellen der Spezifikation, Ergebnisse gegen dokumentierte Entscheidungen,
+> Schwaechen im vorhandenen Code, notgedrungene Annahmen. **Nicht** hierher
+> gehoeren normale TODOs, Stilfragen und alles, was direkt und eindeutig
+> loesbar war.
+
+**Schwere:** ⛔ blockierend · 🔴 hoch · 🟡 mittel · ⚪ gering
+
+| | Datum | Fundstelle | Schwere | Status |
+|---|---|---|---|---|
+| B-1 | 05.08. | `04_MODELLIERUNG.md` §2 | 🔴 | geloest |
+| B-2 | 05.08. | `prep/s2_datensaetze.py:97` | ⛔ | geloest |
+| B-3 | 05.08. | `prep/s2_datensaetze.py:97` | ⛔ | geloest |
+| B-4 | 05.08. | `vorpruefung/v1_baselines.py:93` | 🔴 | geloest |
+| B-5 | 05.08. | `04_MODELLIERUNG.md` §5, `#34` | 🟡 | entschaerft, Rest bleibt |
+| B-6 | 05.08. | `06_RISIKEN.md` R-10 | 🟡 | entschieden, Doku folgt |
+| B-7 | 05.08. | `requirements.txt` | ⛔ | geloest |
+| B-8 | 05.08. | `requirements.txt` | 🔴 | geloest |
+| B-9 | 05.08. | `modelle/m02_menge.py` Docstring | ⚪ | geloest |
+| B-10 | 05.08. | `modelle/m02_menge.py:71,74` | 🟡 | offen, Vorschlag unten |
+| B-11 | 05.08. | `03_STAND.md` §4 | 🟡 | offen, Vorschlag unten |
+| B-12 | 05.08. | `04_MODELLIERUNG.md` §2 | ⚪ | Doku-Ungenauigkeit |
+| B-13 | 05.08. | `CLAUDE.md` §Praktisches | ⚪ | Schaetzung zu niedrig |
+| B-14 | 05.08. | `04_MODELLIERUNG.md` §Hold-out | 🟡 | ausgelegt, Regel dokumentiert |
+| B-15 | 05.08. | `04_MODELLIERUNG.md` §Sonderfaelle | 🟡 | gemessen, Doku zu erweitern |
+| B-16 | 05.08. | `m02_menge.py:71,74,137` | 🔴 | offen, Vorschlag unten |
+| B-17 | 05.08. | `m04_shap.py` / shap 0.52 | 🔴 | umgangen |
+| B-18 | 05.08. | `04_MODELLIERUNG.md` §m04 | 🟡 | Bezugsmenge korrigiert |
+| B-19 | 05.08. | `06_RISIKEN.md` R-9 | 🟡 | **beziffert - R-9 entfaellt** |
+| B-20 | 05.08. | plattformabhaengige Rundung | ⚪ | benannt |
+| B-21 | 06.08. | `04_MODELLIERUNG.md` §Hyperparameter-Suche | 🟡 | **neu entstanden**, bewusst getragen |
+| B-22 | 06.08. | `m02_menge.aggregiere()` | 🟡 | selbst gefunden, behoben |
+| B-23 | 06.08. | `phase_tuning()`, `json.dumps(..., default=str)` | 🔴 | selbst gefunden, behoben |
+
+---
+
+## B-1 · Die dokumentierte Aufruffolge reproduziert die Datensaetze nicht
+
+**Fundstelle:** `docs/04_MODELLIERUNG.md`, Abschnitt 2, Codeblock:
+`d = ergaenze_aufteilung(daten, versatz=versatz)`
+
+**Was aufgefallen ist.** Der Aufruf laesst das Argument `selten` weg. Ohne
+dieses Argument sortiert `ergaenze_aufteilung()` allein nach Bevoelkerung und
+nicht zusaetzlich nach brand-dominierten Monaten — die doppelte Stratifizierung
+aus Decision Log #30 entfaellt also still. Gemessen am 05.08.2026: **30 von 35
+Stadtteilen** landen in einem anderen Fold als in der Parquet-Datei. Alle in
+`03_STAND.md` berichteten Kennzahlen — Brand-Testfaelle 13·9·6·3·2,
+Extrapolationsanteile 40,9/33,3/57,4/33,3/3,6 %, saemtliche Baseline-Werte —
+gehoeren zur stratifizierten Fassung und waeren nicht mehr gueltig gewesen.
+
+Erschwerend: Der Fehler ist unsichtbar. Der Lauf bricht nicht ab, die Zahlen
+sehen plausibel aus, sie beziehen sich nur auf eine andere Aufteilung.
+
+**Wie ausgelegt.** `selten` wird aus `klassifikation.parquet` rekonstruiert,
+wortgleich zu `prep/s2_datensaetze.run()`, und in
+`vorpruefung/v0_aufteilung.selten_je_stadtteil()` gekapselt. Nachweis: Mit
+`selten` ist die erzeugte `fold`-Spalte bei Wiederholung 0 bitgenau identisch
+zur Datei; die Pruefung laeuft als `assert` bei **jedem** Aufruf, nicht nur im
+Selbsttest.
+
+**Fuer die Arbeit.** Nebenbefund mit eigener Aussage: Die Fold-Zuteilung ist
+nicht aus den Dateien rekonstruierbar, weil die Klassenspalte im
+Regressionsdatensatz fehlt. Der Regressionsstrang muss deshalb
+`klassifikation.parquet` mitlesen. Das ist kein Leakage — die Zahl geht in kein
+Modell ein, sie bestimmt nur, welche Stadtteile gemeinsam getestet werden.
+
+---
+
+## B-2 · Der Versatz rotiert das Hold-out mit
+
+**Fundstelle:** `prep/s2_datensaetze.py`, Zeile 97:
+`gruppe = {st: (i + versatz) % (N_FOLDS + 1) for i, st in enumerate(ordnung)}`
+
+**Was aufgefallen ist.** Gruppe 0 ist das Hold-out. Der Versatz verschiebt die
+Gruppennummern, also wandert auch, welche Stadtteile Gruppe 0 bilden. Gemessen:
+bei `versatz = 1` liegt **kein einziger** der sechs urspruenglichen
+Hold-out-Stadtteile noch im Hold-out; sie stehen stattdessen in Training und
+Test der Kreuzvalidierung.
+
+Haette man die dokumentierte Schleife `for versatz in range(10)` so
+ausgefuehrt, waeren die sechs Hold-out-Stadtteile in neun von zehn
+Wiederholungen mittrainiert worden. Die abschliessende Schlussbewertung waere
+wertlos gewesen, ohne dass es irgendwo auffaellt — und zwar dauerhaft, denn ein
+einmal gesehenes Hold-out laesst sich nicht zurueckholen.
+
+**Schwere.** Blockierend. Das ist der gravierendste Fund dieser Umsetzung.
+
+**Wie ausgelegt.** `vorpruefung/v0_aufteilung.wiederholte_aufteilung()` haelt
+`ist_holdout` fest und verteilt ausschliesslich die 29 Entwicklungsstadtteile
+neu. Der Selbsttest prueft fuer alle zehn Wiederholungen, dass die
+Hold-out-Menge unveraendert ist und keine Hold-out-Zeile in einer Trainings-
+oder Testmaske auftaucht.
+
+**Nicht geaendert:** `prep/s2_datensaetze.py` selbst. Die Funktion ist fuer
+ihren eigentlichen Zweck — die einmalige Grundaufteilung mit `versatz = 0` —
+korrekt. Nur als Werkzeug fuer Wiederholungen ist sie ungeeignet.
+
+---
+
+## B-3 · Der Versatz erzeugt keine verschiedenen Aufteilungen
+
+**Fundstelle:** dieselbe Zeile wie B-2.
+
+**Was aufgefallen ist.** Zyklisches Austeilen heisst: Stadtteil auf Platz *i*
+kommt in Gruppe `(i + versatz) % 6`. Zwei Stadtteile liegen genau dann in
+derselben Gruppe, wenn ihre Plaetze modulo 6 uebereinstimmen — und das haengt
+**nicht vom Versatz ab**. Der Versatz benennt die Gruppen um, er stellt sie
+nicht neu zusammen.
+
+Gemessen ueber `versatz` 0 bis 9:
+
+| Variante | verschiedene Fold-Partitionen |
+|---|---|
+| wie dokumentiert (Hold-out rotiert mit) | **6** von 10, vier Dubletten |
+| Hold-out festgehalten, sonst unveraendert | **1** von 10 — alle identisch |
+
+Die zweite Zeile ist der eigentliche Befund: Haette man B-2 naiv repariert und
+nur das Hold-out festgehalten, waeren die zehn Wiederholungen zehn exakte
+Kopien desselben Laufs gewesen. `std_wiederholungen` — der Wert, den `R-5`
+ausdruecklich als **massgeblich** bezeichnet — waere exakt 0 gewesen, und zwar
+plausibel aussehend.
+
+**Wie ausgelegt.** Statt zu rotieren wird **innerhalb der Rangbloecke
+gemischt**: Die nach `(selten, bev)` sortierten Stadtteile werden in Bloecke zu
+je fuenf geteilt, je Wiederholung mit Seed `RANDOM_STATE + w` permutiert und
+dann ausgeteilt. Jeder Fold erhaelt weiterhin genau einen Stadtteil aus jedem
+Rangblock — die doppelte Stratifizierung ueberlebt unveraendert, die
+Foldgroessen bleiben 6/6/6/6/5 — aber die Zusammensetzung aendert sich
+tatsaechlich. Nachgewiesen: 10 von 10 verschiedene Partitionen, kein Fold ohne
+Brand-Testfall (Minimum 2).
+
+**Fuer die Arbeit.** In Kapitel 6 ist zu schreiben, wie die Wiederholungen
+gebildet werden — „mit unterschiedlichem Versatz" waere falsch.
+
+---
+
+## B-4 · Die Baseline lag nur fuer ein Zehntel der Laeufe vor
+
+**Fundstelle:** `vorpruefung/v1_baselines.py`, Zeile 93:
+`for k in range(1, N_FOLDS + 1)`
+
+**Was aufgefallen ist.** Die Baselines laufen ueber die `fold`-Spalte, wie sie
+in der Datei steht — das ist Wiederholung 0. Ergebnis: fuenf Werte je
+Zielgroesse und Stufe. Die Vergleichsverfahren erzeugen 50. Fuer den gepaarten
+Wilcoxon-Test nach #34 braucht es aber je Lauf ein Paar auf **denselben
+Testzeilen**; fuer die Wiederholungen 1 bis 9 existierte kein Gegenwert.
+
+Waere nur auf den fuenf vorhandenen Folds gepaart worden, haette der Test die
+Primaeraussage nie stuetzen koennen: Bei n = 5 ist das kleinste erreichbare
+zweiseitige p 0,0625 und damit strukturell groesser als α = 0,05.
+
+**Wie ausgelegt.** Entscheidung Lukas, 05.08.2026: Die Baselines rechnen im
+Originalskript ueber alle zehn Wiederholungen. Kostenpruefung vorab: 50
+Negative-Binomial-Laeufe zusammen **11,2 Sekunden** — gegenueber Stunden fuer
+das Tuning der Vergleichsverfahren also ohne Gewicht. Die Werte der
+Wiederholung 0 bleiben bitgenau erhalten und werden per Diff gegen eine vorher
+gesicherte Kopie nachgewiesen.
+
+---
+
+## B-5 · Der gepaarte Test setzt Unabhaengigkeit voraus, die es nicht gibt
+
+**Fundstelle:** `docs/04_MODELLIERUNG.md` Abschnitt 5, Decision Log #34:
+„gepaarter Wilcoxon-Test ueber alle Fold-Ergebnisse".
+
+**Was aufgefallen ist.** `R-5` erkennt die Abhaengigkeit der 50 Laeufe
+ausdruecklich an — aber nur als Problem der **Streuungsschaetzung**. Der
+Wilcoxon-Test selbst setzt ebenfalls unabhaengige Paare voraus. Ueber 50
+abhaengige Differenzen gerechnet, faellt sein p-Wert **zu klein** aus; die
+Holm-Korrektur hilft dagegen nicht, denn sie korrigiert Mehrfachvergleiche,
+nicht Pseudoreplikation.
+
+Es sind 29 Entwicklungsstadtteile. Unabhaengigkeit muesste aus Daten kommen,
+nicht aus einem Resampling-Verfahren; sie ist daher grundsaetzlich nicht
+herstellbar.
+
+**Wie ausgelegt.** Entscheidung Lukas, 05.08.2026: Der **Primaertest laeuft auf
+den 10 Wiederholungsmitteln**, nicht auf den 50 Einzelwerten — dieselbe
+zweistufige Logik, die `R-5` fuer die Streuung ohnehin verlangt. Der Test ueber
+alle 50 wandert als ausdruecklich gekennzeichnete Sensitivitaet in dieselbe
+CSV-Datei (Spalte `teststufe`).
+
+Erreichbarkeit geprueft:
+
+| Teststufe | n | kleinstes zweiseitiges p | reicht fuer α = 0,05 | fuer Holm α/6 |
+|---|---|---|---|---|
+| Folds einer Wiederholung | 5 | 0,0625 | nein | nein |
+| **Wiederholungsmittel** | **10** | **0,00195** | ja | ja |
+| alle Laeufe | 50 | ~10⁻¹⁵ | ja, zu optimistisch | ja, zu optimistisch |
+
+**Was offen bleibt — gehoert in Kapitel 8.** Auch die zehn Wiederholungsmittel
+sind nicht unabhaengig; es sind dieselben 29 Stadtteile in zehn Gruppierungen.
+Der Test kontrolliert die Fold-Schwankung, nicht den kleinen Umfang an
+Analyseeinheiten. Das berichtete Konfidenzintervall ist also **enger als die
+wahre Unsicherheit** (Nadeau & Bengio 2003). Deshalb wird unabhaengig vom
+p-Wert immer die mittlere gepaarte Differenz mit Konfidenzintervall und die
+Zahl gewonnener Laeufe berichtet.
+
+Dass die Arbeit das aushaelt, liegt an #34: Die Antwort auf die Forschungsfrage
+haengt an drei Bausteinen, nicht an einem p-Wert.
+
+---
+
+## B-6 · Testfamilie: die Doku sagt 7, die Skripte koennen nur 6 und 1
+
+**Fundstelle:** `docs/06_RISIKEN.md` R-10 und `docs/04_MODELLIERUNG.md`
+Fallstrick 2: „den kleinsten gegen α/7 pruefen".
+
+**Was aufgefallen ist.** Die sieben Tests verteilen sich auf zwei Skripte —
+sechs paarweise Vergleiche in `m02` (3 Verfahrenspaare × 2 Zielgroessen), einer
+in `m03`. Holm-Bonferroni braucht aber **alle** p-Werte der Familie
+gleichzeitig. Getrennt laufende Skripte koennen die Familie also nicht bilden,
+ohne voneinander zu lesen.
+
+**Wie ausgelegt.** Entscheidung Lukas, 05.08.2026: **zwei Familien.** `m02`
+rechnet Holm ueber seine 6 Tests, `m03` hat einen einzigen Test und wird nicht
+korrigiert. Begruendung: Regression und Klassifikation beantworten verschiedene
+Teilfragen; ein Zufallstreffer im einen Strang macht den anderen nicht falsch.
+
+**Konsequenz, ehrlich zu benennen:** Der Klassifikationsvergleich RF gegen
+XGBoost laeuft damit **ungekorrigiert** gegen α = 0,05 statt gegen α/7 = 0,0071.
+Bei der Regression ist der Unterschied klein (α/6 = 0,0083 statt 0,0071).
+
+**Noch zu tun:** `06_RISIKEN.md` R-10 und `04_MODELLIERUNG.md` Fallstrick 2 von
+„7 Tests / α/7" auf „zwei Familien, 6 + 1" umschreiben. Solange das aussteht,
+widersprechen sich Dokumentation und Code.
+
+---
+
+## B-7 · `xgboost` fehlte in `requirements.txt` und im venv
+
+**Fundstelle:** `requirements.txt` (alte Fassung), venv des Repos.
+
+**Was aufgefallen ist.** `xgboost` stand zwar ungepinnt in der alten
+`requirements.txt`, war im venv aber **nicht installiert** — gepruefte
+`dist-info`-Verzeichnisse: pandas, numpy, scikit-learn, scipy, statsmodels,
+pyarrow, matplotlib, seaborn, geopandas, shapely — kein xgboost. Damit war
+eines der drei Regressions- und eines der zwei Klassifikationsverfahren auf der
+Zielmaschine nicht lauffaehig.
+
+**Geloest.** `xgboost==3.4.0` gepinnt; das Wheel ist `py3-none-win_amd64` und
+damit auch unter Python 3.14 installierbar (geprueft auf PyPI).
+
+---
+
+## B-8 · `shap` war nirgends verzeichnet
+
+**Fundstelle:** `requirements.txt`, `modelle/m04_shap.py`.
+
+**Was aufgefallen ist.** `m04_shap.py` ist als Pflichtbestandteil geplant
+(Unterfrage 1, blockweise Interpretation), aber `shap` stand weder in den
+Anforderungen noch im venv. Waere erst beim Ausfuehren von `m04` aufgefallen —
+also am spaetesten moeglichen Zeitpunkt.
+
+**Geloest.** `shap==0.52.0` gepinnt, `cp312-abi3`-Wheel, laeuft auf 3.12 bis
+3.14.
+
+Zusaetzlich richtiggestellt: Die alten Pins `pandas==2.1.4` und
+`pyarrow==15.0.0` waren falsch — installiert sind 3.0.2 und 24.0.0. Eine
+Versionsangabe in Kapitel 6, die sich auf die alte Datei stuetzt, waere unwahr
+gewesen.
+
+---
+
+## B-9 · `m02_menge.py` hatte keinen Pruefauftrags-Block
+
+**Fundstelle:** Modul-Docstring von `modelle/m02_menge.py`.
+
+**Was aufgefallen ist.** `CLAUDE.md` Abschnitt 4 verlangt fuer **jedes** Skript
+in `modelle/` einen Block „Pruefauftraege" am Ende des Docstrings, der nach
+jedem Lauf abzuarbeiten ist. `m03`, `m04` und `m05` haben einen, ausgerechnet
+`m02` — das zuerst laufen soll — nicht.
+
+**Geloest.** Block aus `04_MODELLIERUNG.md` (Sonderfaelle, Fallstricke 1–4) und
+den Risiken R-1, R-3, R-9 abgeleitet und nachgetragen.
+
+---
+
+## B-10 · Die Laufzeiten sind zwischen den Verfahren nicht vergleichbar
+
+**Fundstelle:** `modelle/m02_menge.py` Zeilen 71 und 74 —
+`RandomForestRegressor(..., n_jobs=-1)` und `XGBRegressor(..., n_jobs=-1)`.
+
+**Was aufgefallen ist.** Random Forest und XGBoost trainieren ueber alle Kerne,
+`Ridge` ist einkernig. `ein_lauf()` misst Wanduhrzeit. Unterfrage 3 fragt nach
+dem **Trainings- und Inferenzaufwand** — gemessen wird aber ein Gemisch aus
+Rechenaufwand und Parallelisierungsgrad, und das Verhaeltnis verschiebt sich
+mit der Kernzahl der Maschine. Auf einem 32-Kerner saehe Random Forest deutlich
+besser aus als auf einem Vierkerner, ohne dass sich am Verfahren etwas aendert.
+
+Erste Messung auf zwei Kernen, Fold 1, `anzahl_einsaetze`:
+
+| Verfahren | fit | predict |
+|---|---|---|
+| Ridge | 0,02 s | 0,0046 s |
+| Random Forest | 1,85 s | 0,1408 s |
+| XGBoost | 3,33 s | 0,0269 s |
+
+**✅ GELOEST am 06.08.2026** — und zwar so, dass daraus eine zusaetzliche
+Aussage wird statt eines Vorbehalts.
+
+Der berichtete Aufwand wird **einkernig** gemessen, fuer alle Verfahren gleich.
+Das ist der Rechenaufwand, und er ist maschinenunabhaengiger als eine
+Wanduhrzeit unter Vollast. Der **Parallelisierungsgewinn** wird getrennt
+erhoben: `ein_lauf(..., auch_parallel=True)` fittet in Wiederholung 0 ein
+zweites Mal ueber alle Kerne; `menge_mittel.csv` und `struktur_mittel.csv`
+fuehren `train_sekunden_parallel_mean` und `parallel_gewinn`.
+
+Erste Messung auf zwei Kernen (400 Baeume, Fold 1, `anzahl_einsaetze`):
+
+| Verfahren | 1 Kern | alle Kerne | Gewinn |
+|---|---|---|---|
+| Ridge | 0,02 s | 0,01 s | 2,65× (Messrauschen bei dieser Groessenordnung) |
+| Random Forest | 4,88 s | 2,82 s | 1,73× |
+| XGBoost | 0,41 s | 0,32 s | 1,25× |
+
+**Ein Befund faellt dabei sofort auf:** Einkernig ist XGBoost mit 0,41 s **rund
+zwoelfmal schneller** als Random Forest mit 4,88 s. In der frueheren Messung
+mit `n_jobs=-1` lag XGBoost scheinbar hinten (3,33 s gegen 1,85 s). Die
+Rangfolge zwischen den beiden Ensembles kippt also mit der Betriebsart — genau
+der Grund, warum sie einheitlich gemessen werden muss. Der Abstand zu Ridge
+(zwei Groessenordnungen) ist davon unberuehrt.
+
+**Fuer Kapitel 7** sind damit zwei getrennte Saetze moeglich statt eines
+unklaren: „Rechenaufwand je Fit" und „wie gut skaliert das Verfahren ueber
+Kerne". Der zweite gehoert zu Unterfrage 4 und war vorher gar nicht messbar.
+
+---
+
+## B-11 · Die berichteten Baseline-Zahlen aendern sich
+
+**Fundstelle:** `docs/03_STAND.md` Abschnitt 4; dieselben Werte zitiert in
+`CLAUDE.md` §3, `06_RISIKEN.md` R-2 und `04_MODELLIERUNG.md`.
+
+**Was aufgefallen ist.** R² 0,472 · RMSE 37,44 · Macro-F1 0,290 stammen aus
+fuenf Folds **einer** Wiederholung. Sobald die Baselines ueber alle zehn laufen
+(B-4), entstehen andere Mittelwerte. Nur die neuen sind mit den Verfahren
+vergleichbar, weil nur sie auf denselben Laeufen beruhen.
+
+**Wie ausgelegt.** Entscheidung Lukas, 05.08.2026: Die 50er-Fassung wird die
+berichtete Messlatte. Die alten Werte bleiben in `baselines_mittel.csv` unter
+`basis = wiederholung_0` erhalten und in `03_STAND.md` als „Stand vor dem
+Modelllauf" sichtbar — nichts wird still ueberschrieben.
+
+**Noch zu tun:** Nach dem finalen Lauf pruefen, ob eine der Zitatstellen die
+alte Zahl in einer Aussage traegt, die mit der neuen nicht mehr stimmt. Der
+kritische Fall waere `06_RISIKEN.md` R-2: Dort begruendet der Abstand
+0,290 gegen 0,223 die Aussage „der Klassifikationsstrang traegt wenig".
+
+---
+
+## B-12 · `fold_masken()` liefert Masken, nicht Datensaetze
+
+**Fundstelle:** `docs/04_MODELLIERUNG.md` Abschnitt 2:
+`train, test = fold_masken(daten, k)   # k = 1..5`
+
+**Was aufgefallen ist.** Die Namen legen zwei DataFrames nahe; zurueck kommen
+zwei boolesche Serien. Wer dem Codeblock folgt und `train[MERKMALE]` schreibt,
+bekommt keinen Fehler, sondern eine Spaltenauswahl auf einer Serie — je nach
+Aufruf einen Absturz oder stillen Unsinn. In `v1_baselines.py` ist es richtig
+gemacht (`train, test = panel[tr], panel[te]`), in der Doku irrefuehrend.
+
+**Geloest** durch konsequente Benennung `tr, te` fuer Masken in allen neuen
+Dateien. Doku-Korrektur steht aus.
+
+---
+
+## B-13 · Die Laufzeitschaetzung ist zu niedrig
+
+**Fundstelle:** `CLAUDE.md`, Abschnitt „Praktisches": „etwa 45 bis 60 Minuten
+(8.400 Modellanpassungen)".
+
+**Was aufgefallen ist.** Gemessen auf zwei Kernen kosten 12 Tuning-Fits 28 s
+(Ridge), 51 s (Random Forest), 29 s (XGBoost). Hochgerechnet auf 8.400
+Anpassungen sind das rund **sieben Stunden** auf dieser Maschine. Dominierend
+ist nicht der Fit — Ridge fittet in 0,02 s — sondern der Prozess-Overhead der
+parallelen Suche.
+
+Auf mehr Kernen faellt das deutlich, aber eine Stunde duerfte auch dort knapp
+sein. Relevant fuer die Planung, nicht fuer die Ergebnisse. Die wahrscheinliche
+Ursache steht in B-16.
+
+---
+
+## B-14 · Welche Hyperparameter bekommt das Hold-out?
+
+**Fundstelle:** `docs/04_MODELLIERUNG.md`, Abschnitt „Hold-out": „mit den in der
+Kreuzvalidierung gewaehlten Hyperparametern neu trainiert".
+
+**Was aufgefallen ist.** Das Tuning liefert **fuenf** Parametersaetze je
+Zielgroesse und Verfahren, einen je Fold. Welcher davon fuer die
+Schlussbewertung gilt, sagt die Spezifikation nicht. Die Frage ist nicht
+kosmetisch: Bei Random Forest unterscheiden sich die Saetze in `max_depth` und
+`max_features` teils erheblich.
+
+**Wie ausgelegt.** Gewaehlt wird der Satz des Folds mit dem besten Guetemass in
+**Wiederholung 0** — niedrigstes RMSE in `m02`, hoechstes Macro-F1 in `m03`.
+Deterministisch, aus reinen Entwicklungsdaten, und der gewaehlte Fold steht als
+Spalte `fold_der_parameter` in `holdout.csv`, ist also nachpruefbar.
+
+**Alternative, bewusst verworfen:** einmal auf allen 29 Entwicklungsstadtteilen
+neu tunen. Methodisch etwas sauberer, kostet aber sechs zusaetzliche
+Suchlaeufe und weicht staerker vom Wortlaut der Spezifikation ab. Falls in der
+Sprechstunde gefragt wird: beide Wege sind vertretbar, der gewaehlte ist der
+dokumentierte.
+
+---
+
+## B-15 · Auch XGBoost liefert negative Vorhersagen
+
+**Fundstelle:** `docs/04_MODELLIERUNG.md`, Abschnitt „Sonderfaelle": „Negative
+Vorhersagen nach `expm1`. **Ridge** auf `log(1+y)` kann [...] Werte unter −1
+liefern".
+
+**Was aufgefallen ist.** Die Spezifikation erwartet negative Vorhersagen nur
+bei Ridge. Gemessen im Probelauf trat der Fall bei **XGBoost** auf der
+Zielgroesse `einsaetze_je_1000_ew` auf, bei Ridge dagegen gar nicht. Der Grund
+ist einleuchtend, sobald man ihn sieht: XGBoost minimiert `reg:squarederror`
+ohne jede Positivitaetsschranke, waehrend Ridge auf `log(1+y)` schaetzt und
+`expm1` nie unter −1 fallen kann. Die vermeintlich gefaehrdete Variante ist
+also die sicherere.
+
+**Wie ausgelegt.** `ein_lauf()` gibt seit dem 05.08.2026 `n_negativ` und
+`y_hat_min` zurueck, fuer **alle** Verfahren. Nicht gekappt — nur gezaehlt.
+`menge_mittel.csv` fuehrt `n_negativ_gesamt` je Verfahren.
+
+**Fuer die Arbeit.** Der Satz in Kapitel 7 muss allgemein formuliert werden,
+nicht auf Ridge bezogen. Er wird dadurch sogar interessanter: Er zeigt, dass
+die Zielgroessentransformation eine Nebenwirkung hat, die man ihr nicht ansieht.
+
+---
+
+## B-16 · Verschachtelte Parallelisierung bremst das Tuning aus
+
+**Fundstelle:** `modelle/m02_menge.py` Zeilen 71 und 74
+(`n_jobs=-1` im Schaetzer) zusammen mit Zeile 137
+(`RandomizedSearchCV(..., n_jobs=-1)`); gleiches Muster in `m03_struktur.py`.
+
+**Was aufgefallen ist.** Die Suche startet Prozesse ueber alle Kerne, und jeder
+dieser Prozesse startet seinerseits einen Random Forest bzw. XGBoost, der
+wiederum alle Kerne beanspruchen will. Auf zwei Kernen fuehrte das dazu, dass
+ein Probelauf mit **Budget 2** nach 15 Minuten noch in Phase 1 stand — bei
+einem Sollbudget von 50.
+
+Das ist kein Fehler im Sinne falscher Ergebnisse: Die Zahlen stimmen, es dauert
+nur ein Vielfaches. Fuer Unterfrage 3 ist es dennoch relevant, weil dieselbe
+Ueberzeichnung auch die gemessenen Trainingszeiten beeinflusst (vgl. B-10).
+
+**✅ BEHOBEN am 06.08.2026** (Freigabe Lukas, `verfahren()` und `tune()` durften
+angefasst werden). Die Modelle laufen jetzt einkernig (`N_JOBS_MODELL = 1`),
+parallelisiert wird allein die Suche (`N_JOBS_SUCHE = -1`).
+
+Gemessen auf zwei Kernen, Tuning eines Folds:
+
+| Verfahren | vorher (Budget 3) | nachher (Budget 5) | je Iteration |
+|---|---|---|---|
+| Ridge | 28 s | 3,3 s | **rund 14× schneller** |
+| Random Forest | 51 s | 28,3 s | rund 3× schneller |
+
+Hochgerechnet faellt der volle Lauf damit von etwa sieben auf ein bis zwei
+Stunden — auf zwei Kernen. Die gefundenen Parameter aendern sich nicht.
+
+**Nachgewiesen, dass die Kernzahl nur die Dauer beeinflusst, nicht das
+Ergebnis:** `ein_lauf(..., auch_parallel=True)` fittet dasselbe Modell ein
+zweites Mal ueber alle Kerne und prueft die Vorhersagen per `assert` auf
+Gleichheit. Bestanden fuer alle fuenf Verfahren-Zielgroessen-Kombinationen.
+Ohne diesen Nachweis waere die Umstellung eine Behauptung.
+
+---
+
+## B-17 · `shap` kann XGBoost 3.x nicht lesen
+
+**Fundstelle:** `modelle/m04_shap.py`, `shap.TreeExplainer`.
+
+**Was aufgefallen ist.** Bei einem mehrklassigen XGBoost-Modell bricht
+`shap.TreeExplainer` ab:
+
+```
+ValueError: could not convert string to float:
+'[-1.3113022E-6,-2.1457672E-6,-8.34465E-7,4.2915344E-6]'
+```
+
+Ursache: XGBoost 3.x speichert `base_score` bei mehreren Klassen als **Vektor**,
+der Modell-Loader von `shap` 0.52.0 erwartet einen Skalar. Geprueft mit shap
+0.52.0 und xgboost 3.2.0; die gepinnte Kombination auf der Zielmaschine
+(xgboost 3.4.0) hat dasselbe Format.
+
+Waere erst beim Ausfuehren von `m04` aufgefallen — also nach den mehrstuendigen
+Modelllaeufen.
+
+**Wie ausgelegt.** Fuer XGBoost wird dessen **eigenes TreeSHAP** benutzt:
+`booster.predict(DMatrix, pred_contribs=True)`. Das ist derselbe Algorithmus,
+exakt und nicht genaehert, nur ohne den defekten Parser. Random Forest laeuft
+weiterhin ueber `shap.TreeExplainer`, dort tritt das Problem nicht auf.
+
+**Fuer die Arbeit.** In der Methodenbeschreibung ist zu schreiben, dass die
+SHAP-Werte fuer XGBoost aus der Bibliothek selbst stammen — sonst passt die
+Quellenangabe nicht zur Umsetzung.
+
+---
+
+## B-18 · Die VIF-Entdopplung laeuft ins Leere
+
+**Fundstelle:** `docs/04_MODELLIERUNG.md`, Abschnitt `m04_shap.py`: „Zu rechnen
+auf den EINDEUTIGEN Stadtteil-Merkmalskombinationen, nicht auf allen Zeilen:
+Die Strukturmerkmale sind innerhalb eines Jahres konstant".
+
+**Was aufgefallen ist.** Die Begruendung stimmt fuer ACS und Land Use, aber
+nicht mehr fuer alle Praediktoren: Seit Decision Log #17 ist
+`log_kriminalitaetsindex` ein **monatlich rollierender** Index. Ein
+`drop_duplicates()` ueber alle zehn Praediktoren liefert deshalb **3.757 von
+3.828** Zeilen — die Entdopplung entfernt 1,9 % statt der beabsichtigten rund
+90 %.
+
+**Wie ausgelegt.** `_vif()` weist zwei Bezugsmengen aus: `stadtteil_jahr` (eine
+Zeile je Stadtteil und Jahr, 319 Zeilen — die Ebene, auf der die
+Strukturmerkmale tatsaechlich variieren) und `alle_zeilen` zum Vergleich.
+
+**Was das fuer die dokumentierte Zahl heisst.** Gemessen auf `stadtteil_jahr`
+und den 29 Entwicklungsstadtteilen liegt der hoechste VIF bei **12,29**
+(`median_haushaltseinkommen`). Die bisher berichteten 11,5 stammen aus einer
+anderen Bezugsmenge. Die inhaltliche Aussage bleibt unveraendert — deutliche
+Multikollinearitaet, blockweise interpretieren —, aber die Zahl ist vor der
+Verwendung im Text zu ersetzen.
+
+---
+
+## B-19 · R-9 ist beziffert und faellt weg
+
+**Fundstelle:** `docs/06_RISIKEN.md` R-9, „Spezifikationsasymmetrie zwischen
+Baseline und Vergleichsverfahren".
+
+**Was aufgefallen ist.** R-9 nimmt an, die Negative Binomial habe durch den
+Offset `log(Bevoelkerung)` einen strukturellen Vorteil, weil dessen Koeffizient
+fest auf 1 steht, waehrend die Vergleichsverfahren den Zusammenhang schaetzen
+muessen. Beim Schreiben der Zusatzvariante fiel auf: **`log_bevoelkerung` steht
+in `PRAEDIKTOREN`** und ist damit auch in der Offset-Variante ein freies
+Merkmal. Der Offset legt also nur einen Ausgangspunkt fest, den ein frei
+geschaetzter Koeffizient wieder verschieben kann. Beide Spezifikationen sind
+rechnerisch nahezu aequivalent.
+
+**Gemessen** ueber alle 50 Laeufe, gepaart:
+
+| Zielgroesse | Vorteil des Offsets (RMSE) | groesste Einzelabweichung |
+|---|---|---|
+| `anzahl_einsaetze` | **−0,0017** | 0,0066 |
+| `einsaetze_je_1000_ew` | **−0,0000** | 0,0007 |
+
+Negatives Vorzeichen heisst: Die Variante **ohne** Offset ist minimal besser.
+Der Vorteil ist nicht klein, er ist nicht vorhanden.
+
+**Konsequenz.** R-9 kann aus dem Register genommen werden — nicht weil das
+Risiko entschaerft wurde, sondern weil es nie bestand. In Kapitel 8 wird aus
+dem Vorbehalt eine Fussnote mit einer Zahl. Das ist ein besseres Ergebnis als
+die Entschaerfung, weil es die Frage endgueltig schliesst.
+
+---
+
+## B-20 · Plattformabhaengige Rundung in der letzten Stelle
+
+**Fundstelle:** `results/regression/baselines_folds.csv`, Vergleich der
+Wiederholung 0 vor und nach der Erweiterung.
+
+**Was aufgefallen ist.** Die neu gerechneten Werte weichen um bis zu
+**5,2·10⁻¹²** von den zuvor gespeicherten ab (relativ rund 10⁻¹³). Die Ursache
+ist nicht die Aenderung: Die alte Datei entstand unter Windows mit Python 3.14,
+die Kontrollrechnung unter Linux mit Python 3.10 und anderen BLAS-Bibliotheken.
+Die Klassifikationswerte stimmen exakt ueberein, weil sie auf drei
+Nachkommastellen gerundet gespeichert werden.
+
+**Fuer die Arbeit.** Bestaetigt, warum `requirements.txt` exakt gepinnt gehoert
+und warum die Laufumgebung protokolliert wird. Fuer die berichteten Zahlen
+(drei bis vier Nachkommastellen) ohne Bedeutung.
+
+---
+
+## B-21 · Das Tuning auf Wiederholung 0 ist seit B-3 nicht mehr harmlos
+
+**Fundstelle:** `docs/04_MODELLIERUNG.md`, Abschnitt „Hyperparameter-Suche":
+„Getunt wird **einmal auf Wiederholung 0**; die gewaehlten Parameter gelten fuer
+die Wiederholungen 1–9." Umgesetzt in `m02_menge.phase_tuning()` und
+`m03_struktur.phase_tuning()`.
+
+**Was aufgefallen ist — und warum es vorher niemandem auffallen konnte.** Unter
+dem urspruenglich dokumentierten `versatz`-Verfahren waren alle Wiederholungen
+**dieselbe Partition** mit anderen Nummern (B-3). Ein Parametersatz, der auf
+Wiederholung 0 gefunden wurde, traf in Wiederholung 7 auf exakt dieselben
+Trainingsstadtteile. Die Vereinfachung war damit folgenlos.
+
+Seit die Wiederholungen sich tatsaechlich unterscheiden, gilt das nicht mehr:
+
+```
+Wiederholung 0, Fold 1:  Training auf Stadtteilen A  -> Parameter P gewaehlt
+Wiederholung 3, Fold 1:  Test auf Stadtteilen B, mit B teilweise in A
+                         -> P wird angewandt, obwohl es unter Kenntnis von B
+                            ausgewaehlt wurde
+```
+
+Die Hyperparameter tragen also Information ueber Stadtteile, die in anderen
+Wiederholungen im Test stehen. Das ist eine Form von Leakage — schwach, aber
+vorhanden.
+
+**Wie schwer wiegt es.** Gering, aus zwei Gruenden. Erstens ist ein
+Parametersatz eine sehr grobe Zusammenfassung: vier bis sechs Zahlen, gewaehlt
+ueber einen inneren CV, der selbst nach Stadtteil gruppiert. Zweitens betrifft
+es nicht den Vergleich, sondern alle Verfahren gleichermassen — die
+Fairness-Regel bleibt gewahrt, weil jedes Verfahren dieselbe Vereinfachung
+erfaehrt.
+
+**Warum trotzdem nicht behoben.** Sauber waere, je Wiederholung neu zu tunen.
+Das kostet das **Zehnfache** der Tuning-Zeit — bei 8.000 Anpassungen im Tuning
+also 80.000. Der Aufwand steht in keinem Verhaeltnis zum erwarteten Effekt.
+
+**Was stattdessen zu tun ist.** In Kapitel 6 nicht nur schreiben „getunt wird
+einmal, das ist eine Vereinfachung", sondern **warum** sie eine ist: weil die
+Wiederholungen verschiedene Aufteilungen sind. Der bisher vorgesehene Satz
+haette den Punkt verdeckt. Gehoert zusaetzlich in die Limitationen (Kapitel 8).
+
+---
+
+## B-22 · Rechenfehler beim Parallelisierungsgewinn
+
+**Fundstelle:** `modelle/m02_menge.aggregiere()` und
+`m03_struktur.aggregiere()`, Spalte `parallel_gewinn`, Fassung vom 06.08.2026.
+
+**Was aufgefallen ist.** Der Quotient stand zunaechst als
+`train_sekunden_mean / train_sekunden_parallel_mean`. Der Zaehler mittelt ueber
+**alle 50 Laeufe**, der Nenner nur ueber die **5 Laeufe der Wiederholung 0** —
+denn nur dort wird parallel gemessen. Der ausgewiesene „Gewinn" haette damit die
+Schwankung zwischen den Wiederholungen enthalten statt des
+Parallelisierungseffekts.
+
+Selbst gefunden vor dem ersten echten Lauf, beim Durchgehen der Frage „welche
+neuen Risiken hat die Implementierung geschaffen".
+
+**Behoben:** Zaehler und Nenner werden beide aus Wiederholung 0 gebildet.
+
+**Lehre fuer die Pruefauftraege:** Kennzahlen, die aus zwei verschieden
+erhobenen Groessen gebildet werden, sind eine eigene Fehlerklasse. Sie sehen
+plausibel aus, weil beide Bestandteile stimmen.
+
+---
+
+## B-23 · Hyperparameter konnten als Zeichenketten zurueckkommen
+
+**Fundstelle:** `m02_menge.phase_tuning()` und `m03_struktur.phase_tuning()`,
+`json.dumps(p, default=str)`.
+
+**Was aufgefallen ist.** `RandomizedSearchCV.best_params_` liefert je nach
+scipy- und numpy-Fassung NumPy-Skalare. `np.float64` erbt von `float` und
+ueberlebt `json.dumps` zufaellig — `np.int64` erbt **nicht** von `int`. Fuer
+einen solchen Wert haette der Notausgang `default=str` gegriffen, und aus
+`n_estimators=321` waere die Zeichenkette `"321"` geworden. Beim Wiedereinlesen
+haette `set_params(n_estimators="321")` den Lauf abgebrochen — **nach** dem
+Tuning, also nach der teuersten Phase.
+
+Auf der Testumgebung (Python 3.10, numpy 2.2, scipy 1.15) trat es nicht auf:
+Dort kamen native `int` zurueck. Auf der Zielumgebung (Python 3.14, numpy 2.4,
+scipy 1.17) ist das nicht garantiert. Ein Fehler, der von der Paketversion
+abhaengt und erst nach Stunden zuschlaegt, ist die unangenehmste Sorte.
+
+Gefunden, weil die Probelaeufe `tune()` durch einen Stub ersetzt hatten und
+dieser Pfad deshalb ungeprueft war — die Frage „ist der Code wirklich fertig"
+hat genau darauf gezeigt.
+
+**Behoben.** `_rein_python()` wandelt NumPy-Skalare vor der Serialisierung
+explizit um, und `default=` entfaellt: Ein unbekannter Typ soll laut auffallen,
+nicht still zur Zeichenkette werden.
+
+**Gegengeprueft** mit echtem Tuning: `tune()` → `tuning.csv` →
+`_parameter_je_fold()` → `set_params()` → `fit()`, inklusive Anwendung der
+Parameter aus Wiederholung 0 auf Wiederholung 3. Alle Typen nach dem
+Wiedereinlesen korrekt.
+
+---
+
+## Was NICHT verifiziert werden konnte
+
+Zur Ehrlichkeit gehoert, die Grenzen der Pruefung zu benennen.
+
+**Die Zielumgebung — teilweise geschlossen am 06.08.2026.** Alle Pruefungen
+liefen unter Python 3.10, pandas 2.3, scikit-learn 1.7, numpy 2.2; die
+Ergebnisse entstehen unter Python 3.14, pandas 3.0, scikit-learn 1.8,
+numpy 2.4.
+
+`v0_aufteilung.py` und `v1_baselines.py` sind inzwischen auf der Zielumgebung
+gelaufen. **Beide Ausgaben stimmen mit der Testumgebung ueberein**, auf allen
+berichteten Stellen: Fold-Zuteilung und Brand-Testfaelle identisch, Baselines
+37,436 / 0,472 / 4,142 / −0,237 (Wiederholung 0) und 37,272 / 0,477 / 4,407 /
+0,024 (alle Wiederholungen), Klassifikation 0,223 und 0,298, Macro-AUROC 0,711,
+null Konvergenzwarnungen.
+
+Das ist ein belastbarer Beleg fuer den Reproduzierbarkeitsabschnitt in
+Kapitel 6: Der Aufbau liefert dieselben Zahlen ueber zwei Betriebssysteme und
+vier Hauptversionsspruenge hinweg. Es bestaetigt zugleich die Einschaetzung aus
+B-20 — die Abweichungen liegen in den letzten Bits und nicht in den berichteten
+Stellen.
+
+**Was offen bleibt:** `m03_struktur.tune()` uebergibt `sample_weight` als
+Fit-Parameter an `RandomizedSearchCV`; das Metadata-Routing hat sich zwischen
+scikit-learn-Fassungen bewegt. Dieser Pfad ist auf der Zielumgebung noch nicht
+gelaufen. B-23 war ein Fall derselben Klasse.
+
+**Ein ununterbrochener Volllauf.** Die Testumgebung raeumt
+Hintergrundprozesse nach wenigen Minuten ab. Jede Phase ist einzeln und in
+Kombination geprueft — Phase 1 mit echtem Tuning, Phasen 2 bis 5 mit
+vorgegebenen Parametern, die Uebergabe zwischen beiden gezielt gegengeprueft —
+aber nie alles in einem Durchlauf bei vollem Budget.

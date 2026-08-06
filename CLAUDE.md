@@ -27,6 +27,7 @@ Zahl an sechs Stellen, von denen fünf falsch werden, ohne dass es auffällt.
 | `docs/03_STAND.md` | **bei jedem `build.py`** | Was die Aufbereitung tut, Datensatz-Steckbrief, Baseline-Werte |
 | `docs/04_MODELLIERUNG.md` | wenn sich die Modellplanung ändert | Spezifikation für `modelle/`: Verfahren, Validierungsrahmen, Verbote |
 | `docs/06_RISIKEN.md` | wenn ein Risiko eintritt oder wegfällt | Risikoregister der Modellierung, Grundlage für die Sprechstunde |
+| `docs/07_BEFUNDE.md` | wächst während der Implementierung | Was beim Bauen aufgefallen ist: lückenhafte Spezifikation, Ergebnisse gegen Entscheidungen, Annahmen. Grundlage für Kapitel 8 und die kritische Reflexion |
 
 Die Schreibanleitung für die Kapitel steht als Kommentarblöcke **in `main.tex`**,
 nicht in `docs/` — sonst laufen zwei Fassungen derselben Anleitung auseinander.
@@ -160,13 +161,31 @@ Zwei Regeln, die dabei gelten:
 | Business Understanding | ✅ Exposé, Kap. 1/4 |
 | Data Understanding | ✅ Eignungsprüfung gerechnet (`vorpruefung/`), fünf Belege |
 | Data Preparation | ✅ **abgeschlossen** — ein Befehl, zwei Datensätze, 19/19 Prüfungen |
-| Modeling | ⬜ `modelle/` vollständig neu zu schreiben, Spezifikation in `04_MODELLIERUNG.md` |
-| Evaluation | ⬜ Hold-out unberührt |
+| Modeling | ✅ **Code vollständig** (06.08.2026), Mechanik durchgespielt — der finale Lauf steht aus |
+| Evaluation | ⬜ Hold-out unberührt, konstruktiv abgesichert |
 | Deployment | ⬜ nicht Teil der Arbeit (Limitation, vgl. Schröer et al. 2021) |
 
-**Nächster Schritt:** `modelle/m02_menge.py`. Offener Punkt vorher: Im
-Klassifikationsstrang schlägt Stufe 2 die Baum-Sonde — der Mehraufwand von RF
-und XGBoost ist dort vorab **nicht** belegt (`06_RISIKEN.md`, R-2).
+**Nächster Schritt:** der finale Lauf auf definierter Hardware.
+
+```
+python vorpruefung/v0_aufteilung.py     # Selbsttest der Aufteilung
+python vorpruefung/v1_baselines.py      # Messlatte, 10 Wiederholungen
+python modelle/m02_menge.py             # der lange Teil
+python modelle/m03_struktur.py
+python modelle/m04_shap.py
+python modelle/m05_abbildungen.py
+```
+
+Danach je Skript den Block **Prüfaufträge** am Ende des Docstrings abarbeiten
+und `03_STAND.md` überschreiben. Prozessor, Kernzahl und Nebenlast festhalten —
+sie gehen als Unterfrage 3 in die Arbeit, und `requirements_lauf.txt` gehört
+dazu.
+
+Offener inhaltlicher Punkt: Im Klassifikationsstrang schlägt Stufe 2 die
+Baum-Sonde — der Mehraufwand von RF und XGBoost ist dort vorab **nicht** belegt
+(`06_RISIKEN.md`, R-2). Schlagen sie die Latte nicht, lautet das Ergebnis „der
+Mehraufwand lohnt sich hier nicht"; das ist berichtbar und ausdrücklich
+vorgesehen.
 
 ---
 
@@ -203,4 +222,5 @@ Prompt, URL. Die Kennung wird im Text wie eine Quelle zitiert.
 | anthropic2026k | Anthropic Claude | 2026 | Claude Fable | „Prüfe, ob noch Anpassungen in der Data Preparation nötig sind, und schreibe Kapitel 5 der Arbeit in LaTeX mit ausgewählten, erklärten Code-Snippets." → Audit-Fix #10, Decision Log #5 | https://claude.ai |
 | anthropic2026l | Anthropic Claude | 2026 | Claude Opus | „Verdichte `prep/` auf drei Schritte, lege die Baselines dazu, verschiebe die Eignungsprüfung nach `modelle/` und reduziere die Dokumentation." → Decision Log #25, #26 | https://claude.ai |
 | anthropic2026m | Anthropic Claude | 2026 | Claude Opus | „Lege Schröters E-Mail vom 03.08.2026 zur Algorithmenauswahl über den bisherigen Stand und analysiere, was das konkret für die Preprocessing-Pipeline heißt. Gibt es eine Zusammenstellung, bei der zwei der drei Regressionsverfahren auch die Klassifikation abdecken?" → Decision Log #31, Anpassung von Kapitel 6.2, 7.2 und den Limitationen in `main.tex` | https://claude.ai |
+| anthropic2026o | Anthropic Claude | 2026 | Claude Opus | „Implementiere die Modellierung: die fünf offenen Funktionen in `m02_menge.py`, dann `m03_struktur.py`, eine Negative-Binomial-Variante ohne Offset in `v1_baselines.py`, danach `m04_shap.py` und `m05_abbildungen.py`. Frage nach, wenn etwas unklar ist, und dokumentiere alle Befunde." → Decision Log #36–#41, `docs/07_BEFUNDE.md` mit 22 Einträgen, `vorpruefung/v0_aufteilung.py` | https://claude.ai |
 | anthropic2026n | Anthropic Claude | 2026 | Claude Opus | „Erkläre in einfachen Worten, was die Baselines berechnen und ob die Negative Binomial für Regression und Klassifikation getrennt stützt, dass weitere Modelle verwendet werden. Schreibe einen minimalen Baseline-Code mit diesen Entscheidungen und räume anschließend die gesamte Dokumentation auf den aktuellen Stand auf." → Decision Log #32, Neufassung von `prep/s3_baselines.py` (inzwischen `vorpruefung/v1_baselines.py`), Neuschnitt der Dokumentation nach Lebensdauer (`docs/01`–`05`) | https://claude.ai |
