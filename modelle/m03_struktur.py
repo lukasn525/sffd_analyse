@@ -143,11 +143,20 @@ def suchraum(name: str) -> dict:
     Skalierung noetig ist. Die Suchraeume sind dieselben wie in der Regression;
     das ist Absicht: Es wechselt nur die Verlustfunktion, nicht der
     Ensemble-Mechanismus (docs/04_MODELLIERUNG.md, Abschnitt 3).
+
+    EINE AUSNAHME: `tweedie_variance_power` steuert die Verlustfunktion der
+    REGRESSION (Decision Log #42) und ist bei `multi:softprob` bedeutungslos.
+    XGBoost wuerde ihn stillschweigend annehmen und ignorieren - er wuerde dann
+    ein Sechstel des Tuning-Budgets auf eine wirkungslose Dimension verschwenden
+    und in tuning.csv eine Zahl ausweisen, die nichts bedeutet.
     """
     from scipy.stats import loguniform, randint, uniform
 
+    NUR_REGRESSION = {"tweedie_variance_power"}
     raum = {}
     for parameter, spez in SUCHRAEUME[name].items():
+        if parameter in NUR_REGRESSION:
+            continue
         art, *werte = spez
         if art == "loguniform":
             raum[parameter] = loguniform(werte[0], werte[1])
@@ -251,16 +260,20 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
 
     modell, y_hat, train_sek, inferenz_sek = fitte(N_JOBS_MODELL)
 
-    train_par, inferenz_par = np.nan, np.nan
+    train_par, inferenz_par, abweichung = np.nan, np.nan, np.nan
     if auch_parallel:
         _, y_par, train_par, inferenz_par = fitte(-1)
-        assert np.array_equal(y_hat, y_par), (
-            f"{name}: Vorhersagen haengen von der Kernzahl ab.")
+        # Anteil der Zeilen, die einkernig und parallel verschieden
+        # klassifiziert werden. KEIN Abbruch - gemessen und berichtet: Bei
+        # XGBoost ist die Vorhersage threadabhaengig (docs/07_BEFUNDE.md,
+        # B-24). Die berichteten Guetemasse stammen aus dem einkernigen Fit.
+        abweichung = float(np.mean(y_hat != y_par))
 
     return {
         "verfahren": name, "zielgroesse": ZIELKLASSE,
         "train_sekunden_parallel": train_par,
         "inferenz_sekunden_parallel": inferenz_par,
+        "parallel_abweichung": abweichung,
         "macro_f1": float(f1_score(y_te, y_hat, average="macro", zero_division=0)),
         "macro_auroc": _macro_auroc(y_te, modell.predict_proba(X_te),
                                     list(modell.classes_)),
@@ -335,8 +348,33 @@ def _macro_auroc(y_true: np.ndarray, proba: np.ndarray,
 # ---------------------------------------------------------------------------
 # ORCHESTRIERUNG
 # ---------------------------------------------------------------------------
-def phase_tuning(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
-    """Je Verfahren und Fold einmal `tune()` auf Wiederholung 0 - 10 Zeilen."""
+def phase_tuning(panel: pd.DataFrame, selten: pd.Series,
+                 neu: bool = False) -> pd.DataFrame:
+    """Je Verfahren und Fold einmal `tune()` auf Wiederholung 0 - 10 Zeilen.
+
+    Wie in m02: Eine vollstaendige `tuning.csv` wird wiederverwendet, damit ein
+    Abbruch in einer spaeteren Phase die teuerste Phase nicht vernichtet.
+    Neuberechnung erzwingen mit `python modelle/m03_struktur.py neutuning`.
+    """
+    pfad = OUT / "tuning.csv"
+    erwartet = len(VERFAHREN) * N_FOLDS
+    if pfad.exists() and not neu:
+        vorhanden = pd.read_csv(pfad)
+        grund = ""
+        if len(vorhanden) != erwartet:
+            grund = f"{len(vorhanden)} statt {erwartet} Zeilen"
+        else:
+            for v in VERFAHREN:
+                teil = vorhanden[vorhanden["verfahren"] == v]
+                if teil.empty or set(json.loads(teil.iloc[0]["parameter_json"])) != set(suchraum(v)):
+                    grund = f"Suchraum von {v} hat sich geaendert"
+                    break
+        if not grund:
+            print(f"    {erwartet} Parametersaetze aus {pfad.name} uebernommen "
+                  f"- fuer eine Neuberechnung: 'm03_struktur.py neutuning'")
+            return vorhanden
+        print(f"    {pfad.name} wird verworfen und neu gerechnet: {grund}")
+
     d = wiederholte_aufteilung(panel, wiederholung=0, selten=selten)
     zeilen = []
     for name in VERFAHREN:
@@ -390,6 +428,7 @@ def phase_bewertung(panel: pd.DataFrame, parameter: pd.DataFrame,
                "macro_f1", "macro_auroc", "accuracy",
                "train_sekunden", "inferenz_sekunden",
                "train_sekunden_parallel", "inferenz_sekunden_parallel",
+               "parallel_abweichung",
                "n_train", "n_test", "n_brand_test", "extrapolationsanteil"]
     df = df[spalten]
     df.to_csv(OUT / "struktur_folds.csv", index=False)
@@ -416,12 +455,14 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
     w0 = folds[folds["wiederholung"] == 0].groupby(schluessel, sort=False)
     z["parallel_gewinn"] = (w0["train_sekunden"].mean()
                             / w0["train_sekunden_parallel"].mean())
+    z["parallel_abweichung_max"] = w0["parallel_abweichung"].max()
     z = z.join(g[["n_brand_test", "extrapolationsanteil"]].mean())
     z = z.join(g[["macro_auroc"]].apply(lambda s: int(s["macro_auroc"].isna().sum()))
                 .rename("n_auroc_fehlend"))
     spalten = [f"{m}{s}" for m in MASSE for s in
                ("_mean", "_std_folds", "_std_wiederholungen")]
-    spalten += [f"{m}_mean" for m in MASSE_PARALLEL] + ["parallel_gewinn"]
+    spalten += ([f"{m}_mean" for m in MASSE_PARALLEL]
+                + ["parallel_gewinn", "parallel_abweichung_max"])
     z = z[spalten + ["n_brand_test", "extrapolationsanteil",
                      "n_auroc_fehlend"]].reset_index()
     z.round(4).to_csv(OUT / "struktur_mittel.csv", index=False)
@@ -554,11 +595,20 @@ def main(argv: list[str]) -> int:
           f"{dict(panel[ZIELKLASSE].value_counts())}\n")
 
     print("  Phase 1  Tuning")
-    parameter = phase_tuning(panel, selten)
+    parameter = phase_tuning(panel, selten, neu="neutuning" in argv)
     print("\n  Phase 2  Bewertung")
     folds = phase_bewertung(panel, parameter, selten)
     print("\n  Phase 3  Aggregation")
-    print(aggregiere(folds).to_string(index=False))
+    mittel = aggregiere(folds)
+    print(mittel.to_string(index=False))
+    auffaellig = mittel[mittel["parallel_abweichung_max"] > 0]
+    if len(auffaellig):
+        print("\n  HINWEIS zur Reproduzierbarkeit: Bei folgenden Verfahren "
+              "haengt die Klassenvorhersage von der Kernzahl ab "
+              "(docs/07_BEFUNDE.md, B-24).")
+        for _, z in auffaellig.iterrows():
+            print(f"    {z['verfahren']:<14} "
+                  f"{z['parallel_abweichung_max']:.1%} abweichende Zeilen")
     print("\n  Phase 4  Vergleich")
     basislinien = pd.read_csv(OUT / "baselines_klasse.csv")
     v = vergleiche(folds, basislinien)

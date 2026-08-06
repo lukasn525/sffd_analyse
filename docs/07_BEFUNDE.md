@@ -37,6 +37,13 @@
 | B-21 | 06.08. | `04_MODELLIERUNG.md` §Hyperparameter-Suche | 🟡 | **neu entstanden**, bewusst getragen |
 | B-22 | 06.08. | `m02_menge.aggregiere()` | 🟡 | selbst gefunden, behoben |
 | B-23 | 06.08. | `phase_tuning()`, `json.dumps(..., default=str)` | 🔴 | selbst gefunden, behoben |
+| B-24 | 06.08. | XGBoost, Kernzahl | 🔴 | **gemessen im Lauf** — Ergebnisse unberührt, gehört in Kap. 6 |
+| B-25 | 06.08. | `m02_menge.main()` | 🟡 | behoben |
+| B-26 | 06.08. | `06_RISIKEN.md` R-1, Vortest 28.07. | 🔴 | **Ergebnis widerspricht der Erwartung** |
+| B-27 | 06.08. | `leakage_diagnose.csv` | 🟡 | **B-21 gemessen: kein Effekt** |
+| B-28 | 06.08. | `menge_mittel.csv`, `parallel_gewinn` | ⚪ | Nebenbefund |
+| B-29 | 06.08. | `06_RISIKEN.md` R-2 | 🔴 | **Erwartung widerlegt** — beide Verfahren schlagen Stufe 2 |
+| B-30 | 06.08. | beide Straenge zusammen | 🔴 | **Kernbefund der Arbeit** |
 
 ---
 
@@ -677,6 +684,235 @@ nicht still zur Zeichenkette werden.
 `_parameter_je_fold()` → `set_params()` → `fit()`, inklusive Anwendung der
 Parameter aus Wiederholung 0 auf Wiederholung 3. Alle Typen nach dem
 Wiedereinlesen korrekt.
+
+---
+
+## B-24 · XGBoost ist nicht threaddeterministisch
+
+**Fundstelle:** erster echter Lauf von `m02_menge.py` auf der Zielumgebung,
+06.08.2026, Phase 2, Wiederholung 0.
+
+**Was aufgefallen ist.** `ein_lauf(..., auch_parallel=True)` fittet dasselbe
+Modell mit denselben Parametern und demselben `random_state` zweimal — einmal
+einkernig, einmal ueber alle Kerne — und verglich die Vorhersagen. Bei Ridge und
+Random Forest waren sie identisch. Bei XGBoost lag die groesste Abweichung bei
+**34,66**, gemessen auf `anzahl_einsaetze` mit einem Mittelwert von rund 76.
+
+Das ist keine Rundung, das sind andere Modelle.
+
+**Ursache.** XGBoost baut die Histogramme parallel und reduziert sie ueber die
+Threads. Die Summierungsreihenfolge von Fliesskommazahlen haengt damit an der
+Threadzahl; winzige Unterschiede in den Gradientensummen kippen knapp
+benachbarte Split-Kandidaten, und ueber mehrere hundert Baeume — hier bis zu 898
+bei `learning_rate` 0,026 — verstaerkt sich die Abweichung. `random_state`
+steuert die Stichprobenziehung, nicht die Reduktionsreihenfolge.
+
+**Warum die Ergebnisse unberuehrt bleiben.** Alle berichteten Guetemasse
+stammen aus dem **einkernigen** Fit (`N_JOBS_MODELL = 1`, Decision Log #40).
+Der parallele Fit dient allein der Zeitmessung. Die Entscheidung, einkernig zu
+messen, war fuer die Vergleichbarkeit der Laufzeiten gedacht — sie stellt
+nebenbei die Reproduzierbarkeit sicher. Ein gluecklicher Nebeneffekt, der
+hier ausdruecklich genannt sei.
+
+**Behandlung.** Der urspruengliche `assert` hat den Lauf beendet. Das war
+falsch konstruiert: Ein **Diagnosewert darf einen mehrstuendigen Lauf nicht
+abbrechen**, zumal er nichts ueber die Gueltigkeit der Ergebnisse aussagt.
+Ersetzt durch die gemessene Spalte `parallel_abweichung` je Lauf und
+`parallel_abweichung_max` je Verfahren; `main()` weist am Ende darauf hin.
+
+**Fuer die Arbeit — das ist ein verwertbarer Befund, kein Makel.** Kapitel 6
+behauptet Reproduzierbarkeit. Diese Behauptung ist fuer XGBoost **nur mit
+Angabe der Threadzahl** haltbar. Zu schreiben ist also nicht „`random_state`
+ist gesetzt", sondern: `random_state` ist gesetzt **und** die Modelle laufen
+einkernig, weil XGBoost sonst je nach Kernzahl andere Baeume erzeugt — belegt
+mit der gemessenen Abweichung. Das ist genau die Sorte Detail, die den
+Unterschied zwischen einer behaupteten und einer geprueften Reproduzierbarkeit
+ausmacht.
+
+---
+
+## B-25 · Ein Abbruch in Phase 2 vernichtete das Tuning
+
+**Fundstelle:** `m02_menge.main()`, Ablauf der Phasen.
+
+**Was aufgefallen ist.** Als der Lauf am 06.08.2026 in Phase 2 abbrach (B-24),
+waren die rund **50 Minuten** aus Phase 1 verloren — obwohl `tuning.csv`
+laengst geschrieben war und die gefundenen Parameter allein von Wiederholung 0
+abhaengen, die durch die Parquet-Dateien festliegt.
+
+**Behoben.** `phase_tuning()` liest eine vollstaendige `tuning.csv` wieder ein,
+statt neu zu suchen; die Zeilenzahl wird gegen die erwartete geprueft.
+Neuberechnung erzwingt man mit dem Argument `neutuning`. Gleiches in `m03`.
+
+**Nebeneffekt fuer die Arbeit:** Die Trennung von Tuning und Bewertung ist
+damit auch praktisch belegt und nicht nur behauptet — die Parameter stehen als
+Datei zwischen beiden Phasen und sind fuer Kapitel 6.3 nachlesbar.
+
+---
+
+## B-26 · Kein Verfahren schlaegt die Stufe-2-Baseline
+
+**Fundstelle:** erster vollstaendiger Lauf von `m02_menge.py`, 06.08.2026;
+`results/regression/vergleich.csv`, Rolle `primaer`, Teststufe `wiederholung`.
+
+**Das Ergebnis.** Gepaarte Differenz gegen die Negative Binomial, positiv heisst
+das Verfahren ist besser:
+
+| Zielgroesse | Verfahren | Differenz RMSE | gewonnen | p | Befund |
+|---|---|---|---|---|---|
+| `anzahl_einsaetze` | Ridge | −1,04 | 2/10 | 0,084 | nicht unterscheidbar |
+| `anzahl_einsaetze` | Random Forest | −18,25 | 0/10 | 0,002 | **signifikant schlechter** |
+| `anzahl_einsaetze` | XGBoost | −13,13 | 0/10 | 0,002 | **signifikant schlechter** |
+| `einsaetze_je_1000_ew` | Ridge | −0,27 | 1/10 | 0,049 | **signifikant schlechter** |
+| `einsaetze_je_1000_ew` | Random Forest | −0,49 | 1/10 | 0,027 | **signifikant schlechter** |
+| `einsaetze_je_1000_ew` | XGBoost | +0,13 | 7/10 | 0,432 | nicht unterscheidbar |
+
+**Kein einziges der drei Verfahren schlaegt die Messlatte** — in keiner der
+beiden Zielgroessen. Zweimal lautet der Befund „nicht unterscheidbar", viermal
+„signifikant schlechter".
+
+**Das ist ein Ergebnis, kein Fehler** (Gutachten R6, `CLAUDE.md` Abschnitt 4).
+Es beantwortet Unterfrage 2 klar: Der Mehraufwand der drei
+Vergleichsverfahren lohnt sich auf diesem Datensatz nicht.
+
+**Widerspruch zu R-1.** Das Risikoregister erwartete auf Basis des Vortests vom
+28.07.2026 das Gegenteil: „Bei `einsaetze_je_1000_ew` sieht es umgekehrt aus:
+RF 0,584 ± 0,19 gegen Ridge −0,087 ± 0,89, ein Abstand von 0,67." Gemessen wird
+jetzt R² 0,283 fuer Ridge gegen 0,163 fuer Random Forest — die Reihenfolge hat
+sich umgedreht. Erklaerbar: Der Vortest lief ungetunt, mit 20 statt 50
+Fold-Ergebnissen und auf der Fold-Zuteilung **vor** der doppelten
+Stratifizierung. Er war ausdruecklich als vorlaeufig gekennzeichnet. R-1 ist
+damit erledigt — die Frage „sind die Verfahren unterscheidbar" ist bei
+`anzahl_einsaetze` mit ja beantwortet, bei der Rate mit nein.
+
+**Die inhaltliche Erklaerung gehoert in Kapitel 8** und ist konsistent mit R-3:
+33,7 % der Testzeilen liegen ausserhalb des Trainings-Wertebereichs. Bei einem
+Stadtteil-Split auf unbekannte Stadtteile entscheidet die Faehigkeit zu
+extrapolieren — und genau die haben parametrische Modelle. Die Negative
+Binomial rechnet auf der Log-Skala linear weiter, Ridge ebenso; Baumverfahren
+ordnen unbekannte Werte dem Randblatt zu. Dass die beiden Baumverfahren am
+deutlichsten verlieren, ist damit kein Zufall, sondern die erwartbare Folge des
+Validierungsrahmens.
+
+---
+
+## B-27 · Das Tuning-Leakage ist messbar folgenlos
+
+**Fundstelle:** `results/regression/leakage_diagnose.csv`, erster Lauf.
+
+**Was gemessen wurde.** B-21 befuerchtete, der Vorsprung gegen die Baseline
+falle in den Wiederholungen 1–9 systematisch groesser aus als in der
+leakage-freien Wiederholung 0. Ergebnis, in Einheiten von `std_folds`:
+
+| Zielgroesse | Verfahren | Differenz W1-9 gegen W0 |
+|---|---|---|
+| `anzahl_einsaetze` | Ridge | +0,017 |
+| `anzahl_einsaetze` | Random Forest | +0,119 |
+| `anzahl_einsaetze` | XGBoost | −0,181 |
+| `einsaetze_je_1000_ew` | Ridge | −0,016 |
+| `einsaetze_je_1000_ew` | Random Forest | −0,340 |
+| `einsaetze_je_1000_ew` | XGBoost | −0,106 |
+
+**Kein systematisches Muster.** Waere das Leakage wirksam, muessten alle sechs
+Differenzen **positiv** sein. Zwei sind es, vier nicht, und die groesste
+Abweichung geht in die entgegengesetzte Richtung. Die Streuung liegt in der
+Groessenordnung der Fold-Schwankung selbst.
+
+**Konsequenz.** Die Vereinfachung „einmal tunen auf Wiederholung 0" ist
+empirisch unbedenklich. In Kapitel 6 ist sie weiterhin zu benennen, jetzt aber
+mit dieser Messung statt mit einem Vorbehalt — dieselbe Aufloesung wie bei R-9.
+Die Frage an Schroeter kann entfallen oder als Information formuliert werden.
+
+---
+
+## B-28 · Parallelisierung macht XGBoost hier langsamer
+
+**Fundstelle:** `results/regression/menge_mittel.csv`, Spalte `parallel_gewinn`.
+
+Gemessen auf der Zielmaschine: Ridge 1,45 und 1,02 · Random Forest 1,82 und
+2,18 · **XGBoost 0,64 und 0,71**.
+
+Ein Wert unter 1 heisst: Der Fit ueber alle Kerne dauert **laenger** als der
+einkernige. Bei 3.036 Zeilen und zwoelf Merkmalen uebersteigt der Aufwand fuer
+Threadverwaltung und Histogramm-Reduktion den Nutzen der Verteilung. Random
+Forest profitiert dagegen, weil seine Baeume unabhaengig sind und sich ohne
+Kommunikation verteilen lassen.
+
+**Fuer Unterfrage 4 verwertbar:** Parallelisierbarkeit ist kein Freibrief. Auf
+Datensaetzen dieser Groessenordnung kann sie negativ ausfallen — eine Aussage,
+die ohne die getrennte Messung (Decision Log #39) nicht moeglich gewesen waere.
+
+---
+
+## B-29 · In der Klassifikation schlagen BEIDE Verfahren die Stufe-2-Baseline
+
+**Fundstelle:** erster vollstaendiger Lauf von `m03_struktur.py`, 06.08.2026;
+`results/klassifikation/vergleich.csv`.
+
+**Das Ergebnis**, gepaart gegen die multinomiale logistische Regression
+(Macro-F1 0,298), positiv heisst besser:
+
+| Verfahren | Macro-F1 | Differenz | gewonnen | p | Befund |
+|---|---|---|---|---|---|
+| Random Forest | 0,3276 ± 0,0129 | +0,0296 | 10/10 | 0,002 | **signifikant besser** |
+| XGBoost | 0,3343 ± 0,0128 | +0,0362 | 9/10 | 0,004 | **signifikant besser** |
+| RF gegen XGBoost | – | −0,0067 | 2/10 | 0,131 | nicht unterscheidbar |
+
+Macro-AUROC bestaetigt es: 0,735 und 0,751 gegen 0,711 der Baseline.
+
+**Widerspruch zu R-2 — in die guenstige Richtung.** Das Risikoregister hielt
+fest, der Mehraufwand sei im Klassifikationsstrang „vorab **nicht** belegt",
+weil eine flache Baum-Sonde (Macro-F1 0,270) die logistische Regression nicht
+schlug. Getunte Ensembles schlagen sie nun beide, und zwar in 10 von 10 bzw.
+9 von 10 Wiederholungen — die Richtung ist damit eindeutig, nicht knapp.
+
+**Was von R-2 bestehen bleibt: der geringe Ertrag.** 0,334 gegenueber 0,223 der
+Mehrheitsklasse ist bei einem Maximum von 1,0 weiterhin ein Bruchteil des
+moeglichen Signals. Der Strang traegt also **mehr als befuerchtet, aber wenig
+in absoluten Zahlen**. Beide Haelften gehoeren in die Limitationen.
+
+**Einschraenkung, die dazugesagt werden muss:** In den 29
+Entwicklungsstadtteilen liegen insgesamt nur **33 brand-dominierte Monate**
+(13 · 9 · 6 · 3 · 2 je Fold). Macro-F1 mittelt ueber vier Klassen gleich stark;
+ein Viertel des Guetemasses haengt damit an zwei bis dreizehn Testfaellen je
+Fold. Das erklaert einen Teil der Fold-Streuung (`std_folds` 0,05 gegen
+`std_wiederholungen` 0,013) und begrenzt die Praezision der Aussage.
+
+---
+
+## B-30 · Der Kernbefund: der Mehraufwand lohnt sich je nach Aufgabe verschieden
+
+**Fundstelle:** beide Straenge zusammen, 06.08.2026.
+
+Dies ist kein Fehler und keine Luecke, sondern das inhaltlich wichtigste
+Ergebnis der Arbeit — hier festgehalten, weil es beim Zusammenfuehren der
+beiden Laeufe entstand und in keiner Einzelauswertung sichtbar ist.
+
+| Strang | Schlaegt ein Verfahren die Stufe-2-Baseline? |
+|---|---|
+| **Menge** (`anzahl_einsaetze`, `einsaetze_je_1000_ew`) | **Nein — keines von dreien**, in keiner der beiden Zielgroessen |
+| **Struktur** (`dominante_einsatzart`) | **Ja — beide**, signifikant |
+
+Dieselben Merkmale, dieselben Stadtteile, dieselben Folds, dieselben zwei
+Ensembles. Nur die Aufgabe wechselt — und mit ihr das Vorzeichen der Antwort.
+
+**Die Erklaerung ist in den vorhandenen Unterlagen bereits angelegt** und wird
+durch die Messung bestaetigt:
+
+- **In der Menge entscheidet Extrapolation.** 33,7 % der Testzeilen liegen
+  ausserhalb des Trainings-Wertebereichs (R-3). Negative Binomial und Ridge
+  rechnen dort weiter, Baumverfahren geben den Randwert des letzten Blatts.
+  Deshalb verlieren RF und XGBoost am deutlichsten.
+- **In der Struktur entscheidet die Form der Klassengrenze.** Die Zielgroesse
+  entsteht als `argmax` ueber vier Anteile; die Grenze liegt dort, wo sich
+  zwei Anteile schneiden — im Merkmalsraum eine Schnittflaeche, keine
+  Hyperebene (`06_RISIKEN.md`, R-2). Ein linear trennendes Verfahren ist dort
+  konstruktionsbedingt im Nachteil, flexible Grenzen zahlen sich aus.
+
+**Damit ist Unterfrage 4 beantwortet** — und zwar besser, als eine einheitliche
+Antwort es koennte: Die Eignung eines Verfahrens haengt nicht am Datensatz
+allein, sondern an der Struktur der Aufgabe auf demselben Datensatz. Das ist
+der Satz, der aus zwei Straengen einen Erkenntnisgewinn macht.
 
 ---
 

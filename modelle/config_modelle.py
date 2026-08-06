@@ -47,6 +47,13 @@ SUCHRAEUME = {
         "subsample":        ("uniform", 0.6, 1.0),
         "colsample_bytree": ("uniform", 0.6, 1.0),
         "reg_lambda":       ("loguniform", 1e-2, 1e2),
+        # Exponent der Tweedie-Varianzfunktion, Var = mu^p (Decision Log #42).
+        # 1 waere Poisson, 2 waere Gamma; dazwischen liegt der ueberdisperse
+        # Bereich, in dem dieser Datensatz liegt (Dispersionsindex 62,8). Ihn
+        # fest auf 1,5 zu setzen waere eine Konvention ohne Grund - also wird
+        # er getunt wie jeder andere Hyperparameter.
+        # Gilt nur in der REGRESSION; m03 entfernt ihn (Klassifikation).
+        "tweedie_variance_power": ("uniform", 1.1, 1.9),
     },
     # NegBin-Baseline: kein Tuning, sie ist die Referenz und keine Kandidatin.
 }

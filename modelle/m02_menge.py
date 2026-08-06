@@ -125,9 +125,35 @@ def verfahren(name: str, n_jobs: int = N_JOBS_MODELL):
     Originalskala entstehen. Wer log(1+y) von Hand rechnet, vergisst die
     Ruecktransformation irgendwann.
 
-    Random Forest und XGBoost bekommen nichts davon: Sie sind gegen Skalen
-    unempfindlich, und eine transformierte Zielgroesse wuerde die Guetemasse
-    zwischen den Verfahren unvergleichbar machen.
+    Random Forest und XGBoost bekommen keine Zieltransformation: Sie sind gegen
+    Skalen unempfindlich, und eine transformierte Zielgroesse wuerde die
+    Guetemasse zwischen den Verfahren unvergleichbar machen.
+
+    VERLUSTFUNKTION (Decision Log #42, 06.08.2026) - eine Korrektur, kein
+    Feintuning. Bis dahin rechneten beide Baumverfahren mit dem QUADRATISCHEN
+    FEHLER auf rohen Zaehldaten, waehrend die Baseline eine
+    Zaehldaten-Likelihood mit log-Verknuepfung benutzte und Ridge auf log(1+y)
+    schaetzte. Zwei Modelle rechneten multiplikativ, zwei additiv - bei
+    Einsatzzahlen von 6 bis 280 und einem Dispersionsindex von 62,8. Der
+    quadratische Fehler gewichtet dort einen Fehler von 20 bei Tenderloin
+    genauso wie bei Seacliff, wo er das Dreifache des Gesamtwerts ausmacht.
+
+    Das war eine Ungleichbehandlung in der Spezifikation, nicht ein Ergebnis
+    ueber die Verfahren. Sie ist derselbe Gedanke, mit dem die Negative
+    Binomial als Baseline begruendet wurde: die einfachste Form, die zur
+    DATENFORM passt.
+
+      XGBoost  `reg:tweedie`. Die Varianz waechst mit mu hoch p, der Exponent
+               wird getunt (1,1 bis 1,9). Das ist das Gegenstueck zur Negative
+               Binomial, deren Varianz mit mu + alpha*mu^2 waechst; Poisson
+               (p = 1) unterstellt Varianz = mu und ist bei diesem
+               Dispersionsindex viel zu eng.
+      RF       `criterion="poisson"`. scikit-learn kennt kein Tweedie fuer
+               Waelder - Poisson ist die naechstgelegene verfuegbare Wahl.
+               Diese Einschraenkung ist selbst ein berichtbarer Befund ueber
+               das Verfahren und gehoert in Kapitel 8, nicht stillschweigend
+               weggelassen.
+      Ridge    unveraendert. `log(1+y)` leistet dasselbe bereits.
     """
     from sklearn.compose import TransformedTargetRegressor
     from sklearn.ensemble import RandomForestRegressor
@@ -141,11 +167,12 @@ def verfahren(name: str, n_jobs: int = N_JOBS_MODELL):
             TransformedTargetRegressor(regressor=Ridge(),
                                        func=np.log1p, inverse_func=np.expm1))
     if name == "random_forest":
-        return RandomForestRegressor(random_state=RANDOM_STATE, n_jobs=n_jobs)
+        return RandomForestRegressor(random_state=RANDOM_STATE, n_jobs=n_jobs,
+                                     criterion="poisson")
     if name == "xgboost":
         from xgboost import XGBRegressor
         return XGBRegressor(random_state=RANDOM_STATE, n_jobs=n_jobs,
-                            objective="reg:squarederror")
+                            objective="reg:tweedie")
     raise ValueError(f"Unbekanntes Verfahren: {name}")
 
 
@@ -266,7 +293,7 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
     y_hat = modell.predict(X_te)
     inferenz_sek = time.perf_counter() - t
 
-    train_par, inferenz_par = np.nan, np.nan
+    train_par, inferenz_par, abweichung = np.nan, np.nan, np.nan
     if auch_parallel:
         parallel = verfahren(name, n_jobs=-1).set_params(**parameter)
         t = time.perf_counter()
@@ -275,15 +302,24 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
         t = time.perf_counter()
         y_par = parallel.predict(X_te)
         inferenz_par = time.perf_counter() - t
-        # Die Kernzahl darf das ERGEBNIS nicht veraendern, nur die Dauer.
-        # Wuerde sie es doch, waere der Vergleich nicht mehr fair.
-        assert np.allclose(y_hat, y_par, rtol=1e-6, atol=1e-6), (
-            f"{name}: Vorhersagen haengen von der Kernzahl ab "
-            f"(max. Abweichung {np.max(np.abs(y_hat - y_par)):.3e}).")
+        # Aendert die Kernzahl das ERGEBNIS? Gemessen statt behauptet - und
+        # gemessen statt abgebrochen: Ein Diagnosewert darf einen mehrstuendigen
+        # Lauf nicht beenden. Die berichteten Guetemasse stammen ohnehin aus dem
+        # einkernigen Fit; der parallele dient allein der Zeitmessung.
+        #
+        # BEFUND vom 06.08.2026: Bei XGBoost ist die Abweichung erheblich
+        # (gemessen bis 34,7 bei einem Mittelwert von rund 76), bei Ridge und
+        # Random Forest null. Ursache ist die parallele Reduktion der
+        # Histogramme - eine andere Summierungsreihenfolge kippt knapp
+        # benachbarte Split-Kandidaten, und ueber hunderte Baeume schaukelt sich
+        # das auf. Das ist eine Aussage ueber die Reproduzierbarkeit von
+        # XGBoost und gehoert in Kapitel 6 (docs/07_BEFUNDE.md, B-24).
+        abweichung = float(np.max(np.abs(y_hat - y_par)))
 
     return {
         "train_sekunden_parallel": train_par,
         "inferenz_sekunden_parallel": inferenz_par,
+        "parallel_abweichung": abweichung,
         "verfahren": name, "zielgroesse": ziel,
         "RMSE": float(np.sqrt(mean_squared_error(y_te, y_hat))),
         "MAE": float(mean_absolute_error(y_te, y_hat)),
@@ -312,8 +348,16 @@ def extrapolationsanteil(train: pd.DataFrame, test: pd.DataFrame) -> float:
 # ---------------------------------------------------------------------------
 # ORCHESTRIERUNG
 # ---------------------------------------------------------------------------
-def phase_tuning(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
+def phase_tuning(panel: pd.DataFrame, selten: pd.Series,
+                 neu: bool = False) -> pd.DataFrame:
     """Je Zielgroesse, Verfahren und Fold einmal `tune()` - 30 Zeilen.
+
+    WIEDERVERWENDUNG: Liegt bereits eine vollstaendige `tuning.csv` vor, wird
+    sie gelesen statt neu gesucht. Diese Phase ist die teuerste des Laufs -
+    gemessen rund 50 Minuten -, und sie haengt nur an Wiederholung 0, die durch
+    die Parquet-Dateien festliegt. Ein Abbruch in einer spaeteren Phase soll
+    sie nicht vernichten. Mit `python modelle/m02_menge.py neutuning`
+    erzwingt man die Neuberechnung.
 
     Getunt wird ausschliesslich auf Wiederholung 0; die gefundenen Parameter
     gelten fuer alle zehn Wiederholungen (#34). Das ist eine bewusste
@@ -324,6 +368,17 @@ def phase_tuning(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     Die Parameter landen sowohl als einzelne Spalten (lesbar fuer Kapitel 6.3)
     als auch als JSON (verlustfrei fuer den Wiedereinlesen-Weg).
     """
+    pfad = OUT / "tuning.csv"
+    erwartet = len(ZIELE) * len(VERFAHREN) * N_FOLDS
+    if pfad.exists() and not neu:
+        vorhanden = pd.read_csv(pfad)
+        fehler = _tuning_passt_nicht(vorhanden, erwartet)
+        if not fehler:
+            print(f"    {erwartet} Parametersaetze aus {pfad.name} uebernommen "
+                  f"- fuer eine Neuberechnung: 'm02_menge.py neutuning'")
+            return vorhanden
+        print(f"    {pfad.name} wird verworfen und neu gerechnet: {fehler}")
+
     d = wiederholte_aufteilung(panel, wiederholung=0, selten=selten)
     zeilen = []
     for ziel in ZIELE:
@@ -343,6 +398,35 @@ def phase_tuning(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     df = pd.DataFrame(zeilen)
     df.to_csv(OUT / "tuning.csv", index=False)
     return df
+
+
+def _tuning_passt_nicht(vorhanden: pd.DataFrame, erwartet: int) -> str:
+    """Prueft, ob eine gespeicherte tuning.csv zum AKTUELLEN Suchraum passt.
+
+    Ohne diese Pruefung entstuende die gefaehrlichste Fehlerklasse dieses
+    Projekts: Nach einer Aenderung des Suchraums oder der Verlustfunktion
+    wuerde die alte Datei stillschweigend weiterverwendet, der Lauf liefe
+    fehlerfrei durch, und die Ergebnisse gehoerten zu einer Spezifikation, die
+    es nicht mehr gibt. Genau das waere am 06.08.2026 nach der Umstellung auf
+    Tweedie passiert (Decision Log #42).
+
+    Geprueft wird die Zeilenzahl UND die Menge der Parameternamen je Verfahren.
+    Rueckgabe: leerer String, wenn alles passt, sonst der Grund.
+    """
+    if len(vorhanden) != erwartet:
+        return f"{len(vorhanden)} statt {erwartet} Zeilen"
+    for name in VERFAHREN:
+        soll = set(suchraum(name))
+        teil = vorhanden[vorhanden["verfahren"] == name]
+        if teil.empty:
+            return f"keine Zeilen fuer {name}"
+        ist = set(json.loads(teil.iloc[0]["parameter_json"]))
+        if ist != soll:
+            fehlt = ", ".join(sorted(soll - ist)) or "-"
+            zuviel = ", ".join(sorted(ist - soll)) or "-"
+            return (f"Suchraum von {name} hat sich geaendert "
+                    f"(fehlt: {fehlt} | ueberzaehlig: {zuviel})")
+    return ""
 
 
 def _rein_python(p: dict) -> dict:
@@ -398,6 +482,7 @@ def phase_bewertung(panel: pd.DataFrame, parameter: pd.DataFrame,
     spalten = (["zielgroesse", "verfahren", "wiederholung", "fold",
                 "RMSE", "MAE", "R2", "train_sekunden", "inferenz_sekunden",
                 "train_sekunden_parallel", "inferenz_sekunden_parallel",
+                "parallel_abweichung",
                 "n_train", "n_test", "extrapolationsanteil",
                 "n_negativ", "y_hat_min"])
     df = df[spalten]
@@ -440,11 +525,16 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
     w0 = folds[folds["wiederholung"] == 0].groupby(schluessel, sort=False)
     gewinn = (w0["train_sekunden"].mean() / w0["train_sekunden_parallel"].mean())
     z["parallel_gewinn"] = gewinn
+    # Groesste Abweichung zwischen einkernigem und parallelem Modell. Null
+    # heisst threadunabhaengig; alles darueber ist ein Reproduzierbarkeits-
+    # befund und gehoert berichtet (B-24).
+    z["parallel_abweichung_max"] = w0["parallel_abweichung"].max()
     z = z.join(g[["extrapolationsanteil"]].mean())
     z = z.join(g[["n_negativ"]].sum().rename(columns={"n_negativ": "n_negativ_gesamt"}))
     spalten = [f"{m}{s}" for m in MASSE for s in
                ("_mean", "_std_folds", "_std_wiederholungen")]
-    spalten += [f"{m}_mean" for m in MASSE_PARALLEL] + ["parallel_gewinn"]
+    spalten += ([f"{m}_mean" for m in MASSE_PARALLEL]
+                + ["parallel_gewinn", "parallel_abweichung_max"])
     z = z[spalten + ["extrapolationsanteil", "n_negativ_gesamt"]].reset_index()
     z.round(4).to_csv(OUT / "menge_mittel.csv", index=False)
     return z
@@ -683,12 +773,21 @@ def main(argv: list[str]) -> int:
           f"{panel['stadtteil'].nunique()} Stadtteile\n")
 
     print("  Phase 1  Tuning")
-    parameter = phase_tuning(panel, selten)
+    parameter = phase_tuning(panel, selten, neu="neutuning" in argv)
     print("\n  Phase 2  Bewertung")
     folds = phase_bewertung(panel, parameter, selten)
     print("\n  Phase 3  Aggregation")
     mittel = aggregiere(folds)
     print(mittel.to_string(index=False))
+    auffaellig = mittel[mittel["parallel_abweichung_max"] > 0]
+    if len(auffaellig):
+        print("\n  HINWEIS zur Reproduzierbarkeit: Bei folgenden Verfahren "
+              "haengt die Vorhersage von der Kernzahl ab.")
+        print("  Die berichteten Werte stammen aus dem einkernigen Fit und "
+              "sind davon unberuehrt (docs/07_BEFUNDE.md, B-24).")
+        for _, z in auffaellig.iterrows():
+            print(f"    {z['verfahren']:<14} {z['zielgroesse']:<21} "
+                  f"groesste Abweichung {z['parallel_abweichung_max']:.3g}")
     print("\n  Phase 4  Vergleich")
     basislinien = pd.read_csv(OUT / "baselines_folds.csv")
     v = vergleiche(folds, basislinien)

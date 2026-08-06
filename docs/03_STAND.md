@@ -227,7 +227,151 @@ Genau diese Lücke sollen die Strukturmerkmale schließen.
 
 ---
 
-## 5. Was noch aussteht
+## 5. Die Modellergebnisse
+
+> Stand **06.08.2026**, erster vollständiger Lauf auf der Zielmaschine.
+> 10 Wiederholungen × 5 Folds, Tuning einmal auf Wiederholung 0, Budget 50.
+> Alle Modelle einkernig gefittet. **Hold-out unberührt.**
+> Streuung ist `std_wiederholungen` über die 10 Wiederholungsmittel.
+
+### 5.1 Menge — kein Verfahren schlägt die Stufe-2-Baseline
+
+Maßgeblich ist der Lauf mit der **korrigierten Verlustfunktion** (#42):
+XGBoost `reg:tweedie` mit getuntem Varianzexponenten, Random Forest
+`criterion="poisson"`, Ridge unverändert auf `log(1+y)`.
+
+| Zielgröße | Verfahren | RMSE | MAE | R² | Trainingszeit |
+|---|---|---|---|---|---|
+| `anzahl_einsaetze` | **Negative Binomial** | **37,27 ± 3,23** | 24,79 | 0,477 | – |
+| | Ridge | 38,31 ± 3,10 | 25,16 | 0,522 | 0,006 s |
+| | XGBoost | 54,95 ± 4,21 | 36,26 | 0,024 | 0,986 s |
+| | Random Forest | 58,69 ± 4,02 | 41,94 | −0,484 | 2,726 s |
+| `einsaetze_je_1000_ew` | **Negative Binomial** | **4,41 ± 0,59** | 2,43 | 0,024 | – |
+| | Random Forest | 4,19 ± 0,63 | 2,43 | 0,251 | 5,447 s |
+| | XGBoost | 4,37 ± 0,43 | 2,41 | 0,496 | 1,234 s |
+| | Ridge | 4,68 ± 0,24 | 2,50 | 0,283 | 0,006 s |
+
+**Primäraussage nach #34** — gepaarter Wilcoxon auf den 10 Wiederholungsmitteln,
+positive Differenz heißt das Verfahren ist besser:
+
+| Zielgröße | Verfahren gegen Baseline | Differenz | gewonnen | p | Befund |
+|---|---|---|---|---|---|
+| `anzahl_einsaetze` | Ridge | −1,04 | 2/10 | 0,084 | nicht unterscheidbar |
+| | Random Forest | −21,42 | 0/10 | 0,002 | signifikant schlechter |
+| | XGBoost | −17,68 | 0/10 | 0,002 | signifikant schlechter |
+| `einsaetze_je_1000_ew` | Random Forest | +0,22 | 5/10 | 0,275 | nicht unterscheidbar |
+| | XGBoost | +0,04 | 6/10 | 0,846 | nicht unterscheidbar |
+| | Ridge | −0,27 | 1/10 | 0,049 | signifikant schlechter |
+
+**Verfahrensvergleich** (sekundär, Holm über 6 Tests):
+
+| Zielgröße | Paarung | Differenz | p_holm | Befund |
+|---|---|---|---|---|
+| `anzahl_einsaetze` | Ridge – Random Forest | 20,38 | 0,012 | Ridge besser |
+| | Ridge – XGBoost | 16,64 | 0,012 | Ridge besser |
+| | Random Forest – XGBoost | −3,74 | 0,016 | XGBoost besser |
+| `einsaetze_je_1000_ew` | alle drei Paarungen | – | ≥ 0,111 | nicht unterscheidbar |
+
+Rangfolge bei `anzahl_einsaetze`: **Ridge > XGBoost > Random Forest**. Bei der
+Rate überlappen die Streuungsbereiche, dort ist keine Rangfolge zulässig (R-6).
+
+**Vergleich der beiden Spezifikationen.** Der Lauf vor der Korrektur (#42) ist
+dokumentiert, weil der Unterschied selbst eine Aussage ist:
+
+| Zielgröße | Verfahren | RMSE mit quadr. Fehler | RMSE mit Tweedie/Poisson |
+|---|---|---|---|
+| `anzahl_einsaetze` | Random Forest | 55,52 | **58,69** (schlechter) |
+| | XGBoost | 50,40 | **54,95** (schlechter) |
+| `einsaetze_je_1000_ew` | Random Forest | 4,90 | **4,19** (besser) |
+| | XGBoost | 4,28 | 4,37 (leicht schlechter), R² 0,122 → **0,496** |
+
+**Die Korrektur ändert das Ergebnis nicht: Kein Verfahren schlägt die Baseline —
+unter beiden Spezifikationen.** Sie verschiebt nur, wo die Verfahren nah
+herankommen: bei der absoluten Zahl entfernen sie sich, bei der Rate nähern sie
+sich an.
+
+**Warum die absolute Zahl schlechter wird**, obwohl die Verlustfunktion besser
+passt: Tweedie und Poisson optimieren auf der Log-Skala und gewichten damit
+kleine und große Stadtteile ähnlich. Bewertet wird aber mit RMSE auf der
+Originalskala, wo Tenderloin (280 Einsätze) den Fehler dominiert. Verlust- und
+Gütemaß ziehen dort in verschiedene Richtungen. Bei der Rate entfällt dieser
+Konflikt, weil die Größenunterschiede herausgerechnet sind — und genau dort
+verbessern sich beide Baumverfahren.
+
+**Nebeneffekt:** Unter der neuen Spezifikation gibt es **keine negativen
+Vorhersagen mehr** (vorher 7 bei XGBoost auf der Rate). Tweedie und Poisson
+haben eine Log-Verknüpfung und können nicht unter null fallen — die Zielgröße
+wird strukturell respektiert statt nachträglich geprüft.
+
+### 5.2 Struktur — beide Verfahren schlagen die Stufe-2-Baseline
+
+| Verfahren | Macro-F1 | Macro-AUROC | Accuracy | Trainingszeit |
+|---|---|---|---|---|
+| Mehrheitsklasse (Stufe 1) | 0,223 | – | 0,806 | – |
+| **Logistische Regression (Stufe 2)** | **0,298** | 0,711 | 0,588 | – |
+| Random Forest | 0,3276 ± 0,0129 | 0,735 | 0,761 | 2,097 s |
+| XGBoost | 0,3343 ± 0,0128 | 0,751 | 0,754 | 1,763 s |
+
+| Paarung | Differenz | gewonnen | p | Befund |
+|---|---|---|---|---|
+| Random Forest gegen Stufe 2 | +0,0296 | 10/10 | 0,002 | **signifikant besser** |
+| XGBoost gegen Stufe 2 | +0,0362 | 9/10 | 0,004 | **signifikant besser** |
+| Random Forest – XGBoost | −0,0067 | 2/10 | 0,131 | nicht unterscheidbar |
+
+Keine Korrektur beim Verfahrensvergleich — die Familie besteht aus einem Test
+(#38). Kein Lauf ohne definierte Macro-AUROC.
+
+### 5.3 Der Kernbefund
+
+**Derselbe Datensatz, dieselben Merkmale, dieselben Folds — und die Antwort
+kehrt sich um.** In der Menge lohnt sich der Mehraufwand nicht, in der Struktur
+schon. Erklärung in `07_BEFUNDE.md`, B-30: In der Menge entscheidet
+Extrapolation (33,7 % der Testzeilen außerhalb des Trainingsbereichs), und
+dort sind parametrische Modelle im Vorteil. In der Struktur entscheidet die
+Form der Klassengrenze, und dort sind flexible Verfahren im Vorteil.
+
+### 5.4 Aufwand und Reproduzierbarkeit
+
+Alle Zeiten je Fold, **einkernig gemessen** (#40):
+
+| | Ridge | Random Forest | XGBoost |
+|---|---|---|---|
+| Training, Menge | 0,005–0,006 s | 1,89–4,49 s | 0,82–1,00 s |
+| Training, Struktur | – | 2,10 s | 1,76 s |
+| Parallelisierungsgewinn | 1,02–1,45 | 1,65–2,18 | **0,64–0,77** |
+
+Ridge ist bei bester oder gleichwertiger Güte **300- bis 800-mal schneller** als
+die Ensembles. Bei XGBoost liegt der Parallelisierungsgewinn **unter 1** — der
+Fit über alle Kerne dauert länger als der einkernige (B-28).
+
+**XGBoost ist nicht threaddeterministisch.** Bei anderer Kernzahl weichen die
+Vorhersagen ab: bis 34,7 bei `anzahl_einsaetze` (Mittelwert 76) und 7,4 %
+abweichende Klassen in der Struktur. Ridge und Random Forest sind unauffällig
+(≤ 6·10⁻¹⁴). Die berichteten Werte stammen durchgehend aus dem einkernigen Fit
+(B-24) — die Reproduzierbarkeitsangabe in Kapitel 6 muss die Kernzahl nennen.
+
+**Negative Vorhersagen:** 7, alle bei XGBoost auf der Rate. Ridge keine — die
+`log1p`/`expm1`-Transformation kann nicht unter −1 fallen (B-15). Nicht gekappt.
+
+### 5.5 Diagnose zum Tuning auf Wiederholung 0
+
+Getunt wird einmal; in den Wiederholungen 1–9 waren im Mittel 78 % der
+Teststadtteile in der Menge, auf der die Parameter gesucht wurden (B-21).
+Wäre das wirksam, müsste der Vorsprung gegen die Baseline dort systematisch
+größer ausfallen. Gemessen, in Einheiten von `std_folds`:
+
+| Strang | Ridge | Random Forest | XGBoost |
+|---|---|---|---|
+| `anzahl_einsaetze` | +0,017 | +0,119 | −0,181 |
+| `einsaetze_je_1000_ew` | −0,016 | −0,340 | −0,106 |
+| `dominante_einsatzart` | – | −0,265 | −0,318 |
+
+Sechs von acht Werten sind **negativ**, kein systematisches Muster. Der Effekt
+ist nicht nachweisbar (B-27).
+
+---
+
+## 6. Was noch aussteht
 
 | Punkt | Stand |
 |---|---|
