@@ -52,10 +52,33 @@ SUCHRAEUME = {
         # Bereich, in dem dieser Datensatz liegt (Dispersionsindex 62,8). Ihn
         # fest auf 1,5 zu setzen waere eine Konvention ohne Grund - also wird
         # er getunt wie jeder andere Hyperparameter.
+        #
+        # UNTERGRENZE 1,01 statt 1,1 (#45): Die Baseline ist ein Poisson-GLM,
+        # also der Grenzfall p = 1. Ein Suchraum, der diesen Grenzfall
+        # ausschliesst, verbietet XGBoost genau die Loesung, die dem
+        # Referenzmodell entspricht - das waere eine Ungleichbehandlung, wie sie
+        # #42 und #43 gerade beseitigt haben. `reg:tweedie` verlangt 1 < p < 2,
+        # deshalb 1,01 und nicht 1,0.
         # Gilt nur in der REGRESSION; m03 entfernt ihn (Klassifikation).
-        "tweedie_variance_power": ("uniform", 1.1, 1.9),
+        "tweedie_variance_power": ("uniform", 1.01, 1.9),
     },
-    # NegBin-Baseline: kein Tuning, sie ist die Referenz und keine Kandidatin.
+    # ----------------------------------------------------------------------
+    # DIE BASELINES STEHEN HIER NICHT - und zwar aus einem Grund (#45)
+    # ----------------------------------------------------------------------
+    # Beide Messlatten sind verallgemeinerte lineare Modelle mit dem fuer die
+    # Datenform kanonischen Link, per unpenalisierter Maximum-Likelihood
+    # angepasst: Poisson mit Offset fuer die Zaehldaten, multinomiales Logit
+    # fuer die nominalen Klassen. Sie haben KEINEN freien Hyperparameter -
+    # es gibt nichts zu suchen.
+    #
+    # Das ist keine Sparsamkeit gegenueber der Baseline, sondern die Definition
+    # von Stufe 2: die einfachste Form, die zur Datenform passt. Ein Strafterm
+    # waere eine Erweiterung dieser Form und braechte einen Regler mit sich,
+    # den man dann waehlen muesste.
+    #
+    # Regel, die daraus folgt und fuer ALLE Modelle gilt: Was einen freien
+    # Parameter hat, wird mit demselben Budget getunt. Was keinen hat, wird
+    # angepasst. Kein Modell laeuft mit einer unbegruendeten Voreinstellung.
 }
 
 # ==========================================================================

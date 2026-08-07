@@ -14,7 +14,7 @@ AUFBAU: Spiegelt m02_menge.py. Dieselben sieben Funktionen, dieselbe Reihenfolge
 dieselben Fallstricke. Wer m02 gelesen hat, kennt die Struktur - hier stehen nur
 die Unterschiede.
 
-STAND: vollstaendig, 05.08.2026.
+STAND: vollstaendig, 06.08.2026.
 
 --------------------------------------------------------------------------
 WAS ANDERS IST ALS IN m02
@@ -96,7 +96,7 @@ VERFAHREN = ("random_forest", "xgboost")
 KLASSEN = [s.replace("anteil_", "") for s in ANTEILE]
 SELTENE_KLASSE = "brand"
 
-BASELINE_STUFE2 = "Logistische Regression (L2)"
+BASELINE_STUFE2 = "Multinomiale logistische Regression"
 TESTMASS = "macro_f1"
 ALPHA = 0.05
 
@@ -238,8 +238,8 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
     kommen aus einem zweiten Aufruf, damit `inferenz_sekunden` die reine
     Klassenvorhersage misst und zwischen den Verfahren vergleichbar bleibt.
 
-    `auch_parallel=True` misst denselben Fit zusaetzlich ueber alle Kerne; nur
-    in Wiederholung 0 erhoben.
+    `auch_parallel=True` misst denselben Fit zusaetzlich ueber alle Kerne.
+    Im Lauf steht es in jedem Aufruf auf True - keine Ausnahmen.
     """
     from sklearn.metrics import accuracy_score, f1_score
 
@@ -348,33 +348,12 @@ def _macro_auroc(y_true: np.ndarray, proba: np.ndarray,
 # ---------------------------------------------------------------------------
 # ORCHESTRIERUNG
 # ---------------------------------------------------------------------------
-def phase_tuning(panel: pd.DataFrame, selten: pd.Series,
-                 neu: bool = False) -> pd.DataFrame:
+def phase_tuning(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     """Je Verfahren und Fold einmal `tune()` auf Wiederholung 0 - 10 Zeilen.
 
-    Wie in m02: Eine vollstaendige `tuning.csv` wird wiederverwendet, damit ein
-    Abbruch in einer spaeteren Phase die teuerste Phase nicht vernichtet.
-    Neuberechnung erzwingen mit `python modelle/m03_struktur.py neutuning`.
+    Wie in m02 wird nichts wiederverwendet: `tuning.csv` ist ein Ergebnis
+    dieses Laufs, kein Eingang.
     """
-    pfad = OUT / "tuning.csv"
-    erwartet = len(VERFAHREN) * N_FOLDS
-    if pfad.exists() and not neu:
-        vorhanden = pd.read_csv(pfad)
-        grund = ""
-        if len(vorhanden) != erwartet:
-            grund = f"{len(vorhanden)} statt {erwartet} Zeilen"
-        else:
-            for v in VERFAHREN:
-                teil = vorhanden[vorhanden["verfahren"] == v]
-                if teil.empty or set(json.loads(teil.iloc[0]["parameter_json"])) != set(suchraum(v)):
-                    grund = f"Suchraum von {v} hat sich geaendert"
-                    break
-        if not grund:
-            print(f"    {erwartet} Parametersaetze aus {pfad.name} uebernommen "
-                  f"- fuer eine Neuberechnung: 'm03_struktur.py neutuning'")
-            return vorhanden
-        print(f"    {pfad.name} wird verworfen und neu gerechnet: {grund}")
-
     d = wiederholte_aufteilung(panel, wiederholung=0, selten=selten)
     zeilen = []
     for name in VERFAHREN:
@@ -421,7 +400,7 @@ def phase_bewertung(panel: pd.DataFrame, parameter: pd.DataFrame,
             for name in VERFAHREN:
                 zeilen.append({"wiederholung": w, "fold": k,
                                **ein_lauf(name, param[(name, k)], train, test,
-                                          auch_parallel=(w == 0))})
+                                          auch_parallel=True)})
         print(f"    Wiederholung {w}: {len(zeilen):>3} Laeufe")
     df = pd.DataFrame(zeilen)
     spalten = ["zielgroesse", "verfahren", "wiederholung", "fold",
@@ -450,12 +429,9 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
     z = z.join(je_wdh.groupby(schluessel, sort=False).std()
                      .add_suffix("_std_wiederholungen"))
     z = z.join(g[MASSE_PARALLEL].mean().add_suffix("_mean"))
-    # Zaehler und Nenner aus derselben Menge - die parallele Zeit gibt es nur
-    # fuer Wiederholung 0 (Begruendung ausfuehrlich in m02_menge.aggregiere).
-    w0 = folds[folds["wiederholung"] == 0].groupby(schluessel, sort=False)
-    z["parallel_gewinn"] = (w0["train_sekunden"].mean()
-                            / w0["train_sekunden_parallel"].mean())
-    z["parallel_abweichung_max"] = w0["parallel_abweichung"].max()
+    z["parallel_gewinn"] = (z["train_sekunden_mean"]
+                            / z["train_sekunden_parallel_mean"])
+    z["parallel_abweichung_max"] = g["parallel_abweichung"].max()
     z = z.join(g[["n_brand_test", "extrapolationsanteil"]].mean())
     z = z.join(g[["macro_auroc"]].apply(lambda s: int(s["macro_auroc"].isna().sum()))
                 .rename("n_auroc_fehlend"))
@@ -595,7 +571,7 @@ def main(argv: list[str]) -> int:
           f"{dict(panel[ZIELKLASSE].value_counts())}\n")
 
     print("  Phase 1  Tuning")
-    parameter = phase_tuning(panel, selten, neu="neutuning" in argv)
+    parameter = phase_tuning(panel, selten)
     print("\n  Phase 2  Bewertung")
     folds = phase_bewertung(panel, parameter, selten)
     print("\n  Phase 3  Aggregation")

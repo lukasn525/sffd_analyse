@@ -111,10 +111,31 @@ wäre nicht geprüft.
 | Testzeilen außerhalb des Trainings-Wertebereichs | 40,9 % | 33,3 % | 57,4 % | 33,3 % | **3,6 %** |
 
 Im Mittel liegen **33,7 %** der Testzeilen in mindestens einem Merkmal außerhalb
-der Spanne, die das Modell im Training gesehen hat. Das trifft Ridge und die
-Baumverfahren unterschiedlich: Ridge rechnet linear weiter, Bäume ordnen dem
-letzten Blatt zu. Die Spanne von 3,6 % bis 57,4 % erklärt einen erheblichen Teil
-der Fold-Streuung und ist ein Grund für die wiederholten Splits.
+der Spanne, die das Modell im Training gesehen hat.
+
+**Korrigiert am 06.08.2026** (`07_BEFUNDE.md`, B-31 und B-32). Hier stand
+zuvor, die Spanne erkläre „einen erheblichen Teil der Fold-Streuung" und treffe
+Ridge und die Baumverfahren unterschiedlich. **Beides ist gemessen und nicht
+haltbar:**
+
+- Extrapolationsanteil gegen RMSE: Spearman ρ 0,14–0,31, für Ridge (0,184) und
+  Random Forest (0,185) praktisch identisch — also rund 3 % der Rangvarianz.
+- Rückstand der Baumverfahren gegenüber Ridge, korreliert mit dem
+  Extrapolationsanteil: ρ **+0,020** und **+0,011** (p ≈ 0,9). Kein
+  Zusammenhang. Der Rückstand beträgt konstant rund 20 RMSE, unabhängig davon,
+  ob ein Fold 3,6 % oder 57,4 % Extrapolation aufweist.
+
+Die Extrapolation bleibt eine Eigenschaft des Validierungsrahmens und begrenzt
+die Generalisierbarkeit — sie erklärt aber **nicht** den Verfahrensunterschied.
+
+**Sie ist zudem eine Eigenschaft von Stadtteilen, nicht von Zeilen.** Weil die
+Strukturmerkmale innerhalb eines Stadtteils nahezu konstant sind, bricht ein
+Stadtteil ganz aus oder gar nicht: **9 von 29** liegen mit 100 % ihrer Zeilen
+außerhalb (Chinatown, South Of Market, Financial District/South Beach, Marina,
+Haight Ashbury, Sunset/Parkside, Twin Peaks, Seacliff, Presidio), **16 von 29**
+bei 0 %. Kein einzelnes Merkmal dominiert — die Anteile reichen von 10,0 %
+(`anteil_risikogewerbe_pct`) bis 4,1 % (`akademikerquote_pct`), die
+Saisonmerkmale brechen nie aus.
 
 Das Hold-out wird **genau einmal** ausgewertet, nach Abschluss von Modellwahl
 und Tuning.
@@ -141,22 +162,11 @@ testen (`07_BEFUNDE.md`, B-4). Beide Fassungen stehen in
 | `einsaetze_je_1000_ew` | **Negative Binomial** | **0,024 ± 0,679** | 4,41 ± 0,59 | 2,43 |
 | `einsaetze_je_1000_ew` | Gesamtmittelwert (Nullmarke) | −1,054 ± 0,875 | 7,54 | 4,92 |
 
-**Stand vor dem Modelllauf — 5 Folds der Wiederholung 0**
-(`basis = wiederholung_0`). Diese Werte standen bis zum 05.08.2026 hier und
-sind unverändert reproduzierbar; Streuung ist `std_folds`:
-
-| Zielgröße | Baseline | R² | RMSE | MAE |
-|---|---|---|---|---|
-| `anzahl_einsaetze` | Negative Binomial | 0,472 ± 0,368 | 37,44 | 25,71 |
-| `anzahl_einsaetze` | Gesamtmittelwert | −0,832 | 71,19 | 53,27 |
-| `einsaetze_je_1000_ew` | Negative Binomial | −0,237 ± 1,682 | 4,14 | 2,42 |
-| `einsaetze_je_1000_ew` | Gesamtmittelwert | −2,122 | 7,45 | 5,01 |
-
-**Der Vergleich beider Tabellen ist selbst ein Beleg.** Bei der Rate springt R²
-von −0,237 auf **+0,024**, sobald über zehn Fold-Konstellationen gemittelt
-wird. Der negative Wert war kein Modellbefund, sondern der Fold 4 einer
-einzelnen Aufteilung (R² −3,19). Genau dafür sind die wiederholten Splits da —
-und es zeigt, wie stark ein einzelner Fold bei 29 Einheiten durchschlägt (R-5).
+**Warum über zehn Wiederholungen und nicht über eine Aufteilung.** Bei der Rate
+steigt R² von **−0,237 auf +0,024**, sobald über zehn Fold-Konstellationen
+gemittelt wird. Der negative Wert war kein Modellbefund, sondern Fold 4 einer
+einzelnen Aufteilung (R² −3,19). Das zeigt, wie stark ein einzelner Fold bei 29
+Einheiten durchschlägt — und ist der Grund für die wiederholten Splits (R-5).
 
 **Der Offset-Vorteil der Negative Binomial ist gemessen und beträgt null.**
 Eine zweite Variante ohne Offset (`log_bevoelkerung` als gewöhnlicher
@@ -234,11 +244,28 @@ Genau diese Lücke sollen die Strukturmerkmale schließen.
 > Alle Modelle einkernig gefittet. **Hold-out unberührt.**
 > Streuung ist `std_wiederholungen` über die 10 Wiederholungsmittel.
 
-### 5.1 Menge — kein Verfahren schlägt die Stufe-2-Baseline
+### 5.0 Die Spezifikation — eine, für alle Modelle gleich
 
-Maßgeblich ist der Lauf mit der **korrigierten Verlustfunktion** (#42):
-XGBoost `reg:tweedie` mit getuntem Varianzexponenten, Random Forest
-`criterion="poisson"`, Ridge unverändert auf `log(1+y)`.
+| | |
+|---|---|
+| Zielgrößen | `anzahl_einsaetze`, `einsaetze_je_1000_ew` |
+| Exposition | **alle Verfahren modellieren die Rate**, für die absolute Zahl wird mit der Einwohnerzahl zurückmultipliziert (#43) |
+| Verlustfunktion | Ridge `log(1+y)` · Random Forest `criterion="poisson"` · XGBoost `reg:tweedie` mit getuntem Varianzexponenten (#42) |
+| Validierung | Stadtteil-Split, 10 Wiederholungen × 5 Folds, Tuning einmal auf Wiederholung 0 |
+| Aufwandsmessung | einkernig für alle Verfahren, Parallelisierungsgewinn getrennt (#39/#40) |
+
+Ein Lauf, ein Befehl, keine Ausnahmen. Die Gegenprobe ohne
+Expositionsbehandlung ist kein zweiter Betriebsmodus, sondern eine Ablation
+(Abschnitt 5.5).
+
+### 5.1 Menge — Ergebnisse
+
+> ⚠️ **Die Zahlen dieses Abschnitts stammen noch aus dem Lauf vom 06.08.2026
+> ohne Expositionsbehandlung und werden nach dem nächsten `m02`-Lauf ersetzt.**
+> Vorabmessung auf Wiederholung 0 mit der neuen Spezifikation:
+> XGBoost 35,74 · Random Forest 36,43 · Ridge 37,25 gegen eine Baseline von
+> 37,44 — alle drei Verfahren vor der Baseline, Rangfolge XGBoost > Random
+> Forest > Ridge. Ob die Abstände den gepaarten Wilcoxon überstehen, ist offen.
 
 | Zielgröße | Verfahren | RMSE | MAE | R² | Trainingszeit |
 |---|---|---|---|---|---|
@@ -275,33 +302,10 @@ positive Differenz heißt das Verfahren ist besser:
 Rangfolge bei `anzahl_einsaetze`: **Ridge > XGBoost > Random Forest**. Bei der
 Rate überlappen die Streuungsbereiche, dort ist keine Rangfolge zulässig (R-6).
 
-**Vergleich der beiden Spezifikationen.** Der Lauf vor der Korrektur (#42) ist
-dokumentiert, weil der Unterschied selbst eine Aussage ist:
-
-| Zielgröße | Verfahren | RMSE mit quadr. Fehler | RMSE mit Tweedie/Poisson |
-|---|---|---|---|
-| `anzahl_einsaetze` | Random Forest | 55,52 | **58,69** (schlechter) |
-| | XGBoost | 50,40 | **54,95** (schlechter) |
-| `einsaetze_je_1000_ew` | Random Forest | 4,90 | **4,19** (besser) |
-| | XGBoost | 4,28 | 4,37 (leicht schlechter), R² 0,122 → **0,496** |
-
-**Die Korrektur ändert das Ergebnis nicht: Kein Verfahren schlägt die Baseline —
-unter beiden Spezifikationen.** Sie verschiebt nur, wo die Verfahren nah
-herankommen: bei der absoluten Zahl entfernen sie sich, bei der Rate nähern sie
-sich an.
-
-**Warum die absolute Zahl schlechter wird**, obwohl die Verlustfunktion besser
-passt: Tweedie und Poisson optimieren auf der Log-Skala und gewichten damit
-kleine und große Stadtteile ähnlich. Bewertet wird aber mit RMSE auf der
-Originalskala, wo Tenderloin (280 Einsätze) den Fehler dominiert. Verlust- und
-Gütemaß ziehen dort in verschiedene Richtungen. Bei der Rate entfällt dieser
-Konflikt, weil die Größenunterschiede herausgerechnet sind — und genau dort
-verbessern sich beide Baumverfahren.
-
-**Nebeneffekt:** Unter der neuen Spezifikation gibt es **keine negativen
-Vorhersagen mehr** (vorher 7 bei XGBoost auf der Rate). Tweedie und Poisson
-haben eine Log-Verknüpfung und können nicht unter null fallen — die Zielgröße
-wird strukturell respektiert statt nachträglich geprüft.
+**Nebeneffekt der Verlustfunktion (#42):** Es gibt **keine negativen
+Vorhersagen** mehr. Tweedie und Poisson haben eine Log-Verknüpfung und können
+nicht unter null fallen — die Zielgröße wird strukturell respektiert statt
+nachträglich geprüft.
 
 ### 5.2 Struktur — beide Verfahren schlagen die Stufe-2-Baseline
 
@@ -353,7 +357,62 @@ abweichende Klassen in der Struktur. Ridge und Random Forest sind unauffällig
 **Negative Vorhersagen:** 7, alle bei XGBoost auf der Rate. Ridge keine — die
 `log1p`/`expm1`-Transformation kann nicht unter −1 fallen (B-15). Nicht gekappt.
 
-### 5.5 Diagnose zum Tuning auf Wiederholung 0
+### 5.5 Ablation — was leistet die Expositionsbehandlung?
+
+Aus der Hauptspezifikation wird **ein** Baustein entfernt: Die Baumverfahren
+passen direkt auf `anzahl_einsaetze` an, statt die Rate zu modellieren und
+zurückzurechnen. Alles andere bleibt identisch — dieselben Folds, Merkmale und
+Hyperparameter. Damit ist der Effekt der Spezifikation isoliert.
+
+| Modell | RMSE | R² |
+|---|---|---|
+| **Negative Binomial (Referenz)** | **37,44** | 0,472 |
+| Random Forest, mit Exposition | **36,43** | 0,523 |
+| Random Forest, ohne Exposition | 67,71 | −1,536 |
+| XGBoost, mit Exposition | **35,74** | 0,607 |
+| XGBoost, ohne Exposition | 61,70 | −0,637 |
+
+*(Wiederholung 0; die vollständigen Werte liefert `m04_shap.py`.)*
+
+**Der Effekt der Spezifikation übersteigt den Effekt der Verfahrenswahl um mehr
+als eine Größenordnung:** zwischen den Verfahren liegen unter 2 RMSE, zwischen
+den Spezifikationen eines Verfahrens 24 bis 31.
+
+Der Grund ist die **multiplikative Größenstruktur**. Baumverfahren geben je
+Blatt einen festen Wert aus und können „Einsätze = Bevölkerung × Risiko" nicht
+abbilden; sie ziehen Extremwerte zur Blattmitte, und RMSE auf der Originalskala
+wird von den großen Stadtteilen dominiert (Tenderloin 280, Seacliff 6,4).
+Verfahren mit Log-Verknüpfung bekommen die Multiplikation geschenkt.
+
+**Nicht** die Extrapolation — die wurde geprüft und ausgeschlossen (B-31).
+
+**Das ist die Antwort auf UF4:** Bei tabellarischen Prognoseaufgaben mit einer
+Größen- oder Expositionsgröße entscheidet weniger die Wahl des Verfahrens als
+die Frage, ob die Größenbeziehung in der Modellspezifikation abgebildet ist.
+
+### 5.6 Beitrag der Faktorgruppen im Mengenstrang (UF1)
+
+Standardisierte Beiträge der Negative Binomial — dem besten Modell dieses
+Strangs (`07_BEFUNDE.md`, B-35):
+
+| Faktorgruppe | Anteil |
+|---|---|
+| baulich | **31,0 %** |
+| kriminalitätsbezogen | 25,6 % |
+| sozioökonomisch | 23,2 % |
+| Größenkontrolle | 15,3 % |
+| Saison | 4,9 % |
+
+Alle drei Faktorgruppen des Exposés tragen bei, in vergleichbarer
+Größenordnung. Stärkstes Einzelmerkmal ist `log_kriminalitaetsindex` mit 25,6 %
+(p < 0,0001) — allein so viel wie die gesamte sozioökonomische Gruppe.
+
+**`median_haushaltseinkommen` trägt 0,3 % bei p = 0,80** — praktisch nichts,
+sobald Armuts- und Akademikerquote im Modell stehen. Es hat zugleich den
+höchsten VIF (12,29). `anteil_wohngebaeude_pct` wirkt negativ (−0,338): Je
+höher der Wohnanteil, desto weniger Einsätze je Einwohner.
+
+### 5.7 Diagnose zum Tuning auf Wiederholung 0
 
 Getunt wird einmal; in den Wiederholungen 1–9 waren im Mittel 78 % der
 Teststadtteile in der Menge, auf der die Parameter gesucht wurden (B-21).

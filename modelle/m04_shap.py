@@ -86,9 +86,10 @@ sys.path.insert(0, str(_ROOT / "prep"))
 sys.path.insert(0, str(_ROOT / "vorpruefung"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from config import (PFAD_KLASSIFIKATION, PFAD_REGRESSION,  # noqa: E402
-                    PRAEDIKTOREN, RESULTS_DIR, ROOT, SAISON)
-from s2_datensaetze import ZIELKLASSE, fold_masken  # noqa: E402
+from config import (EXPOSURE_ROH, N_FOLDS, PFAD_KLASSIFIKATION,  # noqa: E402
+                    PFAD_REGRESSION, PRAEDIKTOREN, RESULTS_DIR, ROOT, SAISON)
+from config_modelle import WIEDERHOLUNGEN  # noqa: E402
+from s2_datensaetze import RATE, ZIELGROESSE, ZIELKLASSE, fold_masken  # noqa: E402
 from v0_aufteilung import (selten_je_stadtteil,  # noqa: E402
                            wiederholte_aufteilung)
 
@@ -174,6 +175,185 @@ def _beitraege(modell, X: pd.DataFrame, name: str) -> np.ndarray:
         achse = 1 if werte.shape[1] != len(X.columns) else 2
         werte = werte.mean(axis=achse)
     return werte.mean(axis=0)
+
+
+def extrapolation_aufschluesseln(panel: pd.DataFrame, selten: pd.Series,
+                                 folds: pd.DataFrame) -> tuple:
+    """Woher kommen die 33,7 % Extrapolation - und was folgt daraus?
+
+    WARUM DAS HIER STEHT: `03_STAND.md` behauptet, die Spanne des
+    Extrapolationsanteils von 3,6 % bis 57,4 % erklaere „einen erheblichen Teil
+    der Fold-Streuung". Das war eine Plausibilitaetsaussage ohne Messung. Diese
+    Funktion macht eine Zahl daraus. Sie erklaert damit den zentralen Befund
+    des Mengenstrangs (R-3, `07_BEFUNDE.md` B-26) und gehoert deshalb zur
+    Interpretation, nicht zum Verfahrensvergleich.
+
+    ABGRENZUNG ZU #34 - wichtig, das ist keine Haarspalterei:
+    Verboten ist, die TESTMENGE nach Extrapolationsgrad aufzuteilen und dort
+    nach Verfahrensunterschieden zu suchen; das waere ein nachtraeglicher
+    Zuschnitt der Auswertung. Hier wird nichts aufgeteilt und nichts neu
+    verglichen. Die Einheit ist der FOLD, und die Frage lautet, warum Folds
+    unterschiedlich schwer sind. Die Primaeraussage bleibt unberuehrt.
+
+    Drei Auswertungen:
+      1  je Merkmal    wie oft liegt es allein ausserhalb des Trainingsbereichs
+      2  je Stadtteil  wie stark bricht er aus, wenn er im Test steht
+      3  je Verfahren  Zusammenhang zwischen Extrapolationsanteil eines Laufs
+                       und dem dort gemessenen Fehler (Spearman, ueber alle
+                       50 Laeufe)
+    """
+    from scipy.stats import spearmanr
+
+    d = wiederholte_aufteilung(panel, wiederholung=0, selten=selten)
+
+    je_merkmal, je_stadtteil = [], []
+    for k in range(1, 6):
+        tr, te = fold_masken(d, k)
+        train, test = d[tr], d[te]
+        lo, hi = train[MERKMALE].min(), train[MERKMALE].max()
+        aussen = (test[MERKMALE] < lo) | (test[MERKMALE] > hi)
+        for merkmal in MERKMALE:
+            je_merkmal.append({"fold": k, "merkmal": merkmal,
+                               "anteil": float(aussen[merkmal].mean())})
+        st = aussen.any(axis=1).groupby(test["stadtteil"]).mean()
+        je_stadtteil += [{"fold": k, "stadtteil": s, "anteil": float(a)}
+                         for s, a in st.items()]
+
+    merkmale = (pd.DataFrame(je_merkmal).groupby("merkmal")["anteil"].mean()
+                  .sort_values(ascending=False).rename("anteil_testzeilen")
+                  .reset_index())
+    stadtteile = (pd.DataFrame(je_stadtteil).sort_values("anteil", ascending=False)
+                    .reset_index(drop=True))
+
+    # Zusammenhang Extrapolation <-> Fehler, je Verfahren und Zielgroesse.
+    zeilen = []
+    for (ziel, name), g in folds.groupby(["zielgroesse", "verfahren"], sort=False):
+        rho, p = spearmanr(g["extrapolationsanteil"], g["RMSE"])
+        zeilen.append({"zielgroesse": ziel, "verfahren": name,
+                       "spearman_rho": round(float(rho), 3),
+                       "p_wert": round(float(p), 5), "n_laeufe": len(g)})
+    zusammenhang = pd.DataFrame(zeilen)
+    return merkmale, stadtteile, zusammenhang
+
+
+def ablation_exposition(panel: pd.DataFrame, selten: pd.Series,
+                        parameter: pd.DataFrame) -> pd.DataFrame:
+    """ABLATION: Was leistet die Expositionsbehandlung?
+
+    Der Hauptlauf modelliert die Rate und multipliziert mit der Einwohnerzahl
+    zurueck (#43) - fuer alle vier Modelle gleich. Diese Ablation entfernt
+    genau diesen einen Baustein bei den Baumverfahren und laesst sie direkt auf
+    `anzahl_einsaetze` anpassen. Alles andere bleibt identisch: dieselben
+    Folds, dieselben Merkmale, dieselben Hyperparameter.
+
+    Es wird also EIN Bestandteil der Spezifikation isoliert. Das ist der Zweck
+    einer Ablation und der Grund, warum die Hyperparameter bewusst NICHT neu
+    gesucht werden - sonst aenderte man zwei Dinge gleichzeitig.
+
+    WAS SIE BEANTWORTET. Unterfrage 4 fragt nach Implikationen fuer die
+    Modellauswahl. Die Ablation zeigt, ob die Wahl des Verfahrens oder die
+    Spezifikation den groesseren Hebel hat - und liefert damit eine
+    uebertragbare Aussage statt eines knappen Rankings.
+
+    Frueher gemessen (`07_BEFUNDE.md`, B-33): Ohne Expositionsbehandlung lagen
+    Random Forest bei 67,7 und XGBoost bei 61,7 RMSE, mit ihr bei 36,4 und
+    35,7. Der Unterschied zwischen den Spezifikationen eines Verfahrens ist
+    damit ein Vielfaches des Unterschieds zwischen den Verfahren.
+
+    DIE FRAGE. Bei `anzahl_einsaetze` liegen die Baumverfahren rund 20 RMSE
+    hinter Ridge, bei `einsaetze_je_1000_ew` leicht davor. Der einzige
+    Unterschied zwischen beiden Zielgroessen ist die Einwohnerzahl. Die
+    Vermutung lautet: Baeume koennen „Einsaetze = Bevoelkerung x Risiko" nicht
+    nachbauen, weil sie je Blatt einen festen Wert ausgeben und Extremwerte zur
+    Blattmitte ziehen — und weil RMSE auf der Originalskala von den grossen
+    Stadtteilen dominiert wird (Tenderloin 280, Seacliff 6,4).
+
+    Spiegelbild zu R-9: Dort wurde der Offset der Baseline WEGGENOMMEN, Ergebnis
+    null. Hier fehlt er den Baeumen. Kein Widerspruch — fuer ein Modell mit
+    Log-Verknuepfung und freiem Koeffizienten auf `log_bevoelkerung` ist der
+    Offset redundant, fuer einen Baum ohne beides nicht.
+    """
+    import m02_menge as m02
+    from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+    param = m02._parameter_je_fold(parameter)
+    baeume = [v for v in m02.VERFAHREN if v != "ridge"]
+    zeilen = []
+
+    for w in range(WIEDERHOLUNGEN):
+        d = wiederholte_aufteilung(panel, wiederholung=w, selten=selten)
+        for k in range(1, N_FOLDS + 1):
+            tr, te = fold_masken(d, k)
+            train, test = d[tr], d[te]
+            y = test[ZIELGROESSE].astype(float).to_numpy()
+            for name in baeume:
+                # OHNE Exposition: direkt auf der absoluten Zahl anpassen.
+                # Der Hauptlauf tut das Gegenteil (Rate schaetzen, mit der
+                # Bevoelkerung zurueckrechnen); die Differenz ist der Effekt.
+                modell = m02.verfahren(name).set_params(
+                    **param[(ZIELGROESSE, name, k)])
+                modell.fit(train[MERKMALE].astype(float),
+                           train[ZIELGROESSE].astype(float))
+                anzahl = modell.predict(test[MERKMALE].astype(float))
+                zeilen.append({
+                    "wiederholung": w, "fold": k, "verfahren": name,
+                    "spezifikation": "ohne_exposition",
+                    "RMSE": float(np.sqrt(mean_squared_error(y, anzahl))),
+                    "MAE": float(mean_absolute_error(y, anzahl)),
+                    "R2": float(r2_score(y, anzahl))})
+    return pd.DataFrame(zeilen)
+
+
+def faktorgruppen_baseline(panel: pd.DataFrame, selten: pd.Series,
+                         fold: int) -> pd.DataFrame:
+    """Beitrag der drei Faktorgruppen im MENGENSTRANG - aus der Baseline.
+
+    WARUM AUS DER BASELINE. Unterfrage 1 fragt nach dem Erklaerungsbeitrag der
+    drei Faktorgruppen. Fuer die Struktur liefert ihn SHAP. Fuer die Menge
+    nicht: `m04` ueberspringt dort alle Modelle, weil keines seine Baseline
+    schlaegt — und Beitraege eines unterlegenen Modells auszuweisen hiesse,
+    Rauschen zu erklaeren.
+
+    Die Loesung liegt im Ergebnis selbst: Das **beste Modell des Mengenstrangs
+    ist das Poisson-GLM**. Seine Koeffizienten beantworten UF1 direkt und
+    ehrlich. Dass die Antwort aus der Baseline statt aus einem
+    Vergleichsverfahren kommt, ist kein Notbehelf, sondern die Konsequenz des
+    Befunds.
+
+    VERGLEICHBAR GEMACHT ueber standardisierte Beitraege |Koeffizient| x
+    Standardabweichung des Merkmals. Ohne diesen Schritt haengt die Groesse
+    eines Koeffizienten an der Einheit des Merkmals — Einkommen in Dollar
+    bekaeme automatisch einen winzigen Koeffizienten.
+
+    Gerechnet auf demselben Fold wie die SHAP-Werte, damit beide Straenge
+    dieselbe Datengrundlage haben.
+    """
+    import statsmodels.api as sm
+
+    d = wiederholte_aufteilung(panel, wiederholung=0, selten=selten)
+    tr, _ = fold_masken(d, fold)
+    train = d[tr]
+
+    X = train[MERKMALE].astype(float)
+    X_std = sm.add_constant((X - X.mean()) / X.std(), has_constant="add")
+    y = train[ZIELGROESSE].astype(float)
+    offset = np.log(train[EXPOSURE_ROH].astype(float))
+
+    modell = sm.GLM(y, X_std, family=sm.families.Poisson(), offset=offset).fit()
+
+    zu_gruppe = {m: g for g, ms in GRUPPEN.items() for m in ms}
+    roh = modell.params.drop("const").abs()
+    anteil = roh / roh.sum()
+    df = pd.DataFrame({
+        "merkmal": roh.index,
+        "koeffizient": modell.params.drop("const").to_numpy(),
+        "beitrag": roh.to_numpy(),
+        "anteil": anteil.to_numpy(),
+        "p_wert": modell.pvalues.drop("const").to_numpy(),
+    })
+    df["gruppe"] = df["merkmal"].map(zu_gruppe)
+    df["fold"] = fold
+    return df.sort_values("anteil", ascending=False).reset_index(drop=True)
 
 
 def _vif(panel: pd.DataFrame) -> pd.DataFrame:
@@ -263,9 +443,16 @@ def main() -> int:
             X_te = test[MERKMALE].astype(float)
 
             if strang == "menge":
+                # EXPOSITION (#43): Fuer `anzahl_einsaetze` wurde das bewertete
+                # Modell auf der RATE angepasst. Wird hier direkt auf der Anzahl
+                # gefittet, erklaert SHAP ein anderes Modell als das, dessen
+                # Guetemasse berichtet werden - und niemand saehe es den Zahlen
+                # an. Die Beitraege beziehen sich also auf das Ratenmodell; das
+                # ist im Text zu benennen.
+                fit_ziel = RATE if ziel == ZIELGROESSE else ziel
                 modell = modul.verfahren(name).set_params(**parameter)
                 modell.fit(train[MERKMALE].astype(float),
-                           train[ziel].astype(float))
+                           train[fit_ziel].astype(float))
             else:
                 modell = modul.verfahren(name).set_params(**parameter)
                 y_tr = modul.kodiere(train[ZIELKLASSE])
@@ -305,6 +492,59 @@ def main() -> int:
         g.round(4).to_csv(OUT / "gruppen.csv", index=False)
         print("\n  Beitrag je Faktorgruppe:")
         print(g.to_string(index=False))
+
+    # Deskriptive Aufschluesselung der Extrapolation - erklaert R-3 und die
+    # Fold-Streuung. Beruehrt den Verfahrensvergleich nicht.
+    merkmale, stadtteile, zusammenhang = extrapolation_aufschluesseln(
+        reg, selten, pd.read_csv(RESULTS_DIR / "regression" / "menge_folds.csv"))
+    merkmale.round(4).to_csv(OUT / "extrapolation_merkmale.csv", index=False)
+    stadtteile.round(4).to_csv(OUT / "extrapolation_stadtteile.csv", index=False)
+    zusammenhang.to_csv(OUT / "extrapolation_zusammenhang.csv", index=False)
+
+    print("\n  Extrapolation, Anteil der Testzeilen je Merkmal:")
+    for _, z in merkmale.head(5).iterrows():
+        print(f"    {z['merkmal']:<28}{z['anteil_testzeilen']:>7.1%}")
+    print("  Staerkste Stadtteile:")
+    for _, z in stadtteile.head(5).iterrows():
+        print(f"    Fold {z['fold']}  {z['stadtteil']:<28}{z['anteil']:>7.1%}")
+    print("  Zusammenhang Extrapolationsanteil <-> RMSE (Spearman, 50 Laeufe):")
+    for _, z in zusammenhang.iterrows():
+        print(f"    {z['verfahren']:<14} {z['zielgroesse']:<21} "
+              f"rho {z['spearman_rho']:>6.3f}  p {z['p_wert']:.4f}")
+
+    # --- Ablation: was leistet die Expositionsbehandlung? ---
+    menge_folds = pd.read_csv(RESULTS_DIR / "regression" / "menge_folds.csv")
+    tuning_reg = pd.read_csv(RESULTS_DIR / "regression" / "tuning.csv")
+    ohne = ablation_exposition(reg, selten, tuning_reg)
+    mit = (menge_folds[menge_folds["zielgroesse"] == ZIELGROESSE]
+           .assign(spezifikation="mit_exposition")
+           [["wiederholung", "fold", "verfahren", "spezifikation",
+             "RMSE", "MAE", "R2"]])
+    basis = pd.read_csv(RESULTS_DIR / "regression" / "baselines_folds.csv")
+    basis = basis[(basis["modell"] == "Poisson-GLM")
+                  & (basis["zielgroesse"] == ZIELGROESSE)]
+
+    abl = pd.concat([mit, ohne], ignore_index=True)
+    abl.round(6).to_csv(OUT / "ablation_exposition.csv", index=False)
+    uebersicht = (abl.groupby(["verfahren", "spezifikation"], sort=False)
+                     [["RMSE", "R2"]].mean().round(3).reset_index())
+    print("\n  Ablation Expositionsbehandlung, Zielgroesse anzahl_einsaetze:")
+    print(f"    {'Negative Binomial (Referenz)':<40}RMSE "
+          f"{basis['RMSE'].mean():7.2f}")
+    for _, z in uebersicht.iterrows():
+        wie = ("mit Exposition" if z["spezifikation"] == "mit_exposition"
+               else "OHNE Exposition")
+        print(f"    {z['verfahren'] + ', ' + wie:<40}RMSE {z['RMSE']:7.2f}  "
+              f"R2 {z['R2']:6.3f}")
+
+    # --- Faktorgruppen des Mengenstrangs aus der Baseline (UF1) ---
+    k_fold = ruhigster_fold(menge_folds)
+    negbin = faktorgruppen_baseline(reg, selten, k_fold)
+    negbin.round(4).to_csv(OUT / "faktorgruppen_menge.csv", index=False)
+    gruppiert = negbin.groupby("gruppe")["anteil"].sum().sort_values(ascending=False)
+    print(f"\n  Faktorgruppen im Mengenstrang (Poisson-GLM, Fold {k_fold}):")
+    for gruppe, anteil in gruppiert.items():
+        print(f"    {gruppe:<24}{anteil:>7.1%}")
 
     vif = _vif(reg)
     vif.to_csv(OUT / "vif.csv", index=False)

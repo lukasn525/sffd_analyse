@@ -162,8 +162,7 @@ def a2_gegen_baseline(plt, FuncFormatter) -> list:
         return []
     mittel = pd.read_csv(REG / "menge_mittel.csv")
     basis = pd.read_csv(REG / "baselines_mittel.csv")
-    basis = basis[(basis["basis"] == "alle_wiederholungen")
-                  & (basis["modell"] == "Negative Binomial")]
+    basis = basis[basis["modell"] == "Poisson-GLM"]
 
     ziele = list(dict.fromkeys(mittel["zielgroesse"]))
     fig, achsen = plt.subplots(1, len(ziele), figsize=(BREITE, 2.8))
@@ -177,7 +176,7 @@ def a2_gegen_baseline(plt, FuncFormatter) -> list:
                    hatch=STIL[z["verfahren"]]["schraffur"],
                    edgecolor="black", width=0.6)
         ax.axhline(b["RMSE_mean"], color="black", linewidth=1.1,
-                   linestyle="--", label="Stufe-2-Baseline (Negative Binomial)")
+                   linestyle="--", label="Stufe-2-Baseline (Poisson-GLM)")
         ax.set_xticks(range(len(g)))
         ax.set_xticklabels([LABEL[v] for v in g["verfahren"]], rotation=12)
         ax.set_ylabel("RMSE")

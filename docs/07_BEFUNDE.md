@@ -44,6 +44,12 @@
 | B-28 | 06.08. | `menge_mittel.csv`, `parallel_gewinn` | ⚪ | Nebenbefund |
 | B-29 | 06.08. | `06_RISIKEN.md` R-2 | 🔴 | **Erwartung widerlegt** — beide Verfahren schlagen Stufe 2 |
 | B-30 | 06.08. | beide Straenge zusammen | 🔴 | **Kernbefund der Arbeit** |
+| B-31 | 06.08. | `06_RISIKEN.md` R-3, `03_STAND.md` §3 | 🔴 | **Extrapolationserklaerung widerlegt** |
+| B-32 | 06.08. | Aufschluesselung der Extrapolation | 🟡 | deskriptiv, fuer Kap. 4 |
+| B-33 | 06.08. | `results/shap/ablation_exposition.csv` | 🔴 | **Mechanismus belegt — Kernbefund** |
+| B-34 | 06.08. | `06_RISIKEN.md` R-9, B-19 | 🔴 | R-9 war berechtigt, unser Test war der falsche |
+| B-35 | 06.08. | `results/shap/faktorgruppen_menge.csv` | 🟡 | UF1 fuer den Mengenstrang geschlossen |
+| B-36 | 06.08. | `v1_baselines.klassifikation()` | 🔴 | **Baseline war ungetunt — Vorsprung halbiert sich** |
 
 ---
 
@@ -785,14 +791,31 @@ Stratifizierung. Er war ausdruecklich als vorlaeufig gekennzeichnet. R-1 ist
 damit erledigt — die Frage „sind die Verfahren unterscheidbar" ist bei
 `anzahl_einsaetze` mit ja beantwortet, bei der Rate mit nein.
 
-**Die inhaltliche Erklaerung gehoert in Kapitel 8** und ist konsistent mit R-3:
-33,7 % der Testzeilen liegen ausserhalb des Trainings-Wertebereichs. Bei einem
-Stadtteil-Split auf unbekannte Stadtteile entscheidet die Faehigkeit zu
-extrapolieren — und genau die haben parametrische Modelle. Die Negative
-Binomial rechnet auf der Log-Skala linear weiter, Ridge ebenso; Baumverfahren
-ordnen unbekannte Werte dem Randblatt zu. Dass die beiden Baumverfahren am
-deutlichsten verlieren, ist damit kein Zufall, sondern die erwartbare Folge des
-Validierungsrahmens.
+**Die Zahlen oben stammen aus dem Lauf VOR der Korrektur der Verlustfunktion
+(#42).** Nach der Umstellung auf Tweedie/Poisson lauten sie −21,42 und −17,68
+bei `anzahl_einsaetze` sowie +0,22 (p 0,275), +0,04 (p 0,846) und −0,27
+(p 0,049) bei der Rate. **Der Befund selbst ist unveraendert: kein Verfahren
+schlaegt die Baseline, unter beiden Spezifikationen.** Massgebliche Zahlen in
+`03_STAND.md`, Abschnitt 5.1.
+
+**ERKLAERUNG KORRIGIERT am 06.08.2026 (B-31).** Hier stand zuvor, die Ursache
+sei die Extrapolation: Bei 33,7 % Testzeilen ausserhalb des Trainingsbereichs
+seien parametrische Modelle im Vorteil, weil Baeume dem Randblatt zuordnen.
+**Das wurde geprueft und trifft nicht zu** — der Rueckstand der Baumverfahren
+haengt nicht vom Extrapolationsanteil ab (Spearman +0,020 und +0,011, p ≈ 0,9).
+
+Was die Daten stuetzen, ist die **Groessenskalierung**: Bei `anzahl_einsaetze`
+liegen die Baumverfahren 20,4 bzw. 16,6 RMSE hinter Ridge, bei
+`einsaetze_je_1000_ew` 0,49 bzw. 0,31 **davor**. Der einzige Unterschied
+zwischen beiden Zielgroessen ist die Einwohnerzahl. Negative Binomial und Ridge
+bilden „Einsaetze wachsen ungefaehr proportional zur Bevoelkerung" ueber die
+Log-Verknuepfung direkt ab; ein Baum muss das aus stueckweise konstanten Splits
+nachbauen.
+
+**Status dieser Erklaerung: plausibel und mit dem Zielgroessenvergleich
+vereinbar, aber nicht direkt getestet.** Sie ist im Text als solche zu
+kennzeichnen — nicht noch einmal als gesichert weiterzureichen. Ein direkter
+Test waere moeglich (siehe „Offene Pruefungen" am Ende dieser Datei).
 
 ---
 
@@ -896,23 +919,342 @@ beiden Laeufe entstand und in keiner Einzelauswertung sichtbar ist.
 Dieselben Merkmale, dieselben Stadtteile, dieselben Folds, dieselben zwei
 Ensembles. Nur die Aufgabe wechselt — und mit ihr das Vorzeichen der Antwort.
 
-**Die Erklaerung ist in den vorhandenen Unterlagen bereits angelegt** und wird
-durch die Messung bestaetigt:
+**ACHTUNG — Erklaerungen ueberarbeitet am 06.08.2026.** Die urspruengliche
+Fassung nannte zwei Mechanismen und behauptete, beide seien „durch die Messung
+bestaetigt". Der erste ist inzwischen widerlegt, der zweite nie geprueft worden.
+Stand jetzt:
 
-- **In der Menge entscheidet Extrapolation.** 33,7 % der Testzeilen liegen
-  ausserhalb des Trainings-Wertebereichs (R-3). Negative Binomial und Ridge
-  rechnen dort weiter, Baumverfahren geben den Randwert des letzten Blatts.
-  Deshalb verlieren RF und XGBoost am deutlichsten.
-- **In der Struktur entscheidet die Form der Klassengrenze.** Die Zielgroesse
-  entsteht als `argmax` ueber vier Anteile; die Grenze liegt dort, wo sich
-  zwei Anteile schneiden — im Merkmalsraum eine Schnittflaeche, keine
-  Hyperebene (`06_RISIKEN.md`, R-2). Ein linear trennendes Verfahren ist dort
-  konstruktionsbedingt im Nachteil, flexible Grenzen zahlen sich aus.
+- **Menge: NICHT die Extrapolation.** Geprueft und ausgeschlossen (B-31).
+  Was die Daten stuetzen, ist die Groessenskalierung — die Baumverfahren
+  verlieren dort, wo die Zielgroesse von der Einwohnerzahl dominiert wird, und
+  gewinnen, wo sie herausgerechnet ist. **Plausibel, nicht direkt getestet.**
+- **Struktur: Form der Klassengrenze.** Die Zielgroesse entsteht als `argmax`
+  ueber vier Anteile; die Grenze liegt dort, wo sich zwei Anteile schneiden —
+  im Merkmalsraum eine Schnittflaeche, keine Hyperebene (`06_RISIKEN.md`, R-2).
+  **Ebenfalls plausibel, ebenfalls nicht getestet.** Als Indiz dafuer, dass die
+  Grenze schwer zu ziehen ist: In **20,8 %** der Zeilen liegen der groesste und
+  der zweitgroesste Anteil weniger als 0,10 auseinander.
 
-**Damit ist Unterfrage 4 beantwortet** — und zwar besser, als eine einheitliche
-Antwort es koennte: Die Eignung eines Verfahrens haengt nicht am Datensatz
-allein, sondern an der Struktur der Aufgabe auf demselben Datensatz. Das ist
-der Satz, der aus zwei Straengen einen Erkenntnisgewinn macht.
+**Zu Unterfrage 4.** Hier stand zuvor, die Frage sei „besser beantwortet, als
+eine einheitliche Antwort es koennte". Das war Schoenfaerberei. Nuechtern:
+
+Die **Beobachtung** ist belastbar — auf demselben Datensatz, mit denselben
+Merkmalen, Stadtteilen und Folds lohnt sich der Mehraufwand in der Menge nicht
+und in der Struktur schon. Die **Erklaerung** dafuer ist es derzeit nicht. Ohne
+sie bleibt UF4 eine Beobachtung ohne Mechanismus, und das ist fuer eine
+Implikationsfrage zu wenig. Der Mechanismustest sollte deshalb gerechnet werden
+(siehe unten).
+
+---
+
+## B-33 · Der Mechanismus ist belegt: es ist die Groessenskalierung
+
+**Fundstelle:** `m04_shap.ablation_exposition()`,
+`results/shap/ablation_exposition.csv`. Gemessen 06.08.2026 auf
+Wiederholung 0 (5 Folds); der volle Lauf ueber alle 10 Wiederholungen steht aus
+und wird die Groessenordnung bestaetigen oder korrigieren.
+
+**Der Test.** Die Baumverfahren wurden auf der RATE trainiert und ihre
+Vorhersage mit der Einwohnerzahl zurueckmultipliziert — genau die Rechnung, die
+die Negative Binomial ueber ihren Offset vornimmt. Bewertet gegen
+`anzahl_einsaetze`, also gegen dieselbe Zielgroesse wie im Hauptlauf.
+
+| Modell | RMSE | R² | Rueckstand gegen die Baseline |
+|---|---|---|---|
+| **Negative Binomial (mit Offset)** | **37,44** | 0,472 | – |
+| Random Forest, direkt auf der Anzahl | 67,71 | −1,536 | **+30,27** |
+| Random Forest, ueber die Rate | **36,43** | 0,523 | **−1,00** |
+| XGBoost, direkt auf der Anzahl | 61,70 | −0,637 | **+24,27** |
+| XGBoost, ueber die Rate | **35,74** | 0,607 | **−1,69** |
+
+**Der gesamte Rueckstand verschwindet.** Von +30 bzw. +24 RMSE auf −1,0 und
+−1,7 — beide Baumverfahren ziehen an der Baseline vorbei, sobald ihnen die
+Groessenskalierung vorgegeben wird statt sie lernen zu lassen.
+
+**Damit ist die Erklaerung belegt, nicht mehr vermutet.** Baumverfahren geben je
+Blatt einen festen Wert aus und koennen „Einsaetze = Bevoelkerung x Risiko"
+nicht abbilden; sie ziehen Extremwerte zur Blattmitte, und RMSE auf der
+Originalskala wird von den grossen Stadtteilen dominiert (Tenderloin 280,
+Seacliff 6,4). Negative Binomial und Ridge bekommen die Multiplikation ueber die
+Log-Verknuepfung geschenkt.
+
+**Der entscheidende Faktor ist damit nicht die Verfahrensklasse, sondern die
+Spezifikation.** Das ist eine uebertragbare Aussage und die beste Antwort auf
+Unterfrage 4, die dieser Datensatz hergibt:
+
+> Bei tabellarischen Prognoseaufgaben mit einer Groessen- oder Expositionsgroesse
+> entscheidet weniger die Wahl des Verfahrens als die Frage, ob die
+> Groessenbeziehung in der Modellspezifikation abgebildet ist. Verfahren mit
+> Log-Verknuepfung oder Offset bekommen sie geschenkt; Baumverfahren muessen sie
+> aus stueckweise konstanten Splits nachbauen und scheitern daran. Wird ihnen
+> dieselbe Struktur vorgegeben, sind sie konkurrenzfaehig.
+
+**STATUS — wichtig.** Diagnostik, **nicht** Teil des Verfahrensvergleichs. Der
+Hauptbefund bleibt unveraendert: Unter der vorab festgelegten Spezifikation
+schlaegt kein Verfahren die Stufe-2-Baseline. Der Test erklaert, **warum**, und
+zeigt, was sich aendern wuerde — er ersetzt das Ergebnis nicht.
+
+**Warum die Spezifikation NICHT nachtraeglich geaendert wird.** Es waere
+verlockend, den Baumverfahren die Groessenskalierung im Hauptlauf zu geben und
+ein freundlicheres Ergebnis zu berichten. Dagegen sprechen drei Dinge: Erstens
+hat #29/R-9 ausdruecklich festgelegt, den Vorteil **nicht** auszugleichen,
+sondern zu beziffern — genau das ist hier geschehen. Zweitens waere die
+Aenderung durch das Ergebnis motiviert und nicht durch ein Argument. Drittens
+verlangt Ridge dieselbe Struktur nicht und kommt trotzdem zurecht; dass
+Baumverfahren sie brauchen, **ist** der Befund. Ihn wegzukonstruieren hiesse,
+das Ergebnis zu loeschen.
+
+---
+
+## B-34 · R-9 war berechtigt — unser Test war der falsche
+
+**Fundstelle:** `06_RISIKEN.md` R-9, entschaerft durch B-19 am 05.08.2026.
+
+**Was passiert ist.** R-9 vermutete eine Spezifikationsasymmetrie: Die Negative
+Binomial bekommt `log(Bevoelkerung)` als Offset, die Vergleichsverfahren nur als
+gewoehnliches Merkmal. Wir haben das geprueft, indem wir der Baseline den Offset
+**wegnahmen** — Ergebnis: −0,0017 RMSE, also nichts. Daraus wurde geschlossen,
+das Risiko habe nie bestanden, und R-9 wurde aus dem Register genommen.
+
+**Das war der falsche Test.** Er beantwortet die Frage „gewinnt die Baseline
+durch den Offset?" Die relevante Frage lautete aber „**verlieren die
+Vergleichsverfahren, weil sie ihn nicht haben?**" — und darauf lautet die
+Antwort nach B-33: ja, um **24 bis 30 RMSE**.
+
+Beide Messungen sind korrekt und widersprechen sich nicht. Fuer ein Modell mit
+Log-Verknuepfung und freiem Koeffizienten auf `log_bevoelkerung` ist der Offset
+redundant; er legt nur einen Ausgangspunkt fest, den der Koeffizient wieder
+verschiebt. Fuer einen Baum, der weder Log-Verknuepfung noch Koeffizienten hat,
+ist er es nicht.
+
+**Konsequenz.** R-9 kommt ins Register zurueck — nicht als Risiko fuer die
+Baseline, sondern als **Spezifikationsasymmetrie zulasten der Baumverfahren**,
+jetzt beziffert. B-19 bleibt gueltig, aber unvollstaendig; die Ergaenzung steht
+hier.
+
+**Lehre, die in die Reflexion gehoert:** Eine Asymmetrie laesst sich von zwei
+Seiten pruefen, und die beiden Pruefungen koennen zu entgegengesetzten
+Schluessen fuehren. Wir haben die bequemere Seite gemessen und daraus eine
+Entwarnung abgeleitet. Das ist derselbe Fehlertyp wie bei der
+Extrapolationserklaerung (B-31): eine plausible Aussage nicht bis zur
+entscheidenden Messung durchgezogen.
+
+---
+
+## B-36 · Die Klassifikations-Baseline war ungetunt — der Vorsprung halbiert sich
+
+**Fundstelle:** `vorpruefung/v1_baselines.klassifikation()`, Fassung bis
+06.08.2026: `LogisticRegression(max_iter=2000, class_weight="balanced")`.
+
+**Was aufgefallen ist.** `C` blieb auf dem scikit-learn-Vorgabewert 1,0.
+Waehrend Random Forest und XGBoost je 50 Tuning-Iterationen bekamen, lief die
+Messlatte mit einer Voreinstellung. Das ist eine Asymmetrie **zugunsten der
+Vergleichsverfahren** — und ausgerechnet im Klassifikationsstrang, dem
+einzigen, in dem sie die Baseline schlagen (B-29).
+
+**Nach dem Tuning** (gleiches Budget, gleicher innerer CV, gleiches Scoring):
+
+| | vorher (C = 1,0) | getunt |
+|---|---|---|
+| Macro-F1 | 0,298 | **0,314** |
+| Macro-AUROC | 0,711 | **0,757** |
+| Accuracy | 0,588 | 0,643 |
+
+**Der Vorsprung der Verfahren halbiert sich mehr als:**
+
+| | vorher | jetzt |
+|---|---|---|
+| Random Forest gegen Stufe 2 | +0,0296 | **+0,0136** |
+| XGBoost gegen Stufe 2 | +0,0362 | **+0,0203** |
+
+Ob er signifikant bleibt, entscheidet der naechste `m03`-Lauf. Bei einer
+Streuung `std_wiederholungen` von 0,013 ist ein mittlerer Vorsprung von 0,0136
+nicht mehr komfortabel.
+
+**Die gewaehlten Werte sind aufschlussreich:** C = 0,0013 · 0,0039 · 0,0054 ·
+0,0013 · 0,0189 je Fold. Alle liegen zwei bis drei Groessenordnungen **unter**
+dem Vorgabewert 1,0. Das optimale Modell ist also weit staerker regularisiert
+als die Voreinstellung — bei 23 Trainingsstadtteilen und zwoelf Merkmalen
+plausibel, aber ohne Tuning nicht zu erraten.
+
+**Achtung, Randlage:** In zwei von fuenf Folds liegt das Optimum praktisch am
+unteren Rand des Suchraums (1e-3). Das Optimum koennte darunter liegen, dann
+waere die Baseline noch besser und der Vorsprung noch kleiner. Der Suchraum
+wurde symmetrisch zu Ridges `alpha` (1e-3 bis 1e3) gewaehlt; ihn nur fuer die
+Baseline zu erweitern waere eine neue Asymmetrie. Dokumentiert statt einseitig
+geaendert — im Text zu benennen.
+
+**Lehre, dieselbe wie bei B-31 und B-34:** Eine Asymmetrie faellt nur auf, wenn
+man beide Seiten prueft. Die Baseline nicht zu tunen sah wie Sparsamkeit aus
+(„sie ist die Referenz und keine Kandidatin") und war in der Regression auch
+korrekt — dort hat die Negative Binomial keinen freien Hyperparameter. In der
+Klassifikation traf dieselbe Begruendung nicht zu, und das ist niemandem
+aufgefallen, bis die Frage gestellt wurde, welche Modelle eigentlich getunt
+werden.
+
+---
+
+## Offene Pruefungen
+
+**~~1 · Mechanismustest zur Groessenskalierung~~** ✅ **erledigt am 06.08.2026,
+siehe B-33.** Der Mechanismus ist belegt.
+
+**~~2 · Faktorgruppen fuer den Mengenstrang (UF1)~~** ✅ **erledigt, siehe
+B-35.**
+
+**3 · Beides ueber alle 10 Wiederholungen rechnen.** Die Zahlen in B-33 und
+B-35 stammen aus Wiederholung 0. Der volle Lauf laeuft mit `m04_shap.py` mit
+und ist vor der Verwendung im Text abzuwarten.
+
+---
+
+## B-35 · Faktorgruppen im Mengenstrang — die Antwort auf UF1
+
+**Fundstelle:** `m04_shap.faktorgruppen_negbin()`,
+`results/shap/faktorgruppen_menge.csv`. Standardisierte Beitraege
+(|Koeffizient| x Standardabweichung), Negative Binomial auf dem Fold mit dem
+geringsten Extrapolationsanteil.
+
+**Warum aus der Baseline.** `m04` ueberspringt alle Regressionsmodelle, weil
+keines seine Baseline schlaegt — Beitraege eines unterlegenen Modells
+auszuweisen hiesse, Rauschen zu erklaeren. Das **beste Modell des
+Mengenstrangs ist die Negative Binomial**; ihre Koeffizienten beantworten UF1
+direkt. Das ist kein Notbehelf, sondern die Konsequenz des Befunds.
+
+| Faktorgruppe | Anteil |
+|---|---|
+| baulich | **31,0 %** |
+| kriminalitaetsbezogen | 25,6 % |
+| soziooekonomisch | 23,2 % |
+| Groessenkontrolle | 15,3 % |
+| Saison | 4,9 % |
+
+**Alle drei Faktorgruppen des Exposes tragen bei**, und zwar in vergleichbarer
+Groessenordnung — das beantwortet UF1 mit ja.
+
+**Zwei Einzelbefunde, die im Text stehen sollten:**
+
+- Staerkstes Einzelmerkmal ist `log_kriminalitaetsindex` mit 25,6 % (p < 0,0001).
+  Der Kriminalitaetsindex traegt allein so viel wie die gesamte
+  soziooekonomische Gruppe.
+- `median_haushaltseinkommen` traegt **0,3 %** bei einem p-Wert von **0,80** —
+  praktisch nichts. Auch `leerstandsquote_pct` ist nicht signifikant (p = 0,17).
+  Das klassische soziooekonomische Merkmal schlechthin liefert keinen Beitrag,
+  sobald Armuts- und Akademikerquote im Modell stehen. Erklaerbar ueber die
+  Multikollinearitaet — `median_haushaltseinkommen` hat mit 12,29 den hoechsten
+  VIF ueberhaupt.
+- `anteil_wohngebaeude_pct` wirkt mit −0,338 **negativ**: Je hoeher der
+  Wohnanteil, desto weniger Einsaetze je Einwohner. Plausibel, weil gewerblich
+  gepraegte Gebiete tagsueber eine viel hoehere Anwesenheitsbevoelkerung haben,
+  als die Wohnbevoelkerung ausweist.
+
+---
+
+## B-31 · Die Extrapolation erklaert den Rueckstand der Baumverfahren NICHT
+
+**Fundstelle:** `06_RISIKEN.md` R-3 („die Verfahren werden ungleich getroffen"),
+`03_STAND.md` Abschnitt 3 („Die Spanne von 3,6 % bis 57,4 % erklaert einen
+erheblichen Teil der Fold-Streuung"), sowie meine eigene Deutung in B-26 und
+B-30. Gemessen am 06.08.2026 aus `menge_folds.csv`.
+
+**Der entscheidende Test.** Wenn Baumverfahren verlieren, WEIL sie nicht
+extrapolieren koennen, dann muss ihr Rueckstand gegenueber Ridge mit dem
+Extrapolationsanteil eines Laufs wachsen. Gemessen ueber alle 50 Laeufe
+(Spearman):
+
+| Zielgroesse | Verfahren | rho | p | mittlerer Rueckstand |
+|---|---|---|---|---|
+| `anzahl_einsaetze` | Random Forest | **+0,020** | 0,891 | +20,38 |
+| `anzahl_einsaetze` | XGBoost | **+0,011** | 0,939 | +16,64 |
+| `einsaetze_je_1000_ew` | Random Forest | −0,238 | 0,095 | −0,49 |
+| `einsaetze_je_1000_ew` | XGBoost | −0,077 | 0,593 | −0,31 |
+
+**Der Zusammenhang ist null.** Der Rueckstand betraegt konstant rund 20 RMSE,
+ob ein Fold 3,6 % oder 57,4 % Extrapolation hat. Die Baumverfahren sind
+ueberall schlechter, nicht dort, wo sie extrapolieren muessten.
+
+Auch der einfachere Zusammenhang traegt nicht: Extrapolationsanteil gegen RMSE
+ergibt rho 0,14 bis 0,31, und die Werte sind fuer Ridge (0,184) und Random
+Forest (0,185) praktisch identisch. Waere Extrapolation der Hebel, muesste
+Ridge deutlich flacher liegen.
+
+**Damit ist auch die Aussage in `03_STAND.md` nicht haltbar**, die Spanne
+erklaere „einen erheblichen Teil der Fold-Streuung". Bei rho ≈ 0,18 sind das
+rund 3 % der Rangvarianz.
+
+**Was stattdessen passt — und was die Daten stuetzen.** Der Unterschied
+zwischen den beiden Zielgroessen ist genau die Groessenskalierung:
+
+| | Baumverfahren gegen Ridge |
+|---|---|
+| `anzahl_einsaetze` (von der Einwohnerzahl dominiert) | **+20,4 / +16,6 schlechter** |
+| `einsaetze_je_1000_ew` (Einwohnerzahl herausgerechnet) | **−0,49 / −0,31 besser** |
+
+Wird die Bevoelkerung herausgerechnet, drehen die Baumverfahren von deutlich
+schlechter auf leicht besser. Der plausible Mechanismus ist damit nicht die
+Extrapolation, sondern die **multiplikative Struktur**: Negative Binomial
+(log-Verknuepfung) und Ridge (`log(1+y)`) bilden „Einsaetze wachsen ungefaehr
+proportional zur Einwohnerzahl" direkt ab; ein Baum muss diesen Zusammenhang
+aus achsenparallelen, stueckweise konstanten Splits nachbauen. Auf der Rate
+entfaellt die Aufgabe — und dort sind sie konkurrenzfaehig.
+
+Das passt auch zu B-26: Die Umstellung auf Tweedie/Poisson (#42) verschlechterte
+`anzahl_einsaetze` und verbesserte die Rate — dieselbe Trennlinie.
+
+**Wie damit umzugehen ist.** Die Extrapolation bleibt eine dokumentierte
+Eigenschaft des Validierungsrahmens (33,7 %, R-3) und begrenzt die
+Generalisierbarkeit. Sie darf aber **nicht mehr als Erklaerung fuer den
+Verfahrensunterschied** verwendet werden — weder in Kapitel 7 noch in 8. Der
+Satz muss lauten: geprueft und nicht bestaetigt. Das ist ein staerkerer Beitrag
+als die urspruengliche Vermutung, weil er eine naheliegende Erklaerung
+ausschliesst statt sie zu wiederholen.
+
+**Selbstkritik, die in die Reflexion gehoert:** Die Extrapolationserklaerung
+stand in R-3, klang plausibel und wurde von mir in B-26 und B-30 als gesichert
+weitergereicht, ohne sie zu pruefen. Genau davor warnt das Gutachtenkriterium
+zur kritischen Reflexion. Sie war zwei Zeilen Auswertung entfernt.
+
+---
+
+## B-32 · Woher die Extrapolation kommt
+
+Deskriptiv, aus demselben Lauf. Erklaert nicht den Verfahrensunterschied
+(B-31), beschreibt aber den Validierungsrahmen.
+
+**Kein Merkmal dominiert.** Anteil der Testzeilen, die im jeweiligen Merkmal
+ausserhalb des Trainingsbereichs liegen, gemittelt ueber die fuenf Folds:
+
+| Merkmal | Anteil |
+|---|---|
+| `anteil_risikogewerbe_pct` | 10,0 % |
+| `log_bevoelkerung` | 8,8 % |
+| `median_miete` | 7,3 % |
+| `anteil_altbau_vor_1940_pct` | 6,7 % |
+| `anteil_wohngebaeude_pct` | 6,7 % |
+| … bis `akademikerquote_pct` | 4,1 % |
+| `monat_sin`, `monat_cos` | 0,0 % |
+
+Die Summe der Einzelanteile betraegt 62,7 %, waehrend 33,7 % der Zeilen in
+mindestens einem Merkmal ausbrechen — die Faelle ueberlappen also stark.
+**Ein einzelnes Merkmal zu entfernen wuerde kaum etwas aendern.** Die
+Saisonmerkmale brechen nie aus, weil Sinus und Kosinus beschraenkt sind und
+jeder Fold alle zwoelf Monate enthaelt.
+
+**Es ist eine Eigenschaft von Stadtteilen, nicht von Zeilen.** Weil die
+Strukturmerkmale innerhalb eines Stadtteils nahezu konstant sind, bricht ein
+Stadtteil entweder ganz aus oder gar nicht:
+
+- **9 von 29** Stadtteilen liegen mit **100 %** ihrer Zeilen ausserhalb —
+  Chinatown, South Of Market, Financial District/South Beach, Marina, Haight
+  Ashbury, Sunset/Parkside, Twin Peaks, Seacliff, Presidio
+- **16 von 29** liegen bei **0 %**
+- nur wenige liegen dazwischen (Tenderloin 45 %)
+
+**Fuer Kapitel 4 und 8 verwertbar:** Die Zahl „33,7 % der Testzeilen" ist
+irrefuehrend praezise. Die richtige Formulierung lautet: Rund ein Drittel der
+Stadtteile San Franciscos ist in mindestens einem Strukturmerkmal so
+ungewoehnlich, dass kein anderer Stadtteil sie abdeckt. Das ist eine Aussage
+ueber die Stadt, nicht ueber die Modelle.
 
 ---
 

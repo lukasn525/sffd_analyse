@@ -12,8 +12,10 @@ schlagen muessen. Es gibt zwei Stufen:
 
   STUFE 2  Einfachste Referenz, die zur DATENFORM passt - benutzt alle Merkmale,
            aber in der simpelsten Form.
-           Regression:    Negative Binomial (Zaehldaten, ueberdispers)
+           Regression:    Poisson-GLM mit Offset (Zaehldaten mit Exposition)
            Klassifikation: multinomiale logistische Regression (nominale Klassen)
+           Beide: kanonischer Link, unpenalisierte Maximum-Likelihood, KEIN
+           freier Hyperparameter - deshalb kein Tuning (Decision Log #45).
            Beantwortet: Wie weit kommt man mit der einfachen Form?
 
 Stufe 3 sind die Vergleichsverfahren in modelle/. Ihre Aufgabe ist zu zeigen,
@@ -33,19 +35,7 @@ Testzeilen. Fuer 45 der 50 Laeufe gab es keinen.
 Die Baseline ist damit kein Referenzwert, sondern ein Mitbewerber unter
 identischem Protokoll - so verlangt es auch Schroeters Auflage C („fuer alle
 Vergleichsmodelle identische Merkmale und Splits"). Der Aufwand faellt nicht
-ins Gewicht: 50 Negative-Binomial-Laeufe kosten zusammen rund 11 Sekunden.
-
-Die Werte der Wiederholung 0 bleiben dabei bitgenau erhalten
-(docs/07_BEFUNDE.md, B-4).
-
-ZWEITE NEGATIVE BINOMIAL - OHNE OFFSET (Ergaenzung 05.08.2026)
---------------------------------------------------------------------------
-`06_RISIKEN.md` R-9 haelt fest, dass die Baseline `log(Bevoelkerung)` als
-Offset bekommt - mit fest auf 1 gesetztem Koeffizienten -, waehrend Ridge, RF
-und XGBoost dieselbe Groesse nur als gewoehnliches Merkmal sehen. Um diesen
-mutmasslichen Vorteil zu BEZIFFERN statt ihn auszugleichen, laeuft die Negative
-Binomial ein zweites Mal ohne Offset. Die Differenz beider Varianten ist der
-Wert des Offsets.
+ins Gewicht: 50 GLM-Anpassungen kosten zusammen wenige Sekunden.
 
 Eingang:  data/processed/{regression,klassifikation}.parquet
 Ausgang:  results/regression/baselines_{folds,mittel}.csv
@@ -80,10 +70,9 @@ MERKMALE = PRAEDIKTOREN + SAISON
 
 # Namen der Baseline-Modelle - einmal hier, damit m02/m03 sie ohne Tippfehler
 # aus der CSV herausfiltern koennen.
-NEGBIN         = "Negative Binomial"
-NEGBIN_OHNE    = "Negative Binomial ohne Offset"
+POISSON        = "Poisson-GLM"
 NULLMARKE      = "Gesamtmittelwert"
-LOGREG         = "Logistische Regression (L2)"
+LOGREG         = "Multinomiale logistische Regression"
 
 
 def bewerte_regression(y_true, y_pred) -> dict:
@@ -97,52 +86,55 @@ def bewerte_regression(y_true, y_pred) -> dict:
 
 
 # ---------------------------------------------------------------------------
-def negative_binomial(train: pd.DataFrame, test: pd.DataFrame,
-                      mit_offset: bool = True) -> np.ndarray:
+def poisson_glm(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
     """Stufe 2 der Regression: vorhergesagte Einsatzzahlen.
 
-    MIT OFFSET (Vorgabe, `mit_offset=True`): log(Bevoelkerung) geht als OFFSET
-    ein, also mit fest auf 1 gesetztem Koeffizienten. Das Modell schaetzt damit
-    Einsaetze JE EINWOHNER und multipliziert am Ende hoch - sonst wuerde es vor
-    allem die Stadtteilgroesse vorhersagen (#13). alpha (die Ueberdispersion)
-    kommt aus einem Poisson-Vormodell.
+    Poisson-GLM mit kanonischem log-Link, per unpenalisierter
+    Maximum-Likelihood angepasst. `log(Bevoelkerung)` geht als OFFSET ein, also
+    mit fest auf 1 gesetztem Koeffizienten: Das Modell schaetzt Einsaetze JE
+    EINWOHNER und multipliziert am Ende hoch - sonst sagt es vor allem die
+    Stadtteilgroesse vorher (#13). Kein freier Hyperparameter, also kein Tuning.
 
-    OHNE OFFSET (`mit_offset=False`): dieselbe Spezifikation, aber die
-    Groessenkontrolle kommt ausschliesslich ueber das Merkmal
-    `log_bevoelkerung`, dessen Koeffizient frei geschaetzt wird - genau wie bei
-    Ridge, Random Forest und XGBoost. Die Differenz beider Varianten beziffert
-    den Offset-Vorteil (docs/06_RISIKEN.md, R-9).
+    WARUM POISSON UND NICHT NEGATIVE BINOMIAL (Decision Log #45). Die Zaehldaten
+    sind ueberdispers (Dispersionsindex 62,8), die Poisson-Varianzannahme
+    Var = mu ist also verletzt. Das ist folgenlos fuer den Zweck dieser
+    Baseline: Der Poisson-Schaetzer bleibt konsistent, solange der BEDINGTE
+    MITTELWERT richtig spezifiziert ist, unabhaengig von der Varianzstruktur
+    (Gourieroux, Monfort & Trognon 1984, "Pseudo Maximum Likelihood Methods",
+    Econometrica 52, 701-720). Was die Ueberdispersion beschaedigt, sind die
+    STANDARDFEHLER - und die werden hier nicht verwendet, weil die Baseline
+    ausschliesslich Punktvorhersagen liefert. Keine Koeffiziententests, keine
+    Konfidenzintervalle.
 
-    ANMERKUNG zur Erwartung: `log_bevoelkerung` steht in PRAEDIKTOREN und ist
-    damit AUCH in der Offset-Variante ein freies Merkmal. Der Offset legt also
-    nur einen Ausgangspunkt fest, den ein freier Koeffizient wieder verschieben
-    kann - beide Varianten sind rechnerisch nahe beieinander zu erwarten. Ob
-    das so ist, entscheidet die Messung, nicht diese Anmerkung.
+    Die Negative Binomial waere die Erweiterung fuer korrekte Inferenz. Sie
+    loest ein Problem, das wir nicht haben, und ist damit nicht mehr "die
+    einfachste Form, die zur Datenform passt".
+
+    Die Rate entsteht aus DERSELBEN Anpassung, geteilt durch die Bevoelkerung -
+    ein zweites Modell waere eine zweite Spezifikation.
     """
     import statsmodels.api as sm
 
     X_tr = sm.add_constant(train[MERKMALE].astype(float), has_constant="add")
     X_te = sm.add_constant(test[MERKMALE].astype(float),  has_constant="add")
     y_tr = train[ZIELGROESSE].astype(float)
-    off_tr = (np.log(train[EXPOSURE_ROH].astype(float)) if mit_offset else None)
-    off_te = (np.log(test[EXPOSURE_ROH].astype(float))  if mit_offset else None)
+    off_tr = np.log(train[EXPOSURE_ROH].astype(float))
+    off_te = np.log(test[EXPOSURE_ROH].astype(float))
 
-    mu = sm.GLM(y_tr, X_tr, family=sm.families.Poisson(), offset=off_tr).fit().mu
-    alpha = max(float(np.sum((y_tr - mu) ** 2 / mu - 1) / np.sum(mu)), 1e-6)
-    negbin = sm.GLM(y_tr, X_tr, offset=off_tr,
-                    family=sm.families.NegativeBinomial(alpha=alpha)).fit()
-    return np.asarray(negbin.predict(X_te, offset=off_te))
+    modell = sm.GLM(y_tr, X_tr, family=sm.families.Poisson(),
+                    offset=off_tr).fit()
+    return np.asarray(modell.predict(X_te, offset=off_te))
 
 
 def regression(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     """Beide Mengen-Zielgroessen, Stufe 1 und 2, je Wiederholung und Fold.
 
-    Die Rate ergibt sich aus derselben NegBin-Vorhersage geteilt durch die
+    Die Rate ergibt sich aus derselben Poisson-Vorhersage geteilt durch die
     Bevoelkerung - ein zweites Modell waere eine zweite Spezifikation und damit
     unfair gegenueber den Vergleichsverfahren.
 
-    50 Laeufe (10 Wiederholungen x 5 Folds) x 2 Zielgroessen x 3 Modelle
-    (Nullmarke, NegBin, NegBin ohne Offset) = 300 Zeilen.
+    50 Laeufe (10 Wiederholungen x 5 Folds) x 2 Zielgroessen x 2 Modelle
+    (Nullmarke, Poisson-GLM) = 200 Zeilen.
     """
     OUT.mkdir(parents=True, exist_ok=True)
     zeilen = []
@@ -153,17 +145,14 @@ def regression(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
             train, test = d[tr], d[te]
             bev = test[EXPOSURE_ROH].to_numpy()
 
-            anzahl      = negative_binomial(train, test, mit_offset=True)
-            anzahl_ohne = negative_binomial(train, test, mit_offset=False)
+            anzahl = poisson_glm(train, test)
 
-            for ziel, negbin, negbin_ohne in (
-                    (ZIELGROESSE, anzahl, anzahl_ohne),
-                    (RATE, anzahl / bev * 1000, anzahl_ohne / bev * 1000)):
+            for ziel, referenz in ((ZIELGROESSE, anzahl),
+                                   (RATE, anzahl / bev * 1000)):
                 y = test[ziel].to_numpy()
                 for stufe, name, y_hat in (
                         (1, NULLMARKE, np.full(len(test), train[ziel].mean())),
-                        (2, NEGBIN, negbin),
-                        (2, NEGBIN_OHNE, negbin_ohne)):
+                        (2, POISSON, referenz)):
                     zeilen.append({"wiederholung": w, "fold": k, "stufe": stufe,
                                    "zielgroesse": ziel, "modell": name,
                                    **bewerte_regression(y, y_hat)})
@@ -178,40 +167,32 @@ def regression(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
 
 def _zweistufig(df: pd.DataFrame, schluessel: list[str],
                 masse: list[str]) -> pd.DataFrame:
-    """Zweistufige Aggregation mit beiden Bezugsmengen in einer Tabelle.
+    """Zweistufige Aggregation ueber alle Laeufe des Durchgangs.
 
-    Zwei Zeilenarten, unterschieden durch die Spalte `basis`:
+    ZWEISTUFIG heisst: erst je Wiederholung ueber die 5 Folds mitteln, dann die
+    Streuung DIESER Werte berichten.
 
-      wiederholung_0        nur die 5 Folds aus der Parquet-Datei. Das sind die
-                            Werte, die bis zum 05.08.2026 in docs/03_STAND.md
-                            standen - sie bleiben hier lesbar, damit nichts
-                            still ueberschrieben wird.
-      alle_wiederholungen   alle 50 Laeufe. Nur diese Zeilen sind mit den
-                            Vergleichsverfahren paarbar, weil nur sie auf
-                            denselben Laeufen beruhen.
+      `std_folds`            ueber alle 50 Einzellaeufe. Zu optimistisch, weil
+                             die Laeufe nicht unabhaengig sind - es sind
+                             dieselben 29 Stadtteile in zehn Gruppierungen.
+      `std_wiederholungen`   ueber die 10 Wiederholungsmittel. MASSGEBLICH
+                             (docs/06_RISIKEN.md, R-5).
 
-    `std_folds` streut ueber alle Einzellaeufe und ist zu optimistisch, weil
-    die Laeufe nicht unabhaengig sind. `std_wiederholungen` streut ueber die 10
-    Wiederholungsmittel und ist der MASSGEBLICHE Wert (docs/06_RISIKEN.md, R-5).
+    Eine Datei beschreibt genau einen Durchgang. Frueher fuehrte sie zusaetzlich
+    Zeilen fuer Wiederholung 0 allein - das war historischer Ballast und vor
+    allem eine Falle: Wer den Filter vergisst, bekommt stillschweigend die
+    falsche Baseline. Wer diese Werte braucht, filtert `baselines_folds.csv`
+    auf `wiederholung == 0`; dort steht jeder Einzellauf.
     """
-    teile = []
-    for basis, teil in (("wiederholung_0", df[df["wiederholung"] == 0]),
-                        ("alle_wiederholungen", df)):
-        g = teil.groupby(schluessel, sort=False)
-        z = g[masse].mean().add_suffix("_mean")
-        z = z.join(g[masse].std().add_suffix("_std_folds"))
-        if basis == "alle_wiederholungen":
-            je_wdh = teil.groupby(schluessel + ["wiederholung"], sort=False)[masse].mean()
-            z = z.join(je_wdh.groupby(schluessel, sort=False).std()
-                             .add_suffix("_std_wiederholungen"))
-        else:
-            for m in masse:
-                z[f"{m}_std_wiederholungen"] = np.nan
-        teile.append(z.reset_index().assign(basis=basis))
-
-    spalten = ["basis"] + schluessel + [f"{m}{s}" for m in masse for s in
-                                        ("_mean", "_std_folds", "_std_wiederholungen")]
-    return pd.concat(teile, ignore_index=True)[spalten].round(3)
+    g = df.groupby(schluessel, sort=False)
+    z = g[masse].mean().add_suffix("_mean")
+    z = z.join(g[masse].std().add_suffix("_std_folds"))
+    je_wdh = df.groupby(schluessel + ["wiederholung"], sort=False)[masse].mean()
+    z = z.join(je_wdh.groupby(schluessel, sort=False).std()
+                     .add_suffix("_std_wiederholungen"))
+    spalten = schluessel + [f"{m}{s}" for m in masse for s in
+                            ("_mean", "_std_folds", "_std_wiederholungen")]
+    return z.reset_index()[spalten].round(3)
 
 
 # ---------------------------------------------------------------------------
@@ -224,7 +205,7 @@ def klassifikation(kl: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
 
     STUFE 2, multinomiale logistische Regression: das Gegenstueck zur Negative
     Binomial. Sie ist die einfachste Form, die zu einer nominalen Zielgroesse
-    passt - linear in den Log-Odds, L2-penalisiert. RF und XGBoost muessen SIE
+    passt - linear in den Log-Odds, unpenalisiert. RF und XGBoost muessen SIE
     schlagen, nicht die Mehrheitsklasse (Decision Log #33).
 
     Zwei Ergaenzungen vom 05.08.2026, beide additiv:
@@ -260,7 +241,7 @@ def klassifikation(kl: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
                 warnings.simplefilter("always", ConvergenceWarning)
                 logreg = make_pipeline(
                     StandardScaler(),
-                    LogisticRegression(max_iter=2000,
+                    LogisticRegression(max_iter=2000, penalty=None,
                                        class_weight="balanced")).fit(X_tr, y_tr)
             nicht_konvergiert += sum(issubclass(g.category, ConvergenceWarning)
                                      for g in gefangen)
@@ -309,28 +290,6 @@ def _macro_auroc(y_true, proba: np.ndarray, klassen_modell: list,
 
 
 # ---------------------------------------------------------------------------
-def offset_vorteil(folds: pd.DataFrame) -> pd.DataFrame:
-    """Beziffert R-9: was bringt der Offset der Negative Binomial?
-
-    Gepaart je Lauf, weil beide Varianten auf exakt denselben Testzeilen
-    rechnen. Positive Differenz = die Offset-Variante ist besser.
-    """
-    breit = (folds[folds["modell"].isin([NEGBIN, NEGBIN_OHNE])]
-             .pivot_table(index=["zielgroesse", "wiederholung", "fold"],
-                          columns="modell", values=["RMSE", "MAE", "R2"]))
-    zeilen = []
-    for ziel, g in breit.groupby(level="zielgroesse"):
-        eintrag = {"zielgroesse": ziel, "n_laeufe": len(g)}
-        for mass in ("RMSE", "MAE", "R2"):
-            diff = g[(mass, NEGBIN_OHNE)] - g[(mass, NEGBIN)]
-            if mass == "R2":                      # bei R2 ist gross besser
-                diff = -diff
-            eintrag[f"{mass}_vorteil_offset"] = round(float(diff.mean()), 4)
-            eintrag[f"{mass}_max_abweichung"] = round(float(diff.abs().max()), 4)
-        zeilen.append(eintrag)
-    return pd.DataFrame(zeilen)
-
-
 def run() -> None:
     for pfad in (PFAD_REGRESSION, PFAD_KLASSIFIKATION):
         if not pfad.exists():
@@ -346,9 +305,6 @@ def run() -> None:
     print(f"Regression - {WIEDERHOLUNGEN} Wiederholungen x {N_FOLDS} Folds")
     print(mittel.to_string(index=False))
 
-    folds = pd.read_csv(OUT / "baselines_folds.csv")
-    print("\nR-9, Wert des Offsets (positiv = Offset-Variante besser):")
-    print(offset_vorteil(folds).to_string(index=False))
 
     df = klassifikation(kl, selten)
     print(f"\nKlassifikation - Mittel ueber alle "
