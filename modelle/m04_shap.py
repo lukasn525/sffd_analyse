@@ -529,7 +529,7 @@ def main() -> int:
     uebersicht = (abl.groupby(["verfahren", "spezifikation"], sort=False)
                      [["RMSE", "R2"]].mean().round(3).reset_index())
     print("\n  Ablation Expositionsbehandlung, Zielgroesse anzahl_einsaetze:")
-    print(f"    {'Negative Binomial (Referenz)':<40}RMSE "
+    print(f"    {'Poisson-GLM (Referenz)':<40}RMSE "
           f"{basis['RMSE'].mean():7.2f}")
     for _, z in uebersicht.iterrows():
         wie = ("mit Exposition" if z["spezifikation"] == "mit_exposition"

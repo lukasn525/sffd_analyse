@@ -50,6 +50,10 @@
 | B-34 | 06.08. | `06_RISIKEN.md` R-9, B-19 | 🔴 | R-9 war berechtigt, unser Test war der falsche |
 | B-35 | 06.08. | `results/shap/faktorgruppen_menge.csv` | 🟡 | UF1 fuer den Mengenstrang geschlossen |
 | B-36 | 06.08. | `v1_baselines.klassifikation()` | 🔴 | **Baseline war ungetunt — Vorsprung halbiert sich** |
+| B-37 | 06.08. | `m02_menge.phase_tuning()`, Protokoll | ⚪ | irrefuehrende Beschriftung, behoben |
+| B-38 | 07.08. | `04_MODELLIERUNG.md` §Hold-out | 🔴 | Schlussbewertung ohne Baseline, behoben |
+| B-39 | 07.08. | eigene Einschaetzung | 🟡 | **Erklaerung widerlegt** — dritter Fall desselben Musters |
+| B-40 | 07.08. | `m03_struktur.hold_out()` | 🔴 | **Baumverfahren sagen die seltene Klasse nie vorher** |
 
 ---
 
@@ -1091,6 +1095,150 @@ korrekt — dort hat die Negative Binomial keinen freien Hyperparameter. In der
 Klassifikation traf dieselbe Begruendung nicht zu, und das ist niemandem
 aufgefallen, bis die Frage gestellt wurde, welche Modelle eigentlich getunt
 werden.
+
+---
+
+## B-37 · Das Tuning-Protokoll war irrefuehrend beschriftet
+
+**Fundstelle:** `m02_menge.phase_tuning()`, Konsolenausgabe und Spalte
+`tuning_sekunden` in `tuning.csv`, Lauf vom 06.08.2026.
+
+**Was aufgefallen ist.** Seit #43 wird fuer beide Mengen-Zielgroessen auf der
+RATE gesucht — es gibt nur ein Modell, das fuer `anzahl_einsaetze` lediglich
+zurueckmultipliziert wird. Die Schleife lief aber ueber die Zielgroessen, und
+weil `anzahl_einsaetze` in `ZIELE` zuerst steht, fand die Suche waehrend deren
+Durchgang statt und wurde auch so protokolliert:
+
+```
+tune  anzahl_einsaetze      random_forest  Fold 1   206.7s  {...}
+tune  einsaetze_je_1000_ew  random_forest  Fold 1   uebernommen von einsaetze_je_1000_ew
+```
+
+Die erste Zeile suggeriert, es sei auf `anzahl_einsaetze` gesucht worden — das
+Gegenteil ist der Fall. Die zweite liest sich, als uebernehme die Rate von sich
+selbst.
+
+**Auswirkung auf die Ergebnisse: keine.** Gesucht wurde die ganze Zeit korrekt
+auf der Rate, dieselbe Funktion, dieselben Seeds. Die Spalte `getunt_auf` wies
+es auch richtig aus. Falsch war ausschliesslich die Darstellung.
+
+**Warum es trotzdem hier steht.** Ein Protokoll, das etwas anderes behauptet als
+der Code tut, ist genau die Sorte Beleg, die spaeter niemand mehr nachvollziehen
+kann — und `tuning.csv` ist Grundlage fuer Kapitel 6.3. Wer die Datei in einem
+halben Jahr liest, haette den Widerspruch zwischen `zielgroesse` und
+`getunt_auf` nicht mehr aufloesen koennen.
+
+**Behoben.** Die Suche laeuft jetzt sichtbar ueber (Verfahren x Fold) = 15
+Durchgaenge; die 30 Zeilen entstehen erst danach durch Zuordnung zu beiden
+Zielgroessen. Ausgabe:
+
+```
+tune  random_forest  Fold 1  auf einsaetze_je_1000_ew   206.7s  {...}
+```
+
+**Eine Eigenheit bleibt und ist dokumentiert:** `tuning_sekunden` steht bei
+beiden Zielgroessen auf demselben Wert, weil die Suche einmal stattfand. Eine
+Summe ueber alle 30 Zeilen zaehlt die Suchzeit doppelt; massgeblich ist die
+Summe ueber die 15 eindeutigen Paare.
+
+---
+
+## B-38 · Die Schlussbewertung lief ohne Baseline
+
+**Fundstelle:** `04_MODELLIERUNG.md`, Abschnitt Hold-out („Je **Verfahren** und
+Zielgroesse wird [...] neu trainiert"), umgesetzt in `m02_menge.hold_out()` und
+`m03_struktur.hold_out()`.
+
+**Was aufgefallen ist.** Die Schlussbewertung rechnete nur die drei bzw. zwei
+Vergleichsverfahren. Die Stufe-2-Baseline fehlte — und damit der Bezugspunkt.
+Ein RMSE von 23,7 ist ohne die Referenz daneben keine Aussage, und die
+Primaeraussage nach #34 lautet „Verfahren gegen Stufe-2-Baseline". Der Hold-out
+haette also genau die Frage nicht pruefen koennen, fuer die er existiert.
+
+**Behoben.** Beide `hold_out()` rechnen jetzt Stufe 1 und Stufe 2 mit; die
+Ausgabe traegt eine Spalte `stufe`. Unbedenklich, weil beide Baselines keinen
+freien Hyperparameter haben — es gibt nichts, was der Blick auf den Hold-out
+haette beeinflussen koennen.
+
+**Nebenbei ein zweiter Fund:** Die Macro-AUROC der Baseline kam als `NaN`
+zurueck. `roc_auc_score` verlangt aufsteigend sortierte Labels; die
+Wahrscheinlichkeitsspalten der logistischen Regression stehen aber in
+alphabetischer Reihenfolge ihrer Klassennamen. Derselbe Fallstrick wie bei
+XGBoost (Fallstrick 2 in `m03`), nur an anderer Stelle. Korrigiert: 0,756.
+
+---
+
+## B-39 · Meine Erklaerung fuer die Hold-out-Abweichung war falsch
+
+**Fundstelle:** eigene Einschaetzung vom 07.08.2026, vor der Pruefung.
+
+**Was behauptet wurde.** Der Strukturstrang faellt auf dem Hold-out ab, weil
+dort der Anteil brand-dominierter Monate bei 4,7 % statt 0,9 % liegt — Bayview
+Hunters Point bringt allein 35 der 70 brand-dominierten Monate mit. Die
+Verschiebung der Klassenverteilung sollte den Einbruch erklaeren.
+
+**Was die Messung sagt.** Rechnet man den Hold-out **ohne** Bayview:
+
+| | mit Bayview | ohne Bayview |
+|---|---|---|
+| Logit | 0,327 | 0,298 |
+| XGBoost | 0,276 | 0,276 |
+| Random Forest | 0,255 | 0,252 |
+
+**Der Abstand bleibt praktisch unveraendert.** Die Klassenverteilung erklaert
+ihn nicht. Die Erklaerung war plausibel und falsch.
+
+**Was stattdessen gilt** (B-40): Der Hold-out-Wert liegt innerhalb der
+Spannweite der 50 Einzelläufe. Es ist eine Ziehung aus einer breiten
+Verteilung, kein systematischer Effekt.
+
+**Dritter Fall desselben Musters.** Wie bei der Extrapolation (B-31) und bei
+R-9 (B-34) wurde eine plausible Erklaerung formuliert, bevor sie geprueft war.
+Das gehoert in die kritische Reflexion: Die Neigung, einen auffaelligen Befund
+sofort zu erklaeren, ist selbst eine Fehlerquelle — und in dieser Arbeit
+dreimal aufgetreten.
+
+---
+
+## B-40 · Die Baumverfahren sagen die seltenste Klasse im Hold-out nie vorher
+
+**Fundstelle:** `m03_struktur.hold_out()`, detaillierte Nachanalyse 07.08.2026.
+
+**Vorhersageverteilung auf den sechs Hold-out-Stadtteilen:**
+
+| | brand | rettung_ems | technische_hilfe | fehlalarm |
+|---|---|---|---|---|
+| *tatsaechlich* | *4,7 %* | *5,2 %* | *19,1 %* | *71,1 %* |
+| Logit | 1,5 % | 30,3 % | 24,2 % | 43,9 % |
+| Random Forest | **0,0 %** | 10,1 % | 21,8 % | 68,1 % |
+| XGBoost | **0,0 %** | 7,6 % | 27,8 % | 64,6 % |
+
+Beide Baumverfahren sagen `brand` **kein einziges Mal** vorher; F1 ist 0,000.
+Da Macro-F1 alle vier Klassen gleich gewichtet, verliert man damit ein Viertel
+des Guetemasses vollstaendig.
+
+**AUROC je Klasse — das eigentlich Aufschlussreiche:**
+
+| | brand | rettung_ems |
+|---|---|---|
+| Logit | **0,895** | **0,888** |
+| XGBoost | 0,690 | 0,621 |
+| Random Forest | **0,173** | 0,603 |
+
+Das lineare Modell **erkennt** die seltenen Klassen sehr gut und ist lediglich
+in der Zuordnung zurueckhaltend. Random Forest liegt bei `brand` mit 0,173
+**unter dem Zufall** — es ordnet brand-Faelle systematisch niedriger ein als
+Nicht-brand. Der gelernte Zusammenhang ist auf diesen Stadtteilen invertiert.
+
+**Einordnung.** Der Hold-out-Wert liegt innerhalb der CV-Spannweite (Random
+Forest 0,229–0,404, XGBoost 0,230–0,421); 14 % bzw. 16 % der 50 Folds waren
+schlechter. Es ist also kein Widerspruch zum Kreuzvalidierungsergebnis.
+
+**Aber es ist ein eigener Befund:** Der Mittelwert ueber 50 Laeufe verdeckt,
+dass der Vorsprung der Ensembles nicht in jeder Konstellation besteht — und
+dass ihr Versagen, wenn es eintritt, die seltene Klasse vollstaendig trifft.
+Bei einer Anwendung, in der gerade die seltene Klasse zaehlt (Brand), ist das
+die praktisch relevantere Information als der Mittelwert. Gehoert in Kapitel 8.
 
 ---
 

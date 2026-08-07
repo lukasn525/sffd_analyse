@@ -103,9 +103,14 @@ def _matplotlib():
     return plt, FuncFormatter
 
 
-def _komma(FuncFormatter):
-    """Deutsches Dezimalkomma auf den Achsen."""
-    return FuncFormatter(lambda x, _: f"{x:,.2f}".replace(",", " ")
+def _komma(FuncFormatter, stellen: int = 2):
+    """Deutsches Dezimalkomma auf den Achsen.
+
+    `stellen` ist nicht kosmetisch: Macro-F1 liegt zwischen 0,328 und 0,334 -
+    mit zwei Nachkommastellen stuenden an allen Achsenmarken dieselben "0,33",
+    und die Abbildung waere sinnlos.
+    """
+    return FuncFormatter(lambda x, _: f"{x:,.{stellen}f}".replace(",", " ")
                          .replace(".", ",").replace(" ", "."))
 
 
@@ -199,42 +204,83 @@ def a3_laufzeit_guete(plt, FuncFormatter) -> list:
     Die Zeitachse ist logarithmisch, weil zwischen Ridge und den Ensembles
     Groessenordnungen liegen - linear waere Ridge ein Punkt auf der Null.
     """
-    punkte = []
+    from matplotlib.ticker import LogLocator, NullFormatter
+
+    punkte, latten = [], {}
     if (REG / "menge_mittel.csv").exists():
         m = pd.read_csv(REG / "menge_mittel.csv")
         for _, z in m.iterrows():
             punkte.append((z["zielgroesse"], z["verfahren"],
-                           z["train_sekunden_mean"], z["RMSE_mean"], "RMSE"))
+                           z["train_sekunden_mean"], z["RMSE_mean"], "RMSE", 2))
+        b = pd.read_csv(REG / "baselines_mittel.csv")
+        b = b[b["stufe"] == 2]
+        for _, z in b.iterrows():
+            latten[z["zielgroesse"]] = z["RMSE_mean"]
     if (KLA / "struktur_mittel.csv").exists():
         m = pd.read_csv(KLA / "struktur_mittel.csv")
         for _, z in m.iterrows():
             punkte.append((z["zielgroesse"], z["verfahren"],
                            z["train_sekunden_mean"], z["macro_f1_mean"],
-                           "Macro-F1"))
+                           "Macro-F1", 3))
+        b = pd.read_csv(KLA / "baselines_klasse_mittel.csv")
+        b = b[b["stufe"] == 2]
+        if len(b):
+            latten[m["zielgroesse"].iloc[0]] = b["Macro-F1_mean"].iloc[0]
     if not punkte:
         return []
 
-    df = pd.DataFrame(punkte, columns=["ziel", "verfahren", "zeit", "guete", "mass"])
+    df = pd.DataFrame(punkte, columns=["ziel", "verfahren", "zeit", "guete",
+                                       "mass", "stellen"])
     ziele = list(dict.fromkeys(df["ziel"]))
-    fig, achsen = plt.subplots(1, len(ziele), figsize=(BREITE, 2.6))
+    fig, achsen = plt.subplots(1, len(ziele), figsize=(BREITE, 2.9))
     achsen = np.atleast_1d(achsen)
     for ax, ziel in zip(achsen, ziele):
         g = df[df["ziel"] == ziel]
+        # Die Stufe-2-Baseline als Linie. Ohne sie ist der sehr enge
+        # Wertebereich nicht einzuordnen - 0,9 RMSE Unterschied saehen aus wie
+        # ein Abgrund, obwohl alle drei Verfahren dicht an der Latte liegen.
+        if ziel in latten:
+            ax.axhline(latten[ziel], color="black", linewidth=1.0,
+                       linestyle="--", zorder=1)
         for _, z in g.iterrows():
-            ax.scatter(z["zeit"], z["guete"], s=45, marker=STIL[z["verfahren"]]["marker"],
-                       facecolor=STIL[z["verfahren"]]["grau"], edgecolor="black",
-                       label=LABEL[z["verfahren"]], zorder=3)
+            ax.scatter(z["zeit"], z["guete"], s=45,
+                       marker=STIL[z["verfahren"]]["marker"],
+                       facecolor=STIL[z["verfahren"]]["grau"],
+                       edgecolor="black", label=LABEL[z["verfahren"]], zorder=3)
         ax.set_xscale("log")
-        ax.set_xlabel("Trainingszeit je Fold in s (log)")
+        # Mindestens eine Dekade Spannweite, sonst stehen nur Nebenmarken da
+        # und ihre Beschriftungen ueberlappen sich unlesbar.
+        ax.set_xlim(g["zeit"].min() / 4, g["zeit"].max() * 4)
+        ax.xaxis.set_major_locator(LogLocator(base=10))
+        ax.xaxis.set_minor_formatter(NullFormatter())
+        # Kurz halten: bei drei Feldern auf Textbreite bleibt je Feld rund
+        # 2 Zoll, eine lange Beschriftung wird am Rand abgeschnitten.
+        ax.set_xlabel("Trainingszeit je Fold (s, log)")
         ax.set_ylabel(g["mass"].iloc[0])
-        ax.set_title("")
-        ax.text(0.02, 0.94, LABEL.get(ziel, ziel), transform=ax.transAxes,
+        ax.yaxis.set_major_formatter(_komma(FuncFormatter, int(g["stellen"].iloc[0])))
+        # Kopfraum fuer die Beschriftung, damit sie keinen Punkt verdeckt
+        unten, oben = ax.get_ylim()
+        ax.set_ylim(unten, oben + (oben - unten) * 0.22)
+        ax.text(0.03, 0.96, LABEL.get(ziel, ziel), transform=ax.transAxes,
                 fontsize=SCHRIFT - 1, va="top")
-        ax.yaxis.set_major_formatter(_komma(FuncFormatter))
-        ax.grid(True, which="both", linewidth=0.3, alpha=0.5)
-    achsen[-1].legend(loc="best", frameon=False)
+        ax.grid(True, which="major", linewidth=0.3, alpha=0.5)
+
+    # Eine Legende fuer die ganze Abbildung, ohne Dubletten. Die gestrichelte
+    # Linie kommt als eigener Eintrag hinein statt als Fusszeile - sonst
+    # ueberlappen Legende und Text.
+    from matplotlib.lines import Line2D
+
+    kennzeichen, namen = [], []
+    for ax in achsen:
+        for h, l in zip(*ax.get_legend_handles_labels()):
+            if l not in namen:
+                kennzeichen.append(h); namen.append(l)
+    kennzeichen.append(Line2D([], [], color="black", linestyle="--"))
+    namen.append("Stufe-2-Baseline")
+    fig.legend(kennzeichen, namen, loc="lower center", ncol=len(namen),
+               frameon=False, bbox_to_anchor=(0.5, -0.08))
     pfad = OUT / "a3_laufzeit_guete.pdf"
-    fig.savefig(pfad); plt.close(fig)
+    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
     return [pfad]
 
 

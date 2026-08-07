@@ -205,7 +205,8 @@ def klassifikation(kl: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
 
     STUFE 2, multinomiale logistische Regression: das Gegenstueck zur Negative
     Binomial. Sie ist die einfachste Form, die zu einer nominalen Zielgroesse
-    passt - linear in den Log-Odds, unpenalisiert. RF und XGBoost muessen SIE
+    passt - linear in den Log-Odds, unpenalisiert (C = inf; `penalty=None`
+    ist seit scikit-learn 1.8 veraltet, die Schaetzung ist bitgleich). RF und XGBoost muessen SIE
     schlagen, nicht die Mehrheitsklasse (Decision Log #33).
 
     Zwei Ergaenzungen vom 05.08.2026, beide additiv:
@@ -241,7 +242,7 @@ def klassifikation(kl: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
                 warnings.simplefilter("always", ConvergenceWarning)
                 logreg = make_pipeline(
                     StandardScaler(),
-                    LogisticRegression(max_iter=2000, penalty=None,
+                    LogisticRegression(max_iter=2000, C=np.inf,
                                        class_weight="balanced")).fit(X_tr, y_tr)
             nicht_konvergiert += sum(issubclass(g.category, ConvergenceWarning)
                                      for g in gefangen)

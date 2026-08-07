@@ -408,41 +408,48 @@ def phase_tuning(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
 
     Die Parameter landen sowohl als einzelne Spalten (lesbar fuer Kapitel 6.3)
     als auch als JSON (verlustfrei fuer den Wiedereinlesen-Weg).
+
+    ZUR SPALTE `tuning_sekunden`: Sie steht bei beiden Zielgroessen auf
+    demselben Wert, weil die Suche einmal stattgefunden hat. Eine Summe ueber
+    alle 30 Zeilen zaehlt die Suchzeit deshalb doppelt - die tatsaechliche
+    Dauer von Phase 1 ist die Summe ueber die 15 eindeutigen
+    (Verfahren, Fold)-Paare.
     """
     d = wiederholte_aufteilung(panel, wiederholung=0, selten=selten)
-    zeilen, gefunden = [], {}
+
+    # EXPOSITION (#43): Alle Modelle werden auf der RATE angepasst; fuer
+    # `anzahl_einsaetze` wird die Vorhersage nur zurueckmultipliziert. Es gibt
+    # also nur EIN Modell je Verfahren und Fold - und damit auch nur eine
+    # Suche. Beide Zielgroessen erhalten denselben Parametersatz, genau wie bei
+    # der Baseline, die ebenfalls einmal angepasst wird.
+    #
+    # Deshalb laeuft die Suche hier ueber (Verfahren x Fold) = 15 Durchgaenge,
+    # und die 30 Zeilen der tuning.csv entstehen erst danach durch Zuordnung zu
+    # beiden Zielgroessen. Frueher lief die Schleife ueber die Zielgroessen und
+    # die zweite "uebernahm" von der ersten - das Protokoll wies die Suche dann
+    # unter `anzahl_einsaetze` aus, obwohl auf der Rate gesucht wurde
+    # (docs/07_BEFUNDE.md, B-37).
+    gefunden = {}
+    for name in VERFAHREN:
+        for k in range(1, N_FOLDS + 1):
+            tr, _ = fold_masken(d, k)
+            t = time.perf_counter()
+            p = _rein_python(tune(name, d[tr], RATE))
+            dauer = round(time.perf_counter() - t, 2)
+            gefunden[(name, k)] = (p, dauer)
+            kurz = {s.split("__")[-1]: w for s, w in p.items()}
+            print(f"    tune  {name:<14} Fold {k}  auf {RATE}  "
+                  f"{dauer:6.1f}s  {kurz}")
+
+    zeilen = []
     for ziel in ZIELE:
         for name in VERFAHREN:
             for k in range(1, N_FOLDS + 1):
-                tr, _ = fold_masken(d, k)
-                # EXPOSITION (#43): Fuer `anzahl_einsaetze` wird das Modell auf
-                # der Rate angepasst - also muss auch dort gesucht werden.
-                # Beide Zielgroessen teilen sich damit einen Parametersatz,
-                # genau wie bei der Negative Binomial. Gesucht wird einmal, die
-                # zweite Zielgroesse uebernimmt.
-                such_ziel = RATE if ziel == ZIELGROESSE else ziel
-                if (such_ziel, name, k) in gefunden:
-                    p, dauer = gefunden[(such_ziel, name, k)], 0.0
-                    print(f"    tune  {ziel:<21} {name:<14} Fold {k}  "
-                          f"uebernommen von {such_ziel}")
-                    zeilen.append({"zielgroesse": ziel, "verfahren": name,
-                                   "fold": k, "tuning_sekunden": 0.0,
-                                   "getunt_auf": such_ziel,
-                                   **{s.split("__")[-1]: w for s, w in p.items()},
-                                   "parameter_json": json.dumps(p)})
-                    continue
-                t = time.perf_counter()
-                p = _rein_python(tune(name, d[tr], such_ziel))
-                gefunden[(such_ziel, name, k)] = p
-                dauer = time.perf_counter() - t
-                kurz = {schluessel.split("__")[-1]: wert
-                        for schluessel, wert in p.items()}
+                p, dauer = gefunden[(name, k)]
                 zeilen.append({"zielgroesse": ziel, "verfahren": name, "fold": k,
-                               "tuning_sekunden": round(dauer, 2),
-                               "getunt_auf": such_ziel,
-                               **kurz, "parameter_json": json.dumps(p)})
-                print(f"    tune  {ziel:<21} {name:<14} Fold {k}  "
-                      f"{dauer:6.1f}s  {kurz}")
+                               "getunt_auf": RATE, "tuning_sekunden": dauer,
+                               **{s.split("__")[-1]: w for s, w in p.items()},
+                               "parameter_json": json.dumps(p)})
     df = pd.DataFrame(zeilen)
     df.to_csv(OUT / "tuning.csv", index=False)
     return df
@@ -752,14 +759,41 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
           f"({len(train):,} Zeilen), Bewertung auf "
           f"{test['stadtteil'].nunique()} ({len(test):,} Zeilen)")
 
-    w0 = folds[folds["wiederholung"] == 0]
+    # DIE BASELINES GEHOEREN DAZU. Ohne sie hat die Schlussbewertung keinen
+    # Bezugspunkt: Die Primaeraussage nach #34 lautet "Verfahren gegen
+    # Stufe-2-Baseline", und genau die soll der Hold-out pruefen. Ein RMSE von
+    # 23,7 ist ohne die Referenz daneben keine Aussage (docs/07_BEFUNDE.md,
+    # B-38). Beide Baselines haben keine Hyperparameter - es gibt nichts zu
+    # waehlen und damit auch nichts, was der Hold-out beeinflussen koennte.
+    from v1_baselines import (NULLMARKE, POISSON, bewerte_regression,
+                              poisson_glm)
+
+    t = time.perf_counter()
+    anzahl = poisson_glm(train, test)
+    baseline_sek = time.perf_counter() - t
+    bev = test[EXPOSURE_ROH].astype(float).to_numpy()
+
     zeilen = []
+    for ziel, referenz in ((ZIELGROESSE, anzahl), (RATE, anzahl / bev * 1000)):
+        y = test[ziel].astype(float)
+        for stufe, modell, y_hat in (
+                (1, NULLMARKE, np.full(len(test), train[ziel].astype(float).mean())),
+                (2, POISSON, referenz)):
+            zeilen.append({
+                "verfahren": modell, "zielgroesse": ziel, "stufe": stufe,
+                **bewerte_regression(y, y_hat),
+                "train_sekunden": round(baseline_sek, 4) if stufe == 2 else 0.0,
+                "n_train": len(train), "n_test": len(test),
+                "n_negativ": int((np.asarray(y_hat) < 0).sum()),
+                "n_stadtteile_test": int(test["stadtteil"].nunique())})
+
+    w0 = folds[folds["wiederholung"] == 0]
     for ziel in ZIELE:
         for name in VERFAHREN:
             g = w0[(w0["zielgroesse"] == ziel) & (w0["verfahren"] == name)]
             bester = int(g.loc[g["RMSE"].idxmin(), "fold"])
             z = ein_lauf(name, param[(ziel, name, bester)], train, test, ziel)
-            zeilen.append({**z, "fold_der_parameter": bester,
+            zeilen.append({**z, "stufe": 3, "fold_der_parameter": bester,
                            "n_stadtteile_test": int(test["stadtteil"].nunique())})
     df = pd.DataFrame(zeilen)
     df.round(6).to_csv(OUT / "holdout.csv", index=False)

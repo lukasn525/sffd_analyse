@@ -538,13 +538,54 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
           f"({len(train):,} Zeilen), Bewertung auf "
           f"{test['stadtteil'].nunique()} ({len(test):,} Zeilen)")
 
-    w0 = folds[folds["wiederholung"] == 0]
+    # Wie in m02 gehoeren beide Baselines dazu - ohne Bezugspunkt ist ein
+    # Macro-F1 von 0,33 keine Aussage (docs/07_BEFUNDE.md, B-38).
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import accuracy_score, f1_score
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    X_tr, X_te = train[MERKMALE].astype(float), test[MERKMALE].astype(float)
+    y_tr, y_te = train[ZIELKLASSE], test[ZIELKLASSE]
+    t = time.perf_counter()
+    logreg = make_pipeline(
+        StandardScaler(),
+        LogisticRegression(max_iter=2000, C=np.inf,
+                           class_weight="balanced")).fit(X_tr, y_tr)
+    baseline_sek = time.perf_counter() - t
+    haeufigste = y_tr.value_counts().idxmax()
+
     zeilen = []
+    for stufe, modell, y_hat, proba in (
+            (1, f"Mehrheitsklasse ({haeufigste})",
+             np.full(len(y_te), haeufigste), None),
+            (2, "Multinomiale logistische Regression",
+             logreg.predict(X_te), logreg.predict_proba(X_te))):
+        zeilen.append({
+            "verfahren": modell, "zielgroesse": ZIELKLASSE, "stufe": stufe,
+            "macro_f1": float(f1_score(y_te, y_hat, average="macro",
+                                       zero_division=0)),
+            # FALLSTRICK 2 auch hier: Die Wahrscheinlichkeitsspalten der
+            # logistischen Regression stehen in alphabetischer Reihenfolge
+            # ihrer Klassennamen, nicht in der von KLASSEN. Erst umsortieren,
+            # dann bewerten - `roc_auc_score` verlangt aufsteigend sortierte
+            # Labels und liefert sonst gar nichts (B-38).
+            "macro_auroc": (np.nan if proba is None else _macro_auroc(
+                kodiere(y_te),
+                proba[:, [list(logreg.classes_).index(c) for c in KLASSEN]],
+                list(range(len(KLASSEN))))),
+            "accuracy": float(accuracy_score(y_te, y_hat)),
+            "train_sekunden": round(baseline_sek, 4) if stufe == 2 else 0.0,
+            "n_train": len(train), "n_test": len(test),
+            "n_brand_test": int((y_te == SELTENE_KLASSE).sum()),
+            "n_stadtteile_test": int(test["stadtteil"].nunique())})
+
+    w0 = folds[folds["wiederholung"] == 0]
     for name in VERFAHREN:
         g = w0[w0["verfahren"] == name]
         bester = int(g.loc[g["macro_f1"].idxmax(), "fold"])
         zeilen.append({**ein_lauf(name, param[(name, bester)], train, test),
-                       "fold_der_parameter": bester,
+                       "stufe": 3, "fold_der_parameter": bester,
                        "n_stadtteile_test": int(test["stadtteil"].nunique())})
     df = pd.DataFrame(zeilen)
     df.round(6).to_csv(OUT / "holdout.csv", index=False)

@@ -95,11 +95,13 @@ begründet in #31, freigegeben von Schröter am 03.08.2026.
 
 | Strang | Stufe 1 — ohne Merkmale | Stufe 2 — einfachste passende Form |
 |---|---|---|
-| Menge | Gesamtmittelwert | Negative Binomial |
+| Menge | Gesamtmittelwert | **Poisson-GLM mit Offset** (#45) |
 | Struktur | Mehrheitsklasse | Multinomiale logistische Regression |
 
 Stufe 2 ist die eigentliche Messlatte: Sie benutzt dieselben Merkmale wie die
-Vergleichsverfahren, nur in der simpelsten Form, die zur Datenform passt.
+Vergleichsverfahren, nur in der simpelsten Form, die zur Datenform passt. Beide
+sind verallgemeinerte lineare Modelle mit kanonischem Link, per unpenalisierter
+Maximum-Likelihood angepasst, **ohne freien Hyperparameter** (#45).
 
 ---
 
@@ -110,12 +112,13 @@ Drei Arbeitsschritte, drei Ordner, drei Stufen:
 ```
 prep/         die Daten          config.py · s1_daten.py · s2_datensaetze.py
               Stufe 0            build.py
-vorpruefung/  die Messlatte      v1_baselines.py  Stufe 1 (trivial)
+vorpruefung/  die Messlatte      v0_aufteilung.py wiederholte Splits
+              und die Eignung    v1_baselines.py  Stufe 1 + 2
               und die Eignung                     Stufe 2 (einfachste passende Form)
               Stufe 1 + 2        v2_eignung.py    welche Verfahrensklasse passt?
                                  run.py
 modelle/      der Vergleich      m02_menge.py · m03_struktur.py · m04_shap.py
-              Stufe 3            (noch zu schreiben)
+              Stufe 3            m05_abbildungen.py · config_modelle.py
 tests/                           test_aufbereitung.py
 ```
 
@@ -161,8 +164,8 @@ Zwei Regeln, die dabei gelten:
 | Business Understanding | ✅ Exposé, Kap. 1/4 |
 | Data Understanding | ✅ Eignungsprüfung gerechnet (`vorpruefung/`), fünf Belege |
 | Data Preparation | ✅ **abgeschlossen** — ein Befehl, zwei Datensätze, 19/19 Prüfungen |
-| Modeling | ✅ **Code vollständig** (06.08.2026), Mechanik durchgespielt — der finale Lauf steht aus |
-| Evaluation | ⬜ Hold-out unberührt, konstruktiv abgesichert |
+| Modeling | ✅ **abgeschlossen** — finaler Lauf 07.08.2026 |
+| Evaluation | ✅ **abgeschlossen** — Hold-out einmalig ausgewertet, beide Stränge |
 | Deployment | ⬜ nicht Teil der Arbeit (Limitation, vgl. Schröer et al. 2021) |
 
 **Nächster Schritt:** der finale Lauf auf definierter Hardware.

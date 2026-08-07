@@ -258,72 +258,72 @@ Ein Lauf, ein Befehl, keine Ausnahmen. Die Gegenprobe ohne
 Expositionsbehandlung ist kein zweiter Betriebsmodus, sondern eine Ablation
 (Abschnitt 5.5).
 
-### 5.1 Menge — Ergebnisse
-
-> ⚠️ **Die Zahlen dieses Abschnitts stammen noch aus dem Lauf vom 06.08.2026
-> ohne Expositionsbehandlung und werden nach dem nächsten `m02`-Lauf ersetzt.**
-> Vorabmessung auf Wiederholung 0 mit der neuen Spezifikation:
-> XGBoost 35,74 · Random Forest 36,43 · Ridge 37,25 gegen eine Baseline von
-> 37,44 — alle drei Verfahren vor der Baseline, Rangfolge XGBoost > Random
-> Forest > Ridge. Ob die Abstände den gepaarten Wilcoxon überstehen, ist offen.
+### 5.1 Menge — kein Verfahren schlägt die Baseline
 
 | Zielgröße | Verfahren | RMSE | MAE | R² | Trainingszeit |
 |---|---|---|---|---|---|
-| `anzahl_einsaetze` | **Negative Binomial** | **37,27 ± 3,23** | 24,79 | 0,477 | – |
-| | Ridge | 38,31 ± 3,10 | 25,16 | 0,522 | 0,006 s |
-| | XGBoost | 54,95 ± 4,21 | 36,26 | 0,024 | 0,986 s |
-| | Random Forest | 58,69 ± 4,02 | 41,94 | −0,484 | 2,726 s |
-| `einsaetze_je_1000_ew` | **Negative Binomial** | **4,41 ± 0,59** | 2,43 | 0,024 | – |
-| | Random Forest | 4,19 ± 0,63 | 2,43 | 0,251 | 5,447 s |
-| | XGBoost | 4,37 ± 0,43 | 2,41 | 0,496 | 1,234 s |
-| | Ridge | 4,68 ± 0,24 | 2,50 | 0,283 | 0,006 s |
+| `anzahl_einsaetze` | **Poisson-GLM** | **33,98 ± 3,11** | 22,94 | 0,542 | – |
+| | Random Forest | 35,63 ± 3,51 | 25,41 | 0,402 | 5,60 s |
+| | XGBoost | 35,88 ± 2,55 | 24,49 | 0,532 | 1,34 s |
+| | Ridge | 36,51 ± 2,76 | 24,40 | 0,511 | 0,010 s |
+| `einsaetze_je_1000_ew` | **Poisson-GLM** | **4,08 ± 0,62** | 2,25 | 0,367 | – |
+| | Random Forest | 4,19 ± 0,63 | 2,43 | 0,251 | 5,61 s |
+| | XGBoost | 4,20 ± 0,44 | 2,31 | 0,508 | 1,34 s |
+| | Ridge | 4,68 ± 0,24 | 2,50 | 0,283 | 0,010 s |
 
 **Primäraussage nach #34** — gepaarter Wilcoxon auf den 10 Wiederholungsmitteln,
 positive Differenz heißt das Verfahren ist besser:
 
 | Zielgröße | Verfahren gegen Baseline | Differenz | gewonnen | p | Befund |
 |---|---|---|---|---|---|
-| `anzahl_einsaetze` | Ridge | −1,04 | 2/10 | 0,084 | nicht unterscheidbar |
-| | Random Forest | −21,42 | 0/10 | 0,002 | signifikant schlechter |
-| | XGBoost | −17,68 | 0/10 | 0,002 | signifikant schlechter |
-| `einsaetze_je_1000_ew` | Random Forest | +0,22 | 5/10 | 0,275 | nicht unterscheidbar |
-| | XGBoost | +0,04 | 6/10 | 0,846 | nicht unterscheidbar |
-| | Ridge | −0,27 | 1/10 | 0,049 | signifikant schlechter |
+| `anzahl_einsaetze` | Random Forest | −1,65 | 3/10 | 0,160 | **nicht unterscheidbar** |
+| | XGBoost | −1,90 | 3/10 | 0,232 | **nicht unterscheidbar** |
+| | Ridge | −2,53 | 2/10 | 0,010 | signifikant schlechter |
+| `einsaetze_je_1000_ew` | Random Forest | −0,11 | 4/10 | 0,557 | **nicht unterscheidbar** |
+| | XGBoost | −0,13 | 3/10 | 0,375 | **nicht unterscheidbar** |
+| | Ridge | −0,60 | 1/10 | 0,004 | signifikant schlechter |
+
+**Kein Verfahren schlägt die Baseline.** Random Forest und XGBoost erreichen in
+beiden Zielgrößen ihr Niveau, Ridge bleibt in beiden signifikant darunter.
 
 **Verfahrensvergleich** (sekundär, Holm über 6 Tests):
 
 | Zielgröße | Paarung | Differenz | p_holm | Befund |
 |---|---|---|---|---|
-| `anzahl_einsaetze` | Ridge – Random Forest | 20,38 | 0,012 | Ridge besser |
-| | Ridge – XGBoost | 16,64 | 0,012 | Ridge besser |
-| | Random Forest – XGBoost | −3,74 | 0,016 | XGBoost besser |
-| `einsaetze_je_1000_ew` | alle drei Paarungen | – | ≥ 0,111 | nicht unterscheidbar |
+| `anzahl_einsaetze` | alle drei Paarungen | ≤ 0,88 | 1,000 | nicht unterscheidbar |
+| `einsaetze_je_1000_ew` | Ridge – XGBoost | −0,47 | 0,035 | **XGBoost besser** |
+| | Ridge – Random Forest | −0,49 | 0,186 | nicht unterscheidbar |
+| | Random Forest – XGBoost | +0,01 | 1,000 | nicht unterscheidbar |
 
-Rangfolge bei `anzahl_einsaetze`: **Ridge > XGBoost > Random Forest**. Bei der
-Rate überlappen die Streuungsbereiche, dort ist keine Rangfolge zulässig (R-6).
+Nur eine einzige Paarung ist trennbar. Bei `anzahl_einsaetze` überlappen die
+Streuungsbereiche durchgehend — dort ist keine Rangfolge zulässig (R-6).
 
-**Nebeneffekt der Verlustfunktion (#42):** Es gibt **keine negativen
-Vorhersagen** mehr. Tweedie und Poisson haben eine Log-Verknüpfung und können
-nicht unter null fallen — die Zielgröße wird strukturell respektiert statt
-nachträglich geprüft.
+**Nebeneffekt der Verlustfunktion (#42):** **keine negativen Vorhersagen**,
+in keinem der 300 Läufe. Tweedie und Poisson haben eine Log-Verknüpfung und
+können nicht unter null fallen — die Zielgröße wird strukturell respektiert
+statt nachträglich geprüft.
 
 ### 5.2 Struktur — beide Verfahren schlagen die Stufe-2-Baseline
 
 | Verfahren | Macro-F1 | Macro-AUROC | Accuracy | Trainingszeit |
 |---|---|---|---|---|
 | Mehrheitsklasse (Stufe 1) | 0,223 | – | 0,806 | – |
-| **Logistische Regression (Stufe 2)** | **0,298** | 0,711 | 0,588 | – |
-| Random Forest | 0,3276 ± 0,0129 | 0,735 | 0,761 | 2,097 s |
-| XGBoost | 0,3343 ± 0,0128 | 0,751 | 0,754 | 1,763 s |
+| **Multinomiales Logit (Stufe 2)** | **0,297** | 0,705 | 0,584 | – |
+| Random Forest | 0,3276 ± 0,0129 | 0,735 | 0,761 | 2,05 s |
+| XGBoost | 0,3343 ± 0,0128 | 0,751 | 0,754 | 1,64 s |
 
 | Paarung | Differenz | gewonnen | p | Befund |
 |---|---|---|---|---|
-| Random Forest gegen Stufe 2 | +0,0296 | 10/10 | 0,002 | **signifikant besser** |
-| XGBoost gegen Stufe 2 | +0,0362 | 9/10 | 0,004 | **signifikant besser** |
+| Random Forest gegen Stufe 2 | +0,0304 | **10/10** | 0,002 | **signifikant besser** |
+| XGBoost gegen Stufe 2 | +0,0371 | **10/10** | 0,002 | **signifikant besser** |
 | Random Forest – XGBoost | −0,0067 | 2/10 | 0,131 | nicht unterscheidbar |
 
+Beide Verfahren gewinnen in **allen zehn** Wiederholungen — der kleinste bei
+n = 10 erreichbare p-Wert. Die Richtung ist damit eindeutig, nicht knapp.
+
 Keine Korrektur beim Verfahrensvergleich — die Familie besteht aus einem Test
-(#38). Kein Lauf ohne definierte Macro-AUROC.
+(#38). Kein Lauf ohne definierte Macro-AUROC. Brand-Testfälle im Mittel 6,6
+je Fold, in Wiederholung 0 wie dokumentiert 13 · 9 · 6 · 3 · 2.
 
 ### 5.3 Der Kernbefund
 
@@ -336,26 +336,61 @@ Form der Klassengrenze, und dort sind flexible Verfahren im Vorteil.
 
 ### 5.4 Aufwand und Reproduzierbarkeit
 
-Alle Zeiten je Fold, **einkernig gemessen** (#40):
+**Messumgebung.** Alle Laufzeiten stammen aus einem Durchgang auf derselben
+Maschine, ohne Nebenlast:
+
+| | |
+|---|---|
+| Prozessor | Intel Core i5-7300U @ 2,60 GHz |
+| Kerne | **2 physisch**, 4 logisch (Hyperthreading) |
+| Arbeitsspeicher | 7,8 GB |
+| Betriebssystem | Windows 10 Pro |
+| Python | 3.14.0 · Pakete in `requirements_lauf.txt` |
+
+**Trainingszeit je Fold, einkernig gemessen** (#40) — der Wert, der zwischen
+den Verfahren vergleichbar ist:
+
+| | Ridge | XGBoost | Random Forest |
+|---|---|---|---|
+| Menge, `anzahl_einsaetze` | **0,010 s** | 1,34 s | 5,60 s |
+| Menge, Rate | **0,010 s** | 1,34 s | 5,61 s |
+| Struktur | – | 1,64 s | 2,05 s |
+| Inferenz, Menge | 0,003 s | 0,015 s | 0,078 s |
+
+Ridge ist bei nicht unterscheidbarer Güte **130-mal schneller als XGBoost** und
+**550-mal schneller als Random Forest**. Das ist die belastbarste Aussage des
+Aufwandvergleichs, weil zwischen den Verfahren Größenordnungen liegen und
+nicht Prozentpunkte.
+
+**Parallelisierungsgewinn** — Faktor, um den der Fit über alle vier logischen
+Kerne schneller ist:
 
 | | Ridge | Random Forest | XGBoost |
 |---|---|---|---|
-| Training, Menge | 0,005–0,006 s | 1,89–4,49 s | 0,82–1,00 s |
-| Training, Struktur | – | 2,10 s | 1,76 s |
-| Parallelisierungsgewinn | 1,02–1,45 | 1,65–2,18 | **0,64–0,77** |
+| Menge | 1,06 / 1,05 | 2,27 / 2,26 | **0,69 / 0,69** |
+| Struktur | – | 1,55 | **0,77** |
 
-Ridge ist bei bester oder gleichwertiger Güte **300- bis 800-mal schneller** als
-die Ensembles. Bei XGBoost liegt der Parallelisierungsgewinn **unter 1** — der
-Fit über alle Kerne dauert länger als der einkernige (B-28).
+**Bei XGBoost liegt der Gewinn unter 1** — der Fit über alle Kerne dauert
+*länger* als der einkernige (B-28). Random Forest profitiert, weil seine Bäume
+unabhängig sind; Ridge hat als geschlossene Lösung nichts zu verteilen.
+
+> **Einschränkung, die in Kapitel 7 gehört:** Der Parallelisierungsgewinn ist
+> stärker an diese Maschine gebunden als die Einkern-Zeiten. Zwei physische
+> Kerne mit Hyperthreading sind ein Grenzfall — die vier logischen Prozessoren
+> teilen sich zwei Recheneinheiten. Auf einer Maschine mit acht oder mehr
+> echten Kernen fielen die Faktoren anders aus. Bei einer U-Serie-CPU ist
+> zudem thermische Drosselung über eine Laufzeit von rund einer Stunde nicht
+> auszuschließen.
 
 **XGBoost ist nicht threaddeterministisch.** Bei anderer Kernzahl weichen die
-Vorhersagen ab: bis 34,7 bei `anzahl_einsaetze` (Mittelwert 76) und 7,4 %
-abweichende Klassen in der Struktur. Ridge und Random Forest sind unauffällig
-(≤ 6·10⁻¹⁴). Die berichteten Werte stammen durchgehend aus dem einkernigen Fit
-(B-24) — die Reproduzierbarkeitsangabe in Kapitel 6 muss die Kernzahl nennen.
+Vorhersagen ab: bis **323** bei `anzahl_einsaetze` (Mittelwert 76), 18,9 bei
+der Rate, **7,4 %** abweichende Klassen in der Struktur. Ridge und Random
+Forest sind unauffällig (≤ 2·10⁻¹³). Alle berichteten Werte stammen aus dem
+einkernigen Fit (B-24) — die Reproduzierbarkeitsangabe in Kapitel 6 muss die
+Kernzahl nennen, nicht nur den `random_state`.
 
-**Negative Vorhersagen:** 7, alle bei XGBoost auf der Rate. Ridge keine — die
-`log1p`/`expm1`-Transformation kann nicht unter −1 fallen (B-15). Nicht gekappt.
+**Negative Vorhersagen: keine**, in keinem der 300 Läufe. Tweedie und Poisson
+haben eine Log-Verknüpfung (B-15).
 
 ### 5.5 Ablation — was leistet die Expositionsbehandlung?
 
@@ -366,17 +401,16 @@ Hyperparameter. Damit ist der Effekt der Spezifikation isoliert.
 
 | Modell | RMSE | R² |
 |---|---|---|
-| **Negative Binomial (Referenz)** | **37,44** | 0,472 |
-| Random Forest, mit Exposition | **36,43** | 0,523 |
-| Random Forest, ohne Exposition | 67,71 | −1,536 |
-| XGBoost, mit Exposition | **35,74** | 0,607 |
-| XGBoost, ohne Exposition | 61,70 | −0,637 |
-
-*(Wiederholung 0; die vollständigen Werte liefert `m04_shap.py`.)*
+| **Poisson-GLM (Referenz)** | **33,98** | 0,542 |
+| Random Forest, mit Exposition | **35,63** | 0,402 |
+| Random Forest, ohne Exposition | 64,81 | −1,023 |
+| XGBoost, mit Exposition | **35,88** | 0,532 |
+| XGBoost, ohne Exposition | 57,86 | −0,042 |
+| Ridge, mit Exposition | 36,51 | 0,511 |
 
 **Der Effekt der Spezifikation übersteigt den Effekt der Verfahrenswahl um mehr
-als eine Größenordnung:** zwischen den Verfahren liegen unter 2 RMSE, zwischen
-den Spezifikationen eines Verfahrens 24 bis 31.
+als eine Größenordnung:** zwischen den drei Verfahren liegen **0,9 RMSE**,
+zwischen den Spezifikationen eines Verfahrens **22 bis 29**.
 
 Der Grund ist die **multiplikative Größenstruktur**. Baumverfahren geben je
 Blatt einen festen Wert aus und können „Einsätze = Bevölkerung × Risiko" nicht
@@ -390,29 +424,94 @@ Verfahren mit Log-Verknüpfung bekommen die Multiplikation geschenkt.
 Größen- oder Expositionsgröße entscheidet weniger die Wahl des Verfahrens als
 die Frage, ob die Größenbeziehung in der Modellspezifikation abgebildet ist.
 
-### 5.6 Beitrag der Faktorgruppen im Mengenstrang (UF1)
+### 5.6 Beitrag der Faktorgruppen (UF1)
 
-Standardisierte Beiträge der Negative Binomial — dem besten Modell dieses
-Strangs (`07_BEFUNDE.md`, B-35):
+Zwei Quellen, weil die beiden Stränge verschiedene beste Modelle haben: im
+Mengenstrang die standardisierten Koeffizienten des Poisson-GLM (keines der
+Verfahren schlägt es), in der Struktur die SHAP-Werte von Random Forest und
+XGBoost. Beides auf Fold 5, dem Fold mit dem geringsten Extrapolationsanteil
+(3,6 %).
 
-| Faktorgruppe | Anteil |
-|---|---|
-| baulich | **31,0 %** |
-| kriminalitätsbezogen | 25,6 % |
-| sozioökonomisch | 23,2 % |
-| Größenkontrolle | 15,3 % |
-| Saison | 4,9 % |
+| Faktorgruppe | **Menge** (Poisson-GLM) | **Struktur** (RF) | **Struktur** (XGBoost) |
+|---|---|---|---|
+| kriminalitätsbezogen | **36,2 %** | 16,7 % | 13,4 % |
+| baulich | 25,6 % | 29,2 % | 21,1 % |
+| sozioökonomisch | 23,2 % | **34,9 %** | **45,3 %** |
+| Größenkontrolle | 11,2 % | 10,3 % | 10,1 % |
+| Saison | 3,9 % | 8,8 % | 10,2 % |
 
-Alle drei Faktorgruppen des Exposés tragen bei, in vergleichbarer
-Größenordnung. Stärkstes Einzelmerkmal ist `log_kriminalitaetsindex` mit 25,6 %
-(p < 0,0001) — allein so viel wie die gesamte sozioökonomische Gruppe.
+**Alle drei Faktorgruppen des Exposés tragen in beiden Strängen bei** — UF1 ist
+mit ja beantwortet, und keine Gruppe ist bedeutungslos.
 
-**`median_haushaltseinkommen` trägt 0,3 % bei p = 0,80** — praktisch nichts,
-sobald Armuts- und Akademikerquote im Modell stehen. Es hat zugleich den
-höchsten VIF (12,29). `anteil_wohngebaeude_pct` wirkt negativ (−0,338): Je
-höher der Wohnanteil, desto weniger Einsätze je Einwohner.
+**Die Treiber unterscheiden sich aber zwischen den Strängen.** Wie *viele*
+Einsätze ein Stadtteil hat, hängt am stärksten vom Kriminalitätsindex ab
+(36,2 %). *Welche Art* dort überwiegt, wird vor allem von den sozioökonomischen
+Merkmalen bestimmt (34,9 bzw. 45,3 %), während der Kriminalitätsindex dort auf
+den dritten Platz zurückfällt.
 
-### 5.7 Diagnose zum Tuning auf Wiederholung 0
+Beide Verfahren der Struktur stimmen in der Rangfolge der ersten drei Gruppen
+überein — sozioökonomisch vor baulich vor kriminalitätsbezogen. Nur die beiden
+letzten Plätze tauschen. Das erfüllt den Prüfauftrag „stimmen RF und XGBoost
+überein" (`m04_shap.py`).
+
+**Multikollinearität:** höchster VIF 12,29 bei `median_haushaltseinkommen`, auf
+beiden Bezugsmengen identisch. Deshalb die blockweise Auswertung — einzelne
+Merkmalsbeiträge wären Scheinpräzision.
+
+### 5.7 Die Schlussbewertung auf dem Hold-out
+
+Einmalig, auf sechs Stadtteilen, die in **kein** Tuning, **keine** Bewertung und
+**keine** Spezifikationsentscheidung eingeflossen sind. Trainiert wird auf allen
+29 Entwicklungsstadtteilen.
+
+**Menge**
+
+| Stufe | | RMSE `anzahl` | R² | RMSE Rate | R² |
+|---|---|---|---|---|---|
+| 1 | Gesamtmittelwert | 50,23 | −0,006 | 3,30 | −3,320 |
+| **2** | **Poisson-GLM** | **22,35** | **0,801** | **0,98** | **0,621** |
+| 3 | Ridge | 23,71 | 0,776 | 1,14 | 0,485 |
+| 3 | XGBoost | 26,33 | 0,724 | 1,06 | 0,549 |
+| 3 | Random Forest | 30,58 | 0,627 | 1,56 | 0,034 |
+
+**Der Befund der Kreuzvalidierung bestätigt sich:** Auch auf unberührten Daten
+erzielt die Baseline in beiden Zielgrößen den geringsten Fehler.
+
+**Struktur**
+
+| Stufe | | Macro-F1 | Macro-AUROC | Accuracy |
+|---|---|---|---|---|
+| 1 | Mehrheitsklasse | 0,208 | – | 0,711 |
+| **2** | **Multinomiales Logit** | **0,327** | **0,756** | 0,472 |
+| 3 | XGBoost | 0,274 | 0,637 | 0,574 |
+| 3 | Random Forest | 0,255 | 0,507 | 0,563 |
+
+**Hier weicht die Schlussbewertung von der Kreuzvalidierung ab** — dort schlugen
+beide Verfahren die Baseline in 10 von 10 Wiederholungen.
+
+#### Wie diese Zahlen zu lesen sind
+
+**Nicht mit den Kreuzvalidierungswerten vergleichen.** Der Hold-out ist eine
+andere, leichtere Aufgabe: Extrapolationsanteil 7,6 % gegenüber 34,6 % in den
+CV-Folds, und das Training läuft auf 29 statt 23 Stadtteilen. Die absoluten
+Werte fallen deshalb günstiger aus.
+
+**Keine Rangfolge zwischen den Verfahren.** Eine Messung an sechs Einheiten,
+ohne Streuung und ohne Test (R-4).
+
+**Die Abweichung im Strukturstrang ist kein Widerspruch.** Der Hold-out-Wert
+liegt innerhalb der Spannweite der 50 Einzelläufe — Random Forest 0,229 bis
+0,404, XGBoost 0,230 bis 0,421. 14 % bzw. 16 % der Folds lagen darunter. Es ist
+eine Ziehung aus einer breiten Verteilung, keine Anomalie.
+
+**Was der Hold-out dagegen sichtbar macht** (`07_BEFUNDE.md`, B-40): Beide
+Baumverfahren sagen die seltenste Klasse dort **kein einziges Mal** vorher —
+F1 für `brand` ist 0,000, bei Random Forest liegt die AUROC mit 0,173 sogar
+unter dem Zufall. Die logistische Regression erkennt dieselbe Klasse mit einer
+AUROC von 0,895 zuverlässig und klassifiziert lediglich zurückhaltend. Der
+Mittelwert der Kreuzvalidierung verdeckt diese Instabilität.
+
+### 5.8 Diagnose zum Tuning auf Wiederholung 0
 
 Getunt wird einmal; in den Wiederholungen 1–9 waren im Mittel 78 % der
 Teststadtteile in der Menge, auf der die Parameter gesucht wurden (B-21).
