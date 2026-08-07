@@ -1242,6 +1242,158 @@ die praktisch relevantere Information als der Mittelwert. Gehoert in Kapitel 8.
 
 ---
 
+## B-41 · Die nachgewiesene Nichtlinearitaet generalisiert nicht
+
+**Fundstelle:** `vorpruefung/v2_eignung.py`, Abschnitt 3 („Die lineare
+Spezifikation reicht nicht"), und `results/eignungspruefung/eignungspruefung.md`.
+Geprueft am 07.08.2026 mit `vorpruefung/v3_spezifikation.py`; die Zahlen unten
+stehen in `results/spezifikation/spezifikation_mittel.csv`.
+
+**Was die Vorpruefung feststellte.** Der RESET-Test auf `log(1+y)` verwirft die
+lineare Spezifikation deutlich (F = 215,2 bei Potenzen bis 2, p = 4·10⁻⁴⁷).
+Interaktionsterme heben das adjustierte R² von 0,805 auf 0,919 (45 Terme).
+Daraus wurde die Wahl der Baumverfahren begruendet: „Baumverfahren fangen beides
+ohne Zutun ab."
+
+**Der direkte Test.** Ergaenzt man das Referenzmodell um genau diese Terme und
+bewertet unter demselben Stadtteil-Split ueber dieselben 50 Laeufe:
+
+| Spezifikation | Terme | RMSE | R² |
+|---|---|---|---|
+| **Poisson-GLM, linear** | 12 | **33,98** | **0,542** |
+| + quadratische Terme | 22 | 101,11 | −5,97 |
+| + Interaktionen | 57 | 121,63 | −6,25 |
+| + beides | 67 | 180,86 | −16,45 |
+
+Alle 200 Anpassungen sind konvergiert; die Werte sind also nicht das Ergebnis
+abgebrochener Iterationen. Die Zeile `linear` reproduziert die Stufe-2-Baseline
+exakt (33,978) — das ist der Selbsttest des Skripts. (Ein Vorlauf ohne
+Standardisierung ergab fuer `beides` 180,13 statt 180,86; die Abweichung von
+0,4 % betrifft nur die schlechtestkonditionierte Variante und aendert an der
+Aussage nichts.)
+
+**Die Struktur, die in-sample nachweisbar ist, zerstoert die Prognose
+out-of-sample** — um den Faktor drei bis fuenf.
+
+**Warum die Vorpruefung dennoch nicht falsch gerechnet hat.** Sie beantwortet
+eine andere Frage. Der RESET-Test lief auf **3.828 Zeilen, die als unabhaengig
+behandelt wurden**; tatsaechlich liegen 29 unabhaengige Stadtteile mit je 132
+Monaten vor. Ein F-Test mit n = 3.828 findet praktisch jede Abweichung
+signifikant. Dasselbe gilt fuer die 45 Interaktionsterme: Adjustiertes R² ist
+eine In-sample-Groesse und korrigiert fuer die Zahl der Parameter, nicht fuer
+die geklumpte Struktur — bei 29 unabhaengigen Einheiten stehen 45 Zusatzterme
+in keinem Verhaeltnis.
+
+Es ist dieselbe Pseudoreplikation wie beim Wilcoxon-Test ueber 50 Laeufe
+(R-11), nur an anderer Stelle und mit umgekehrter Wirkung: Dort macht sie
+p-Werte zu klein, hier laesst sie Modellstruktur erscheinen, die es
+generalisierend nicht gibt.
+
+**Damit erklaert sich der Hauptbefund.** Ordnet man die Verfahren nach
+ungebremster Flexibilitaet:
+
+| | R² |
+|---|---|
+| Poisson-GLM, 12 Terme, keine Flexibilitaet | **0,542** |
+| XGBoost, stark reguliert | 0,532 |
+| Ridge, alpha bis 660 | 0,511 |
+| Random Forest, bis Tiefe 24 | 0,402 |
+| Poisson + Interaktionen, unbestraft | −6,25 |
+
+Was die Ensembles rettet, ist ihre **Regularisierung**, nicht ihre
+Ausdrucksfaehigkeit. Und keine Regularisierung bringt sie ueber die Form
+hinaus, die von vornherein passt. Bei 29 Einheiten ist das das
+Bias-Varianz-Dilemma in Reinform.
+
+**Fuer die Arbeit — ein uebertragbarer methodischer Beitrag.** In-sample
+nachweisbare Nichtlinearitaet ist **kein hinreichender Grund** fuer flexible
+Verfahren, wenn die Diagnostik geklumpte Daten als unabhaengig behandelt. Die
+Eignungspruefung ist als Entscheidungsgrundlage insofern zu relativieren; ihre
+Schlussfolgerung war ex ante vertretbar, hat sich aber nicht bestaetigt. Das
+gehoert in Kapitel 6 (Verfahrenswahl) **und** in Kapitel 8 (Limitationen).
+
+---
+
+## B-42 · Klassifikation: Kreuzvalidierung und Hold-out widersprechen sich
+
+**Fundstelle:** `results/klassifikation/struktur_mittel.csv` gegen
+`results/klassifikation/holdout.csv`, sichtbar geworden durch die
+Neufassung der Abbildungen A1 und A5 am 07.08.2026.
+
+**Der Widerspruch.** Macro-F1, dieselben Verfahren, zwei Auswertungen:
+
+| | Kreuzvalidierung (50 Laeufe) | Hold-out (einmalig) |
+|---|---|---|
+| Mehrheitsklasse (Stufe 1) | 0,223 | 0,208 |
+| **Logit (Stufe 2)** | **0,297** | **0,327** |
+| Random Forest | **0,328** | 0,255 |
+| XGBoost | **0,334** | 0,274 |
+
+In der Kreuzvalidierung schlagen beide Baumverfahren die Stufe-2-Baseline —
+gepaart in 38 von 50 (RF) bzw. 42 von 50 Laeufen (XGBoost). Auf dem Hold-out
+gewinnt die Baseline deutlich gegen beide. **Das Vorzeichen dreht sich.**
+
+**Wo die Hold-out-Werte in der CV-Verteilung liegen.** Beide Auswertungen
+messen dasselbe, nur auf anderen Stadtteilen; die CV-Verteilung sagt also,
+wie ungewoehnlich der Hold-out-Wert ist:
+
+| | Perzentil in der eigenen CV-Verteilung |
+|---|---|
+| Random Forest | 14 |
+| XGBoost | 16 |
+| Logit | 64 |
+
+Alle drei Werte liegen INNERHALB der jeweiligen CV-Spanne (RF etwa 0,229 bis
+0,404) — kein Wert ist als solcher auffaellig. Auffaellig ist die Richtung:
+Auf denselben sechs Stadtteilen landen die Baumverfahren im unteren Fuenftel
+ihrer Verteilung und die Baseline im oberen Drittel.
+
+**Drei Erklaerungen, davon eine gemessen.**
+
+*Gemessen — das Tuning ist ueber die Folds instabil.* Die je Fold gewaehlten
+Hyperparameter des Random Forest streuen erheblich: `max_depth` 16/24/16/24/24,
+`max_features` 0,5/0,5/1,0/1,0/sqrt, `min_samples_leaf` 12/13/15/7/6,
+`n_estimators` 539/359/306/321/995. Fuer das Hold-out wird EIN Fold als
+Parameterquelle verwendet (`fold_der_parameter`, bei RF Fold 4). In der
+Kreuzvalidierung bekommt dagegen jeder Fold seine eigenen Parameter. Die
+Baumverfahren treten auf dem Hold-out also mit einer Parameterwahl an, die
+aus einer instabilen Verteilung gezogen ist, waehrend der Logit gar keine
+Hyperparameter hat und von dieser Asymmetrie nicht betroffen ist. Wie viel
+das ausmacht, ist NICHT gemessen.
+
+*Nicht gemessen — mehr Trainingsdaten helfen dem einfachen Modell.* Das
+Hold-out-Modell trainiert auf 29 statt 23 Stadtteilen. Der Logit verbessert
+sich (0,297 auf 0,327), beide Baumverfahren verschlechtern sich. Das passt
+zum Muster aus B-41: Bei dieser Zahl unabhaengiger Einheiten zahlt sich
+Flexibilitaet nicht aus, und zusaetzliche Einheiten nuetzen dem sparsamen
+Modell mehr.
+
+*Nicht messbar — Stichprobenfehler.* Das Hold-out ist EINE Ziehung von sechs
+Stadtteilen. Es gibt dazu keine Streuung, und es darf auch keine geben; die
+Einmaligkeit ist sein Zweck.
+
+**Was daraus fuer die Arbeit folgt.**
+
+1. **Beide Ergebnisse berichten, keines unterschlagen.** Der Widerspruch ist
+   das Ergebnis. Ein Bericht, der nur die Kreuzvalidierung zeigt, behauptet
+   fuer die Klassifikation einen Vorteil der Baumverfahren, den die
+   Schlussbewertung nicht traegt.
+2. **Keine Rangfolge zwischen Logit und Baumverfahren in der Klassifikation.**
+   Die vorgesehene Aussage lautet damit: Der Mehraufwand von Random Forest und
+   XGBoost ist im Strukturstrang nicht belegt — genau der Fall, der in
+   `CLAUDE.md` und `06_RISIKEN.md` (R-2) vorab als berichtbar vorgesehen war.
+3. **Die Parameter-Asymmetrie gehoert in die Limitationen.** Sie ist eine
+   Schwaeche des Hold-out-Verfahrens, nicht der Verfahren.
+
+**Eine saubere Gegenprobe waere moeglich, ohne das Hold-out anzufassen:**
+Innerhalb der Kreuzvalidierung jedem Fold die Parameter eines ANDEREN Folds
+geben und messen, wie stark Macro-F1 dadurch faellt. Das quantifiziert die
+Uebertragbarkeit der Hyperparameter mit denselben Daten, auf denen ohnehin
+gerechnet werden darf. Nicht durchgefuehrt — Aufwand und Nutzen sind vor der
+Abgabe abzuwaegen.
+
+---
+
 ## Offene Pruefungen
 
 **~~1 · Mechanismustest zur Groessenskalierung~~** ✅ **erledigt am 06.08.2026,

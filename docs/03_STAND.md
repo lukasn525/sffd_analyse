@@ -303,7 +303,13 @@ in keinem der 300 Läufe. Tweedie und Poisson haben eine Log-Verknüpfung und
 können nicht unter null fallen — die Zielgröße wird strukturell respektiert
 statt nachträglich geprüft.
 
-### 5.2 Struktur — beide Verfahren schlagen die Stufe-2-Baseline
+### 5.2 Struktur — beide Verfahren schlagen die Stufe-2-Baseline in der Kreuzvalidierung
+
+> **Achtung, gilt nur für die Kreuzvalidierung.** Auf dem Hold-out kehrt sich
+> das Ergebnis um: dort gewinnt das Logit mit 0,327 gegen XGBoost 0,274 und
+> Random Forest 0,255 (Abschnitt 5.7). Beide Auswertungen sind zu berichten;
+> Analyse in `07_BEFUNDE.md`, B-42. Eine Rangfolge zwischen Logit und
+> Baumverfahren ist im Strukturstrang **nicht** zulässig.
 
 | Verfahren | Macro-F1 | Macro-AUROC | Accuracy | Trainingszeit |
 |---|---|---|---|---|
@@ -327,12 +333,20 @@ je Fold, in Wiederholung 0 wie dokumentiert 13 · 9 · 6 · 3 · 2.
 
 ### 5.3 Der Kernbefund
 
-**Derselbe Datensatz, dieselben Merkmale, dieselben Folds — und die Antwort
-kehrt sich um.** In der Menge lohnt sich der Mehraufwand nicht, in der Struktur
-schon. Erklärung in `07_BEFUNDE.md`, B-30: In der Menge entscheidet
-Extrapolation (33,7 % der Testzeilen außerhalb des Trainingsbereichs), und
-dort sind parametrische Modelle im Vorteil. In der Struktur entscheidet die
-Form der Klassengrenze, und dort sind flexible Verfahren im Vorteil.
+**In keinem der beiden Stränge ist der Mehraufwand belegt.** In der Menge
+erreichen Random Forest und XGBoost das Niveau der Baseline, ohne es zu
+übertreffen; Ridge bleibt darunter. In der Struktur schlagen beide die Baseline
+in der Kreuzvalidierung, verlieren aber auf dem Hold-out gegen sie (B-42).
+
+**Woran es liegt.** Nicht an der Extrapolation — diese Erklärung stand hier
+bis zum 07.08.2026 und wurde durch die Messung widerlegt (B-31: Spearman ρ
++0,020 bzw. +0,011, p ≈ 0,9; der Extrapolationsanteil sagt den Fehler nicht
+vorher). Maßgeblich ist die **Spezifikation**: Die Expositionsbehandlung ist
+22 bis 29 RMSE wert (Abschnitt 5.5), und die von der Eignungsprüfung
+diagnostizierte Nichtlinearität überträgt sich nicht auf unbekannte Stadtteile
+(B-41). Bei 29 unabhängigen Einheiten zahlt sich zusätzliche Flexibilität
+nicht aus — was die Ensembles trägt, ist ihre Regularisierung, nicht ihre
+Ausdrucksfähigkeit.
 
 ### 5.4 Aufwand und Reproduzierbarkeit
 
@@ -423,6 +437,30 @@ Verfahren mit Log-Verknüpfung bekommen die Multiplikation geschenkt.
 **Das ist die Antwort auf UF4:** Bei tabellarischen Prognoseaufgaben mit einer
 Größen- oder Expositionsgröße entscheidet weniger die Wahl des Verfahrens als
 die Frage, ob die Größenbeziehung in der Modellspezifikation abgebildet ist.
+
+#### Gegenprobe: hält die diagnostizierte Nichtlinearität out-of-sample?
+
+Quelle: `vorpruefung/v3_spezifikation.py` → `results/spezifikation/`. Dasselbe
+Poisson-GLM, derselbe Split, dieselben 50 Läufe — nur mit den Termen, deren
+Fehlen die Eignungsprüfung nachweist.
+
+| Spezifikation | Terme | RMSE | R² | konvergiert |
+|---|---|---|---|---|
+| **linear** | 12 | **33,98** | **0,542** | 50/50 |
+| + quadratische Terme | 22 | 101,11 | −5,971 | 50/50 |
+| + Interaktionen | 57 | 121,63 | −6,247 | 50/50 |
+| + beides | 67 | 180,86 | −16,454 | 50/50 |
+
+Die Zeile `linear` reproduziert die Stufe-2-Baseline exakt (33,978); das prüft
+das Skript selbst und bricht sonst ab.
+
+**Die Struktur, die in-sample nachweisbar ist, zerstört die Prognose
+out-of-sample.** Der RESET-Test der Eignungsprüfung läuft auf 3.828 Zeilen, die
+als unabhängig behandelt werden — tatsächlich liegen 29 unabhängige Stadtteile
+vor. Ausführlich in `07_BEFUNDE.md`, B-41.
+
+Damit ergibt sich die Spannweite, die A3 zeigt: Die **Wahl des Verfahrens**
+bewegt bis zu **2,5 RMSE**, die **Wahl der Spezifikation** bis zu **146,9**.
 
 ### 5.6 Beitrag der Faktorgruppen (UF1)
 

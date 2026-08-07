@@ -556,13 +556,27 @@ Kreuzvalidierungswerte und darf nicht als deren Bestätigung gelesen werden
 
 ### Abbildungen für Kapitel 7 — `m05_abbildungen.py`
 
-Drei Abbildungen, alle aus den CSV-Dateien erzeugt, keine von Hand:
+Fünf Abbildungen, alle aus den CSV-Dateien erzeugt, keine von Hand:
 
 | | Inhalt | Beantwortet |
 |---|---|---|
-| **A1** | Boxplot je Verfahren über die 50 Läufe, je Zielgröße | zeigt die Streuung ehrlich statt sie zu mitteln |
-| **A2** | Balkendiagramm Verfahren gegen Stufe-2-Baseline, mit Fehlerbalken aus `std_wiederholungen` | die Primäraussage nach #34 (UF2) |
-| **A3** | Streudiagramm Trainingszeit (log) gegen Prognosegüte, ein Punkt je Verfahren | UF3 und UF4 in einem Bild |
+| **A1** | Gepaarte Differenz zur Stufe-2-Baseline, ein Punkt je Wiederholung, beide Stränge | die Primäraussage nach #34 (UF2) |
+| **A2** | Rohwerte je Fold, Verfahren als Linien | warum in A1 gepaart wird — die Streuung stammt aus dem Fold |
+| **A3** | Verfahrenswahl gegen Spezifikationswahl, RMSE auf gemeinsamer Skala | UF4, Grundlage von B-41 |
+| **A4** | Streudiagramm Trainingszeit (log) gegen Prognosegüte | UF3 |
+| **A5** | Hold-out, alle drei Stufen nebeneinander, beide Stränge | die einmalige Schlussbewertung |
+
+**Warum der Satz am 07.08.2026 neu geschnitten wurde.** Der erste Satz zeigte
+Boxplots der **Rohwerte** je Verfahren. Deren Streuung beträgt 12,4 bis 15,5
+RMSE und stammt fast vollständig daraus, *welche* Stadtteile im Testfold liegen
+— der Verfahrensunterschied beträgt rund 2. Da jedes Verfahren dieselben Folds
+sieht, kürzt sich diese Streuung in der gepaarten Differenz heraus: dort
+beträgt sie 2,4 bis 4,3. Gepaarte Daten ungepaart darzustellen verschenkt genau
+die Information, für die der Validierungsrahmen gebaut wurde — und es ist
+dieselbe Paarung, auf der der Wilcoxon-Test beruht.
+
+Das alte A2 hatte zusätzlich einen einfachen Darstellungsfehler: Balken ab null,
+während sich alles zwischen 33,98 und 36,51 abspielt.
 
 **Anforderungen an die Darstellung** — sie landen im gedruckten Dokument:
 
@@ -576,12 +590,15 @@ Drei Abbildungen, alle aus den CSV-Dateien erzeugt, keine von Hand:
 - **Graustufentauglich.** Verfahren zusätzlich über Schraffur oder Marker
   unterscheiden, nicht allein über Farbe.
 - **Achsenbeschriftung mit Einheit**, deutsches Dezimalkomma.
-- **Bei A1 die Nulllinie einzeichnen**, wo R² dargestellt wird — negative Werte
-  sind hier normal und müssen als solche erkennbar sein.
-- **Fehlerbalken immer beschriften**: `std_wiederholungen`, nicht `std_folds`.
-  Ohne Angabe ist ein Fehlerbalken bedeutungslos.
+- **Nulllinie einzeichnen**, wo eine Differenz oder ein R² dargestellt wird —
+  das Vorzeichen ist die Aussage.
+- **Richtung benennen.** An jeder Differenzachse muss stehen, welche Seite
+  besser ist. Bei RMSE ist das links, bei Macro-F1 rechts — wer das
+  verwechselt, liest das Ergebnis genau falsch herum.
+- **Streuung immer benennen**: über die 10 Wiederholungsmittel, nicht über die
+  50 Einzelläufe (`06_RISIKEN.md`, R-5).
 
-Ausgabe nach `results/abbildungen/`, Dateinamen `a1_boxplot_menge.pdf` usw. —
+Ausgabe nach `results/abbildungen/`, Dateinamen `a1_gegen_baseline.pdf` usw. —
 so lassen sie sich in der tex direkt einbinden.
 
 ### `m04_shap.py`

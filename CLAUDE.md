@@ -112,10 +112,11 @@ Drei Arbeitsschritte, drei Ordner, drei Stufen:
 ```
 prep/         die Daten          config.py · s1_daten.py · s2_datensaetze.py
               Stufe 0            build.py
-vorpruefung/  die Messlatte      v0_aufteilung.py wiederholte Splits
-              und die Eignung    v1_baselines.py  Stufe 1 + 2
-              und die Eignung                     Stufe 2 (einfachste passende Form)
-              Stufe 1 + 2        v2_eignung.py    welche Verfahrensklasse passt?
+vorpruefung/  die Messlatte      v0_aufteilung.py  wiederholte Splits
+              und die Eignung    v1_baselines.py   Stufe 1 + 2
+              Stufe 1 + 2        v2_eignung.py     welche Verfahrensklasse passt?
+                                 v3_spezifikation.py  haelt die Nichtlinearitaet
+                                                   out-of-sample? (B-41)
                                  run.py
 modelle/      der Vergleich      m02_menge.py · m03_struktur.py · m04_shap.py
               Stufe 3            m05_abbildungen.py · config_modelle.py
@@ -173,10 +174,11 @@ Zwei Regeln, die dabei gelten:
 ```
 python vorpruefung/v0_aufteilung.py     # Selbsttest der Aufteilung
 python vorpruefung/v1_baselines.py      # Messlatte, 10 Wiederholungen
+python vorpruefung/v3_spezifikation.py  # Gegenprobe zur Eignungspruefung
 python modelle/m02_menge.py             # der lange Teil
 python modelle/m03_struktur.py
 python modelle/m04_shap.py
-python modelle/m05_abbildungen.py
+python modelle/m05_abbildungen.py       # zuletzt - liest alles Vorherige
 ```
 
 Danach je Skript den Block **Prüfaufträge** am Ende des Docstrings abarbeiten
