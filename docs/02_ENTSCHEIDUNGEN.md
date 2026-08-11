@@ -91,5 +91,5 @@ wann entschieden wurde. Der heutige Stand steht in `03_STAND.md`.
 | Binärer Robustheitslauf `ist_brand` | **verworfen** — ein zweiter Klassifikationsstrang verbreitert die Arbeit, ohne eine neue Frage zu beantworten (Gutachten R4/R8) |
 | Robustheitsvariante mit Stadtteil-ID | **verworfen** — unter dem Stadtteil-Split ist die Stadtteil-ID im Test unbekannt und als Merkmal nicht verwendbar |
 | Sensitivität „getunte Klassifikationsbaseline" | **verworfen am 08.08.2026** (#48) — nach Schröters Freigabe kein Muss; der Vorbehalt wird stattdessen in Kapitel 8 benannt |
-| **„Generalisierung auf unbekannte Stadtteile" in den Text** | **offen** — Schröter gegenüber als umgesetzt gemeldet, steht aber noch nicht in `main_gliederung` (`06_RISIKEN.md`, R-17) |
+| **„Generalisierung auf unbekannte Stadtteile" in den Text** | **offen** — Schröter gegenüber als umgesetzt gemeldet, steht aber noch nicht in `main.tex` (`06_RISIKEN.md`, R-17) |
 | **Kapitel 6 bis 9 schreiben** | offen — der gesamte verbleibende Aufwand |

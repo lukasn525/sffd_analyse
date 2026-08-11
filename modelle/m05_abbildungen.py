@@ -40,11 +40,11 @@ null, waehrend sich alles zwischen 33,98 und 36,51 abspielt. Die Unterschiede
 lagen in den obersten sechs Prozent der Bildhoehe.
 
 --------------------------------------------------------------------------
-NEUN ABBILDUNGEN
+ZEHN ABBILDUNGEN
 --------------------------------------------------------------------------
-A1 bis A5 tragen den Verfahrensvergleich, A6 bis A9 die Interpretation. Alle
-neun lesen ausschliesslich CSV - die Regel "dieses Skript rechnet nichts" gilt
-unveraendert auch fuer die vier neuen.
+A1 bis A5 tragen den Verfahrensvergleich, A6 bis A9 die Interpretation, A10
+die Annahmenpruefung. Alle zehn lesen ausschliesslich CSV - die Regel "dieses
+Skript rechnet nichts" gilt unveraendert auch fuer die fuenf neuen.
 
   a1_gegen_baseline.pdf   Gepaarte Differenz zur Stufe-2-Baseline, ein Punkt je
                           Wiederholung, beide Straenge nebeneinander. Das ist
@@ -82,6 +82,11 @@ unveraendert auch fuer die vier neuen.
                           von Unterfrage 3, die A4 nicht zeigt: A4 traegt die
                           EINKERNIGE Zeit auf, hier steht, was Kerne bringen -
                           und wo sie nichts bringen.
+
+  a10_qq_residuen.pdf     QQ-Diagramm der Residuen der linearen Spezifikation.
+                          Auflage vom 10.08.2026, gehoert zu Abschnitt 6 der
+                          Eignungspruefung. Zeigt, WO die Verteilung von der
+                          Normalverteilung abweicht - der Test sagt nur, DASS.
 
 --------------------------------------------------------------------------
 ANFORDERUNGEN AN DIE DARSTELLUNG
@@ -1024,6 +1029,66 @@ def a9_parallelisierung(plt, FuncFormatter) -> list:
 
 
 # ===========================================================================
+def a10_qq_residuen(plt, FuncFormatter) -> list:
+    """Halten die Residuen der linearen Spezifikation die Normalverteilung?
+
+    Schroeter hat den QQ-Plot am 10.08.2026 selbst genannt. Er beantwortet eine
+    Frage, die ein Test allein nicht beantwortet: WO die Abweichung liegt.
+    Jarque-Bera sagt nur, DASS die Verteilung nicht normal ist - bei n = 3.036
+    sagt er das ohnehin fast immer.
+
+    Zu lesen ist die Abbildung an den ENDEN. Liegen die Punkte in der Mitte auf
+    der Geraden und biegen nur aussen ab, ist die Verteilung im Kern normal und
+    hat schwere Raender - genau das, was bei Einsatzzahlen zu erwarten ist.
+    Eine Kruemmung ueber die ganze Laenge waere etwas anderes und schwerer
+    wiegend.
+
+    WOZU DAS UEBERHAUPT GEZEIGT WIRD, obwohl Normalitaet fuer die Punktprognose
+    nicht erforderlich ist (siehe die Tabelle in Abschnitt 6 der
+    Eignungspruefung): Die Anforderung wird geprueft und die Antwort lautet
+    "besteht hier nicht". Das ist eine Aussage. Sie ungeprueft zu lassen waere
+    keine.
+
+    Gezeichnet, nicht gerechnet - die Quantile stehen fertig in
+    `qq_residuen.csv`, erzeugt von `v2_eignung.annahmen()`.
+    """
+    d = _text(RESULTS_DIR / "eignungspruefung" / "qq_residuen.csv")
+    if d is None:
+        return []
+
+    ziele = list(dict.fromkeys(d["zielgroesse"]))
+    fig, achsen = plt.subplots(1, len(ziele), figsize=(BREITE, 3.0))
+    achsen = np.atleast_1d(achsen)
+
+    for ax, ziel in zip(achsen, ziele):
+        g = d[d["zielgroesse"] == ziel]
+        grenze = float(max(abs(g["theoretisch"]).max(),
+                           abs(g["beobachtet"]).max())) * 1.05
+        # Die Winkelhalbierende ZUERST, damit die Punkte darauf liegen und
+        # nicht darunter verschwinden.
+        ax.plot([-grenze, grenze], [-grenze, grenze], color="black",
+                linewidth=1.0, linestyle="--", zorder=1)
+        ax.scatter(g["theoretisch"], g["beobachtet"], s=4, color="0.35",
+                   linewidth=0, alpha=0.55, zorder=2)
+        ax.set_xlim(-grenze, grenze)
+        ax.set_ylim(-grenze, grenze)
+        ax.set_aspect("equal", adjustable="box")
+        ax.set_xlabel("theoretisches Quantil")
+        ax.set_ylabel("beobachtetes Quantil")
+        ax.xaxis.set_major_formatter(_komma(FuncFormatter, 0))
+        ax.yaxis.set_major_formatter(_komma(FuncFormatter, 0))
+        ax.set_title(LABEL.get(ziel, ziel), fontsize=SCHRIFT - 1)
+        ax.grid(True, linewidth=0.3, alpha=0.5)
+
+    fig.supxlabel("Standardisierte Residuen der linearen Spezifikation auf "
+                  "log(1+y), Trainingsstadtteile von Fold 1. Die Gerade ist "
+                  "die Normalverteilung.", fontsize=SCHRIFT - 2)
+    pfad = OUT / "a10_qq_residuen.pdf"
+    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
+    return [pfad]
+
+
+# ===========================================================================
 def main() -> int:
     if not (REG / "menge_mittel.csv").exists() and \
        not (KLA / "struktur_mittel.csv").exists():
@@ -1046,7 +1111,8 @@ def main() -> int:
                + a6_faktorgruppen(plt, FuncFormatter)
                + a7_extrapolation(plt, FuncFormatter)
                + a8_hyperparameter(plt, FuncFormatter)
-               + a9_parallelisierung(plt, FuncFormatter))
+               + a9_parallelisierung(plt, FuncFormatter)
+               + a10_qq_residuen(plt, FuncFormatter))
     for pfad in erzeugt:
         try:
             zeigen = pfad.relative_to(ROOT)

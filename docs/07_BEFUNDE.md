@@ -54,6 +54,10 @@
 | B-38 | 07.08. | `04_MODELLIERUNG.md` §Hold-out | 🔴 | Schlussbewertung ohne Baseline, behoben |
 | B-39 | 07.08. | eigene Einschaetzung | 🟡 | **Erklaerung widerlegt** — dritter Fall desselben Musters |
 | B-40 | 07.08. | `m03_struktur.hold_out()` | 🔴 | **Baumverfahren sagen die seltene Klasse nie vorher** |
+| B-41 | 07.08. | `vorpruefung/v3_spezifikation.py` | 🔴 | **Nichtlinearitaet generalisiert nicht** — Selbstkorrektur der Verfahrensbegruendung |
+| B-42 | 07.08. | `m03_struktur.hold_out()`, `06_RISIKEN.md` R-2 | 🔴 | **CV und Hold-out widersprechen sich** — keine Rangfolge zulaessig |
+| B-43 | 11.08. | `v1_baselines.py` / `m03_struktur.hold_out()` | 🟡 | **doppelte Spezifikation** — selbst gefunden, behoben |
+| B-44 | 11.08. | `v2_eignung.py` §1, `results/eignungspruefung/` | 🔴 | **Begruendung widersprach der Umsetzung** — behoben, Pruefung eingebaut |
 
 ---
 
@@ -1391,6 +1395,111 @@ geben und messen, wie stark Macro-F1 dadurch faellt. Das quantifiziert die
 Uebertragbarkeit der Hyperparameter mit denselben Daten, auf denen ohnehin
 gerechnet werden darf. Nicht durchgefuehrt — Aufwand und Nutzen sind vor der
 Abgabe abzuwaegen.
+
+---
+
+## B-43 · Das Logit-Modell war zweimal spezifiziert
+
+**Fundstelle:** `vorpruefung/v1_baselines.klassifikation()` und
+`modelle/m03_struktur.hold_out()` — dieselbe Pipeline, an beiden Stellen
+ausgeschrieben:
+
+```python
+make_pipeline(StandardScaler(),
+              LogisticRegression(max_iter=2000, C=np.inf,
+                                 class_weight="balanced"))
+```
+
+**Was aufgefallen ist.** Die Stufe-2-Baseline der Klassifikation existierte in
+zwei Fassungen: eine fuer die Kreuzvalidierung, eine fuer die Schlussbewertung.
+Beide waren am 11.08.2026 identisch — das ist das Tueckische daran. Wer eines
+der vier Argumente aendert, laesst die Kreuzvalidierung gegen ein anderes
+Modell messen als das Hold-out, und der Vergleich wird still ungueltig.
+
+**Warum es keine Pruefung gefunden haette.** `tools/pruefe_zahlen.py`
+vergleicht Dokumentation gegen `results/` — nicht Code gegen Code. Ein
+Auseinanderlaufen der beiden Fassungen erzeugt keine widerspruechliche Zahl,
+sondern zwei plausible Zahlen aus zwei Modellen.
+
+**Was daran aergerlich ist.** Der Mengenstrang war von Anfang an richtig
+gebaut: `m02_menge.hold_out()` importiert `poisson_glm` aus `v1_baselines`.
+Der Fehler war nicht Unwissen, sondern eine Asymmetrie — derselbe Gedanke,
+einmal umgesetzt und einmal vergessen.
+
+**Behoben.** Neue Funktion `v1_baselines.logit_glm()`, direkt neben
+`poisson_glm()`. `m03.hold_out()` importiert sie und holt sich auch den
+Modellnamen als Konstante `LOGREG`, damit nicht dieselbe Zeichenkette an zwei
+Orten steht. Die Funktion gibt bewusst das ANGEPASSTE MODELL zurueck und nicht
+die Vorhersage: Beide Aufrufer brauchen aus einer Anpassung drei Dinge
+(Klassenvorhersage, Wahrscheinlichkeiten, Klassenreihenfolge). Die
+Konvergenzwarnungen faengt sie nicht ab — die gehoeren dem Aufrufer, der sie
+zaehlt und berichtet.
+
+**Nachgewiesen unveraendert, zweifach.** `v1_baselines.py` komplett neu
+gerechnet: `baselines_klasse.csv` und `baselines_klasse_mittel.csv` sind
+byte-identisch, Konvergenzwarnungen weiterhin 0 von 50. Alte Inline-Fassung
+gegen `logit_glm()` auf dem echten Hold-out-Split: Klassenreihenfolge,
+Vorhersagen und Wahrscheinlichkeiten gleich, groesste Abweichung **0,0**. Kein
+Ergebnis der Arbeit aendert sich.
+
+---
+
+## B-44 · Die Eignungspruefung argumentierte gegen die eigene Umsetzung
+
+**Fundstelle:** `vorpruefung/v2_eignung.py` Zeilen 9, 88 und 362, und damit
+auch die erzeugte `results/eignungspruefung/eignungspruefung.md`. Folgestellen
+in `m02_menge.py:75,116,321`, `m04_shap.py:542` und `01_VORGABEN.md` R6/R7.
+
+**Was aufgefallen ist.** Abschnitt 1 schloss aus dem Dispersionsindex:
+„Poisson scheidet aus, die Negative Binomial ist die passende Count-Baseline",
+und die Fazit-Tabelle wies die Negative Binomial als Stufe 2 aus. Decision Log
+**#45** hatte am 06.08. das Gegenteil entschieden und war am 08.08.
+freigegeben worden. Das Dokument, das die Wahl der Messlatte BEGRUENDEN soll,
+belegte damit eine andere Wahl als die gerechnete.
+
+**Warum das schwerer wiegt als B-43.** Kein Ergebnis war falsch — aber von
+aussen sieht es aus wie ein unbemerkter Widerspruch. Tatsaechlich war die
+Entscheidung gut begruendet und schriftlich freigegeben; nur das
+Begruendungsdokument war nicht nachgezogen. Das ist genau das Muster, das im
+Gutachten des Anwendungsprojekts kritisiert wurde: erkennen, aber nicht zu
+Ende bringen.
+
+**Die inhaltlich richtige Folgerung** hat zwei Aeste, und nur der erste
+betrifft die Baseline. Fuer die Vergleichsverfahren folgt aus der
+Ueberdispersion eine zaehldatengerechte Verlustfunktion (#42). Fuer die
+Baseline folgt nichts: Verletzt ist die Varianzannahme, beschaedigt werden die
+Standardfehler, und die verwendet ein Modell mit reinen Punktvorhersagen nicht
+(Gourieroux, Monfort & Trognon 1984). Der gemessene Index war nie falsch — er
+trug nur die falsche Schlussfolgerung.
+
+**Ein zweiter Fund beim Regenerieren.** Dieselbe Datei war in Abschnitt 5 noch
+in drei Punkten veraltet: falscher Modellname (`Logistische Regression (L2)`,
+die penalisierte Variante vor #45), falscher Wert 0,290 statt 0,297, und fuenf
+statt der inzwischen 50 Laeufe. Grund: Der Bericht war seit dem 05.08. nicht
+mehr erzeugt worden, obwohl `v1_baselines.py` an diesem Tag von 5 auf 50
+Laeufe erweitert wurde. Ein Bericht, den niemand neu erzeugt, altert still.
+Nebenwirkung davon: Die Spalte „Macro-F1 je Fold" reihte 50 Werte in eine
+Tabellenzelle — jetzt zeigt sie die fuenf Folds der Wiederholung 0, der
+Mittelwert bleibt ueber alle Laeufe.
+
+**Behoben.** Abschnitt 1 neu gefasst, Fazit-Tabelle korrigiert, alle
+Folgestellen nachgezogen. Verifiziert: Die Abschnitte 2, 3, 4 und 5a des
+Berichts sind gegenueber dem Lauf vom 05.08. byte-identisch — geaendert hat
+sich nur, was sich aendern sollte.
+
+**Nachhaltig abgesichert.** Fuenfte Strukturpruefung in
+`tools/pruefe_zahlen.py`: Der Sollwert ist die Spalte `modell` der
+Baseline-Dateien, Stufe 2 — er entsteht bei jedem Lauf neu und kann nicht
+veralten. Der erzeugte Bericht muss genau dieses Modell nennen; ein
+verworfenes darf vorkommen, aber nur mit Rueckblickmarkierung. Die vier
+bestehenden Strukturpruefungen konnten das nie finden: Sie lesen `docs/`, dies
+ist eine erzeugte Datei unter `results/` — und es ist keine Zahl, sondern ein
+Name.
+
+**Fuer die Arbeit.** Beide Befunde gehoeren in die kritische Reflexion
+(Kapitel 8). Gemeinsamer Nenner: In beiden Faellen lebte **eine Information an
+zwei Orten**, und nur einer wurde gepflegt. Eine allgemeinverstaendliche
+Fassung liegt in `entwuerfe/erklaerung_fehler_2026-08-11.md`.
 
 ---
 

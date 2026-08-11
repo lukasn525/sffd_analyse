@@ -72,7 +72,9 @@ ZIELE = (ZIELGROESSE, RATE)
 VERFAHREN = ("ridge", "random_forest", "xgboost")
 
 # Die Stufe-2-Baseline, gegen die die Primaeraussage laeuft (#34). Der Name
-# muss zu vorpruefung/v1_baselines.NEGBIN passen.
+# muss zu vorpruefung/v1_baselines.POISSON passen - er wird zum Filtern der
+# Spalte `modell` in baselines_folds.csv benutzt, ein Tippfehler liefert also
+# stillschweigend eine leere Vergleichsmenge.
 BASELINE_STUFE2 = "Poisson-GLM"
 
 # Der gepaarte Test laeuft auf RMSE. Begruendung: Bei der Rate ist R2 kein
@@ -113,8 +115,8 @@ N_JOBS_SUCHE = -1
 # ==========================================================================
 # Ein Satz, gueltig fuer alle vier Modelle: geschaetzt wird `einsaetze_je_1000_ew`,
 # und fuer `anzahl_einsaetze` wird mit der Einwohnerzahl zurueckmultipliziert.
-# Genau diese Konstruktion verwendet die Negative Binomial ueber ihren Offset
-# seit jeher - `v1_baselines.regression()` leitet die Rate ebenfalls aus EINER
+# Genau diese Konstruktion verwendet das Poisson-GLM ueber seinen Offset seit
+# jeher - `v1_baselines.regression()` leitet die Rate ebenfalls aus EINER
 # Anpassung ab.
 #
 # WARUM GEAENDERT (06.08.2026, nach dem zweiten Modelllauf):
@@ -318,7 +320,7 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
 
     # EXPOSITION (#43): Geschaetzt wird immer die Rate; fuer die absolute Zahl
     # wird mit der Einwohnerzahl zurueckmultipliziert. Dieselbe Konstruktion
-    # wie bei der Negative Binomial. Die Zeitmessung bleibt unberuehrt - die
+    # wie beim Poisson-GLM. Die Zeitmessung bleibt unberuehrt - die
     # Ruecktransformation ist eine Multiplikation und steht ausserhalb.
     auf_rate = ziel == ZIELGROESSE
     y_tr = train[RATE if auf_rate else ziel].astype(float)

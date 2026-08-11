@@ -96,6 +96,9 @@ VERFAHREN = ("random_forest", "xgboost")
 KLASSEN = [s.replace("anteil_", "") for s in ANTEILE]
 SELTENE_KLASSE = "brand"
 
+# Muss zu vorpruefung/v1_baselines.LOGREG passen - der Name filtert die Spalte
+# `modell` in baselines_klasse.csv, ein Tippfehler liefert also stillschweigend
+# eine leere Vergleichsmenge. `hold_out()` importiert die Konstante direkt.
 BASELINE_STUFE2 = "Multinomiale logistische Regression"
 TESTMASS = "macro_f1"
 ALPHA = 0.05
@@ -540,18 +543,20 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
 
     # Wie in m02 gehoeren beide Baselines dazu - ohne Bezugspunkt ist ein
     # Macro-F1 von 0,33 keine Aussage (docs/07_BEFUNDE.md, B-38).
-    from sklearn.linear_model import LogisticRegression
+    #
+    # EINE SPEZIFIKATION, ZWEI AUFRUFER (10.08.2026). Bis dahin baute diese
+    # Funktion das Logit selbst nach - dieselben vier Argumente, an zwei Orten
+    # aufgeschrieben. Aendert jemand eines davon, misst die Kreuzvalidierung
+    # still gegen ein anderes Modell als die Schlussbewertung, und keine
+    # Pruefung schlaegt an. m02 war immer richtig gebaut und holt `poisson_glm`
+    # aus derselben Datei; hier fehlte genau das.
     from sklearn.metrics import accuracy_score, f1_score
-    from sklearn.pipeline import make_pipeline
-    from sklearn.preprocessing import StandardScaler
+    from v1_baselines import LOGREG, logit_glm
 
-    X_tr, X_te = train[MERKMALE].astype(float), test[MERKMALE].astype(float)
+    X_te = test[MERKMALE].astype(float)
     y_tr, y_te = train[ZIELKLASSE], test[ZIELKLASSE]
     t = time.perf_counter()
-    logreg = make_pipeline(
-        StandardScaler(),
-        LogisticRegression(max_iter=2000, C=np.inf,
-                           class_weight="balanced")).fit(X_tr, y_tr)
+    logreg = logit_glm(train)
     baseline_sek = time.perf_counter() - t
     haeufigste = y_tr.value_counts().idxmax()
 
@@ -559,8 +564,7 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
     for stufe, modell, y_hat, proba in (
             (1, f"Mehrheitsklasse ({haeufigste})",
              np.full(len(y_te), haeufigste), None),
-            (2, "Multinomiale logistische Regression",
-             logreg.predict(X_te), logreg.predict_proba(X_te))):
+            (2, LOGREG, logreg.predict(X_te), logreg.predict_proba(X_te))):
         zeilen.append({
             "verfahren": modell, "zielgroesse": ZIELKLASSE, "stufe": stufe,
             "macro_f1": float(f1_score(y_te, y_hat, average="macro",

@@ -10,7 +10,7 @@
 > Ergebnis.
 
 **Die Nummern R-1 bis R-16 sind Zitierschlüssel und werden nicht neu vergeben.**
-Sie werden in `main_gliederung.tex`, in den Docstrings von `m03`, `m04`, `m05`
+Sie werden in `main.tex`, in den Docstrings von `m03`, `m04`, `m05`
 und in `07_BEFUNDE.md` zitiert. Ein erledigtes Risiko behält seine Nummer und
 wandert in Abschnitt 3, statt gelöscht zu werden — sonst zeigen die
 Querverweise ins Leere.
@@ -141,8 +141,9 @@ aufwendiger.
 
 Die E-Mail vom 08.08.2026 meldet, die Zielsetzung der Validierung sei „als
 Generalisierung auf unbekannte Stadtteile formuliert". **In
-`main_gliederung_2026-07-28.tex` kommt der Begriff bislang nicht vor** (geprüft
-am 08.08., null Treffer für „Generalisierung" und „unbekannte Stadtteile").
+`main.tex` kommt der Begriff bislang nicht vor** (geprüft am 08.08. an der
+damals `main_gliederung_2026-07-28.tex` benannten Datei, null Treffer für
+„Generalisierung" und „unbekannte Stadtteile").
 
 Damit ist aus einer Auflage eine Zusage geworden. Sie ist billig einzulösen —
 der Begriff gehört wörtlich in die Zielsetzung und in Kapitel 5.4 —, aber sie

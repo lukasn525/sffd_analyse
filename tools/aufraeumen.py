@@ -174,9 +174,13 @@ def main(argv: list[str]) -> int:
     else:
         print(f"\n  {len(alle)} Eintraege, zusammen {summe / 1024:.0f} kB.")
 
-    print("\n  NUR GEMELDET - Entscheidung ueber den Repo-Inhalt, kein Aufraeumen:")
-    for pfad, grund in NUR_MELDEN:
-        if pfad.exists():
+    # Ueberschrift nur, wenn es auch etwas zu melden gibt - seit dem
+    # 11.08.2026 sind beide Eintraege entfernt und die Liste ist leer.
+    offen = [(p, g) for p, g in NUR_MELDEN if p.exists()]
+    if offen:
+        print("\n  NUR GEMELDET - Entscheidung ueber den Repo-Inhalt, "
+              "kein Aufraeumen:")
+        for pfad, grund in offen:
             print(f"    {str(pfad.relative_to(ROOT)):<58} "
                   f"{groesse(pfad) / 1024:>7.0f} kB   {grund}")
 

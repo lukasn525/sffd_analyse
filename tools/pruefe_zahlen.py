@@ -379,6 +379,22 @@ def baue_pruefungen() -> list[Pruefung]:
     add("R-3 Extrapolationsanteil (Risikoblatt)",
         wert(mm, "extrapolationsanteil", zielgroesse="anzahl_einsaetze",
              verfahren="ridge") * 100, R, "2", 1, mm)
+
+    # ---- Anforderungen je Verfahren (§7, Auflage 10.08.2026) -------------
+    # Die drei formalen Tests aus `v2_eignung.annahmen()`. Sollwert ist die
+    # NUMERISCHE Spalte `statistik_wert`, nicht die lesbare `statistik` - eine
+    # Zeichenkette, die man parst, parst sich beim naechsten Formatwechsel
+    # anders.
+    an = "eignungspruefung/annahmen.csv"
+    for name, anforderung, anker in (
+            ("Cameron & Trivedi t (Ueberdispersion)",
+             "Equidispersion, Var = mu", "Cameron"),
+            ("Breusch-Pagan LM (Homoskedastizitaet)",
+             "Homoskedastizitaet der Residuen", "Breusch"),
+            ("Jarque-Bera JB (Normalitaet)",
+             "normalverteilte Residuen", "Jarque")):
+        add(name, wert(an, "statistik_wert", anforderung=anforderung),
+            S, "7", 1, an, anker=anker)
     return P
 
 
@@ -456,8 +472,91 @@ def pruefe_holdout_unberuehrt(erg: Ergebnis) -> None:
             erg.bestanden.append(f"{datei}: eine Auswertung je Verfahren")
 
 
+# Modelle, die einmal Stufe 2 waren und es nicht mehr sind. Steht ein solcher
+# Name unmarkiert im erzeugten Bericht, ist er stehen geblieben.
+VERWORFENE_BASELINES = ("Negative Binomial", "Negativ-Binomial",
+                        "Negative-Binomial")
+
+# Berichte, die die Wahl der Baseline BEGRUENDEN - erzeugt, nicht von Hand
+# geschrieben. Nur diese werden geprueft: In docs/ und in 07_BEFUNDE.md sind
+# Rueckblicke auf die Negative Binomial erwuenscht, dort greift ALTLASTEN.
+BEGRUENDENDE_BERICHTE = ("eignungspruefung/eignungspruefung.md",)
+
+
+def pruefe_baselinename(erg: Ergebnis) -> None:
+    """Nennt der erzeugte Bericht dieselbe Stufe-2-Baseline, die gerechnet wurde?
+
+    ANLASS, 10.08.2026. `v2_eignung.py` schloss aus der Overdispersion, Poisson
+    scheide aus und die Negative Binomial sei die passende Count-Baseline -
+    waehrend `v1_baselines.py` seit Decision Log #45 ein Poisson-GLM anpasst.
+    Der Bericht argumentierte damit gegen die eigene Umsetzung, und zwar in
+    genau dem Dokument, das die Wahl der Baseline belegen soll.
+
+    WARUM DIE VIER UEBRIGEN PRUEFUNGEN DAS NICHT GEFUNDEN HABEN - zwei Gruende,
+    beide behebbar nur durch diese Pruefung:
+
+      1  Sie lesen `docs/`. Dies hier ist eine ERZEUGTE Datei unter `results/`,
+         die bis heute von keiner Pruefung angefasst wurde.
+      2  Es ist keine Zahl, sondern ein NAME. Der Zahlenwaechter sucht
+         ausschliesslich nach deutsch formatierten Zahlen.
+
+    Sollwert ist die Spalte `modell` der Baseline-Dateien, Stufe 2. Sie
+    entsteht bei jedem Lauf neu aus dem, was tatsaechlich angepasst wurde - der
+    Name kann also nicht veralten, ohne dass diese Pruefung es merkt.
+    """
+    gerechnet = {}
+    for datei, strang in (("regression/baselines_folds.csv", "Menge"),
+                          ("klassifikation/baselines_klasse.csv", "Struktur")):
+        d = tab(datei)
+        namen = sorted({str(n) for n in d[d["stufe"] == 2]["modell"]})
+        if len(namen) != 1:
+            erg.hinweise.append(
+                f"{datei}: {len(namen)} verschiedene Stufe-2-Modelle "
+                f"({namen}) - erwartet genau eines, Pruefung uebersprungen")
+            continue
+        gerechnet[strang] = namen[0]
+
+    for rel in BEGRUENDENDE_BERICHTE:
+        pfad = RES / rel
+        if not pfad.exists():
+            erg.hinweise.append(
+                f"results/{rel} fehlt - Baselinename ungeprueft. "
+                f"Erst 'python vorpruefung/v2_eignung.py' ausfuehren.")
+            continue
+        zeilen = pfad.read_text(encoding="utf-8").splitlines()
+        text = "\n".join(zeilen)
+
+        # a) Das gerechnete Modell muss vorkommen.
+        for strang, name in gerechnet.items():
+            if name in text:
+                erg.bestanden.append(f"{rel}: nennt '{name}' ({strang})")
+            else:
+                erg.fehler.append(
+                    f"results/{rel}: die Stufe-2-Baseline des Strangs "
+                    f"{strang} heisst laut results/ '{name}', kommt im "
+                    f"Bericht aber nicht vor - der Bericht belegt eine "
+                    f"andere Wahl, als gerechnet wurde")
+
+        # b) Ein verworfenes Modell darf genannt werden - aber nur MARKIERT.
+        #    Die Abgrenzung "warum nicht die Negative Binomial" gehoert in den
+        #    Bericht; sie muss nur als Abgrenzung erkennbar sein und nicht wie
+        #    eine Setzung dastehen. Massstab ist dieselbe HISTORIE-Regel, die
+        #    auch fuer Altlasten in docs/ gilt.
+        for i, zeile in enumerate(zeilen):
+            umfeld = "\n".join(zeilen[max(0, i - UMFELD):i + UMFELD + 1])
+            for alt in VERWORFENE_BASELINES:
+                if alt in zeile and not HISTORIE.search(umfeld):
+                    erg.fehler.append(
+                        f"results/{rel}:{i + 1}  '{alt}' ohne Rueckblick-"
+                        f"markierung - dieses Modell ist seit #45 nicht mehr "
+                        f"Stufe 2\n      {zeile.strip()[:110]}")
+                    break
+
+
 # ==========================================================================
 # 5  Altlasten - frueher gueltige Werte, die noch herumstehen
+#    HISTORIE und UMFELD stehen hier und werden von pruefe_baselinename
+#    mitbenutzt - dieselbe Regel, was ein zulaessiger Rueckblick ist.
 # ==========================================================================
 @dataclass
 class Altlast:
@@ -575,7 +674,8 @@ def laufe(ausfuehrlich: bool = False) -> int:
                 f"steht dort nicht   [{pr.quelle}]")
 
     for f in (pruefe_verhaeltnisse, pruefe_negative_vorhersagen,
-              pruefe_signifikanzen, pruefe_holdout_unberuehrt):
+              pruefe_signifikanzen, pruefe_holdout_unberuehrt,
+              pruefe_baselinename):
         try:
             f(erg)
         except (FileNotFoundError, LookupError, KeyError) as e:
@@ -585,7 +685,7 @@ def laufe(ausfuehrlich: bool = False) -> int:
     # ---- Bericht --------------------------------------------------------
     breit = "=" * 74
     print(breit)
-    print(f"ZAHLENWAECHTER  -  {len(pruefungen)} Wertpruefungen + 4 Strukturpruefungen")
+    print(f"ZAHLENWAECHTER  -  {len(pruefungen)} Wertpruefungen + 5 Strukturpruefungen")
     print(breit)
     if erg.fehler:
         print(f"\nFEHLER  ({len(erg.fehler)})  - Dokumentation nachziehen\n")

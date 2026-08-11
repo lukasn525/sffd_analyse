@@ -539,9 +539,10 @@ def main() -> int:
 
     # --- Faktorgruppen des Mengenstrangs aus der Baseline (UF1) ---
     k_fold = ruhigster_fold(menge_folds)
-    negbin = faktorgruppen_baseline(reg, selten, k_fold)
-    negbin.round(4).to_csv(OUT / "faktorgruppen_menge.csv", index=False)
-    gruppiert = negbin.groupby("gruppe")["anteil"].sum().sort_values(ascending=False)
+    basis_beitraege = faktorgruppen_baseline(reg, selten, k_fold)
+    basis_beitraege.round(4).to_csv(OUT / "faktorgruppen_menge.csv", index=False)
+    gruppiert = (basis_beitraege.groupby("gruppe")["anteil"].sum()
+                 .sort_values(ascending=False))
     print(f"\n  Faktorgruppen im Mengenstrang (Poisson-GLM, Fold {k_fold}):")
     for gruppe, anteil in gruppiert.items():
         print(f"    {gruppe:<24}{anteil:>7.1%}")

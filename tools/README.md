@@ -11,7 +11,15 @@ python tools/pruefe_zahlen.py -v     # zusätzlich die bestandenen Prüfungen
 
 python tools/aufraeumen.py           # Aufräumer, VORSCHAU — löscht nichts
 python tools/aufraeumen.py --wirklich
+
+python tools/codebook.py             # Merkmalstabelle für Kapitel 4
+python tools/codebook.py -v          # zusätzlich die Spalten je Datensatz
 ```
+
+> **Ausnahme bei `codebook.py`:** Das Skript gehört nicht zur Abgabe, seine
+> **Ausgabe schon** — `results/codebook/merkmale.md` ist die große Tabelle aus
+> Kapitel 4. Sie ist deshalb selbsttragend geschrieben und braucht das Skript
+> nicht, um lesbar zu sein.
 
 ---
 
@@ -47,7 +55,7 @@ Nach jedem Lauf von `v1_baselines.py`, `v3_spezifikation.py`, `m02`, `m03`,
 
 ## Was er prüft
 
-113 Wertprüfungen und vier Strukturprüfungen. Jede Wertprüfung liest ihren
+113 Wertprüfungen und fünf Strukturprüfungen. Jede Wertprüfung liest ihren
 Sollwert bei jedem Lauf **neu aus `results/`**, nie aus einem Dokument, und
 sucht ihn zeilengenau: nicht „steht die Zahl irgendwo im Kapitel", sondern
 „steht sie in der Tabellenzeile, die zu diesem Verfahren gehört".
@@ -57,7 +65,7 @@ Wilcoxon-Differenzen und p-Werte, das Hold-out, die Ablation, die
 Spezifikationsgegenprobe, Extrapolation, VIF und die Faktorgruppen — dazu die
 Zahlen, die in `06_RISIKEN.md` eine Risikoeinstufung tragen.
 
-Die vier Strukturprüfungen fangen ab, was keine einzelne Zahl ist:
+Die fünf Strukturprüfungen fangen ab, was keine einzelne Zahl ist:
 
 - **Verhältnisse** — „Ridge ist N-mal schneller als …". Solche Sätze altern
   unbemerkt mit; N wird nachgerechnet.
@@ -67,6 +75,12 @@ Die vier Strukturprüfungen fangen ab, was keine einzelne Zahl ist:
   und in R-1/R-2 festgeschrieben. Ändert sich das Muster, bricht die Prüfung.
 - **Hold-out-Einmaligkeit** — je Verfahren und Zielgröße genau eine Zeile.
   Mehr hieße, das Hold-out wurde mehrfach ausgewertet.
+- **Baselinename** *(neu, 10.08.2026)* — nennt `results/eignungspruefung/eignungspruefung.md`
+  dieselbe Stufe-2-Baseline, die laut `results/` tatsächlich angepasst wurde?
+  Ein verworfenes Modell darf vorkommen, aber nur als markierte Abgrenzung.
+  Die vier übrigen Prüfungen konnten das nicht finden: Sie lesen `docs/`, dies
+  ist eine **erzeugte** Datei unter `results/` — und es ist keine Zahl, sondern
+  ein Name.
 
 ## Grenzen
 
@@ -134,3 +148,36 @@ einen Commit — kein Aufräumen. Der Aufräumer meldet sie nur.
 
 Nach `--wirklich` legt `python vorpruefung/v2_eignung.py` die beiden aktuellen
 Abbildungen neu an; die `__pycache__` entstehen beim nächsten Import von selbst.
+
+---
+
+# `codebook.py` — die Merkmalstabelle
+
+Erzeugt `results/codebook/merkmale.md` und `merkmale.csv`: eine große Tabelle
+mit allen 34 Spalten beider Datensätze — Skalenniveau, Einheit, Wertebereich,
+Quelle und Was/Wie/Wofür. Auflage Schröter vom 10.08.2026.
+
+## Die Aufteilung, auf der es beruht
+
+| | Woher |
+|---|---|
+| **gemessen** | Wertebereich, Zeilen, fehlende Werte, Ausprägungen — bei jedem Lauf neu aus den Parquet-Dateien |
+| **behauptet** | Skalenniveau, Einheit, Quelle, Was/Wie/Wofür — von Hand gepflegt, im Dictionary `META` |
+
+Wären die Wertebereiche abgeschrieben, wären sie beim nächsten Pipeline-Lauf
+still falsch. Deshalb die Trennung.
+
+## Wächterfunktion
+
+Exit-Code 1, wenn eine Spalte in den Daten steht, aber nicht in `META`
+(undokumentiertes Merkmal) — oder ein `META`-Eintrag auf keine Spalte passt
+(entferntes Merkmal, das weiter in Kapitel 4 stünde). Die Tabelle ist damit
+nicht nur einmal richtig, sondern bleibt es.
+
+## Ein Befund, der in der Tabelle steht
+
+Fünf Spalten tragen die Endung `_pct`, enthalten aber **Anteile von 0 bis 1**
+und keine Prozentwerte: `armutsquote_pct` = 0,36 bedeutet 36 %. Wer den Namen
+liest statt den Wertebereich, berichtet den Faktor 100 falsch. Die Spalte
+Einheit weist das aus; umbenannt wird nichts, weil die Namen in allen fertigen
+Dateien und Ergebnissen stehen.

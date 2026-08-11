@@ -126,6 +126,45 @@ def poisson_glm(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
     return np.asarray(modell.predict(X_te, offset=off_te))
 
 
+def logit_glm(train: pd.DataFrame):
+    """Stufe 2 der Klassifikation: das angepasste multinomiale Logit.
+
+    DIE EINZIGE STELLE, AN DER DIESES MODELL SPEZIFIZIERT IST (10.08.2026).
+    Bis dahin baute `m03_struktur.hold_out()` es ein zweites Mal nach -
+    dieselben vier Argumente, an zwei Orten aufgeschrieben. Aendert jemand
+    eines davon, misst die Kreuzvalidierung still gegen ein anderes Modell als
+    die Schlussbewertung, und keine Pruefung schlaegt an: `pruefe_zahlen.py`
+    vergleicht Dokumentation gegen `results/`, nicht Code gegen Code.
+
+    Der Mengenstrang war immer richtig gebaut - `m02_menge.hold_out()`
+    importiert `poisson_glm` aus dieser Datei. Der Fehler war die Asymmetrie:
+    derselbe Gedanke, einmal umgesetzt und einmal nicht.
+
+    Linear in den Log-Odds, unpenalisiert (C = inf; `penalty=None` ist seit
+    scikit-learn 1.8 veraltet, die Schaetzung ist bitgleich). Kein freier
+    Hyperparameter, also kein Tuning (#45). `class_weight="balanced"` statt
+    Resampling - kein SMOTE, keine duplizierte oder geloeschte Zeile.
+
+    RUECKGABE IST DAS MODELL, nicht die Vorhersage - anders als bei
+    `poisson_glm`. Beide Aufrufer brauchen aus DERSELBEN Anpassung drei Dinge:
+    Klassenvorhersage, Wahrscheinlichkeiten und die Klassenreihenfolge des
+    Modells. Ein zweites Fitten dafuer waere Verschwendung.
+
+    KONVERGENZWARNUNGEN werden hier bewusst NICHT abgefangen. Sie gehoeren dem
+    Aufrufer: `klassifikation()` zaehlt sie und berichtet sie
+    (docs/04_MODELLIERUNG.md, Sonderfaelle). Wuerde diese Funktion sie
+    schlucken, waere die Zahl still null.
+    """
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    return make_pipeline(
+        StandardScaler(),
+        LogisticRegression(max_iter=2000, C=np.inf, class_weight="balanced")
+    ).fit(train[MERKMALE].astype(float), train[ZIELKLASSE])
+
+
 def regression(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     """Beide Mengen-Zielgroessen, Stufe 1 und 2, je Wiederholung und Fold.
 
@@ -203,11 +242,12 @@ def klassifikation(kl: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     vorher. Accuracy faellt hoch aus, Macro-F1 niedrig - genau deshalb ist
     Macro-F1 das massgebliche Guetemass.
 
-    STUFE 2, multinomiale logistische Regression: das Gegenstueck zur Negative
-    Binomial. Sie ist die einfachste Form, die zu einer nominalen Zielgroesse
-    passt - linear in den Log-Odds, unpenalisiert (C = inf; `penalty=None`
-    ist seit scikit-learn 1.8 veraltet, die Schaetzung ist bitgleich). RF und XGBoost muessen SIE
-    schlagen, nicht die Mehrheitsklasse (Decision Log #33).
+    STUFE 2, multinomiale logistische Regression: das Gegenstueck zum
+    Poisson-GLM - dieselbe Modellklasse, derselbe kanonische Link, derselbe
+    Verzicht auf einen Strafterm. Sie ist die einfachste Form, die zu einer
+    nominalen Zielgroesse passt. RF und XGBoost muessen SIE schlagen, nicht
+    die Mehrheitsklasse (Decision Log #33). Spezifiziert ist sie in
+    `logit_glm()` - an genau einer Stelle, siehe dort.
 
     Zwei Ergaenzungen vom 05.08.2026, beide additiv:
       - Schleife ueber die 10 Wiederholungen, damit m03 gepaart testen kann
@@ -221,10 +261,7 @@ def klassifikation(kl: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     (docs/04_MODELLIERUNG.md, Sonderfaelle).
     """
     from sklearn.exceptions import ConvergenceWarning
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
-    from sklearn.pipeline import make_pipeline
-    from sklearn.preprocessing import StandardScaler
+    from sklearn.metrics import accuracy_score, f1_score
 
     OUT_K.mkdir(parents=True, exist_ok=True)
     klassen_alle = sorted(kl[ZIELKLASSE].unique())
@@ -234,16 +271,13 @@ def klassifikation(kl: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
         d = wiederholte_aufteilung(kl, wiederholung=w, selten=selten)
         for k in range(1, N_FOLDS + 1):
             tr, te = fold_masken(d, k)
-            X_tr, X_te = d.loc[tr, MERKMALE].astype(float), d.loc[te, MERKMALE].astype(float)
+            X_te = d.loc[te, MERKMALE].astype(float)
             y_tr, y_te = d.loc[tr, ZIELKLASSE], d.loc[te, ZIELKLASSE]
 
             haeufigste = y_tr.value_counts().idxmax()
             with warnings.catch_warnings(record=True) as gefangen:
                 warnings.simplefilter("always", ConvergenceWarning)
-                logreg = make_pipeline(
-                    StandardScaler(),
-                    LogisticRegression(max_iter=2000, C=np.inf,
-                                       class_weight="balanced")).fit(X_tr, y_tr)
+                logreg = logit_glm(d[tr])
             nicht_konvergiert += sum(issubclass(g.category, ConvergenceWarning)
                                      for g in gefangen)
 

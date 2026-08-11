@@ -606,16 +606,81 @@ größer ausfallen. Gemessen, in Einheiten von `std_folds`:
 Sechs von acht Werten sind **negativ**, kein systematisches Muster. Der Effekt
 ist nicht nachweisbar (B-27).
 
----
-
 ## 6. Was noch aussteht
 
 | Punkt | Stand |
 |---|---|
 | Linearitätsprüfung vor Ridge (Gutachten R7) | ✅ gerechnet, `results/eignungspruefung/` — mit der Einschränkung aus B-41: Die diagnostizierte Nichtlinearität generalisiert nicht |
+| Anforderungen je Verfahren (Auflage 10.08.) | ✅ gerechnet, **Abschnitt 7** — drei formale Tests, Tabelle und Abbildung A10 |
+| Codebook mit Skalenniveau (Auflage 10.08.) | ✅ `results/codebook/merkmale.md`, 34 Merkmale, erzeugt von `tools/codebook.py` |
 | `modelle/m02`–`m05` | ✅ geschrieben und gelaufen, Ergebnisse in Abschnitt 5 |
 | Hold-out | ✅ einmalig ausgewertet, Abschnitt 5.7 |
 | E-Mail an Schröter | ✅ **abgeschickt 08.08.2026** — Poisson statt Negative Binomial (#45), Expositionsbehandlung für alle Verfahren (#43), Primärtest auf den 10 Wiederholungsmitteln (#37), zwei Testfamilien (#38). Antwort ausstehend, `06_RISIKEN.md` R-14 |
-| **„Generalisierung auf unbekannte Stadtteile" in den Text** | **offen, zugesagt** — der Begriff ist Schröter gegenüber als umgesetzt gemeldet, steht aber noch nicht in `main_gliederung`. Gehört wörtlich in die Zielsetzung und in Kapitel 5.4 (`06_RISIKEN.md`, R-17) |
+| **„Generalisierung auf unbekannte Stadtteile" in den Text** | **offen, zugesagt** — der Begriff ist Schröter gegenüber als umgesetzt gemeldet, steht aber noch nicht in `main.tex`. Gehört wörtlich in die Zielsetzung und in Kapitel 5.4 (`06_RISIKEN.md`, R-17) |
 | Ertrag des Klassifikationsstrangs | offen als **Befund**, nicht als Aufgabe: bestes Verfahren 0,334 von maximal 1,0, und CV und Hold-out widersprechen sich (`06_RISIKEN.md`, R-2) |
 | Kapitel 6 bis 9 | zu schreiben |
+
+---
+
+## 7. Anforderungen je Verfahren — die formalen Tests
+
+> Stand **11.08.2026**, Auflage Schröter vom 10.08.2026: „Prüfung ob die
+> Algorithmen auf den Daten passen … Jeder Algorithmus sollte dargestellt
+> werden … Test laufen lassen: in Tabelle Statistiken mit p-Werten anzeigen."
+>
+> Quelle: `results/eignungspruefung/annahmen.csv`, erzeugt von
+> `vorpruefung/v2_eignung.annahmen()`. Gerechnet auf den 23
+> Trainingsstadtteilen von Fold 1 — die Teststadtteile bleiben unberührt.
+>
+> Nachgestellt und nicht als Abschnitt 5 eingefügt, weil die Abschnittsnummern
+> in `tools/pruefe_zahlen.py` als Anker dienen. Eine Umnummerierung hätte
+> stillschweigend Prüfungen abgeschaltet.
+
+**15 Anforderungen geprüft:** 7 verletzt, 3 bestehen für das jeweilige
+Verfahren gar nicht, der Rest ist eingehalten.
+
+### Die drei neuen Teststatistiken
+
+| Prüfung | Was sie prüft | Statistik | p |
+|---|---|---|---|
+| **Cameron & Trivedi (1990)**, Hilfsregression | Equidispersion des Poisson-GLM, Var = μ | t = 17,2 | < 0,001 |
+| **Breusch-Pagan** auf log(1+y) | Homoskedastizität der Residuen | LM = 722,7 | < 0,001 |
+| **Jarque-Bera** auf log(1+y) | Normalverteilung der Residuen | JB = 98,2 | < 0,001 |
+
+Schiefe −0,21, Wölbung 3,78. Die zugehörige Abbildung ist **A10**
+(`results/abbildungen/a10_qq_residuen.pdf`): Der Kern liegt auf der Geraden,
+nur die Ränder biegen ab — schwere Ränder, kein verbogener Kern.
+
+Bereits an anderer Stelle berichtet und hier nur zugeordnet: RESET F = 215,2
+(Abschnitt 3 der Eignungsprüfung), Dispersionsindex 54,2 auf den
+Trainingsstadtteilen von Fold 1 gegenüber 62,8 auf dem vollen Datensatz
+(Abschnitt 2 dieser Datei), Extrapolationsanteil 33,7 %.
+
+### Was daraus folgt — je Verfahren
+
+| Verfahren | Anforderung | Status | Konsequenz |
+|---|---|---|---|
+| alle | unabhängige Beobachtungen | **verletzt** | 132 Monate je Stadtteil; Antwort ist der Stadtteil-Split und die Streuung über die 10 Wiederholungsmittel (R-5) |
+| alle | identische Merkmale, Zeilen, Folds | erfüllt | konstruktiv über die `fold`-Spalte, Auflage C vom 04.08. |
+| Poisson-GLM | Equidispersion | **verletzt** | folgenlos: nur Punktvorhersagen, Schätzer bleibt konsistent (#45) |
+| Poisson-GLM | Linearität im Log-Link | **verletzt** | in Kauf genommen; die Gegenprobe `v3` zeigt, dass die nichtlinearen Erweiterungen out-of-sample schlechter sind (B-41) |
+| Ridge | Linearität | **verletzt** | Schätzung auf log(1+y), Rücktransformation mit expm1 |
+| Ridge | Homoskedastizität | **verletzt** | betrifft die Standardfehler, nicht die Punktprognose |
+| Ridge | Normalverteilung der Residuen | *nicht erforderlich* | Voraussetzung für Inferenz, nicht für die Punktprognose eines L2-penalisierten Modells |
+| Random Forest, XGBoost | Verteilungsannahme | *nicht erforderlich* | verteilungsfrei — der Grund, warum beide im Vergleich stehen |
+| Random Forest, XGBoost | Testpunkte im gelernten Wertebereich | **verletzt** | 33,7 % außerhalb; Limitation des Stadtteil-Splits, Kapitel 8.3 (R-3) |
+| Random Forest, XGBoost | Verlustfunktion passend zur Datenform | erfüllt | `criterion="poisson"` bzw. `reg:tweedie` (#42) |
+| Multinomiales Logit | Linearität in den Log-Odds | *angenommen* | genau die Trennlinie zu RF und XGBoost — fehlende Wechselwirkungen sind der zu messende Unterschied |
+| Multinomiales Logit | jede Klasse im Testfold besetzt | erfüllt | doppelte Stratifizierung (#30), Selbsttest `v0_aufteilung` |
+
+**Die Zeilen „nicht erforderlich" sind kein Füllmaterial.** Eine Tabelle, die
+nur verletzte Annahmen zeigt, ließe die Baumverfahren voraussetzungslos
+aussehen; eine, die sie ganz wegließe, beantwortete die Auflage nicht. Ihre
+eigentliche Anforderung ist der Interpolationsbereich — und die ist verletzt.
+
+Der VIF steht bewusst **nicht** hier, sondern in `results/shap/vif.csv`: Seine
+einzige echte Konsequenz betrifft die Interpretation der Beiträge, und dieselbe
+Zahl an zwei Orten ist die Fehlerquelle, gegen die Abschnitt 7 selbst
+abgesichert ist.
+
+---

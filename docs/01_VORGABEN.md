@@ -184,21 +184,36 @@ verstieße gegen R1 und R8, und der Beleg liegt vor (der Stadtteil-Mittelwert
 allein erklärt R² 0,925). **Diese Abweichung ist mit Schröter zu besprechen.**
 
 ### R6 — Baselines und ehrliche Vergleichsaussagen
-Baselines sind Pflicht, je Zielgröße. Aktuell: Negative Binomial für die
-Regression, Mehrheitsklasse für die Klassifikation, Gesamtmittelwert als
-Nullmarke (Decision Log #32). Unterschiede nicht überinterpretieren — Mittelwert
-± Standardabweichung über die Folds angeben, nie nur Punktwerte. Überlappen die
-Streuungsbereiche zweier Verfahren, **muss das so gesagt werden**.
+Baselines sind Pflicht, je Zielgröße, und sie stehen in **zwei Stufen**
+(Decision Log #32/#33, neu gefasst mit #45, freigegeben 08.08.):
+
+| Strang | Stufe 1 — ohne Merkmale | Stufe 2 — Messlatte |
+|---|---|---|
+| Menge | Gesamtmittelwert | **Poisson-GLM mit Offset** |
+| Struktur | Mehrheitsklasse | **Multinomiales Logit ohne Strafterm** |
+
+Die Primäraussage läuft gegen **Stufe 2**, nicht gegen Stufe 1 (#34).
+Unterschiede nicht überinterpretieren — Mittelwert ± Standardabweichung über
+die Folds angeben, nie nur Punktwerte. Überlappen die Streuungsbereiche zweier
+Verfahren, **muss das so gesagt werden**.
 
 ### R7 — Linearitätsprüfung vor Ridge (harte Auflage)
 Wörtlich: *„erstmal plotten, falls keine lineare Baseline, KEIN lineares
 Regressionsmodell."* Scatterplots und Residuenanalyse **vor** dem Einsatz von
 Ridge, dokumentiert in der Arbeit, gerechnet ausschließlich auf den
-Trainingsstadtteilen. Bei Zähldaten ist Negativ-Binomial die naheliegende
-Ergänzung — sie ist als Baseline gesetzt.
+Trainingsstadtteilen. Am 10.08.2026 wiederholt: *„keine lineare Baseline, wenn
+es keine Linearität gibt."*
+
+Beantwortet ist die Auflage nicht durch eine Negativ-Binomial-Baseline — diese
+frühere Fassung ist mit #45 hinfällig —, sondern durch die **Wahl des Links**:
+Das Poisson-GLM ist über den Log-Link auf der Originalskala nichtlinear und
+wirkt multiplikativ. Die ausführliche Begründung steht oben in Abschnitt 0
+unter „Wie die Auflage ‚nichtlineare Baseline' beantwortet wird", Punkt 2.
 
 *Umsetzung:* `vorpruefung/v2_eignung.py` → `results/eignungspruefung/`.
-**Steht noch aus** — die vorhandenen Ergebnisse stammen aus der Zeitschnitt-Welt.
+**Gerechnet**, auf den Trainingsstadtteilen von Fold 1. Abschnitt 1 des
+Berichts ist am 10.08.2026 neu gefasst worden: Er schloss zuvor aus der
+Überdispersion, Poisson scheide aus — also gegen die eigene Umsetzung nach #45.
 
 ### R8 — Fokus statt Breite
 Explizit abgestraft: „sehr umfangreich, aber nicht immer fokussiert". Jede
