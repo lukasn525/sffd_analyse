@@ -34,6 +34,26 @@ wird, ob sie methodisch *gelöst* wurden.
 | **Poisson und Logit ohne Strafterm freigegeben** — „methodisch sauber, vermeidet willkürliche Parameter und liefert zudem stärkere Vergleichswerte" | 08.08. | #45 |
 | **Auflage D: „Dokumentieren Sie diese Begründung genau so."** | 08.08. | Kapitel 5.4 — siehe unten |
 | **Primärtest auf zehn Werten und Holm-Bonferroni freigegeben** — „sauber umgesetzt"; unkorrigierter Einzeltest der Klassifikation „folgerichtig" | 08.08. | #37, #38, Kapitel 7 |
+| **Anforderungen je Verfahren darstellen**, Tabelle oder Prosa, mit Teststatistik und p-Wert; QQ-Plot genannt | 10.08. | `03_STAND.md` §7, `v2_eignung` Abschnitt 6, Abbildung A10 |
+| **„Keine lineare Baseline, wenn es keine Linearität gibt"** — Wiederholung von R7 | 10.08. | beantwortet über den Log-Link, siehe R7 unten |
+| **Codebook und Variablenbuch mit Skalenniveau**, eine große Tabelle, Was/Wie/Wofür — *nicht* je Merkmal eine deskriptive Statistik | 10.08. | `results/codebook/merkmale.md`, erzeugt von `tools/codebook.py` |
+| **Rund 20 nicht-triviale Codeausschnitte**, ausdrücklich Serialisierung und Multithreading | 10.08. | **offen** — Kandidaten stehen in `07_BEFUNDE.md` (B-16, B-23, B-24) |
+| **Komplexität des „V" in E-V-A beziffern** | 10.08. | **offen** — Kennzahlen liegen in `results/` |
+| **Alle Analysen in die Arbeit**, auch verworfene | 10.08. | Ablation, Spezifikationsgegenprobe, Leakage-Diagnose, Extrapolation — als **Sensitivitätsanalysen** gerahmt, nicht als Chronologie |
+| **Keine große iterative Entwicklung im Text** — eine spätere Änderung wird als Plan A von vornherein dargestellt | 10.08. | **Darstellungsregel**: Kapitel 6 beschreibt die finale Spezifikation, die Reflexion steht konzentriert in Kapitel 8 |
+| **Signifikanz ist nicht zwingend**, methodisch sauber muss es sein | 10.08. | entlastet R-2 — der Nichtbefund des Strukturstrangs ist berichtbar |
+| **Abbildungen müssen nicht beschrieben werden**, aber begründet: warum diese Daten, diese Abbildung, diese Darstellung | 10.08. | Begründungen stehen in den Docstrings von `m05_abbildungen.py` |
+| **Formales**: keine Kursivschrift, keine Anführungszeichen, keine Unterstreichungen · „o.A." bei unbekanntem Autor · p-Werte 95/99/99,5, Abweichung möglich | 10.08. | **offen** — beim Schreiben umzusetzen |
+| **Seitenbudget**: zu den 40–60 Seiten zählen alle Inhaltsseiten inklusive Code und Tabellen, **Abbildungen nicht** | 10.08. | verschiebt die Rechnung: Abbildungen sind kostenlos, die 20 Codeausschnitte teuer |
+| **Kolloquium**: kein KI-Text vorlesen, Live-Demo | 10.08. | **offen** — Demo-Modus nötig, ein voller Modelllauf dauert rund 90 Minuten |
+
+### Drei Punkte der Sprechstunde vom 10.08., geklärt am 11.08.
+
+| Punkt | Klärung |
+|---|---|
+| „Keine Zwischenfazits = **Blindabsätze nutzen**" gegen die Auflage vom 27.07. („keine Blindabsätze zwischen Gliederungsebenen") | **Blindabsätze nutzen.** Gemeint sind verbindende statt zusammenfassende Absätze; die Auflage vom 27.07. betraf leere Überleitungen zwischen zwei Überschriften |
+| „RAG-Pipeline zeigen" | Diese Arbeit hat keine RAG-Komponente. Wird im Kolloquium **nicht gezeigt** |
+| „Hyperparameteroptimierung bei jedem Algorithmus — keine Ausrede" | Bezieht sich auf die drei Vergleichsverfahren; die sind alle mit `RandomizedSearchCV`, Budget 50, `GroupKFold(4)` getunt. Die **Stufe-2-Baselines haben keinen freien Hyperparameter** — das ist Auflage D vom 08.08., in Schröters eigenen Worten. Der Verzicht ist dort wörtlich zu belegen, sonst liest er sich wie die Ausrede, die diese Auflage ausschließt |
 
 ### Auflage D — die Begründung der Baselines, wörtlich zu übernehmen
 

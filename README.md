@@ -14,16 +14,22 @@ pip install -r requirements.txt
 ## Ausführen
 
 ```bash
-python prep\build.py                   # 1  Aufbereitung -> zwei Datensätze
-python tests\test_aufbereitung.py      #    Prüfungen an den fertigen Dateien
-python vorpruefung\run.py              # 2  Messlatte + Verfahrenseignung
-python vorpruefung\v3_spezifikation.py #    Gegenprobe zur Eignungsprüfung
-python modelle\m02_menge.py            # 3  Regression (der lange Teil)
-python modelle\m03_struktur.py         #    Klassifikation
-python modelle\m04_shap.py             #    Faktorgruppen, Ablation, VIF
-python modelle\m05_abbildungen.py      #    Abbildungen (liest alles Vorherige)
-python tools\pruefe_zahlen.py          #    Doku gegen results/ prüfen
+python prep\build.py                    # 1  Aufbereitung -> zwei Datensätze   ~2 min
+python tests\test_aufbereitung.py       #    19 Prüfungen an den Dateien       ~1 min
+python vorpruefung\v0_aufteilung.py     # 2  Selbsttest der Fold-Zuteilung    < 1 min
+python vorpruefung\run.py               #    Messlatte + Eignung (v1 und v2)   ~2 min
+python vorpruefung\v3_spezifikation.py  #    Gegenprobe zur Eignungsprüfung    ~2 min
+python modelle\m02_menge.py holdout     # 3  Regression (der lange Teil)      ~55 min
+python modelle\m03_struktur.py holdout  #    Klassifikation                   ~45 min
+python modelle\m04_shap.py              #    Faktorgruppen, Ablation, VIF     ~10 min
+python modelle\m05_abbildungen.py       #    zehn Abbildungen (liest nur CSV) < 1 min
+python tools\codebook.py                # 4  Merkmalstabelle für Kapitel 4    < 1 min
+python tools\pruefe_zahlen.py           #    Doku gegen results/ prüfen       < 1 min
 ```
+
+Ein vollständiger Durchlauf dauert rund **zwei Stunden**. Das Argument
+`holdout` gehört nur in einen bewusst als Schlussbewertung gefahrenen Lauf —
+ohne es sind die sechs zurückgehaltenen Stadtteile für den Code unerreichbar.
 
 Die Reihenfolge ist verbindlich: `m05` rechnet nichts, es liest nur die CSV der
 vorherigen Schritte. `tools\pruefe_zahlen.py` gehört **nicht zur Abgabe** und
@@ -40,11 +46,19 @@ python prep\s1_daten.py join            # nur joinen, ohne Download
 python prep\s2_datensaetze.py splits    # Fold-Zuteilung anzeigen
 python vorpruefung\v1_baselines.py      # nur die Messlatte
 python vorpruefung\v2_eignung.py        # nur die Eignungsprüfung
+python tools\aufraeumen.py              # Vorschau, löscht nichts
+python tools\aufraeumen.py --wirklich   # verwaiste Artefakte entfernen
 ```
 
-Alle Skripte sind gelaufen; der finale Modelllauf stammt vom 07.08.2026.
 Spezifikation der Modellierung in `docs/04_MODELLIERUNG.md`, Ergebniszahlen
 ausschließlich in `docs/03_STAND.md`.
+
+**Was sich bei einem Wiederholungslauf reproduzieren muss:** Gütemaße,
+Hyperparameter, Baselines, SHAP-Beiträge — alles läuft auf `RANDOM_STATE = 42`.
+Was sich zwangsläufig ändert: sämtliche Laufzeiten sowie `parallel_gewinn` und
+`parallel_abweichung`, weil XGBoost nicht threaddeterministisch ist
+(`docs/07_BEFUNDE.md`, B-24). Der Zahlenwächter meldet die Laufzeitzahlen
+danach als Fehler; sie sind in `03_STAND.md` §5.4 nachzuziehen.
 
 ## Aufbau
 
@@ -59,10 +73,13 @@ vorpruefung/   die Messlatte    v0_aufteilung   wiederholte Splits, Selbsttest
 modelle/       der Vergleich    m02_menge · m03_struktur · m04_shap · m05_abbildungen
 tests/                          test_aufbereitung
 tools/         NICHT ABGABE     pruefe_zahlen   Doku gegen results/
+                                codebook        Merkmalstabelle für Kapitel 4
+                                aufraeumen      verwaiste Artefakte, Vorschau
 entwuerfe/     NICHT ABGABE     E-Mails, Erklärungen
 data/          raw · processed
 results/       regression · klassifikation · eignungspruefung · shap ·
-               spezifikation · abbildungen
+               spezifikation · abbildungen · codebook
+main.tex                        Gliederung und Schreibanleitung als Kommentare
 docs/          01_VORGABEN · 02_ENTSCHEIDUNGEN · 03_STAND · 04_MODELLIERUNG ·
                06_RISIKEN · 07_BEFUNDE
 ```

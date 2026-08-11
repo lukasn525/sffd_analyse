@@ -121,7 +121,15 @@ vorpruefung/  die Messlatte      v0_aufteilung.py  wiederholte Splits
 modelle/      der Vergleich      m02_menge.py · m03_struktur.py · m04_shap.py
               Stufe 3            m05_abbildungen.py · config_modelle.py
 tests/                           test_aufbereitung.py
+tools/        NICHT ABGABE       pruefe_zahlen.py  Doku gegen results/
+                                 codebook.py       Merkmalstabelle Kap. 4
+                                 aufraeumen.py     verwaiste Artefakte
 ```
+
+`tools/` wird vor dem Packen des Abgabe-ZIP gelöscht. **Eine Ausnahme:** Die
+Ausgabe von `codebook.py` gehört zur Arbeit — `results/codebook/merkmale.md`
+ist die große Merkmalstabelle aus Kapitel 4 und ist deshalb selbsttragend
+geschrieben.
 
 **Faustregel:** Erzeugt ein Schritt *Daten*, gehört er nach `prep/`. Legt er
 fest, *was ein Modell mindestens leisten muss und warum diese Verfahren*, nach
@@ -172,19 +180,52 @@ Zwei Regeln, die dabei gelten:
 **Nächster Schritt:** Kapitel 6 bis 9 schreiben. Gerechnet ist alles; seit dem
 08.08.2026 ist zudem keine Festlegung mehr unabgestimmt (#47).
 
+**Stand 11.08.2026.** Aus der Sprechstunde vom 10.08. sind umgesetzt: die
+Anforderungstabelle je Verfahren mit drei formalen Tests (`03_STAND.md` §7,
+Abbildung A10) und das Codebook mit Skalenniveau
+(`results/codebook/merkmale.md`). Offen bleiben daraus die rund 20
+Codeausschnitte, die Komplexität des „V" in E-V-A, die Formalregeln beim
+Schreiben und ein Demo-Modus fürs Kolloquium — alles in `01_VORGABEN.md`,
+Abschnitt 0. Zwei Dokumentationsfehler sind behoben und als B-43 und B-44
+verzeichnet.
+
 Der vollständige Lauf, falls er wiederholt werden muss — Reihenfolge ist
 verbindlich, `m05` liest alles Vorherige:
 
 ```
-python vorpruefung/v0_aufteilung.py     # Selbsttest der Aufteilung
-python vorpruefung/v1_baselines.py      # Messlatte, 10 Wiederholungen
-python vorpruefung/v3_spezifikation.py  # Gegenprobe zur Eignungspruefung
-python modelle/m02_menge.py             # der lange Teil
-python modelle/m03_struktur.py
-python modelle/m04_shap.py
-python modelle/m05_abbildungen.py       # zuletzt - liest alles Vorherige
-python tools/pruefe_zahlen.py           # Doku gegen results/ pruefen
+python prep/build.py                        # 0  zwei Datensätze            ~2 min
+python tests/test_aufbereitung.py           #    19 Prüfungen               ~1 min
+python vorpruefung/v0_aufteilung.py         # 1  Selbsttest der Aufteilung  < 1 min
+python vorpruefung/v1_baselines.py          #    Messlatte, 10 Wdh.         ~1 min
+python vorpruefung/v2_eignung.py            #    Eignung + Annahmen (§6)    ~1 min
+python vorpruefung/v3_spezifikation.py      #    Gegenprobe                 ~2 min
+python modelle/m02_menge.py holdout         # 2  der lange Teil            ~55 min
+python modelle/m03_struktur.py holdout      #    Klassifikation            ~45 min
+python modelle/m04_shap.py                  #    SHAP, Ablation, VIF       ~10 min
+python modelle/m05_abbildungen.py           #    zehn Abbildungen          < 1 min
+python tools/codebook.py                    # 3  Merkmalstabelle Kap. 4    < 1 min
+python tools/pruefe_zahlen.py               #    Doku gegen results/       < 1 min
 ```
+
+Rund **zwei Stunden**. `v1` und `v2` lassen sich auch als `python
+vorpruefung/run.py` in einem Zug starten — die Reihenfolge ist dort zwingend,
+weil `v2` die Baseline-Werte liest.
+
+**Das Argument `holdout` ist Absicht.** Ohne es bleiben die
+Hold-out-Stadtteile unerreichbar; `main()` filtert sie heraus, bevor
+irgendetwas rechnet. Es gehört nur in einen bewusst als Schlussbewertung
+gefahrenen Lauf.
+
+**Was sich reproduzieren MUSS** (alles auf `RANDOM_STATE = 42`): Gütemaße,
+Hyperparameter, Baselines, SHAP-Beiträge, Spezifikationsgegenprobe. Weicht
+etwas ab, ist das ein Befund für `07_BEFUNDE.md` und kein Grund, den Lauf zu
+wiederholen, bis er passt.
+
+**Was sich zwangsläufig ändert:** sämtliche Laufzeiten, `parallel_gewinn` und
+`parallel_abweichung` (B-24, XGBoost ist nicht threaddeterministisch). Betroffen
+sind `03_STAND.md` §5.4, die Abbildungen A4 und A9 sowie die
+Verhältnisprüfung im Zahlenwächter. Dass er danach Fehler meldet, ist sein
+Zweck — die Laufzeitzahlen sind nachzuziehen.
 
 Danach je Skript den Block **Prüfaufträge** am Ende des Docstrings abarbeiten
 und `03_STAND.md` überschreiben. `tools/pruefe_zahlen.py` meldet mit Exit-Code 1,
@@ -233,5 +274,7 @@ Prompt, URL. Die Kennung wird im Text wie eine Quelle zitiert.
 | anthropic2026k | Anthropic Claude | 2026 | Claude Fable | „Prüfe, ob noch Anpassungen in der Data Preparation nötig sind, und schreibe Kapitel 5 der Arbeit in LaTeX mit ausgewählten, erklärten Code-Snippets." → Audit-Fix #10, Decision Log #5 | https://claude.ai |
 | anthropic2026l | Anthropic Claude | 2026 | Claude Opus | „Verdichte `prep/` auf drei Schritte, lege die Baselines dazu, verschiebe die Eignungsprüfung nach `modelle/` und reduziere die Dokumentation." → Decision Log #25, #26 | https://claude.ai |
 | anthropic2026m | Anthropic Claude | 2026 | Claude Opus | „Lege Schröters E-Mail vom 03.08.2026 zur Algorithmenauswahl über den bisherigen Stand und analysiere, was das konkret für die Preprocessing-Pipeline heißt. Gibt es eine Zusammenstellung, bei der zwei der drei Regressionsverfahren auch die Klassifikation abdecken?" → Decision Log #31, Anpassung von Kapitel 6.2, 7.2 und den Limitationen in `main.tex` | https://claude.ai |
-| anthropic2026o | Anthropic Claude | 2026 | Claude Opus | „Implementiere die Modellierung: die fünf offenen Funktionen in `m02_menge.py`, dann `m03_struktur.py`, eine Negative-Binomial-Variante ohne Offset in `v1_baselines.py`, danach `m04_shap.py` und `m05_abbildungen.py`. Frage nach, wenn etwas unklar ist, und dokumentiere alle Befunde." → Decision Log #36–#41, `docs/07_BEFUNDE.md` mit 22 Einträgen, `vorpruefung/v0_aufteilung.py` | https://claude.ai |
 | anthropic2026n | Anthropic Claude | 2026 | Claude Opus | „Erkläre in einfachen Worten, was die Baselines berechnen und ob die Negative Binomial für Regression und Klassifikation getrennt stützt, dass weitere Modelle verwendet werden. Schreibe einen minimalen Baseline-Code mit diesen Entscheidungen und räume anschließend die gesamte Dokumentation auf den aktuellen Stand auf." → Decision Log #32, Neufassung von `prep/s3_baselines.py` (inzwischen `vorpruefung/v1_baselines.py`), Neuschnitt der Dokumentation nach Lebensdauer (`docs/01`–`05`) | https://claude.ai |
+| anthropic2026o | Anthropic Claude | 2026 | Claude Opus | „Implementiere die Modellierung: die fünf offenen Funktionen in `m02_menge.py`, dann `m03_struktur.py`, eine Negative-Binomial-Variante ohne Offset in `v1_baselines.py`, danach `m04_shap.py` und `m05_abbildungen.py`. Frage nach, wenn etwas unklar ist, und dokumentiere alle Befunde." → Decision Log #36–#41, `docs/07_BEFUNDE.md` mit 22 Einträgen, `vorpruefung/v0_aufteilung.py` | https://claude.ai |
+| anthropic2026p | Anthropic Claude | 2026 | Claude Opus | „Schau dir das Projekt an: Wie lange dauerte eine Umwandlung von `modelle/` in Jupyter Notebooks? Welche weiteren Abbildungen sind möglich? Wie ließe sich der Code kürzen? Gibt es alte Dateien, die nicht mehr gebraucht werden?" → Abbildungen A6–A10 in `m05_abbildungen.py`, `tools/aufraeumen.py`, Fund der beiden Dokumentationsfehler | https://claude.ai |
+| anthropic2026q | Anthropic Claude | 2026 | Claude Opus | „Analysiere die Sprechstunden-Mitschrift vom 10.08.2026 und ihre Auswirkungen auf das Projekt. Behebe die gefundenen Fehler nachhaltig und setze die Auflagen um." → `tools/codebook.py`, Abschnitt 6 der Eignungsprüfung mit Cameron & Trivedi, Breusch-Pagan und Jarque-Bera, `03_STAND.md` §7, fünfte Strukturprüfung im Zahlenwächter, Decision-Log-Befunde B-43 und B-44 | https://claude.ai |
