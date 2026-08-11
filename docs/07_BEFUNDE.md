@@ -1402,9 +1402,19 @@ siehe B-33.** Der Mechanismus ist belegt.
 **~~2 · Faktorgruppen fuer den Mengenstrang (UF1)~~** ✅ **erledigt, siehe
 B-35.**
 
-**3 · Beides ueber alle 10 Wiederholungen rechnen.** Die Zahlen in B-33 und
-B-35 stammen aus Wiederholung 0. Der volle Lauf laeuft mit `m04_shap.py` mit
-und ist vor der Verwendung im Text abzuwarten.
+**~~3 · Beides ueber alle 10 Wiederholungen rechnen.~~** ✅ **erledigt am
+07.08.2026.** `results/shap/ablation_exposition.csv` enthaelt alle 10
+Wiederholungen (250 Zeilen). Die Groessenordnung bestaetigt sich, die Zahlen
+verschieben sich: Random Forest ohne Exposition 64,81 statt der 67,71 aus
+Wiederholung 0, XGBoost 57,86 statt 61,70. **Massgeblich sind die Werte in
+`03_STAND.md` §5.5**, nicht die in B-33 — dort stehen sie ausdruecklich als
+Wiederholung-0-Messung.
+
+**4 · Sensitivitaet „getunte Klassifikationsbaseline"** — **verworfen am
+08.08.2026** (Decision Log #48). Der Vorsprung von RF und XGBoost ist gegen die
+unpenalisierte Latte gemessen (0,297); gegen die getunte (0,314) waere er etwa
+halb so gross. Schroeter hat die unpenalisierte Form in Kenntnis beider Zahlen
+freigegeben. Der Vorbehalt wird in Kapitel 8 benannt statt gerechnet.
 
 ---
 
@@ -1580,10 +1590,19 @@ vier Hauptversionsspruenge hinweg. Es bestaetigt zugleich die Einschaetzung aus
 B-20 — die Abweichungen liegen in den letzten Bits und nicht in den berichteten
 Stellen.
 
-**Was offen bleibt:** `m03_struktur.tune()` uebergibt `sample_weight` als
-Fit-Parameter an `RandomizedSearchCV`; das Metadata-Routing hat sich zwischen
-scikit-learn-Fassungen bewegt. Dieser Pfad ist auf der Zielumgebung noch nicht
-gelaufen. B-23 war ein Fall derselben Klasse.
+**~~Was offen bleibt:~~** ✅ **geschlossen am 07.08.2026.** `m03_struktur.tune()`
+uebergibt `sample_weight` als Fit-Parameter an `RandomizedSearchCV`; das
+Metadata-Routing hat sich zwischen scikit-learn-Fassungen bewegt, und dieser
+Pfad war auf der Zielumgebung noch nicht gelaufen. Der finale `m03`-Lauf vom
+07.08.2026 hat ihn ausgefuehrt — `results/klassifikation/tuning.csv` und
+`struktur_folds.csv` sind daraus entstanden. B-23 war ein Fall derselben Klasse
+und ist ebenfalls behoben.
+
+**Zusaetzlich gegengeprueft am 08.08.2026:** `v1_baselines.klassifikation()`
+liefert unter scikit-learn 1.7.2 dieselben Werte wie unter 1.8 auf der
+Zielmaschine — Macro-F1 0,2972, Macro-AUROC 0,7051, Accuracy 0,5843, null
+Konvergenzwarnungen. Zwei Umgebungen, identische Zahlen auf allen berichteten
+Stellen.
 
 **Ein ununterbrochener Volllauf.** Die Testumgebung raeumt
 Hintergrundprozesse nach wenigen Minuten ab. Jede Phase ist einzeln und in

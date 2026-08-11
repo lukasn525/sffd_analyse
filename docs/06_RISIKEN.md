@@ -1,179 +1,526 @@
-# Risiken der Modellierung
+# Risikoregister der Modellierung
 
 > **Lebensdauer:** ändert sich, wenn ein Risiko eintritt, entschärft wird oder
-> wegfällt. Stand **04.08.2026**, nach `prep/build.py` und `vorpruefung/run.py`.
-> Ersetzt den Risikobericht vom 28.07.2026 (`Risiken_Modellierung.pdf`), dessen
-> Zahlen aus der Zeit vor dem Umbau stammen.
+> wegfällt. **Vollständig neu gefasst am 07.08.2026** nach dem finalen Lauf von
+> `m02`, `m03`, `m04`, `m05` und nach den Entscheidungen #37 bis #46.
+>
+> **Diese Datei enthält keine eigenen Ergebniszahlen.** Sie zitiert
+> `03_STAND.md` (Zahlen) und `07_BEFUNDE.md` (Herleitungen). Wo hier eine Zahl
+> steht, steht sie als Beleg für die Einstufung eines Risikos, nicht als
+> Ergebnis.
 
-Die Data Preparation ist abgeschlossen: ein Befehl, zwei Datensätze, 19/19
-Prüfungen, Baselines festgelegt. Die folgenden Risiken betreffen ausschließlich
-die Modellierung. Es sind **keine Fehler in den Daten**, sondern Eigenschaften
-der Fragestellung, die die Aussagekraft begrenzen.
-
-## Register
-
-| | Risiko | Beleg | Stufe |
-|---|---|---|---|
-| **R-1** | **Die Verfahren sind bei `anzahl_einsaetze` möglicherweise nicht unterscheidbar.** Dort lag die gepaarte Differenz Ridge gegen Random Forest im Vortest bei +0,042 ± 0,609, Ridge gewann 12 von 20 Folds — Münzwurf. **Bei `einsaetze_je_1000_ew` sieht es umgekehrt aus:** RF 0,584 ± 0,19 gegen Ridge −0,087 ± 0,89, ein Abstand von 0,67. Das Risiko betrifft also **eine** Zielgröße, nicht den Vergleich als solchen. **Entschärft durch #34** (drei Bausteine statt Rangfolge). | Vortest 28.07., **neu zu rechnen** | mittel |
-| **R-2** | **PRÄZISIERT am 07.08.2026:** In der Kreuzvalidierung schlagen beide Verfahren die Stufe-2-Baseline signifikant (+0,030 und +0,037 Macro-F1, je 10 von 10 Wiederholungen) — der Mehraufwand ist belegt. Auf dem Hold-out kehrt es sich um, und beide sagen die seltenste Klasse dort **kein einziges Mal** vorher (B-40). **Der Klassifikationsstrang trägt weniger, als die Forschungsfrage verspricht.** Selbst die beste Sonde erreicht Macro-F1 0,290 gegen 0,223 der Mehrheitsklasse — bei einem Maximum von 1,0 wird also nur ein Bruchteil des vorhandenen Signals ausgeschöpft. Die Verfahrenswahl ist begründet (siehe unten), der Ertrag bleibt aber gering. | `v2_eignung`, Abschnitt 5 | mittel |
-| **R-3** | **33,7 % der Testzeilen liegen außerhalb des Trainingsbereichs**, Spanne 3,6 bis 57,4 %. Unvermeidliche Folge des Stadtteil-Splits; begrenzt die Generalisierbarkeit. **Am 06.08.2026 gemessen und in einem Punkt widerlegt:** Die Annahme „die Verfahren werden ungleich getroffen" trifft nicht zu. Der Rückstand der Baumverfahren gegenüber Ridge hängt nicht vom Extrapolationsanteil ab (Spearman ρ +0,020 und +0,011, p ≈ 0,9); er ist mit rund 20 RMSE konstant. Extrapolation darf daher **nicht** als Erklärung für den Verfahrensunterschied verwendet werden. Zudem ist sie eine Eigenschaft von Stadtteilen, nicht von Zeilen: 9 von 29 brechen zu 100 % aus, 16 zu 0 %. | `07_BEFUNDE.md` B-31, B-32 | mittel |
-| **R-4** | **EINGETRETEN am 07.08.2026.** Die abschließende Bewertung beruht auf sechs Einheiten. Im Strukturstrang weicht sie von der Kreuzvalidierung ab — Baseline 0,327 gegen Random Forest 0,255 und XGBoost 0,274 —, liegt aber innerhalb der Spannweite der 50 Einzelläufe (0,229 bis 0,421). Genau die Unsicherheit, vor der dieses Risiko warnt: Die Zahl ist als Einzelmessung zu kennzeichnen und **nicht** als Widerlegung des Kreuzvalidierungsergebnisses zu lesen. | 6 von 35, 792 Zeilen; `07_BEFUNDE.md` B-40 | **eingetreten** |
-| **R-5** | **Effektive Stichprobe: 35 Einheiten.** 4.620 Zeilen klingen komfortabel, es sind 35 Querschnittseinheiten × 132 Monate, davon 29 in der Entwicklung. Gemeinsame Ursache von R-1, R-3 und R-4. **Zwei Folgen für die Auswertung:** Die Gütemaße werden je Zeile gerechnet, aber die 132 Zeilen eines Stadtteils sind hochkorreliert — der effektive Stichprobenumfang der Metrik ist weit kleiner als *n*. Und die 50 Fold-Ergebnisse aus 10 Wiederholungen sind **nicht unabhängig**: Es sind dieselben 29 Stadtteile, nur anders gruppiert. Der Gewinn an Präzision ist kleiner als √10 (Nadeau & Bengio 2003). | `03_STAND.md` | mittel |
-| **R-6** | **Merkmale sind innerhalb eines Jahres konstant.** ACS erscheint jährlich, Land Use ist ein Snapshot 2020. Das Modell sagt für alle zwölf Monate eines Stadtteils fast denselben Wert vorher; die Monatsschwankung geht vollständig ins Residuum. | 5 Jahrgänge auf 132 Monate | gering |
-| ~~R-7~~ | ~~**Der Stadtteil-Split ist mit Schröter unbesprochen.**~~ **✅ ERLEDIGT am 04.08.2026.** Schröter per E-Mail: „Der Stadtteil-Split ist für die von Ihnen formulierte Forschungsfrage methodisch gut begründet. […] Insofern können Sie wie geplant vorgehen." Auch die beiden Baselines sind ausdrücklich bestätigt. Zwei Auflagen daraus — siehe unten. | E-Mail 04.08.2026 | entfallen |
-| **R-8** | **ACS-Trefferquote 2009 nur 63,1 %.** Für die Hauptanalyse ab 2015 folgenlos, gehört in die Limitationen. | 2021/23: 99,2 % | gering |
-| **R-9** | **Spezifikationsasymmetrie zwischen Baseline und Vergleichsverfahren — WIEDER IM REGISTER seit 06.08.2026, mit umgekehrtem Vorzeichen.** Am 05.08. wurde geprüft, ob die Baseline durch den Offset *gewinnt* — Antwort: nein (−0,0017 RMSE). Das war die falsche Frage. Die richtige lautet, ob die Vergleichsverfahren *verlieren*, weil sie ihn nicht haben: Trainiert man die Baumverfahren auf der Rate und rechnet mit der Bevölkerung zurück, sinkt ihr RMSE bei `anzahl_einsaetze` von 67,7 auf 36,4 (RF) und von 61,7 auf 35,7 (XGBoost) — sie ziehen an der Baseline vorbei. Die Asymmetrie beträgt **24 bis 30 RMSE**. Kein Widerspruch zur ersten Messung: Für ein Modell mit Log-Verknüpfung ist der Offset redundant, für einen Baum nicht. **Nicht auszugleichen, sondern zu berichten** — dass Baumverfahren die multiplikative Struktur nicht selbst rekonstruieren können, ist der Befund. | `07_BEFUNDE.md` B-33, B-34 | **hoch** |
-| ~~R-9 (alte Fassung)~~ | ~~**✅ ERLEDIGT am 05.08.2026 — das Risiko bestand nicht.**~~ Die Annahme war, der Offset `log(Bevölkerung)` verschaffe der Negative Binomial einen strukturellen Vorteil. Übersehen wurde, dass `log_bevoelkerung` in `PRAEDIKTOREN` steht und damit **auch in der Offset-Variante ein freies Merkmal** ist — der Offset setzt nur einen Ausgangspunkt, den der freie Koeffizient wieder verschiebt. Gemessen über 50 gepaarte Läufe: Vorteil des Offsets **−0,0017 RMSE** bei `anzahl_einsaetze`, **−0,0000** bei der Rate; das Vorzeichen spricht sogar minimal gegen ihn. In Kapitel 8 wird daraus eine Fußnote mit einer Zahl statt eines Vorbehalts. | `v1_baselines.negative_binomial(mit_offset=False)`, `07_BEFUNDE.md` B-19 | entfallen |
-| **R-10** | **Mehrfachvergleiche ohne Korrektur.** Der gepaarte Wilcoxon-Test läuft je Zielgröße und Verfahrenspaar: 3 Paare × 2 Mengen-Zielgrößen **in der Regression**, 1 Paar in der Klassifikation. **Seit 05.08.2026 sind das zwei getrennte Familien** (6 und 1), nicht eine Familie mit 7 Tests — Regression und Klassifikation beantworten verschiedene Teilfragen. Holm-Bonferroni läuft in `m02` über 6 Tests; der eine Test in `m03` bleibt **ungekorrigiert** und ist als solcher zu benennen. | #34, `07_BEFUNDE.md` B-6 | mittel |
-| **R-11** | **Die 50 gepaarten Differenzen sind nicht unabhängig.** Der Wilcoxon-Test setzt unabhängige Paare voraus; es sind aber dieselben 29 Stadtteile in zehn Gruppierungen. Über 50 Läufe gerechnet fiele sein p-Wert **zu klein** aus, und Holm hilft dagegen nicht — es korrigiert Mehrfachvergleiche, nicht Pseudoreplikation. **Entschärft:** Der Primärtest läuft auf den **10 Wiederholungsmitteln** (n = 10, kleinstes erreichbares p 0,00195), der Test über alle 50 nur als gekennzeichnete Sensitivität. **Rest bleibt:** Auch die zehn Mittel sind nicht unabhängig; das berichtete Konfidenzintervall ist enger als die wahre Unsicherheit (Nadeau & Bengio 2003). Deshalb stehen mittlere Differenz, KI und gewonnene Läufe immer daneben. | `07_BEFUNDE.md` B-5 | mittel |
-| **R-12** | **Die wiederholten Splits waren wie spezifiziert nicht durchführbar.** Der `versatz` in `ergaenze_aufteilung()` rotiert nur die Gruppen*nummern*, nicht ihre Zusammensetzung — über versatz 0–9 entstehen 6 Partitionen statt 10, und **Gruppe 0 ist das Hold-out**, das damit in neun von zehn Wiederholungen mittrainiert worden wäre. **Behoben** durch `vorpruefung/v0_aufteilung.py`: Hold-out fest, doppelte Stratifizierung erhalten, je Wiederholung geseedete Mischung innerhalb der Rangblöcke. Wiederholung 0 reproduziert die Parquet-Dateien bitgenau (per `assert` bei jedem Aufruf). | `07_BEFUNDE.md` B-1 bis B-3 | behoben |
-
-**Entschärft und aus dem Register genommen:**
-
-- *Brand in einzelnen Folds mit 1–2 Fällen* — durch die doppelte Stratifizierung (#30) auf 13/9/6/3/2 Testfälle je Fold gehoben.
-- *Zwei Anteile nicht vorhersagbar* — hinfällig: Die `anteil_*`-Spalten sind seit #31 keine Modellzielgröße mehr, sondern Rechenbasis und Deskription.
+**Die Nummern R-1 bis R-16 sind Zitierschlüssel und werden nicht neu vergeben.**
+Sie werden in `main_gliederung.tex`, in den Docstrings von `m03`, `m04`, `m05`
+und in `07_BEFUNDE.md` zitiert. Ein erledigtes Risiko behält seine Nummer und
+wandert in Abschnitt 3, statt gelöscht zu werden — sonst zeigen die
+Querverweise ins Leere.
 
 ---
 
-## R-2 im Detail — und der Beleg, der daraus folgt
+## 1. Die Lage in fünf Sätzen
 
-| Stufe | Verfahren | Macro-F1 je Fold | Mittel |
-|---|---|---|---|
-| 1 | Mehrheitsklasse | 0,224 · 0,222 · 0,237 · 0,213 · 0,218 | 0,223 |
-| 2 | Logistische Regression | 0,322 · 0,320 · 0,252 · 0,320 · 0,235 | **0,290** |
+Gerechnet ist alles: zwei Zielgrößen-Stränge, ein Validierungsrahmen, 10
+Wiederholungen × 5 Folds, Hold-out einmalig ausgewertet. **Kein offener
+Rechenschritt, kein bekannter Fehler in Daten oder Code.** Die verbleibenden
+Risiken sind Eigenschaften der Fragestellung (kleine Zahl unabhängiger
+Einheiten) und Eigenschaften des Ergebnisses (die Verfahren trennen sich
+nicht). Ein Punkt hat Außenwirkung und einen Termin: Schröter weiß vom
+Baselinewechsel noch nichts. Alles Übrige ist Verschriftlichung.
 
-### Die Begründungskette für Kapitel 6.2
-
-**Es ist viel zu holen, und das lineare Modell holt wenig davon.** Die
-Kruskal-Wallis-Tests weisen neun der zehn Strukturmerkmale als hochsignifikant
-klassentrennend aus, mit Teststatistiken bis H = 481 und p-Werten bis 10⁻¹⁰⁴. In
-den Merkmalen steckt also erhebliche Information über die dominante Einsatzart.
-Die multinomiale logistische Regression schöpft davon nur einen Bruchteil aus:
-Macro-F1 0,290 gegenüber 0,223 der Mehrheitsklasse — ein Zugewinn von 0,067 bei
-einem theoretischen Maximum von 1,0.
-
-**Der Grund liegt in der Form der Klassengrenze.** Die Zielgröße entsteht als
-Maximum über vier Anteile; die Grenze zwischen zwei Klassen liegt dort, wo die
-zugehörigen Anteile einander schneiden. Im Merkmalsraum sind das Schnittflächen,
-keine Hyperebenen. Ein Verfahren, das nur lineare Trennebenen ziehen kann, ist
-hier konstruktionsbedingt im Nachteil — was die geringe Ausschöpfung erklärt.
-
-**Daraus folgt die Verfahrenswahl.** Verfahren, die flexiblere Grenzen ziehen
-können, sind damit begründet — Random Forest über die Kombination vieler Bäume,
-XGBoost über sequenzielle Korrektur. Ob sie den Rückstand aufholen, ist die
-empirische Frage von Kapitel 7. Holen sie ihn nicht auf, lautet der Befund „der
-Mehraufwand lohnt sich hier nicht"; das ist ein berichtbares Ergebnis, kein
-Makel (Gutachten R6).
-
-**Was das Risiko bleibt:** nicht die Verfahrenswahl, sondern der **Ertrag**. Auch
-das beste bisher gemessene Verfahren schöpft nur einen Bruchteil des Signals aus.
-Der Klassifikationsstrang wird voraussichtlich weniger tragen, als die
-Forschungsfrage verspricht — das gehört in die Limitationen.
-
-### Offene Frage an Decision Log #31
-
-Dort wurde die logistische Regression aus Fokusgründen gestrichen, ausdrücklich
-„nicht mangels Eignung". Seit #33 ist sie **Stufe-2-Baseline** — damit ist die
-Frage entschärft: Sie ist nicht mehr das weggelassene beste Verfahren, sondern
-die Messlatte, gegen die RF und XGBoost antreten. Ihr Wert von 0,290 wird vom
-Problem zum Beweismittel. In 6.2 ist das so zu benennen.
+**Was das Ergebnis in einem Satz ist:** In keinem der beiden Stränge ist der
+Mehraufwand der Vergleichsverfahren belegt, und was die Prognose bewegt, ist
+die Spezifikation, nicht die Verfahrensklasse — ein vollständiges,
+verteidigbares Resultat, kein Negativbefund.
 
 ---
 
-## R-7 — erledigt, mit zwei Auflagen
+## 2. Aktives Register
 
-Schröter hat am **04.08.2026** zugestimmt: Stadtteil-Split und beide Baselines
-sind freigegeben, „Insofern können Sie wie geplant vorgehen." Daraus folgen zwei
-Auflagen, die in die Arbeit müssen:
+Sortiert nach Stufe. „Eingetreten" heißt: Das Risiko hat sich realisiert und
+ist jetzt eine Eigenschaft des Ergebnisses, mit der die Arbeit umgehen muss.
 
-**Auflage A — die Abweichung transparent erläutern.** Wörtlich: „Wichtig ist,
-dass Sie die Abweichung von der ursprünglich angekündigten zeitreihengerechten
-Kreuzvalidierung transparent erläutern." Damit ist das begründete Verwerfen in
-Kapitel 8 nicht mehr optional, sondern verlangt (#29).
+| | Risiko | Stufe | Belegt in |
+|---|---|---|---|
+| **R-17** | Auflage B ist gegenüber Schröter als erledigt gemeldet, steht aber noch nicht im Text | **neu**, mittel | E-Mail 08.08. |
+| **R-2** | Der Klassifikationsstrang trägt wenig, und seine beiden Auswertungen widersprechen sich | **hoch, eingetreten** | B-29, B-40, B-42 |
+| **R-1** | Die Verfahren sind untereinander nicht unterscheidbar | **eingetreten, entschärft** | `vergleich.csv`, #34 |
+| **R-4** | Die Schlussbewertung beruht auf sechs Einheiten | **eingetreten** | B-40, B-42 |
+| **R-5** | Effektive Stichprobe: 29 unabhängige Einheiten in der Entwicklung | mittel | `03_STAND.md` §2/§3 |
+| **R-3** | Ein Drittel der Testzeilen liegt außerhalb des Trainingsbereichs | mittel | B-31, B-32 |
+| **R-11** | Die gepaarten Differenzen sind nicht unabhängig (Pseudoreplikation) | mittel, entschärft | B-5, B-41, #37 |
+| **R-10** | Mehrfachvergleiche in zwei Familien, eine davon unkorrigiert | mittel | B-6, #38 |
+| **R-16** | XGBoost ist nicht threaddeterministisch | **neu**, mittel | B-24 |
+| **R-15** | UF3 beruht auf einer einzigen, nicht wiederholten Zeitmessung | **neu**, mittel | `03_STAND.md` §5.4 |
+| **R-6** | Merkmale sind innerhalb eines Jahres konstant | gering | B-18 |
+| **R-8** | ACS-Trefferquote 2009 nur 63,1 % | gering | `03_STAND.md` §1 |
+| ~~R-13~~ | ~~Spezifikationsentscheidungen nach dem ersten Lauf~~ | **entfällt** — siehe unten | #42, #43, #45 |
 
-**Auflage B — die Zielsetzung als Generalisierung formulieren.** Wörtlich: „und
-die Zielsetzung der Validierung klar als **Generalisierung auf unbekannte
-Stadtteile** formulieren." Das ist eine Formulierungsvorgabe. Der Begriff gehört
-in Kapitel 5.4 und in die Zielsetzung, nicht nur sinngemäß.
+### R-13 · entfällt — die Spezifikation ist iteriert, nicht abgeändert
 
-**Auflage C — identische Merkmale und Splits.** Wörtlich: „Achten Sie darauf,
-für alle Vergleichsmodelle identische Merkmale und Splits zu verwenden." Das ist
-erfüllt, muss aber **gezeigt** werden: Die Fairness ist konstruktiv abgesichert,
-weil `fold` und `ist_holdout` als Spalten in den Dateien stehen und die
-Merkmalsliste einmal in `prep/config.py` definiert ist. Kein Modellskript kann
-davon abweichen. Dieser Mechanismus gehört in Kapitel 5.4 beschrieben — als
-Beleg, nicht als Zusicherung.
+**Festlegung Lukas, 08.08.2026: Dies ist kein Risiko und wird nicht als
+Abweichung geführt.** Die Begründung gehört trotzdem aufgeschrieben, weil sie
+in Kapitel 6 gebraucht wird.
 
-### Die übrigen Abweichungen — unkritisch
+**CRISP-DM ist ein Kreislauf, kein Wasserfall.** Die Rückkopplung zwischen
+Modeling und Data Preparation ist die im Vorgehensmodell **vorgesehene**
+Bewegung (Wirth & Hipp 2000), nicht ihre Verletzung. Wer sie als Abweichung
+führt, unterstellt der Arbeit ein Präregistrierungsmodell, unter dem sie nie
+angetreten ist.
 
-Vier Festlegungen weichen vom Exposé ab oder gehen darüber hinaus. Alle sind im
-Decision Log begründet, keine ist abgestimmt.
+**Und keine der drei Entscheidungen ist ergebnisgetrieben:**
 
-| Punkt | Was entschieden wurde | Warum es abweicht |
+| | Was war | Warum es geändert wurde |
 |---|---|---|
-| **Stadtteil-Split** statt Zeitschnitt | 5 Folds, 6 Hold-out-Stadtteile | Unterfrage 2 nennt zeitreihengerechte Kreuzvalidierung. Die entfällt als Hauptvergleich, weil sie die Forschungsfrage nicht prüft: Bei einem Zeitschnitt steht jeder Stadtteil in Training *und* Test (#29) |
-| **Einsatzart auf Stadtteilebene** | dominante Einsatzart je Stadtteil-Monat | Auf Einzeleinsatz-Ebene lag die Obergrenze bei 49,9 % gegenüber 48,2 % für bloßes Raten. Die Klasse bleibt echt, nur die Analyseeinheit wechselt (#29) |
-| **Rate als zweite Zielgröße** | Einsätze je 1.000 Einwohner | Erweitert das Exposé, widerspricht ihm nicht (#29) |
-| **Drei Verfahren für Regression, zwei für Klassifikation** | Ridge/RF/XGB gegen RF/XGB | Per E-Mail vom 03.08.2026 freigegeben, Begründung in 6.2 verlangt (#31) |
+| **#42** | Baseline mit Zähldaten-Likelihood, Baumverfahren mit quadratischem Fehler | **Ungleichbehandlung in der Spezifikation.** Der quadratische Fehler gewichtet einen Fehler von 20 bei Tenderloin (280 Einsätze) wie bei Seacliff (6,4). Das misst nicht Verfahren, sondern Verlustfunktionen |
+| **#43** | Baseline mit Expositions-Offset, Baumverfahren ohne | **Dieselbe Ungleichbehandlung, zweite Form.** Die Forschungsfrage lautet, welches *Verfahren* die höchste Prognosegüte erzielt. Verlieren zwei davon, weil ihnen die Expositionsstruktur vorenthalten wurde, bleibt die gestellte Frage unbeantwortet |
+| **#45** | NegBin mit Störparameter, Logit mit sklearn-Vorgabewert `C = 1,0` | **Vereinheitlichung einer Regel**, keine Modellwahl: Was einen freien Parameter hat, wird mit gleichem Budget getunt; was keinen hat, wird angepasst. `C = 1,0` war eine Voreinstellung, keine Entscheidung |
 
-**Einstufung (Lukas, 04.08.2026): Nur der Stadtteil-Split ist leicht kritisch,
-die übrigen drei sind unkritisch.**
+**Der stärkste Beleg gegen Ergebnisoptimierung ist die Wirkungsrichtung:** #45
+macht die **Regressionslatte härter** (37,27 → 33,98 RMSE) und die
+Klassifikationslatte weicher (0,314 → 0,297). Wer sein Ergebnis sucht, ändert
+nicht die Latte, über die er selbst springen muss.
 
-Die Einsatzart auf Stadtteilebene, die Rate als zweite Zielgröße und die
-3-gegen-2-Verfahrenswahl sind entweder empirisch zwingend, eine Erweiterung ohne
-Widerspruch zum Exposé, oder bereits per E-Mail freigegeben. Sie werden in
-Kapitel 6 benannt und brauchen keine gesonderte Abstimmung.
+**Zwei Belege bleiben im Text — nicht als Geständnis, sondern als Nachweis:**
 
-Beim **Stadtteil-Split** liegt der Fall anders: Er widerspricht einem wörtlich
-im Exposé genannten Element von Unterfrage 2 (zeitreihengerechte
-Kreuzvalidierung), und er steht als Spalte in beiden Datensätzen. Ein Veto
-danach würde jede Modellrechnung entwerten. Eintrittswahrscheinlichkeit niedrig,
-Schadenshöhe maximal — deshalb bleibt der Punkt im Register, obwohl er als
-gering eingestuft ist. Er kostet in der Sprechstunde fünf Minuten.
+1. **Das Hold-out war zu keinem Zeitpunkt berührt.** Keine der drei
+   Entscheidungen konnte darauf schauen; die sechs Stadtteile sind erst nach
+   Abschluss von Spezifikation und Tuning einmalig ausgewertet worden.
+2. **Der Lauf unter der ersten Spezifikation ist vollständig berichtet** — als
+   Ablation in `03_STAND.md` §5.5. Genau daraus entsteht die Antwort auf
+   Unterfrage 4: Die Spezifikation bewegt bis zu 146,9 RMSE, die
+   Verfahrenswahl 2,5. **Ohne die Iteration gäbe es diesen Befund nicht.**
+
+**Formulierung für Kapitel 6:** iterative Verfeinerung der Spezifikation
+innerhalb des CRISP-DM-Kreislaufs, mit Datum, Anlass und gemessener Wirkung —
+nicht „nachträgliche Änderung". Das Gutachten verlangt, erkannte Probleme zu
+**lösen** statt sie nur zu benennen (R9). Genau das ist hier passiert.
+
+### ~~R-14~~ · ✅ ERLEDIGT am 08.08.2026 — Freigabe erteilt
+
+Schröter hat noch am selben Tag geantwortet und **beides** freigegeben: die
+einheitliche Spezifikation über die Einwohnerzahl (#43) als „plausibel" und die
+unpenalisierten Varianten (#45) als „methodisch sauber, vermeidet willkürliche
+Parameter und liefert zudem stärkere Vergleichswerte". Die Testkonstruktion
+(#37, #38) hat er als „sauber umgesetzt" und den unkorrigierten Einzeltest der
+Klassifikation als „folgerichtig" bestätigt.
+
+**Daraus folgt eine neue Auflage, nicht nur eine Entlastung:** „Dokumentieren
+Sie diese Begründung genau so." Der Wortlaut steht in `01_VORGABEN.md`,
+Abschnitt 0, Auflage D. Zu beachten ist, dass sein Punkt „stärkere
+Vergleichswerte" nur für den Mengenstrang zutrifft — im Strukturstrang sinkt die
+Latte. Beide Zahlen standen in der Anfrage, die Freigabe erfolgte also in
+Kenntnis; in Kapitel 5.4 ist der Unterschied dennoch zu benennen (R-2).
+
+Der ursprüngliche Text dieses Risikos:
+
+Schröter hat am 04.08.2026 die **Negative-Binomial-Regression** und die
+**multinomiale logistische Regression** namentlich als geeignete Baselines
+bestätigt (#35). Gerechnet wird seit #45 ein **Poisson-GLM mit Offset** und ein
+**unpenalisiertes** Logit.
+
+Sachlich trägt der Wechsel: Die Baseline liefert ausschließlich
+Punktvorhersagen, und dafür bleibt der Poisson-Schätzer bei richtig
+spezifiziertem bedingtem Mittelwert auch unter Überdispersion konsistent
+(Gourieroux, Monfort & Trognon 1984). Die Modellklasse bleibt dieselbe, der
+Link bleibt kanonisch, der Offset bleibt. **Die Freigabe deckt ihn dennoch
+nicht.**
+
+**Das stärkste Argument in der E-Mail ist die Asymmetrie der Folge:** Die
+Regressionslatte **steigt** von 37,27 auf 33,98 RMSE, die Klassifikationslatte
+**sinkt** von 0,314 auf 0,297 Macro-F1. Die Änderung hilft im einen Strang und
+schadet im anderen — das ist das Gegenteil von Rosinenpicken und sollte genau
+so formuliert werden.
+
+**Mitgeteilt am 08.08.2026** (Entwurf in `entwuerfe/`). Die Mail nennt beide
+Zahlenpaare und bietet an, mit den ursprünglich genannten Formen zu rechnen.
+Antwort ausstehend; bis dahin bleibt der Punkt im Register. Widerspricht er,
+sind es wenige Minuten Rechenzeit für die Regression — die getunte Logit wäre
+aufwendiger.
+
+### R-17 · Auflage B ist gemeldet, aber noch nicht umgesetzt — NEU
+
+Die E-Mail vom 08.08.2026 meldet, die Zielsetzung der Validierung sei „als
+Generalisierung auf unbekannte Stadtteile formuliert". **In
+`main_gliederung_2026-07-28.tex` kommt der Begriff bislang nicht vor** (geprüft
+am 08.08., null Treffer für „Generalisierung" und „unbekannte Stadtteile").
+
+Damit ist aus einer Auflage eine Zusage geworden. Sie ist billig einzulösen —
+der Begriff gehört wörtlich in die Zielsetzung und in Kapitel 5.4 —, aber sie
+steht jetzt unter Beobachtung: Schröter hat die Formulierung selbst verlangt und
+wird beim Lesen darauf achten. **Vor dem nächsten Kapitelversand erledigen.**
+
+### R-2 · Der Klassifikationsstrang — eingetreten, in beide Richtungen
+
+| Auswertung | Mehrheitsklasse | Logit (Stufe 2) | Random Forest | XGBoost |
+|---|---|---|---|---|
+| Kreuzvalidierung, 50 Läufe | 0,223 | 0,297 | **0,3276 ± 0,0129** | **0,3343 ± 0,0128** |
+| Hold-out, einmalig | 0,208 | **0,327** | 0,255 | 0,274 |
+
+**Drei Befunde, alle zu berichten:**
+
+1. **In der Kreuzvalidierung schlagen beide Baumverfahren die Stufe-2-Baseline**
+   — +0,0304 und +0,0371 Macro-F1, je **10 von 10** Wiederholungen, p = 0,002.
+   Das ist der kleinste bei n = 10 erreichbare p-Wert; die Richtung ist
+   eindeutig, nicht knapp.
+2. **Auf dem Hold-out dreht das Vorzeichen.** Die Werte liegen innerhalb der
+   jeweiligen CV-Spanne (Perzentil 14 für Random Forest, 16 für XGBoost, 64 für
+   das Logit) — kein Wert ist für sich auffällig. Auffällig ist die Richtung:
+   Auf denselben sechs Stadtteilen landen beide Ensembles im unteren Fünftel
+   ihrer Verteilung und die Baseline im oberen Drittel.
+3. **Beide Baumverfahren sagen die seltenste Klasse dort kein einziges Mal
+   vorher.** F1 für `brand` ist 0,000; bei Random Forest liegt die AUROC mit
+   0,173 unter dem Zufall, der gelernte Zusammenhang ist auf diesen Stadtteilen
+   also invertiert. Das Logit erkennt dieselbe Klasse mit AUROC 0,895
+   zuverlässig und klassifiziert nur zurückhaltend.
+
+**Konsequenz: keine Rangfolge zwischen Logit und Baumverfahren.** Die Aussage
+lautet: Der Mehraufwand von Random Forest und XGBoost ist im Strukturstrang
+nicht belegt. Genau der Fall, den `CLAUDE.md` vorab als berichtbar vorgesehen
+hat.
+
+**Was zusätzlich bleibt, unabhängig vom Vorzeichen: der Ertrag.** Das beste
+Verfahren erreicht 0,334 bei einem theoretischen Maximum von 1,0, während die
+Kruskal-Wallis-Tests neun der zehn Strukturmerkmale als hochsignifikant
+klassentrennend ausweisen (Teststatistiken bis H = 481). Es ist viel zu holen,
+und alle Verfahren holen wenig davon. Gehört in die Limitationen.
+
+**Und ein Vorbehalt, der mit einer Zahl in Kapitel 8 gehört** (#48): Der
+Vorsprung in der Kreuzvalidierung ist gegen die **unpenalisierte** Baseline
+gemessen (0,297). Gegen eine mit gleichem Budget getunte Fassung (0,314) fiele
+er von +0,0304 und +0,0371 auf +0,0136 und +0,0203 — bei einer Streuung von
+0,013 also womöglich nicht mehr signifikant. Die Sensitivität wird bewusst
+**nicht** gerechnet: Schröter hat die unpenalisierte Form am 08.08. in Kenntnis
+beider Zahlen freigegeben, und Stufe 2 ist definitorisch die Form ohne freien
+Parameter. Der Vorbehalt wird stattdessen benannt — als Absatz, nicht als
+Fußnote.
+
+> **Die Begründungskette für Kapitel 6.2 trägt weiterhin.** Die Zielgröße
+> entsteht als Maximum über vier Anteile; die Grenze zwischen zwei Klassen
+> liegt dort, wo die zugehörigen Anteile einander schneiden. Im Merkmalsraum
+> sind das Schnittflächen, keine Hyperebenen — ein Verfahren mit linearen
+> Trennebenen ist hier konstruktionsbedingt im Nachteil, und Verfahren mit
+> flexibleren Grenzen sind damit *ex ante* begründet. Dass sie den Vorsprung
+> nicht durchhalten, widerlegt die Begründung nicht, sondern ist das Ergebnis.
+
+### R-1 · Die Verfahren trennen sich nicht — eingetreten wie vorhergesagt
+
+Bei `anzahl_einsaetze` ist **keine** der drei Paarungen trennbar (p_holm
+durchgehend 1,000). Bei `einsaetze_je_1000_ew` trennt genau **eine**: Ridge
+gegen XGBoost, −0,47 RMSE, p_holm 0,035. Elf von zwölf Paarungen sind „nicht
+unterscheidbar".
+
+**Folgenlos für die Arbeit — weil #34 das vorab entschieden hat**, am
+04.08.2026 und vor dem ersten Modelllauf: Die Forschungsfrage wird über drei
+einzeln messbare Bausteine beantwortet, nicht über eine Rangfolge. Berichtet
+werden mittlere Differenz, Konfidenzintervall und gewonnene Läufe — kein
+Platz 1. Der Abstand Verfahren↔Baseline ist messbar, der Abstand
+Verfahren↔Verfahren bei 29 Einheiten nicht.
+
+**Der Vortest vom 28.07.2026 ist überholt und darf nicht mehr zitiert werden.**
+Seine Zahlen (Ridge gegen Random Forest +0,042 ± 0,609; Rate RF 0,584 gegen
+Ridge −0,087) stammen aus der Zeit vor der doppelten Stratifizierung (#30), vor
+der Verlustfunktion (#42) und vor der Expositionsbehandlung (#43).
+
+### R-4 · Sechs Einheiten in der Schlussbewertung
+
+Die abschließende Bewertung läuft auf sechs Stadtteilen, 792 Zeilen, ohne
+Streuung und ohne Test. **Im Strukturstrang weicht sie von der Kreuzvalidierung
+ab** (R-2), liegt aber innerhalb der Spannweite der 50 Einzelläufe (Random
+Forest 0,229–0,404, XGBoost 0,230–0,421). Als Einzelmessung zu kennzeichnen und
+**nicht** als Widerlegung des Kreuzvalidierungsergebnisses zu lesen.
+
+**Nicht mit den CV-Werten vergleichen.** Der Hold-out ist eine andere,
+leichtere Aufgabe: Extrapolationsanteil 7,6 % gegen 34,6 %, Training auf 29
+statt 23 Stadtteilen. Die absoluten Werte fallen deshalb günstiger aus — im
+Mengenstrang durchgehend.
+
+**Zweite, eigenständige Schwäche des Verfahrens** (B-42): Die Baumverfahren
+treten mit den Hyperparametern **eines einzigen** Folds an
+(`fold_der_parameter`), obwohl diese über die Folds erheblich streuen — beim
+Random Forest der Struktur `max_depth` 16/24/16/24/24, `n_estimators`
+539/359/306/321/995. Das Logit hat keine Hyperparameter und ist von dieser
+Asymmetrie nicht betroffen. **Wie viel das ausmacht, ist nicht gemessen.** Eine
+saubere Gegenprobe wäre möglich, ohne das Hold-out anzufassen: innerhalb der
+Kreuzvalidierung jedem Fold die Parameter eines anderen geben und den Abfall
+messen. Nicht durchgeführt; Aufwand und Nutzen vor der Abgabe abzuwägen.
+
+### R-5 · 29 unabhängige Einheiten
+
+4.620 Zeilen klingen komfortabel, es sind **35 Querschnittseinheiten × 132
+Monate**, davon 29 in der Entwicklung und 6 im Hold-out. Gemeinsame Ursache von
+R-1, R-3, R-4 und R-11.
+
+**Zwei Folgen für die Auswertung:**
+
+- Die Gütemaße werden je Zeile gerechnet, aber die 132 Zeilen eines Stadtteils
+  sind hochkorreliert — der effektive Stichprobenumfang der Metrik ist weit
+  kleiner als *n*. Dass 92,5 % der Varianz von `anzahl_einsaetze` *zwischen*
+  den Stadtteilen liegen, ist derselbe Sachverhalt von der anderen Seite.
+- Die 50 Fold-Ergebnisse aus 10 Wiederholungen sind **nicht unabhängig**:
+  dieselben 29 Stadtteile, nur anders gruppiert. Der Gewinn an Präzision ist
+  kleiner als √10 (Nadeau & Bengio 2003). Deshalb ist `std_wiederholungen` über
+  die 10 Wiederholungsmittel maßgeblich und nicht `std_folds` über die 50
+  Läufe.
+
+Gehört in die Limitationen und schützt vor dem Vorwurf der Überinterpretation
+(Gutachten R2).
+
+### R-3 · Extrapolation — Eigenschaft des Rahmens, keine Erklärung
+
+**34,6 %** der Testzeilen über alle 50 Läufe liegen in mindestens einem Merkmal
+außerhalb der Trainingsspanne; 33,7 % in Wiederholung 0 (Fold-Spanne 3,6 bis
+57,4 %), 7,6 % im Hold-out. Unvermeidliche Folge des Stadtteil-Splits, begrenzt
+die Generalisierbarkeit.
+
+**Als Erklärung für Verfahrensunterschiede geprüft und widerlegt** (B-31) — und
+unter der finalen Spezifikation erst recht gegenstandslos:
+
+- Es gibt **keinen Rückstand mehr zu erklären**. Bei `anzahl_einsaetze` liegen
+  Random Forest und XGBoost 0,88 bzw. 0,64 RMSE **vor** Ridge, bei der Rate
+  0,49 bzw. 0,47.
+- Der Zusammenhang zwischen Extrapolationsanteil und RMSE ist ausgerechnet bei
+  **Ridge am stärksten** (ρ +0,298 / +0,311) und bei den Baumverfahren
+  schwächer (+0,126 bis +0,188). Wäre Extrapolation der Hebel gegen die Bäume,
+  müsste es umgekehrt sein.
+
+**Der Satz in Kapitel 7 und 8 muss lauten: geprüft und nicht bestätigt.** Das
+ist ein stärkerer Beitrag als die ursprüngliche Vermutung, weil er eine
+naheliegende Erklärung ausschließt statt sie weiterzureichen.
+
+**Es ist zudem eine Eigenschaft von Stadtteilen, nicht von Zeilen** (B-32): 9
+von 29 brechen zu 100 % ihrer Zeilen aus, 16 zu 0 %. Die tragfähige
+Formulierung lautet nicht „33,7 % der Testzeilen", sondern: *Rund ein Drittel
+der Stadtteile San Franciscos ist in mindestens einem Strukturmerkmal so
+ungewöhnlich, dass kein anderer Stadtteil sie abdeckt.* Eine Aussage über die
+Stadt, nicht über die Modelle.
+
+### R-11 · Pseudoreplikation
+
+Der gepaarte Wilcoxon-Test setzt unabhängige Paare voraus; es sind dieselben 29
+Stadtteile in zehn Gruppierungen. Über 50 Läufe gerechnet fiele sein p-Wert
+**zu klein** aus, und Holm hilft dagegen nicht — es korrigiert
+Mehrfachvergleiche, nicht Pseudoreplikation.
+
+**Entschärft durch #37:** Der Primärtest läuft auf den **10
+Wiederholungsmitteln** (n = 10, kleinstes erreichbares zweiseitiges p 0,00195 —
+also auch nach Holm erreichbar). Der Test über alle 50 steht als ausdrücklich
+gekennzeichnete Sensitivität in derselben Datei, Spalte `teststufe`.
+
+**Rest bleibt und gehört in Kapitel 8:** Auch die zehn Mittel sind nicht
+unabhängig. Der Test kontrolliert die Fold-Schwankung, nicht den kleinen Umfang
+an Analyseeinheiten; das berichtete Konfidenzintervall ist enger als die wahre
+Unsicherheit. Deshalb stehen mittlere Differenz, KI und gewonnene Läufe immer
+neben dem p-Wert.
+
+**Dieselbe Pseudoreplikation, an anderer Stelle und mit umgekehrter Wirkung**
+(B-41): Der RESET-Test der Eignungsprüfung lief auf 3.828 Zeilen, als wären sie
+unabhängig. Ein F-Test mit dieser Fallzahl findet praktisch jede Abweichung
+signifikant — die daraus abgeleitete Nichtlinearität generalisiert nicht, sie
+zerstört die Prognose out-of-sample um den Faktor drei bis fünf. Dort macht die
+Pseudoreplikation p-Werte zu klein, hier lässt sie Modellstruktur erscheinen,
+die es nicht gibt. **Ein übertragbarer methodischer Beitrag der Arbeit.**
+
+### R-10 · Zwei Testfamilien, eine unkorrigiert
+
+Der gepaarte Wilcoxon läuft je Zielgröße und Verfahrenspaar: **3 Paare × 2
+Mengen-Zielgrößen** in der Regression, **1 Paar** in der Klassifikation. Seit
+#38 sind das **zwei getrennte Familien (6 und 1)**, nicht eine Familie mit
+sieben Tests — Regression und Klassifikation beantworten verschiedene
+Teilfragen, ein Zufallstreffer im einen Strang macht den anderen nicht falsch.
+
+- `m02` rechnet **Holm-Bonferroni über seine 6 sekundären Tests**: p-Werte
+  aufsteigend sortieren, den kleinsten gegen α/6 prüfen, den nächsten gegen
+  α/5, und so fort bis zur ersten Nichtablehnung.
+- `m03` hat einen einzigen sekundären Test und wird **nicht** korrigiert. Preis,
+  offen zu benennen: Der Vergleich Random Forest gegen XGBoost läuft gegen
+  α = 0,05 statt gegen 0,0071.
+- Die **Primäraussage** „Verfahren gegen Baseline" bildet nach #34 keine
+  Testfamilie und wird nicht korrigiert.
+
+Code und Dokumentation stimmen seit 07.08.2026 überein; bis dahin stand hier
+„7 Tests, α/7" (B-6).
+
+### R-16 · XGBoost ist nicht threaddeterministisch — NEU im Register
+
+Bei anderer Kernzahl weichen die Vorhersagen ab: bis **322,8** bei
+`anzahl_einsaetze` (Mittelwert der Zielgröße 75,9), 18,9 bei der Rate,
+**7,4 %** abweichende Klassen im Strukturstrang. Ridge und Random Forest sind
+unauffällig (≤ 2·10⁻¹³).
+
+**Ergebnisse unberührt** — alle berichteten Werte stammen aus dem einkernigen
+Fit, und die Abweichung ist gemessen statt vermutet (B-24). **Aber:** Die
+Abgabe enthält Quellcode und muss reproduzierbar sein. Ein Prüfer, der das Repo
+auf einer anderen Maschine startet, bekommt bei XGBoost andere Zahlen.
+
+**Was daraus folgt:** Die Reproduzierbarkeitsangabe in Kapitel 6 muss die
+**Kernzahl** nennen, nicht nur den `random_state`, und die Abweichung
+beziffern. Bisher steht das nur in `03_STAND.md` §5.4 und in B-24, nicht im
+Register — deshalb hier nachgetragen.
+
+### R-15 · UF3 beruht auf einer einzigen Zeitmessung — NEU im Register
+
+Trainings- und Inferenzaufwand sind der dritte tragende Baustein der
+Forschungsfrage (#34). Die Datengrundlage dafür ist **ein** Durchgang auf
+**einer** Maschine: Intel Core i5-7300U, 2 physische Kerne mit Hyperthreading,
+7,8 GB, Windows 10, ohne Wiederholung der Messung.
+
+**Belastbar ist der Kern der Aussage:** Zwischen Ridge und den Ensembles liegen
+zwei Größenordnungen, nicht Prozentpunkte. Eine solche Differenz überlebt jedes
+Messrauschen.
+
+**Nicht belastbar ist der Parallelisierungsgewinn.** Zwei physische Kerne mit
+Hyperthreading sind ein Grenzfall — vier logische Prozessoren teilen sich zwei
+Recheneinheiten. Auf acht echten Kernen fielen die Faktoren anders aus, und bei
+einer U-Serie-CPU ist thermische Drosselung über rund eine Stunde Laufzeit
+nicht auszuschließen. Der Befund „bei XGBoost liegt der Gewinn unter 1"
+(B-28) ist plausibel begründet, aber an diese Maschine gebunden.
+
+**Was daraus folgt:** Einkern-Zeiten als Hauptaussage, Parallelisierungsgewinn
+ausdrücklich als maschinengebunden kennzeichnen. Prozessor, Kernzahl,
+Nebenlast und `requirements_lauf.txt` gehören in Kapitel 6.
+
+### R-6 · Merkmale sind innerhalb eines Jahres konstant
+
+ACS erscheint jährlich, Land Use ist ein Snapshot 2020. Das Modell sagt für
+alle zwölf Monate eines Stadtteils fast denselben Wert vorher; die
+Monatsschwankung geht vollständig ins Residuum. Sichtbar auch in der
+VIF-Rechnung: Die Strukturmerkmale variieren nur auf **319 Stadtteil-Jahren**,
+nicht auf 3.828 Zeilen (B-18) — höchster VIF 12,29 bei
+`median_haushaltseinkommen`, weshalb blockweise statt einzelmerkmalsweise
+interpretiert wird.
+
+Das ist zugleich die Antwort auf eine der erwarteten Kolloquiumsfragen (siehe
+Abschnitt 5): Das Modell sagt das **Niveau** eines unbekannten Stadtteils
+vorher, nicht seine Monatsdynamik. Genau das ist die Forschungsfrage.
+
+### R-8 · ACS-Trefferquote 2009
+
+63,1 % im Jahrgang 2009, gegenüber 99,2 % in 2021/23. Für die Hauptanalyse ab
+2015 folgenlos, gehört in die Limitationen.
 
 ---
 
-## Was daraus für die Modellierung folgt
+## 3. Erledigt, entfallen, behoben
 
-1. ~~**R-1 vorab entscheiden.**~~ ✅ erledigt mit Decision Log #34, festgelegt am
-   04.08.2026 vor dem ersten Modelllauf: Die Forschungsfrage wird über drei
-   einzeln messbare Bausteine beantwortet — Prognosegüte je Verfahren **gegen
-   die Stufe-2-Baseline** (UF2), Trainings- und Inferenzaufwand (UF3), daraus
-   die Eignungsaussage für diesen Datensatz (UF4). Eine Rangfolge zwischen den
-   Verfahren nur, wenn der gepaarte Wilcoxon-Test sie hergibt.
-2. **10 Wiederholungen**, nicht 5 Folds allein — verengt das Konfidenzintervall
-   des Mittelwerts, auch wenn die Einzelstreuung bleibt.
-3. **Je Zielgröße getrennt entscheiden.** Die Verfahren tauschen zwischen
-   `anzahl_einsaetze` und `einsaetze_je_1000_ew` die Plätze — bei der Rate lag
-   Random Forest im Vortest deutlich vorn. Sehr wahrscheinlich ist die Aussage
-   dort belastbar und bei der absoluten Zahl nicht.
+Die Nummern bleiben besetzt, weil sie zitiert werden.
 
-**Warum der Vortest eher zu pessimistisch als zu optimistisch ist:** Er lief
-**ungetunt**, mit **20 statt 50** Fold-Ergebnissen und auf der Fold-Zuteilung
-**vor** der doppelten Stratifizierung (#30). Alle drei Punkte verbessern sich im
-geplanten Lauf. Und die Streuung von ± 0,609 sagt für sich genommen nichts über
-die Signifikanz: Der gepaarte Wilcoxon-Test wertet die **Vorzeichen** der
-Differenzen aus, nicht ihre Beträge. Gewinnt ein Verfahren 35 von 50 Folds, ist
-das signifikant — auch wenn die Abstände wild streuen. Die 12 von 20 des
-Vortests waren es nicht, aber das war ein Viertel der geplanten Messungen.
-4. **R-3 dokumentieren, nicht wegrechnen.** Vorhersagen zu kappen wäre ein
-   Eingriff, der den Verfahrensvergleich verwässert. Dass Baumverfahren bei
-   unbekannten Stadtteilen strukturell im Nachteil sind, ist selbst ein
-   Vergleichsergebnis.
-5. **R-9 offen benennen statt ausgleichen.** Den Offset auch den
-   Vergleichsverfahren zu geben wäre möglich, würde aber ihre Spezifikation
-   ändern und den Vergleich mit dem Exposé brechen. Stattdessen in Kapitel 8
-   benennen: Die Baseline ist an dieser Stelle strukturell im Vorteil, ein
-   knapper Sieg über sie ist deshalb vorsichtig zu lesen.
-6. **R-10 zweifach entschärfen — strukturell UND rechnerisch.** Erstens ist die
-   Primäraussage nach #34 „Verfahren gegen Baseline", nicht der paarweise
-   Vergleich; dort gibt es keine Testfamilie. Zweitens wird innerhalb der
-   sekundären Familie (7 paarweise Tests) **Holm-Bonferroni** angewandt: p-Werte
-   aufsteigend sortieren, den kleinsten gegen α/7 prüfen, den nächsten gegen
-   α/6, und so fort bis zur ersten Nichtablehnung.
+| | Was es war | Auflösung |
+|---|---|---|
+| **R-7** | Der Stadtteil-Split ist mit Schröter unbesprochen | ✅ **04.08.2026, #35.** „Der Stadtteil-Split ist für die von Ihnen formulierte Forschungsfrage methodisch gut begründet. […] Insofern können Sie wie geplant vorgehen." Drei Auflagen daraus → Abschnitt 4 |
+| **R-9** | Spezifikationsasymmetrie zulasten der Vergleichsverfahren | ✅ **06.08.2026, #43 — beseitigt statt beziffert.** Die Asymmetrie war real und beträgt über alle zehn Wiederholungen **22 bis 29 RMSE** (`03_STAND.md` §5.5; die 24 bis 30 in B-33 stammen aus Wiederholung 0): Baumverfahren, die direkt auf `anzahl_einsaetze` anpassen, können „Einsätze = Bevölkerung × Risiko" nicht abbilden. Seit #43 modellieren **alle** Verfahren die Rate und multiplizieren zurück; Schröter hat das am 08.08. als „plausibel" freigegeben (#47). Die frühere Festlegung „nicht ausgleichen, sondern berichten" gilt **nicht mehr**; die alte Spezifikation steht als Ablation in §5.5 und trägt dort die Antwort auf UF4 |
+| **R-9** (erste Fassung) | Der Offset verschaffe der Baseline einen Vorteil | ✅ **05.08.2026 — geprüft, aber von der falschen Seite.** Gemessen wurde, ob die Baseline durch den Offset *gewinnt* (−0,0017 RMSE, also nichts). Die relevante Frage lautete, ob die Vergleichsverfahren *verlieren*, weil sie ihn nicht haben — Antwort: ja (B-34). Der Eintrag bleibt als Beleg für die Fehlerart stehen und gehört in die kritische Reflexion |
+| **R-12** | Die wiederholten Splits waren wie spezifiziert nicht durchführbar | ✅ **behoben, #36.** Der `versatz` rotierte nur die Gruppen*nummern*: 6 statt 10 Partitionen — und **Gruppe 0 ist das Hold-out**, das damit in neun von zehn Wiederholungen mittrainiert worden wäre. `v0_aufteilung.py` hält das Hold-out fest, erhält die doppelte Stratifizierung und mischt je Wiederholung geseedet innerhalb der Rangblöcke. Wiederholung 0 reproduziert die Parquet-Dateien bitgenau, geprüft per `assert` bei jedem Aufruf (B-1 bis B-3) |
+| — | Brand in einzelnen Folds mit 1–2 Fällen | ✅ durch die doppelte Stratifizierung (#30) auf 2 bis 13 Testfälle je Fold gehoben, im Mittel 6,6 |
+| — | Zwei Anteile nicht vorhersagbar | ✅ hinfällig: Die `anteil_*`-Spalten sind seit #31 keine Modellzielgröße mehr |
+| — | Laufzeiten zwischen den Verfahren nicht vergleichbar | ✅ durch #39/#40 gelöst: einkernige Messung für alle, Parallelisierungsgewinn als eigene Kennzahl. Rest lebt als R-15 |
+| — | Negative Vorhersagen nach Rücktransformation | ✅ gegenstandslos: **null** negative Vorhersagen in allen 300 Läufen. Tweedie und Poisson haben eine Log-Verknüpfung, die Zielgröße wird strukturell respektiert statt nachträglich geprüft (B-15) |
+| — | Tuning auf Wiederholung 0 könnte die übrigen Wiederholungen begünstigen | ✅ gemessen, kein Effekt: sechs von acht Diagnosewerten sind negativ, kein systematisches Muster (B-21, B-27) |
 
-   *Korrektur einer früheren Einschätzung (04.08.2026):* Hier stand zunächst,
-   eine Korrektur würde „jeden Befund kassieren". Das war überzogen — bei 50
-   gepaarten Werten reicht α = 0,007 aus, wenn rund 35 Folds in dieselbe
-   Richtung zeigen. Und Holm ist bei gleicher Fehlerkontrolle uniform stärker
-   als Bonferroni. Es gibt keinen Grund, darauf zu verzichten.
+---
+
+## 4. Die drei Auflagen aus Schröters Freigabe
+
+Wörtlich aus der E-Mail vom 04.08.2026 (#35). Alle drei müssen in die Arbeit.
+
+**Auflage A — die Abweichung transparent erläutern.** *„Wichtig ist, dass Sie
+die Abweichung von der ursprünglich angekündigten zeitreihengerechten
+Kreuzvalidierung transparent erläutern."* Das begründete Verwerfen in Kapitel 8
+ist damit verlangt, nicht optional (#29). Der Beleg liegt vor: 92,5 % der
+Varianz liegen zwischen den Stadtteilen, ein Zeitschnitt würde im Kern die
+zeitliche Stabilität messen und die Forschungsfrage nicht prüfen.
+
+**Auflage B — die Zielsetzung als Generalisierung formulieren.** *„und die
+Zielsetzung der Validierung klar als Generalisierung auf unbekannte Stadtteile
+formulieren."* Eine Formulierungsvorgabe: Der Begriff gehört **wörtlich** in
+Kapitel 5.4 und in die Zielsetzung, nicht nur sinngemäß.
+
+**Auflage C — identische Merkmale und Splits.** *„Achten Sie darauf, für alle
+Vergleichsmodelle identische Merkmale und Splits zu verwenden."* Erfüllt, muss
+aber **gezeigt** werden: `fold` und `ist_holdout` stehen als Spalten in beiden
+Parquet-Dateien, die Merkmalsliste einmal in `prep/config.py`, die
+Wiederholungen einmal in `v0_aufteilung.py`. Kein Modellskript kann davon
+abweichen. Der Mechanismus gehört in Kapitel 5.4 beschrieben — als **Beleg**,
+nicht als Zusicherung.
+
+### Stand der Abstimmung mit Schröter
+
+Diese Tabelle führt den **Abstimmungsstand**, nicht Abweichungen. Das Exposé
+ist ein Vorhabensdokument und keine Präregistrierung; wo die Umsetzung von ihm
+abweicht, ist das im Decision Log begründet und in Kapitel 6 zu erläutern — es
+begründet keinen eigenen Registereintrag.
+
+| Punkt | Festlegung | Stand |
+|---|---|---|
+| Stadtteil-Split statt Zeitschnitt | 5 Folds à 6 Stadtteile, 6 Hold-out | ✅ freigegeben 04.08. (#35), Auflage A verlangt die Erläuterung |
+| Baselines in zwei Stufen | Stufe 1 ohne, Stufe 2 mit Merkmalen | ✅ freigegeben 04.08. (#35) |
+| Drei Verfahren Regression, zwei Klassifikation | Ridge/RF/XGB gegen RF/XGB | ✅ freigegeben 03.08. (#31), Begründung in 6.2 verlangt |
+| Einsatzart auf Stadtteil × Monat | dominante Einsatzart statt Einzeleinsatz | in Kapitel 6 zu begründen (#29) — auf Einzeleinsatz-Ebene lag die Obergrenze bei 49,9 % gegen 48,2 % für bloßes Raten |
+| Rate als zweite Zielgröße | Einsätze je 1.000 Einwohner | in Kapitel 6 zu benennen (#29) |
+| Verlustfunktion nach Datenform | Tweedie / `criterion="poisson"` | in Kapitel 6 zu begründen (#42) |
+| Expositionsbehandlung für alle Verfahren | alle modellieren die Rate | ✅ freigegeben 08.08. als „plausibel" (#43) — trägt zugleich die Antwort auf UF4 |
+| Poisson statt Negative Binomial | unpenalisierte GLM als Stufe 2 | ✅ freigegeben 08.08. (#45), **mit Auflage D** |
+| Primärtest auf 10 Wiederholungsmitteln | statt über 50 Läufe | ✅ freigegeben 08.08. als „sauber umgesetzt" (#37) |
+| Zwei Testfamilien statt einer | Holm über 6, ein Test unkorrigiert | ✅ freigegeben 08.08. als „folgerichtig" (#38) |
+
+**Seit dem 08.08.2026 ist keine Festlegung mehr unabgestimmt.** Was bleibt, ist
+Schreibarbeit: begründen, nicht rechtfertigen — und bei den Baselines die
+Begründung wörtlich so übernehmen, wie Schröter sie formuliert hat
+(`01_VORGABEN.md`, Auflage D).
+
+---
+
+## 5. Kolloquium — wo die Antwort steht
+
+Die Fragen stammen aus dem Gutachten zum Anwendungsprojekt und aus der
+Gruppensprechstunde vom 13.07.2026. Auf jede muss eine belastbare Antwort
+vorliegen.
+
+| Frage | Antwort liegt in |
+|---|---|
+| „Warum genau diese drei Algorithmen — und wieso überhaupt Machine Learning?" | Eignungsprüfung (`v2_eignung`) **plus** die Selbstkorrektur aus B-41: Die diagnostizierte Nichtlinearität hält out-of-sample nicht. Ex ante vertretbar, ex post relativiert — das ist die ehrlichere und stärkere Antwort |
+| „Hätten Sie es nicht anders machen können? Ist das nicht Overkill?" | Genau das ist das Ergebnis (UF4): Die Spezifikation bewegt bis zu 146,9 RMSE, die Verfahrenswahl 2,5. Der Mehraufwand lohnt sich hier nicht — belegt, nicht behauptet |
+| „Wie stellen Sie sicher, dass der Vergleich fair ist?" | Auflage C, konstruktiv abgesichert: Fold-Spalten in den Dateien, eine Merkmalsliste, eine Aufteilungsfunktion. Dazu #42 und #43: Verlustfunktion und Expositionsbehandlung sind für alle Verfahren gleich — die beiden Ungleichbehandlungen wurden gesucht, gemessen und beseitigt (B-33) |
+| „Warum ist Ihre Validierung leakage-frei?" | Stadtteil-Split, Hold-out einmalig, alles Preprocessing in der Pipeline je Fold — und B-2: Der naheliegende Fehler, das Hold-out mitrotieren zu lassen, ist gefunden und behoben worden (R-12) |
+| „Sie haben nur 35 Stadtteile — wie belastbar sind Ihre Ergebnisse?" | R-5, offen benannt. 29 unabhängige Entwicklungseinheiten, `std_wiederholungen` statt `std_folds`, Primärtest auf 10 Mitteln, Konfidenzintervall enger als die wahre Unsicherheit |
+| „Ihre sozioökonomischen Merkmale ändern sich nur jährlich. Was sagt Ihr Modell dann eigentlich vorher?" | R-6: das **Niveau** eines unbekannten Stadtteils, nicht seine Monatsdynamik. Das ist die Forschungsfrage, nicht ein Mangel |
+| „Ist Ridge bei Zähldaten überhaupt das richtige Modell?" | Ridge rechnet auf `log(1+y)` und modelliert seit #43 die Rate — es bekommt die multiplikative Struktur damit ebenso wie das Poisson-GLM. Und empirisch: Ridge ist bei nicht unterscheidbarer Güte 130-mal schneller als XGBoost |
+| *(zu erwarten)* „Sie haben die Spezifikation im Verlauf geändert." | Ja — das ist der CRISP-DM-Kreislauf, und ohne ihn gäbe es die Antwort auf UF4 nicht. Beide Spezifikationen sind berichtet (§5.5), das Hold-out war nie berührt, und die Änderung machte die Regressionslatte **härter** statt weicher (R-13) |
+
+---
+
+## 6. Was daraus für die Verschriftlichung folgt
+
+1. **Keine Rangfolge zwischen den Verfahren**, außer bei der einen trennbaren
+   Paarung (Ridge gegen XGBoost auf der Rate). Überall sonst „nicht
+   unterscheidbar" mit mittlerer Differenz, Konfidenzintervall und gewonnenen
+   Läufen (#34, R-1).
+2. **Je Zielgröße getrennt berichten.** Bei der Rate ist **RMSE bzw. MAE das
+   Hauptmaß und R² nur nachrichtlich** — R² misst gegen den Mittelwert der
+   Testdaten, und die Rate streut zwischen den Stadtteilen um den Faktor 32.
+   Bei `anzahl_einsaetze` bleibt R² aussagekräftig.
+3. **Beide Auswertungen des Strukturstrangs berichten**, keine unterschlagen.
+   Ein Bericht, der nur die Kreuzvalidierung zeigt, behauptet einen Vorteil,
+   den die Schlussbewertung nicht trägt (R-2).
+4. **Die Extrapolation dokumentieren, nicht als Erklärung verwenden.** Der Satz
+   lautet: geprüft und nicht bestätigt (R-3).
+5. **Den Hold-out als Einzelmessung kennzeichnen**, seine Absolutwerte nicht mit
+   den CV-Werten vergleichen, die Parameter-Asymmetrie benennen (R-4).
+6. **Die Testkonstruktion offenlegen:** zwei Familien, Holm über 6, ein Test
+   unkorrigiert, Primärtest auf 10 Mitteln, Sensitivität über 50 gekennzeichnet
+   (R-10, R-11).
+7. **Die Kernzahl in die Reproduzierbarkeitsangabe**, nicht nur den
+   `random_state` (R-15, R-16).
+8. **Die Spezifikation als Iteration schreiben, nicht als Korrektur.** #42 und
+   #43 haben zwei Ungleichbehandlungen beseitigt; die Ablation beziffert, was
+   sie wert waren. Das ist der Beitrag, nicht das Eingeständnis (R-13).
+9. **R-14 aktiv ansprechen, nicht abwarten.** Ein Kommunikations-, kein
+   Rechenproblem. Ein im Kolloquium gestellter Punkt ist eine Frage; ein
+   vorher genannter ist eine Angabe.
+
+> **Der Leitsatz aus dem Gutachten, an dem dieses Register hängt:** Probleme zu
+> *erkennen* reicht nicht — bewertet wird, ob sie methodisch *gelöst* wurden.
+> Von den ursprünglich zwölf Risiken sind fünf gelöst, drei eingetreten und als
+> Ergebnis berichtbar, vier offen benannt. Zwei Ungleichbehandlungen zwischen
+> Baseline und Vergleichsverfahren wurden gesucht, gemessen und beseitigt; drei
+> plausible Erklärungen (B-31, B-34, B-39) wurden geprüft und verworfen, bevor
+> sie in die Arbeit kamen. Das ist die Erzählung, die dieses Register trägt.

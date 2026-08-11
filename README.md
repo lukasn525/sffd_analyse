@@ -17,7 +17,18 @@ pip install -r requirements.txt
 python prep\build.py                   # 1  Aufbereitung -> zwei Datensätze
 python tests\test_aufbereitung.py      #    Prüfungen an den fertigen Dateien
 python vorpruefung\run.py              # 2  Messlatte + Verfahrenseignung
+python vorpruefung\v3_spezifikation.py #    Gegenprobe zur Eignungsprüfung
+python modelle\m02_menge.py            # 3  Regression (der lange Teil)
+python modelle\m03_struktur.py         #    Klassifikation
+python modelle\m04_shap.py             #    Faktorgruppen, Ablation, VIF
+python modelle\m05_abbildungen.py      #    Abbildungen (liest alles Vorherige)
+python tools\pruefe_zahlen.py          #    Doku gegen results/ prüfen
 ```
+
+Die Reihenfolge ist verbindlich: `m05` rechnet nichts, es liest nur die CSV der
+vorherigen Schritte. `tools\pruefe_zahlen.py` gehört **nicht zur Abgabe** und
+meldet mit Exit-Code 1, welche Stelle der Dokumentation nicht mehr zu
+`results/` passt.
 
 `prep\build.py` läuft ohne Internet aus `data\raw`. Rohdaten werden nur geladen,
 wenn der jeweilige `DOWNLOAD_*`-Schalter in `prep\config.py` auf `True` steht.
@@ -31,8 +42,9 @@ python vorpruefung\v1_baselines.py      # nur die Messlatte
 python vorpruefung\v2_eignung.py        # nur die Eignungsprüfung
 ```
 
-Die Skripte unter `modelle/` werden gerade neu geschrieben — Spezifikation in
-`docs/04_MODELLIERUNG.md`.
+Alle Skripte sind gelaufen; der finale Modelllauf stammt vom 07.08.2026.
+Spezifikation der Modellierung in `docs/04_MODELLIERUNG.md`, Ergebniszahlen
+ausschließlich in `docs/03_STAND.md`.
 
 ## Aufbau
 
@@ -40,14 +52,19 @@ Drei Arbeitsschritte, drei Ordner:
 
 ```
 prep/          die Daten        config · s1_daten · s2_datensaetze · build
-vorpruefung/   die Messlatte    v1_baselines  Stufe 1 (ohne Merkmale)
-               und die Eignung                Stufe 2 (einfachste passende Form)
-                                v2_eignung    welche Verfahrensklasse passt?
-modelle/       der Vergleich    m02_menge · m03_struktur · m04_shap
+vorpruefung/   die Messlatte    v0_aufteilung   wiederholte Splits, Selbsttest
+               und die Eignung  v1_baselines    Stufe 1 + Stufe 2
+                                v2_eignung      welche Verfahrensklasse passt?
+                                v3_spezifikation  haelt die Nichtlinearitaet?
+modelle/       der Vergleich    m02_menge · m03_struktur · m04_shap · m05_abbildungen
 tests/                          test_aufbereitung
+tools/         NICHT ABGABE     pruefe_zahlen   Doku gegen results/
+entwuerfe/     NICHT ABGABE     E-Mails, Erklärungen
 data/          raw · processed
-results/       regression · klassifikation · eignungspruefung
-docs/          01_VORGABEN · 02_ENTSCHEIDUNGEN · 03_STAND · 04_MODELLIERUNG · 06_RISIKEN
+results/       regression · klassifikation · eignungspruefung · shap ·
+               spezifikation · abbildungen
+docs/          01_VORGABEN · 02_ENTSCHEIDUNGEN · 03_STAND · 04_MODELLIERUNG ·
+               06_RISIKEN · 07_BEFUNDE
 ```
 
 **Faustregel:** Erzeugt ein Schritt *Daten*, gehört er nach `prep/`. Legt er

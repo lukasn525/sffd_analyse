@@ -4,7 +4,10 @@
 > Dateien und die Thesis verweisen darauf, statt Werte abzuschreiben. Nach jedem
 > `python prep/build.py` wird diese Datei einmal überschrieben.
 >
-> Stand **2026-08-03**, alle Werte an den erzeugten Dateien nachgerechnet.
+> Stand **2026-08-07**, alle Werte an den erzeugten Dateien nachgerechnet.
+> Abschnitte 1–2 vom 03.08., Abschnitt 3 und 4 am 07.08. nachgezogen
+> (Baselinewechsel #45, Extrapolationszahlen aus dem finalen Lauf),
+> Abschnitt 5 aus dem finalen Modelllauf vom 07.08.
 
 ```
 python prep/build.py                 # zwei Datensätze + Baselines
@@ -113,17 +116,26 @@ wäre nicht geprüft.
 Im Mittel liegen **33,7 %** der Testzeilen in mindestens einem Merkmal außerhalb
 der Spanne, die das Modell im Training gesehen hat.
 
-**Korrigiert am 06.08.2026** (`07_BEFUNDE.md`, B-31 und B-32). Hier stand
-zuvor, die Spanne erkläre „einen erheblichen Teil der Fold-Streuung" und treffe
-Ridge und die Baumverfahren unterschiedlich. **Beides ist gemessen und nicht
-haltbar:**
+Die Zahl 33,7 % ist das Mittel der **Wiederholung 0**. Über alle 50 Läufe
+gerechnet liegt der Anteil bei **34,6 %**; im Hold-out bei 7,6 %. Wo die drei
+Werte auftauchen, ist die Bezugsmenge zu nennen.
 
-- Extrapolationsanteil gegen RMSE: Spearman ρ 0,14–0,31, für Ridge (0,184) und
-  Random Forest (0,185) praktisch identisch — also rund 3 % der Rangvarianz.
-- Rückstand der Baumverfahren gegenüber Ridge, korreliert mit dem
-  Extrapolationsanteil: ρ **+0,020** und **+0,011** (p ≈ 0,9). Kein
-  Zusammenhang. Der Rückstand beträgt konstant rund 20 RMSE, unabhängig davon,
-  ob ein Fold 3,6 % oder 57,4 % Extrapolation aufweist.
+**Korrigiert am 06.08.2026, Zahlen nachgezogen am 07.08.2026** nach dem finalen
+Lauf (`07_BEFUNDE.md`, B-31 und B-32; `results/shap/extrapolation_*.csv`). Hier
+stand zuvor, die Spanne erkläre „einen erheblichen Teil der Fold-Streuung" und
+treffe Ridge und die Baumverfahren unterschiedlich. **Beides ist gemessen und
+nicht haltbar — unter der finalen Spezifikation sogar mit umgekehrtem
+Vorzeichen:**
+
+- Extrapolationsanteil gegen RMSE, Spearman ρ über 50 Läufe: **Ridge +0,298 /
+  +0,311** (`anzahl` / Rate), Random Forest +0,126 / +0,181, XGBoost +0,173 /
+  +0,188. Der Zusammenhang ist ausgerechnet bei **Ridge am stärksten** — wäre
+  Extrapolation der Hebel gegen die Baumverfahren, müsste es umgekehrt sein.
+- Es gibt seit #43 ohnehin **keinen Rückstand mehr zu erklären**: Bei
+  `anzahl_einsaetze` liegen Random Forest und XGBoost um 0,88 bzw. 0,64 RMSE
+  **vor** Ridge, bei der Rate um 0,49 bzw. 0,47. Die Korrelation dieser
+  Differenz mit dem Extrapolationsanteil ist durchgehend insignifikant
+  (ρ −0,20 bis −0,26, p 0,07 bis 0,16).
 
 Die Extrapolation bleibt eine Eigenschaft des Validierungsrahmens und begrenzt
 die Generalisierbarkeit — sie erklärt aber **nicht** den Verfahrensunterschied.
@@ -144,51 +156,62 @@ und Tuning.
 
 ## 4. Die Baselines
 
-Festgelegt in Decision Log #32. Sie laufen über denselben Split und sehen
-dieselben Merkmale wie die Modelle.
+> Stand **07.08.2026**, neu gefasst mit Decision Log **#45**.
+
+Festgelegt in #32, neu gefasst mit **#45**: Beide Stufe-2-Baselines sind
+**unpenalisierte verallgemeinerte lineare Modelle mit kanonischem Link** —
+Poisson mit Offset für die Menge, multinomiales Logit für die Struktur. Keines
+von beiden hat einen freien Hyperparameter, also wird keines getunt. Sie laufen
+über denselben Split und sehen dieselben Merkmale wie die Modelle.
 
 Seit **05.08.2026** laufen die Baselines über **alle 10 Wiederholungen**, also
 über dieselben 50 Läufe wie die Vergleichsverfahren. Nur so lässt sich gepaart
-testen (`07_BEFUNDE.md`, B-4). Beide Fassungen stehen in
-`baselines_mittel.csv`, unterschieden durch die Spalte `basis`.
+testen (`07_BEFUNDE.md`, B-4).
 
-**Maßgeblich — 50 Läufe** (`basis = alle_wiederholungen`). Streuung ist
-`std_wiederholungen` über die 10 Wiederholungsmittel, nicht `std_folds`:
+> **Ersetzt die Negative Binomial.** Bis zum 06.08.2026 stand hier die Negative
+> Binomial mit R² 0,477 und RMSE 37,27. Der Poisson-Schätzer bleibt bei richtig
+> spezifiziertem bedingtem Mittelwert auch unter Überdispersion konsistent
+> (Gourieroux, Monfort & Trognon 1984); beschädigt werden die Standardfehler,
+> und die verwendet eine Baseline mit reinen Punktvorhersagen nicht. Gemessen
+> ist der Poisson zugleich **besser**: 33,98 gegen 37,27 RMSE — einfacher und
+> stärker. **Schröter hat die Negative Binomial namentlich freigegeben; der
+> Wechsel ist ihm mitzuteilen** (`06_RISIKEN.md`, R-14).
 
-| Zielgröße | Baseline | R² | RMSE | MAE |
-|---|---|---|---|---|
-| `anzahl_einsaetze` | **Negative Binomial** | **0,477 ± 0,086** | 37,27 ± 3,23 | 24,79 |
-| `anzahl_einsaetze` | Gesamtmittelwert (Nullmarke) | −0,744 ± 0,325 | 69,93 | 52,33 |
-| `einsaetze_je_1000_ew` | **Negative Binomial** | **0,024 ± 0,679** | 4,41 ± 0,59 | 2,43 |
-| `einsaetze_je_1000_ew` | Gesamtmittelwert (Nullmarke) | −1,054 ± 0,875 | 7,54 | 4,92 |
+**Maßgeblich — 50 Läufe.** Streuung ist `std_wiederholungen` über die 10
+Wiederholungsmittel, nicht `std_folds`:
 
-**Warum über zehn Wiederholungen und nicht über eine Aufteilung.** Bei der Rate
-steigt R² von **−0,237 auf +0,024**, sobald über zehn Fold-Konstellationen
-gemittelt wird. Der negative Wert war kein Modellbefund, sondern Fold 4 einer
-einzelnen Aufteilung (R² −3,19). Das zeigt, wie stark ein einzelner Fold bei 29
-Einheiten durchschlägt — und ist der Grund für die wiederholten Splits (R-5).
+| Zielgröße | Stufe | Baseline | R² | RMSE | MAE |
+|---|---|---|---|---|---|
+| `anzahl_einsaetze` | **2** | **Poisson-GLM mit Offset** | **0,542 ± 0,082** | **33,98 ± 3,11** | 22,94 |
+| `anzahl_einsaetze` | 1 | Gesamtmittelwert (Nullmarke) | −0,744 ± 0,325 | 69,93 ± 1,92 | 52,33 |
+| `einsaetze_je_1000_ew` | **2** | **Poisson-GLM mit Offset** | **0,367 ± 0,261** | **4,08 ± 0,62** | 2,25 |
+| `einsaetze_je_1000_ew` | 1 | Gesamtmittelwert (Nullmarke) | −1,054 ± 0,875 | 7,54 ± 0,13 | 4,92 |
 
-**Der Offset-Vorteil der Negative Binomial ist gemessen und beträgt null.**
-Eine zweite Variante ohne Offset (`log_bevoelkerung` als gewöhnlicher
-Prädiktor) liegt bei `anzahl_einsaetze` um **0,0017 RMSE besser**, bei der Rate
-um 0,0000. Grund: `log_bevoelkerung` ist auch in der Offset-Variante ein freies
-Merkmal. Damit entfällt R-9 (`07_BEFUNDE.md`, B-19).
+Die Rate entsteht aus **derselben** Anpassung, geteilt durch die Bevölkerung —
+ein zweites Modell wäre eine zweite Spezifikation und damit unfair gegenüber
+den Vergleichsverfahren.
 
-Fold-Ergebnisse der Negative Binomial:
+**Warum über zehn Wiederholungen und nicht über eine Aufteilung.** Die einzelne
+Aufteilung (Wiederholung 0) weicht in **beide** Richtungen ab: RMSE 31,78 statt
+33,98 bei `anzahl_einsaetze` — also scheinbar besser —, R² auf der Rate
+dagegen 0,313 statt 0,367. Eine einzelne Fold-Konstellation kann bei 29
+Einheiten also ebenso schmeicheln wie strafen. Genau deshalb die wiederholten
+Splits (R-5).
+
+Fold-Ergebnisse des Poisson-GLM, Wiederholung 0:
 
 | Fold | 1 | 2 | 3 | 4 | 5 |
 |---|---|---|---|---|---|
-| R² `anzahl_einsaetze` | 0,70 | −0,17 | 0,60 | 0,50 | 0,73 |
-| R² `einsaetze_je_1000_ew` | 0,75 | −0,02 | 0,62 | **−3,19** | 0,66 |
+| R² `anzahl_einsaetze` | 0,795 | 0,091 | 0,654 | 0,588 | 0,847 |
+| R² `einsaetze_je_1000_ew` | 0,865 | 0,148 | 0,676 | **−0,920** | 0,795 |
+| RMSE Rate, Poisson / Nullmarke | 3,48 / 10,34 | 1,41 / 4,09 | 8,11 / 15,01 | 2,54 / 4,03 | 1,50 / 3,78 |
 
-**Auf der Rate ist R² kein tragfähiges Hauptmaß.** Der Mittelwert ist negativ,
-obwohl die Negative Binomial die Nullmarke in **jedem einzelnen Fold** bei RMSE
-schlägt (4,71/10,34 · 1,54/4,09 · 8,78/15,01 · 3,75/4,03 · 1,94/3,78). Ursache:
-R² misst gegen den Mittelwert der *Testdaten*. Die Rate streut zwischen den
-Stadtteilen um den Faktor 32 (Excelsior 1,04 · Financial District 33,80), also
-liegt der Testmittelwert je nach Fold weit vom Trainingsmittelwert entfernt. In
-Fold 4 kippt R² dadurch auf −3,19, während RMSE weiter besser ist als die
-Nullmarke.
+**Auf der Rate ist R² kein tragfähiges Hauptmaß.** In Fold 4 fällt es auf
+−0,920, obwohl das Poisson-GLM die Nullmarke bei RMSE in **jedem einzelnen
+Fold** schlägt (letzte Zeile). Ursache: R² misst gegen den Mittelwert der
+*Testdaten*. Die Rate streut zwischen den Stadtteilen um den Faktor 32
+(Excelsior 1,04 · Financial District 33,80), also liegt der Testmittelwert je
+nach Fold weit vom Trainingsmittelwert entfernt.
 
 **Konsequenz für Kapitel 7:** Bei der Rate ist RMSE bzw. MAE zu berichten und
 R² nur nachrichtlich — mit dieser Begründung. Bei `anzahl_einsaetze` bleibt R²
@@ -198,38 +221,54 @@ aussagekräftig.
 
 | Stufe | Baseline | Macro-F1 | Macro-AUROC | Accuracy |
 |---|---|---|---|---|
-| 1 | Mehrheitsklasse („Fehlalarm") | 0,223 | – | **0,806** |
-| 2 | **Multinomiale logistische Regression** | **0,298** | 0,711 | 0,588 |
+| 1 | Mehrheitsklasse („fehlalarm") | 0,223 | – | **0,806** |
+| 2 | **Multinomiales Logit, unpenalisiert** | **0,297 ± 0,014** | 0,705 | 0,584 |
 
 Über 50 Läufe gerechnet; auf den 5 Folds der Wiederholung 0 lauteten die Werte
-0,223 und **0,290** / 0,578. Macro-AUROC wird seit 05.08.2026 mitgeführt — ohne
-sie gäbe es für das zweite Gütemaß der Klassifikation keine Messlatte. Für die
+0,223 und **0,287** / 0,689 / 0,569, Macro-F1 je Fold 0,318 · 0,314 · 0,247 ·
+0,319 · 0,235. Macro-AUROC wird seit 05.08.2026 mitgeführt — ohne sie gäbe es
+für das zweite Gütemaß der Klassifikation keine Messlatte. Für die
 Mehrheitsklasse ist sie nicht definiert und bleibt leer, nicht 0,5.
-Konvergenzwarnungen der logistischen Regression: **0 von 50 Läufen**.
+Konvergenzwarnungen: **0 von 50 Läufen**, am 07.08.2026 auf einer zweiten
+Umgebung (scikit-learn 1.7.2 statt 1.8) mit identischen Werten nachgerechnet.
+
+> **Zur Historie, gehört in Kapitel 6.** Bis #44 lief das Logit mit dem
+> scikit-learn-Vorgabewert `C = 1,0` (Macro-F1 0,298) — eine Voreinstellung,
+> keine Entscheidung. #44 tunte es (0,314), #45 machte es unpenalisiert
+> (0,297) und strich das Tuning. Seither gilt einheitlich: Was einen freien
+> Parameter hat, wird mit gleichem Budget getunt; was keinen hat, wird
+> angepasst. **Die Klassifikationslatte sinkt dadurch von 0,314 auf 0,297,
+> während die Regressionslatte von 37,27 auf 33,98 RMSE steigt** — die
+> Änderung hilft im einen Strang und schadet im anderen. Das spricht gegen
+> Rosinenpicken und sollte genau so gesagt werden.
+> `results/klassifikation/tuning_baseline.csv` stammt aus der getunten
+> Zwischenfassung und hat im aktuellen Lauf keinen Bezug mehr.
 
 Seit #33 hat auch die Klassifikation eine Stufe 2 — eine Referenz, die dieselben
 zwölf Merkmale benutzt. **Stufe 2 ist die Latte, die Random Forest und XGBoost
-schlagen müssen**, nicht die Mehrheitsklasse. Die Negative Binomial ist hier
-nicht anwendbar (sie sagt eine Zahl vorher, die Zielgröße ist eine von vier
-ungeordneten Kategorien); die logistische Regression ist ihr Gegenstück.
+schlagen müssen**, nicht die Mehrheitsklasse. Das Poisson-GLM ist hier nicht
+anwendbar (es sagt eine Zahl vorher, die Zielgröße ist eine von vier
+ungeordneten Kategorien); das multinomiale Logit ist sein Gegenstück — dieselbe
+Modellklasse, derselbe kanonische Link, derselbe Verzicht auf einen Strafterm.
 
-**Der Vergleich der beiden Zeilen ist selbst ein Argument.** Die logistische
-Regression hat die deutlich *schlechtere* Trefferquote (0,578 gegen 0,806) und
-zugleich das deutlich *bessere* Macro-F1. Das ist kein Widerspruch, sondern die
-Wirkung von `class_weight="balanced"`: Das Modell gibt Treffer bei der
-dominanten Klasse auf, um die drei seltenen überhaupt zu finden. Wer Accuracy
-als Hauptmaß nähme, käme zu dem Schluss, das Modell sei schlechter geworden.
-Genau deshalb ist Macro-F1 maßgeblich.
+**Der Vergleich der beiden Zeilen ist selbst ein Argument.** Das Logit hat die
+deutlich *schlechtere* Trefferquote (0,584 gegen 0,806) und zugleich das
+deutlich *bessere* Macro-F1. Das ist kein Widerspruch, sondern die Wirkung von
+`class_weight="balanced"`: Das Modell gibt Treffer bei der dominanten Klasse
+auf, um die drei seltenen überhaupt zu finden. Wer Accuracy als Hauptmaß nähme,
+käme zu dem Schluss, das Modell sei schlechter geworden. Genau deshalb ist
+Macro-F1 maßgeblich.
 
-**Was Stufe 2 stützt.** In der Regression: Die Negative Binomial kann Krümmung,
-aber keine Wechselwirkungen — genau die finden RF und XGBoost
+**Was Stufe 2 stützt.** In der Regression: Das Poisson-GLM bildet über die
+Log-Verknüpfung die multiplikative Größenstruktur ab und kann Krümmung, aber
+**keine Wechselwirkungen** — genau die finden RF und XGBoost
 konstruktionsbedingt. Schlagen sie die Latte, ist der Mehraufwand belegt;
 schlagen sie sie nicht, reicht die einfachere Struktur. Beides ist ein Ergebnis.
 
 **Was in der Klassifikation offen ist.** Dort schlägt ein flacher
-Entscheidungsbaum (Macro-F1 0,270) die logistische Regression **nicht**. Der
-Mehraufwand von RF und XGBoost ist im zweiten Strang vorab nicht begründet —
-siehe `06_RISIKEN.md`, R-2.
+Entscheidungsbaum (Macro-F1 0,270) das Logit **nicht**. Der Mehraufwand von RF
+und XGBoost ist im zweiten Strang vorab nicht begründet — siehe
+`06_RISIKEN.md`, R-2.
 
 Negative R² sind korrekt: Wer für einen unbekannten Stadtteil den
 Gesamtdurchschnitt vorhersagt, liegt schlechter als dessen eigener Mittelwert.
@@ -263,13 +302,13 @@ Expositionsbehandlung ist kein zweiter Betriebsmodus, sondern eine Ablation
 | Zielgröße | Verfahren | RMSE | MAE | R² | Trainingszeit |
 |---|---|---|---|---|---|
 | `anzahl_einsaetze` | **Poisson-GLM** | **33,98 ± 3,11** | 22,94 | 0,542 | – |
-| | Random Forest | 35,63 ± 3,51 | 25,41 | 0,402 | 5,60 s |
-| | XGBoost | 35,88 ± 2,55 | 24,49 | 0,532 | 1,34 s |
-| | Ridge | 36,51 ± 2,76 | 24,40 | 0,511 | 0,010 s |
+| | Random Forest | 35,63 ± 3,51 | 25,41 | 0,402 | 5,78 s |
+| | XGBoost | 35,88 ± 2,55 | 24,49 | 0,532 | 1,43 s |
+| | Ridge | 36,51 ± 2,76 | 24,40 | 0,511 | 0,011 s |
 | `einsaetze_je_1000_ew` | **Poisson-GLM** | **4,08 ± 0,62** | 2,25 | 0,367 | – |
-| | Random Forest | 4,19 ± 0,63 | 2,43 | 0,251 | 5,61 s |
-| | XGBoost | 4,20 ± 0,44 | 2,31 | 0,508 | 1,34 s |
-| | Ridge | 4,68 ± 0,24 | 2,50 | 0,283 | 0,010 s |
+| | Random Forest | 4,19 ± 0,63 | 2,43 | 0,251 | 5,88 s |
+| | XGBoost | 4,20 ± 0,44 | 2,31 | 0,508 | 1,43 s |
+| | Ridge | 4,68 ± 0,24 | 2,50 | 0,283 | 0,011 s |
 
 **Primäraussage nach #34** — gepaarter Wilcoxon auf den 10 Wiederholungsmitteln,
 positive Differenz heißt das Verfahren ist besser:
@@ -296,7 +335,7 @@ beiden Zielgrößen ihr Niveau, Ridge bleibt in beiden signifikant darunter.
 | | Random Forest – XGBoost | +0,01 | 1,000 | nicht unterscheidbar |
 
 Nur eine einzige Paarung ist trennbar. Bei `anzahl_einsaetze` überlappen die
-Streuungsbereiche durchgehend — dort ist keine Rangfolge zulässig (R-6).
+Streuungsbereiche durchgehend — dort ist keine Rangfolge zulässig (R-1).
 
 **Nebeneffekt der Verlustfunktion (#42):** **keine negativen Vorhersagen**,
 in keinem der 300 Läufe. Tweedie und Poisson haben eine Log-Verknüpfung und
@@ -339,9 +378,11 @@ erreichen Random Forest und XGBoost das Niveau der Baseline, ohne es zu
 in der Kreuzvalidierung, verlieren aber auf dem Hold-out gegen sie (B-42).
 
 **Woran es liegt.** Nicht an der Extrapolation — diese Erklärung stand hier
-bis zum 07.08.2026 und wurde durch die Messung widerlegt (B-31: Spearman ρ
-+0,020 bzw. +0,011, p ≈ 0,9; der Extrapolationsanteil sagt den Fehler nicht
-vorher). Maßgeblich ist die **Spezifikation**: Die Expositionsbehandlung ist
+bis zum 07.08.2026 und wurde durch die Messung widerlegt (B-31, Zahlen unter
+der finalen Spezifikation neu erhoben: der Extrapolationsanteil sagt den Fehler
+nicht vorher, und der Zusammenhang ist bei Ridge stärker als bei den
+Baumverfahren — Abschnitt 3). Maßgeblich ist die **Spezifikation**: Die
+Expositionsbehandlung ist
 22 bis 29 RMSE wert (Abschnitt 5.5), und die von der Eignungsprüfung
 diagnostizierte Nichtlinearität überträgt sich nicht auf unbekannte Stadtteile
 (B-41). Bei 29 unabhängigen Einheiten zahlt sich zusätzliche Flexibilität
@@ -366,13 +407,13 @@ den Verfahren vergleichbar ist:
 
 | | Ridge | XGBoost | Random Forest |
 |---|---|---|---|
-| Menge, `anzahl_einsaetze` | **0,010 s** | 1,34 s | 5,60 s |
-| Menge, Rate | **0,010 s** | 1,34 s | 5,61 s |
-| Struktur | – | 1,64 s | 2,05 s |
-| Inferenz, Menge | 0,003 s | 0,015 s | 0,078 s |
+| Menge, `anzahl_einsaetze` | **0,011 s** | 1,43 s | 5,78 s |
+| Menge, Rate | **0,011 s** | 1,43 s | 5,88 s |
+| Struktur | – | 1,78 s | 2,18 s |
+| Inferenz, Menge | 0,003 s | 0,016 s | 0,083 s |
 
 Ridge ist bei nicht unterscheidbarer Güte **130-mal schneller als XGBoost** und
-**550-mal schneller als Random Forest**. Das ist die belastbarste Aussage des
+**526-mal schneller als Random Forest**. Das ist die belastbarste Aussage des
 Aufwandvergleichs, weil zwischen den Verfahren Größenordnungen liegen und
 nicht Prozentpunkte.
 
@@ -381,8 +422,8 @@ Kerne schneller ist:
 
 | | Ridge | Random Forest | XGBoost |
 |---|---|---|---|
-| Menge | 1,06 / 1,05 | 2,27 / 2,26 | **0,69 / 0,69** |
-| Struktur | – | 1,55 | **0,77** |
+| Menge | 1,08 / 1,05 | 2,19 / 2,25 | **0,68 / 0,71** |
+| Struktur | – | 1,53 | **0,77** |
 
 **Bei XGBoost liegt der Gewinn unter 1** — der Fit über alle Kerne dauert
 *länger* als der einkernige (B-28). Random Forest profitiert, weil seine Bäume
@@ -571,7 +612,10 @@ ist nicht nachweisbar (B-27).
 
 | Punkt | Stand |
 |---|---|
-| Ertrag des Klassifikationsstrangs | Stufe 2 schöpft nur 0,067 von maximal 1,0 aus — der Strang trägt voraussichtlich weniger als erhofft (`06_RISIKEN.md`, R-2) |
-| Linearitätsprüfung vor Ridge (R7) | ✅ gerechnet, `results/eignungspruefung/` |
-| Abweichungen mit Schröter besprechen | offen — `06_RISIKEN.md`, R-7 |
-| `modelle/m01`–`m04` | vollständig neu zu schreiben, Spezifikation in `04_MODELLIERUNG.md` |
+| Linearitätsprüfung vor Ridge (Gutachten R7) | ✅ gerechnet, `results/eignungspruefung/` — mit der Einschränkung aus B-41: Die diagnostizierte Nichtlinearität generalisiert nicht |
+| `modelle/m02`–`m05` | ✅ geschrieben und gelaufen, Ergebnisse in Abschnitt 5 |
+| Hold-out | ✅ einmalig ausgewertet, Abschnitt 5.7 |
+| E-Mail an Schröter | ✅ **abgeschickt 08.08.2026** — Poisson statt Negative Binomial (#45), Expositionsbehandlung für alle Verfahren (#43), Primärtest auf den 10 Wiederholungsmitteln (#37), zwei Testfamilien (#38). Antwort ausstehend, `06_RISIKEN.md` R-14 |
+| **„Generalisierung auf unbekannte Stadtteile" in den Text** | **offen, zugesagt** — der Begriff ist Schröter gegenüber als umgesetzt gemeldet, steht aber noch nicht in `main_gliederung`. Gehört wörtlich in die Zielsetzung und in Kapitel 5.4 (`06_RISIKEN.md`, R-17) |
+| Ertrag des Klassifikationsstrangs | offen als **Befund**, nicht als Aufgabe: bestes Verfahren 0,334 von maximal 1,0, und CV und Hold-out widersprechen sich (`06_RISIKEN.md`, R-2) |
+| Kapitel 6 bis 9 | zu schreiben |

@@ -28,8 +28,35 @@ wird, ob sie methodisch *gelöst* wurden.
 | **Stadtteil-Split freigegeben** — „methodisch gut begründet" | 04.08. | #29 |
 | Die Abweichung von der zeitreihengerechten Kreuzvalidierung **transparent erläutern** | 04.08. | Kapitel 8 |
 | Die Zielsetzung der Validierung als **„Generalisierung auf unbekannte Stadtteile"** formulieren | 04.08. | Kapitel 5.4 und Zielsetzung — wörtlich so |
-| **Negative Binomial und multinomiale logistische Regression als Baselines freigegeben** | 04.08. | #32, #33 |
+| ~~Negative Binomial und multinomiale logistische Regression als Baselines freigegeben~~ | 04.08. | überholt durch die Freigabe vom 08.08. |
 | Für alle Vergleichsmodelle **identische Merkmale und Splits** verwenden | 04.08. | erfüllt; Mechanismus in Kapitel 5.4 belegen |
+| **Einheitliche Spezifikation über die Einwohnerzahl freigegeben** — „plausibel" | 08.08. | #43, Kapitel 6 |
+| **Poisson und Logit ohne Strafterm freigegeben** — „methodisch sauber, vermeidet willkürliche Parameter und liefert zudem stärkere Vergleichswerte" | 08.08. | #45 |
+| **Auflage D: „Dokumentieren Sie diese Begründung genau so."** | 08.08. | Kapitel 5.4 — siehe unten |
+| **Primärtest auf zehn Werten und Holm-Bonferroni freigegeben** — „sauber umgesetzt"; unkorrigierter Einzeltest der Klassifikation „folgerichtig" | 08.08. | #37, #38, Kapitel 7 |
+
+### Auflage D — die Begründung der Baselines, wörtlich zu übernehmen
+
+Schröter hat am 08.08.2026 nicht nur zugestimmt, sondern die Begründung selbst
+formuliert und angewiesen, sie **genau so** zu dokumentieren. Seine drei
+Argumente, in seiner Reihenfolge:
+
+1. Die Reduktion auf die einfacheren Varianten ist **methodisch sauber**.
+2. Sie **vermeidet willkürliche Parameter**.
+3. Sie **liefert zudem stärkere Vergleichswerte**.
+
+Das gehört in Kapitel 5.4, wo die Stufe-2-Baselines eingeführt werden. Punkt 2
+ist dabei der tragende: Ein Strafterm auf dem Vorgabewert der Software wäre ein
+willkürlich gesetzter Parameter, und ein getunter wäre eine Wahl, die zu
+begründen wäre. Die unpenalisierte Maximum-Likelihood-Anpassung hat nichts zu
+wählen.
+
+**Ein Vorbehalt, der dazugehört:** Punkt 3 trifft auf den Mengenstrang zu (die
+Latte steigt von 37,27 auf 33,98 RMSE), auf den Strukturstrang jedoch nicht —
+dort sinkt sie von 0,314 auf 0,297 Macro-F1. Beide Zahlen standen in der Anfrage
+vom 08.08., die Freigabe erfolgte also in Kenntnis. In Kapitel 5.4 ist der
+Unterschied trotzdem zu benennen, statt Punkt 3 pauschal zu übernehmen —
+`06_RISIKEN.md`, R-2.
 
 ### Wozu die Baseline dient
 
@@ -47,28 +74,45 @@ Stadtteil-Split (Decision Log #29) entfällt der Vormonatswert, weil er die eige
 Vergangenheit des Teststadtteils nutzen würde. Der saisonale Durchschnitt fiel
 faktisch mit dem Gesamtmittelwert zusammen und benutzte kein einziges Merkmal.
 
-Gewählt wurde stattdessen die **Negative Binomial als alleinige Referenz der
-Regression** (Decision Log #32). Die Begründung ist stärker als die alte:
+Gewählt wurde stattdessen ein **verallgemeinertes lineares Modell mit
+kanonischem Link als Stufe-2-Referenz** — für die Menge ein **Poisson-GLM mit
+Offset**, für die Struktur ein **multinomiales Logit ohne Strafterm**
+(Decision Log #32/#33, neu gefasst mit #45, freigegeben 08.08.). Die Begründung
+ist stärker als die alte:
 
-1. Sie ist **kein Strohmann.** Sie bekommt dieselben zwölf Merkmale, dieselben
-   Zeilen und dieselben Folds wie die drei Verfahren — ein vollwertiges
+1. Es ist **kein Strohmann.** Es bekommt dieselben zwölf Merkmale, dieselben
+   Zeilen und dieselben Folds wie die Vergleichsverfahren — ein vollwertiges
    statistisches Modell, kein konstanter Vergleichswert.
-2. Sie ist **auf der Originalskala nichtlinear.** Über den Log-Link wirkt sie
+2. Es ist **auf der Originalskala nichtlinear.** Über den Log-Link wirkt es
    multiplikativ, bildet also überproportionale Effekte ab. Ein einfacher
    Durchschnitt kann das nicht, ein lineares Modell auf der Rohskala auch nicht.
-3. Sie ist **verteilungsgerecht.** Poisson scheidet wegen Overdispersion aus;
-   die Bevölkerung geht als Offset ein, das Modell schätzt also Einsätze je
-   Einwohner statt der Stadtteilgröße.
-4. Sie **zieht genau die relevante Trennlinie.** Was sie nicht kann, sind
+3. Es ist **verteilungsgerecht für Zähldaten mit Exposition.** Die Bevölkerung
+   geht als Offset ein, das Modell schätzt also Einsätze je Einwohner statt der
+   Stadtteilgröße. Die Überdispersion (Dispersionsindex 62,8) beschädigt beim
+   Poisson-Schätzer nur die Standardfehler, nicht die Konsistenz des bedingten
+   Mittelwerts (Gourieroux, Monfort & Trognon 1984) — und Standardfehler
+   verwendet eine Baseline mit reinen Punktvorhersagen nicht.
+4. Es **zieht genau die relevante Trennlinie.** Was es nicht kann, sind
    Wechselwirkungen zwischen Merkmalen — und genau die finden Random Forest und
    XGBoost konstruktionsbedingt. Damit ist der Vergleich aussagekräftig: Schlagen
-   die Baumverfahren sie, existieren solche Wechselwirkungen und der Mehraufwand
-   ist gerechtfertigt. Schlagen sie sie nicht, reicht die einfachere Struktur.
+   die Baumverfahren es, existieren solche Wechselwirkungen und der Mehraufwand
+   ist gerechtfertigt. Schlagen sie es nicht, reicht die einfachere Struktur.
+5. Es hat **keinen frei wählbaren Parameter.** Das ist Schröters eigenes Argument
+   vom 08.08. und die Grundlage von Auflage D: „methodisch sauber, vermeidet
+   willkürliche Parameter".
 
-**Offen zu benennen:** In der Klassifikation gibt es keine Entsprechung. Die
-Negative Binomial sagt eine Zahl vorher, die Zielgröße ist eine von vier
-ungeordneten Kategorien. Dort bleibt die Mehrheitsklasse die einzige Referenz,
-die Latte liegt also niedriger als in der Regression. Das gehört so in Kapitel 5.
+**Warum Poisson und nicht Negative Binomial** (#45): Die Negative Binomial wäre
+die Erweiterung für korrekte **Inferenz**. Sie löst ein Problem, das diese
+Baseline nicht hat, und bringt mit dem Dispersionsparameter eine zusätzliche
+Größe mit — sie ist damit nicht mehr „die einfachste Form, die zur Datenform
+passt". Gemessen ist das Poisson-GLM zudem die härtere Latte.
+
+**Die Klassifikation hat seit #33 eine Entsprechung.** Frühere Fassungen dieses
+Abschnitts hielten fest, dort bleibe nur die Mehrheitsklasse. Das gilt nicht
+mehr: Das multinomiale Logit ist das Gegenstück zum Poisson-GLM — dieselbe
+Modellklasse, derselbe kanonische Link, derselbe Verzicht auf einen Strafterm.
+**Zu benennen bleibt**, dass die Latte dort trotzdem niedriger liegt als in der
+Regression (`06_RISIKEN.md`, R-2).
 
 ---
 

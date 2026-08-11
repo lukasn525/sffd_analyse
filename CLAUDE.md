@@ -169,7 +169,11 @@ Zwei Regeln, die dabei gelten:
 | Evaluation | ✅ **abgeschlossen** — Hold-out einmalig ausgewertet, beide Stränge |
 | Deployment | ⬜ nicht Teil der Arbeit (Limitation, vgl. Schröer et al. 2021) |
 
-**Nächster Schritt:** der finale Lauf auf definierter Hardware.
+**Nächster Schritt:** Kapitel 6 bis 9 schreiben. Gerechnet ist alles; seit dem
+08.08.2026 ist zudem keine Festlegung mehr unabgestimmt (#47).
+
+Der vollständige Lauf, falls er wiederholt werden muss — Reihenfolge ist
+verbindlich, `m05` liest alles Vorherige:
 
 ```
 python vorpruefung/v0_aufteilung.py     # Selbsttest der Aufteilung
@@ -179,18 +183,20 @@ python modelle/m02_menge.py             # der lange Teil
 python modelle/m03_struktur.py
 python modelle/m04_shap.py
 python modelle/m05_abbildungen.py       # zuletzt - liest alles Vorherige
+python tools/pruefe_zahlen.py           # Doku gegen results/ pruefen
 ```
 
 Danach je Skript den Block **Prüfaufträge** am Ende des Docstrings abarbeiten
-und `03_STAND.md` überschreiben. Prozessor, Kernzahl und Nebenlast festhalten —
-sie gehen als Unterfrage 3 in die Arbeit, und `requirements_lauf.txt` gehört
-dazu.
+und `03_STAND.md` überschreiben. `tools/pruefe_zahlen.py` meldet mit Exit-Code 1,
+welche Stelle der Dokumentation nicht mehr zu `results/` passt — der Ordner
+`tools/` gehört nicht zur Abgabe.
 
-Offener inhaltlicher Punkt: Im Klassifikationsstrang schlägt Stufe 2 die
-Baum-Sonde — der Mehraufwand von RF und XGBoost ist dort vorab **nicht** belegt
-(`06_RISIKEN.md`, R-2). Schlagen sie die Latte nicht, lautet das Ergebnis „der
-Mehraufwand lohnt sich hier nicht"; das ist berichtbar und ausdrücklich
-vorgesehen.
+**Ergebnis des Klassifikationsstrangs** (stand hier zuvor als offener Punkt):
+In der Kreuzvalidierung schlagen Random Forest und XGBoost die Stufe-2-Baseline
+in 10 von 10 Wiederholungen, auf dem Hold-out verlieren beide gegen sie
+(`06_RISIKEN.md`, R-2). Eine Rangfolge zwischen Logit und Baumverfahren ist
+damit nicht zulässig; die berichtbare Aussage lautet „der Mehraufwand ist im
+Strukturstrang nicht belegt" — genau der Fall, der vorab vorgesehen war.
 
 ---
 

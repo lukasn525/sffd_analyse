@@ -77,7 +77,7 @@ geschrieben wird. ✅ erledigt · ⬜ offen · ⚠️ offen und blockierend.
 - [x] **Streuung zweistufig aggregieren** — `std_wiederholungen` statt `std_folds` als maßgeblicher Wert (R-5)
 - [x] **`vergleich.csv` trennt primär und sekundär**, Zahl der Tests wird mitgeführt (R-10)
 - [x] **Hold-out nur mit Argument** `m02_menge.py holdout` — konstruktiv abgesichert: ohne das Argument filtert `main()` die Hold-out-Zeilen heraus, bevor irgendetwas rechnet
-- [x] **NegBin ohne Offset als Zusatzvariante** in `v1_baselines.py` — gerechnet, Vorteil des Offsets **−0,0017 RMSE**, R-9 entfällt (`07_BEFUNDE.md`, B-19)
+- [x] **Expositionsbehandlung symmetrisch** — seit #43 modellieren alle Verfahren die Rate; die Asymmetrie war mit 22 bis 29 RMSE beziffert (B-33/B-34) und ist beseitigt, die Variante ohne sie bleibt als Ablation berichtet. Die frühere Gegenprobe „NegBin ohne Offset" (−0,0017 RMSE, B-19) beantwortete die falsche Seite der Frage
 - [x] **Wiederholte Splits neu gebaut** — `vorpruefung/v0_aufteilung.py`, weil der `versatz` das Hold-out rotiert und keine 10 verschiedenen Aufteilungen liefert (B-1 bis B-3)
 - [x] **Baselines über alle 10 Wiederholungen**, sonst gibt es für 45 von 50 Läufen keinen gepaarten Gegenwert (B-4)
 - [x] **`xgboost` und `shap` in `requirements.txt`** — beide fehlten, beide blockierend (B-7, B-8)
@@ -702,17 +702,27 @@ Fold-Ergebnisse stammen von denselben 29 Stadtteilen.
 > und Signifikanz strukturell unmöglich. Der Test über alle 50 steht als
 > `teststufe = lauf` daneben, ausdrücklich als Sensitivität.
 
-**3 · Die Baseline hat einen strukturellen Vorteil (R-9).** Die Negative
-Binomial bekommt `log(Bevölkerung)` als **Offset** — mit fest auf 1 gesetztem
-Koeffizienten. Ridge, RF und XGBoost bekommen dieselbe Größe als gewöhnliches
-Merkmal und müssen den Zusammenhang schätzen.
+**3 · Die Baseline hatte einen strukturellen Vorteil (ehemals R-9).** Das GLM
+bekommt `log(Bevölkerung)` als **Offset** — mit fest auf 1 gesetztem
+Koeffizienten. Ridge, RF und XGBoost bekamen dieselbe Größe nur als
+gewöhnliches Merkmal und mussten den Zusammenhang schätzen.
 
-> **Umsetzung:** Den Vorteil nicht ausgleichen — das würde die Spezifikation der
-> Vergleichsverfahren ändern. Stattdessen **beziffern**: In `v1_baselines.py`
-> zusätzlich eine Negative Binomial **ohne** Offset rechnen, mit
-> `log_bevoelkerung` als normalem Prädiktor. Die Differenz beider Varianten ist
-> der Wert des Offsets — fünf Zeilen Code, und aus einem Vorbehalt wird eine
-> Zahl. In Kapitel 8 als Fußnote zur Ergebnistabelle.
+> **Erledigt am 06.08.2026 durch #43 — beseitigt statt beziffert.** Hier stand
+> zunächst, der Vorteil sei nicht auszugleichen, sondern nur zu messen. Der
+> Mechanismustest hat ihn dann mit 22 bis 29 RMSE beziffert (B-33) und damit
+> gezeigt, dass er den Verfahrensvergleich dominiert: Ein Baum kann
+> „Einsätze = Bevölkerung × Risiko" aus stückweise konstanten Splits nicht
+> nachbauen. Seit #43 modellieren **alle** Verfahren die Rate und multiplizieren
+> zurück; die Expositionsbehandlung ist damit symmetrisch. Die Variante ohne
+> diese Behandlung bleibt als Ablation vollständig berichtet (`03_STAND.md`
+> §5.5) — daraus entsteht die Antwort auf Unterfrage 4. Schröter hat die
+> einheitliche Spezifikation am 08.08.2026 als „plausibel" freigegeben.
+>
+> Die frühere Gegenprobe — eine Negative Binomial **ohne** Offset — ist
+> gerechnet und ergab −0,0017 RMSE (B-19). Sie beantwortete allerdings die
+> falsche Frage: nicht, ob die Baseline durch den Offset *gewinnt*, sondern ob
+> die Vergleichsverfahren ohne ihn *verlieren* (B-34). Die Lehre daraus gehört
+> in die kritische Reflexion.
 
 **4 · Das Hold-out darf man nicht versehentlich sehen.** Die Regel „genau
 einmal, ganz am Schluss" ist eine Disziplinfrage — und Disziplin verliert man,
