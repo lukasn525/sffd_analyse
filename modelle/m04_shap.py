@@ -6,9 +6,30 @@ Interpretation: Welche Merkmale tragen die Vorhersage?
 Eingang: results/regression/{menge_folds,vergleich}.csv
          results/klassifikation/{struktur_folds,vergleich}.csv
          results/*/tuning.csv · data/processed/{regression,klassifikation}.parquet
-Ausgang: results/shap/beitraege.csv · gruppen.csv · vif.csv · uebersprungen.csv
+Ausgang: results/shap/beitraege.csv · gruppen.csv · uebersprungen.csv
+         faktorgruppen_menge.csv · vif.csv
+         extrapolation_{merkmale,stadtteile,zusammenhang}.csv
+         ablation_exposition.csv
+         ablation_faktorgruppen.csv · ablation_faktorgruppen_mittel.csv
 
-STAND: vollstaendig, 05.08.2026. Setzt m02 und m03 voraus.
+    python modelle/m04_shap.py --ohne-baeume    Ablation nur fuer GLM und Logit
+
+STAND: vollstaendig, 05.08.2026. Faktorgruppen-Ablation ergaenzt 13.08.2026.
+Setzt m02 und m03 voraus.
+
+--------------------------------------------------------------------------
+ZWEI ANTWORTEN AUF UNTERFRAGE 1 - und warum es beide braucht
+--------------------------------------------------------------------------
+  ATTRIBUTION   `gruppen.csv`, `faktorgruppen_menge.csv`. Welcher Anteil der
+                SHAP- bzw. Koeffizientenmasse entfaellt auf eine Faktorgruppe?
+                Sagt, wie ein Modell seine Aufmerksamkeit verteilt.
+
+  ABLATION      `ablation_faktorgruppen_mittel.csv`. Was kostet es, die Gruppe
+                wegzulassen? Sagt, was sie WERT ist.
+
+Die zweite Frage ist die haertere: Ein Merkmal kann viel Masse binden und
+trotzdem ersetzbar sein, weil ein anderes dieselbe Information traegt. Erst die
+Ablation trennt das.
 
 --------------------------------------------------------------------------
 DIE EINE REGEL
@@ -73,6 +94,15 @@ PRUEFAUFTRAEGE
     eine der wenigen wirklich inhaltlichen Aussagen der Arbeit.
   - Liegt der maximale VIF noch bei rund 11,5? Ein deutlich anderer Wert hiesse,
     dass sich die Merkmalsbasis geaendert hat.
+  - ABLATION: Reproduziert die Variante `voll` im Mengenstrang exakt die
+    Stufe-2-Baseline aus `results/regression/baselines_folds.csv`? Wenn nicht,
+    sieht die Ablation andere Merkmale oder andere Folds als v1, und jeder
+    Vergleich darin ist wertlos. Am 13.08.2026 geprueft: Differenz 0,0.
+  - ABLATION: Welche Gruppen haben ein NEGATIVES Vorzeichen, verbessern die
+    Prognose also durch ihr Weglassen? Das ist ein Befund fuer Kapitel 7 und
+    KEINE Aufforderung, den Merkmalssatz zu kuerzen - er ist durch das Expose
+    und die Fairness-Regel gebunden. Nachtraeglich zu kuerzen waere eine
+    ergebnisgetriebene Spezifikationswahl.
 """
 import json
 import sys
@@ -353,13 +383,10 @@ def ablation_faktorgruppen(reg: pd.DataFrame, kl: pd.DataFrame,
     Offset ein, nicht als Merkmalsspalte. Weggelassen wird nur der Praediktor
     `log_bevoelkerung`.
     """
-    import json
     from sklearn.metrics import f1_score
 
-    sys.path.insert(0, str(_ROOT / "vorpruefung"))
-    from v1_baselines import bewerte_regression, logit_glm, poisson_glm
-
     import m03_struktur as m03
+    from v1_baselines import bewerte_regression, logit_glm, poisson_glm
 
     varianten = ["voll"] + list(GRUPPEN)
     zeilen = []
