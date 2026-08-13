@@ -86,8 +86,15 @@ def bewerte_regression(y_true, y_pred) -> dict:
 
 
 # ---------------------------------------------------------------------------
-def poisson_glm(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
+def poisson_glm(train: pd.DataFrame, test: pd.DataFrame,
+                merkmale: list[str] | None = None) -> np.ndarray:
     """Stufe 2 der Regression: vorhergesagte Einsatzzahlen.
+
+    `merkmale` ist der Merkmalssatz; ohne Angabe der volle. Der Parameter
+    existiert allein fuer die Faktorgruppen-Ablation in `m04_shap.py`, die
+    dasselbe Modell mit einer weggelassenen Gruppe anpasst. Ohne ihn muesste
+    die Ablation die Spezifikation nachbauen - und dann gaebe es sie zweimal.
+    Der Offset bleibt in jeder Variante bestehen: Er ist keine Merkmalsspalte.
 
     Poisson-GLM mit kanonischem log-Link, per unpenalisierter
     Maximum-Likelihood angepasst. `log(Bevoelkerung)` geht als OFFSET ein, also
@@ -115,8 +122,9 @@ def poisson_glm(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
     """
     import statsmodels.api as sm
 
-    X_tr = sm.add_constant(train[MERKMALE].astype(float), has_constant="add")
-    X_te = sm.add_constant(test[MERKMALE].astype(float),  has_constant="add")
+    spalten = MERKMALE if merkmale is None else list(merkmale)
+    X_tr = sm.add_constant(train[spalten].astype(float), has_constant="add")
+    X_te = sm.add_constant(test[spalten].astype(float),  has_constant="add")
     y_tr = train[ZIELGROESSE].astype(float)
     off_tr = np.log(train[EXPOSURE_ROH].astype(float))
     off_te = np.log(test[EXPOSURE_ROH].astype(float))
@@ -126,8 +134,11 @@ def poisson_glm(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
     return np.asarray(modell.predict(X_te, offset=off_te))
 
 
-def logit_glm(train: pd.DataFrame):
+def logit_glm(train: pd.DataFrame, merkmale: list[str] | None = None):
     """Stufe 2 der Klassifikation: das angepasste multinomiale Logit.
+
+    `merkmale` wie bei `poisson_glm()`: ohne Angabe der volle Satz, sonst der
+    reduzierte fuer die Faktorgruppen-Ablation.
 
     DIE EINZIGE STELLE, AN DER DIESES MODELL SPEZIFIZIERT IST (10.08.2026).
     Bis dahin baute `m03_struktur.hold_out()` es ein zweites Mal nach -
@@ -159,10 +170,11 @@ def logit_glm(train: pd.DataFrame):
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
 
+    spalten = MERKMALE if merkmale is None else list(merkmale)
     return make_pipeline(
         StandardScaler(),
         LogisticRegression(max_iter=2000, C=np.inf, class_weight="balanced")
-    ).fit(train[MERKMALE].astype(float), train[ZIELKLASSE])
+    ).fit(train[spalten].astype(float), train[ZIELKLASSE])
 
 
 def regression(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:

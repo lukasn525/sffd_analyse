@@ -304,6 +304,165 @@ def ablation_exposition(panel: pd.DataFrame, selten: pd.Series,
     return pd.DataFrame(zeilen)
 
 
+def ablation_faktorgruppen(reg: pd.DataFrame, kl: pd.DataFrame,
+                           selten: pd.Series, tuning_kl: pd.DataFrame | None,
+                           mit_baeumen: bool = True) -> pd.DataFrame:
+    """UNTERFRAGE 1, zweite Antwort: Was ist eine Faktorgruppe WERT?
+
+    WARUM ES DIESE FUNKTION BRAUCHT. `beitraege.csv` und `gruppen.csv`
+    beantworten UF1 ueber ATTRIBUTION - welcher Anteil der Koeffizienten- bzw.
+    SHAP-Masse auf eine Gruppe entfaellt. Das sagt, wie ein Modell seine
+    Aufmerksamkeit verteilt. Es sagt NICHT, was die Gruppe wert ist: Ein
+    Merkmal kann viel Masse binden und trotzdem ersetzbar sein, weil ein
+    anderes dieselbe Information traegt.
+
+    Die Ablation misst das Fehlende direkt. Jede Gruppe wird einmal
+    weggelassen, alles andere bleibt gleich - dieselben Folds, dieselben
+    Zeilen, dieselbe Spezifikation. Die Verschlechterung ist der Beitrag.
+
+    Dasselbe Muster wie `ablation_exposition()`, nur auf die Merkmalsgruppen
+    statt auf die Expositionsbehandlung angewandt.
+
+    WELCHES MODELL JE STRANG - nach derselben Regel wie der Rest von m04:
+    abladiert wird das Modell, dessen Beitraege berichtet werden.
+
+      Menge      das Poisson-GLM. Kein Vergleichsverfahren schlaegt es
+                 (B-26), es IST das beste Modell des Strangs. Und es hat
+                 keinen Hyperparameter - die Ablation ist dadurch sauber:
+                 Was sich aendert, ist ausschliesslich die Merkmalsmenge.
+
+      Struktur   Random Forest und XGBoost. Beide schlagen die Stufe-2-
+                 Baseline in der Kreuzvalidierung (B-29), fuer beide werden
+                 SHAP-Beitraege berichtet. Das Logit laeuft zum Vergleich mit.
+
+    EINE EINSCHRAENKUNG, die zu berichten ist: Bei den Baumverfahren stammen
+    die Hyperparameter aus dem VOLLEN Merkmalssatz und werden nicht neu
+    gesucht - genau wie in `ablation_exposition()`, damit sich nur EIN Ding
+    aendert. Die gemessene Verschlechterung enthaelt dadurch einen Anteil, der
+    auf eine nicht mehr passende Einstellung entfaellt und nicht auf die
+    fehlende Information. Beim Poisson-GLM besteht dieses Problem nicht.
+
+    KEIN SIGNIFIKANZTEST. Die Testfamilien sind mit #38 festgelegt - zwei,
+    eine je Strang. Weitere Tests hier wuerden die Korrekturstruktur beruehren
+    und muessten in Holm eingehen. Die Ablation ist deskriptiv gemeint:
+    berichtet werden Mittelwert, Streuung ueber die zehn Wiederholungsmittel
+    (R-5) und die Zahl der Wiederholungen, in denen die Gruppe fehlte.
+
+    Der Offset des Poisson-GLM bleibt in JEDER Variante bestehen, auch wenn
+    die Groessenkontrolle weggelassen wird: `log(Bevoelkerung)` geht als
+    Offset ein, nicht als Merkmalsspalte. Weggelassen wird nur der Praediktor
+    `log_bevoelkerung`.
+    """
+    import json
+    from sklearn.metrics import f1_score
+
+    sys.path.insert(0, str(_ROOT / "vorpruefung"))
+    from v1_baselines import bewerte_regression, logit_glm, poisson_glm
+
+    import m03_struktur as m03
+
+    varianten = ["voll"] + list(GRUPPEN)
+    zeilen = []
+
+    # ---- Mengenstrang: Poisson-GLM -------------------------------------
+    for w in range(WIEDERHOLUNGEN):
+        d = wiederholte_aufteilung(reg, wiederholung=w, selten=selten)
+        for k in range(1, N_FOLDS + 1):
+            tr, te = fold_masken(d, k)
+            train, test = d[tr], d[te]
+            y = test[ZIELGROESSE].astype(float).to_numpy()
+            for variante in varianten:
+                weg = GRUPPEN.get(variante, [])
+                merkmale = [m for m in MERKMALE if m not in weg]
+                y_hat = poisson_glm(train, test, merkmale)
+                zeilen.append({"strang": "menge", "verfahren": "Poisson-GLM",
+                               "weggelassen": variante, "n_merkmale": len(merkmale),
+                               "wiederholung": w, "fold": k,
+                               "mass": "RMSE",
+                               "wert": bewerte_regression(y, y_hat)["RMSE"]})
+        print(f"    Menge, Wiederholung {w}: {len(zeilen):>4} Anpassungen")
+
+    # ---- Strukturstrang -------------------------------------------------
+    param = ({(z["verfahren"], int(z["fold"])): json.loads(z["parameter_json"])
+              for _, z in tuning_kl.iterrows()} if tuning_kl is not None else {})
+    for w in range(WIEDERHOLUNGEN):
+        d = wiederholte_aufteilung(kl, wiederholung=w, selten=selten)
+        for k in range(1, N_FOLDS + 1):
+            tr, te = fold_masken(d, k)
+            train, test = d[tr], d[te]
+            y_te = m03.kodiere(test[ZIELKLASSE])
+            for variante in varianten:
+                weg = GRUPPEN.get(variante, [])
+                merkmale = [m for m in MERKMALE if m not in weg]
+
+                logit = logit_glm(train, merkmale)
+                zeilen.append({
+                    "strang": "struktur", "verfahren": "Logit",
+                    "weggelassen": variante, "n_merkmale": len(merkmale),
+                    "wiederholung": w, "fold": k, "mass": "macro_f1",
+                    "wert": float(f1_score(
+                        test[ZIELKLASSE], logit.predict(test[merkmale].astype(float)),
+                        average="macro", zero_division=0))})
+
+                if not mit_baeumen:
+                    continue
+                y_tr = m03.kodiere(train[ZIELKLASSE])
+                for name in m03.VERFAHREN:
+                    modell = m03.verfahren(name).set_params(**param[(name, k)])
+                    X_tr = train[merkmale].astype(float)
+                    if name == "xgboost":
+                        modell.fit(X_tr, y_tr, sample_weight=m03._gewichte(y_tr))
+                    else:
+                        modell.fit(X_tr, y_tr)
+                    y_hat = modell.predict(test[merkmale].astype(float))
+                    zeilen.append({
+                        "strang": "struktur", "verfahren": name,
+                        "weggelassen": variante, "n_merkmale": len(merkmale),
+                        "wiederholung": w, "fold": k, "mass": "macro_f1",
+                        "wert": float(f1_score(y_te, y_hat, average="macro",
+                                               zero_division=0))})
+        print(f"    Struktur, Wiederholung {w}: {len(zeilen):>4} Anpassungen")
+
+    return pd.DataFrame(zeilen)
+
+
+def _ablation_auswerten(roh: pd.DataFrame) -> pd.DataFrame:
+    """Verschlechterung je Gruppe gegenueber dem vollen Merkmalssatz.
+
+    Gepaart je Lauf: Die Variante und der volle Satz laufen auf demselben Fold
+    derselben Wiederholung. Gemittelt wird zweistufig - erst je Wiederholung
+    ueber die Folds, dann darueber (R-5), weil die 50 Laeufe nicht unabhaengig
+    sind.
+
+    Das VORZEICHEN ist so gedreht, dass ein positiver Wert immer
+    "Verschlechterung durch Weglassen" heisst - bei RMSE ist klein besser, bei
+    Macro-F1 gross. Ohne diese Drehung liest man eine der beiden Tabellen
+    genau falsch herum.
+    """
+    voll = (roh[roh["weggelassen"] == "voll"]
+            .set_index(["strang", "verfahren", "wiederholung", "fold"])["wert"])
+    d = roh[roh["weggelassen"] != "voll"].copy()
+    d["voll"] = voll.reindex(
+        pd.MultiIndex.from_frame(
+            d[["strang", "verfahren", "wiederholung", "fold"]])).to_numpy()
+    # RMSE: Verschlechterung = variante - voll. Macro-F1: umgekehrt.
+    schlechter = np.where(d["mass"] == "RMSE", 1.0, -1.0)
+    d["verschlechterung"] = (d["wert"] - d["voll"]) * schlechter
+
+    schluessel = ["strang", "verfahren", "weggelassen", "mass"]
+    je_wdh = d.groupby(schluessel + ["wiederholung"], sort=False)[
+        "verschlechterung"].mean()
+    aus = (je_wdh.groupby(schluessel, sort=False)
+           .agg(verschlechterung_mittel="mean",
+                std_wiederholungen="std",
+                wdh_mit_verschlechterung=lambda s: int((s > 0).sum()))
+           .reset_index())
+    aus["n_merkmale_weg"] = aus["weggelassen"].map(
+        {g: len(m) for g, m in GRUPPEN.items()})
+    return aus.sort_values(["strang", "verfahren", "verschlechterung_mittel"],
+                           ascending=[True, True, False]).round(4)
+
+
 def faktorgruppen_baseline(panel: pd.DataFrame, selten: pd.Series,
                          fold: int) -> pd.DataFrame:
     """Beitrag der drei Faktorgruppen im MENGENSTRANG - aus der Baseline.
@@ -546,6 +705,27 @@ def main() -> int:
     print(f"\n  Faktorgruppen im Mengenstrang (Poisson-GLM, Fold {k_fold}):")
     for gruppe, anteil in gruppiert.items():
         print(f"    {gruppe:<24}{anteil:>7.1%}")
+
+    # --- Ablation der Faktorgruppen (UF1, zweite Antwort) ---
+    # Attribution sagt, wie ein Modell seine Aufmerksamkeit verteilt.
+    # Diese Ablation sagt, was die Gruppe wert ist. Siehe Docstring dort.
+    tuning_kl = pd.read_csv(RESULTS_DIR / "klassifikation" / "tuning.csv")
+    roh = ablation_faktorgruppen(reg, kl, selten, tuning_kl,
+                                 mit_baeumen="--ohne-baeume" not in sys.argv)
+    roh.round(6).to_csv(OUT / "ablation_faktorgruppen.csv", index=False)
+    abl_gruppen = _ablation_auswerten(roh)
+    abl_gruppen.to_csv(OUT / "ablation_faktorgruppen_mittel.csv", index=False)
+
+    print("\n  Ablation der Faktorgruppen - was kostet das Weglassen?")
+    for (strang, verf), g in abl_gruppen.groupby(["strang", "verfahren"],
+                                                 sort=False):
+        mass = g["mass"].iloc[0]
+        print(f"    {strang} · {verf}  ({mass}, positiv = schlechter ohne)")
+        for _, z in g.iterrows():
+            print(f"      {z['weggelassen']:<24}"
+                  f"{z['verschlechterung_mittel']:>9.3f}  "
+                  f"± {z['std_wiederholungen']:.3f}   "
+                  f"{int(z['wdh_mit_verschlechterung'])}/10 Wdh. schlechter")
 
     vif = _vif(reg)
     vif.to_csv(OUT / "vif.csv", index=False)
