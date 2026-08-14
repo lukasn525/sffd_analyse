@@ -64,6 +64,13 @@ PRUEFAUFTRAEGE nach jedem Lauf
   - Passt die Zeilenzahl? 10 in tuning.csv, 100 in struktur_folds.csv.
   - Wurde das Hold-out beruehrt? Ohne Argument darf keine Zeile mit
     ist_holdout == 1 gelesen worden sein.
+  - UEBERANPASSUNG (#51): Wie gross ist `ueberanpassung_macro_f1`? Dieser
+    Strang ist der, in dem Kreuzvalidierung und Hold-out sich widersprechen
+    (R-2, B-42) - hier entscheidet sich, ob Ueberanpassung die Erklaerung ist.
+  - Ist der Wert gegenueber der Sicherung vom 07.08. GESUNKEN? Das waere der
+    Beleg, dass die erweiterten Suchraeume (#49) wirken: XGBoost waehlte dort
+    vier von fuenf Mal die kleinstmoegliche Baumtiefe. Vergleich gegen
+    `archiv/2026-08-14_budget50/`.
 """
 import json
 import sys
@@ -272,12 +279,23 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
         # B-24). Die berichteten Guetemasse stammen aus dem einkernigen Fit.
         abweichung = float(np.mean(y_hat != y_par))
 
+    # UEBERANPASSUNGSNACHWEIS, ergaenzt 14.08.2026 - wie in m02, siehe dort.
+    # Eine zusaetzliche Vorhersage auf den Trainingsstadtteilen, kein zweiter
+    # Fit, nach der Zeitmessung. Hier ist der Wert besonders wichtig: Der
+    # Strukturstrang ist der, in dem Kreuzvalidierung und Hold-out sich
+    # widersprechen (R-2, B-42), und die Baseline auf dem Hold-out BESSER wird,
+    # waehrend beide Baumverfahren einbrechen.
+    y_hat_tr = modell.predict(X_tr)
+
     return {
         "verfahren": name, "zielgroesse": ZIELKLASSE,
         "train_sekunden_parallel": train_par,
         "inferenz_sekunden_parallel": inferenz_par,
         "parallel_abweichung": abweichung,
         "macro_f1": float(f1_score(y_te, y_hat, average="macro", zero_division=0)),
+        "macro_f1_train": float(f1_score(y_tr, y_hat_tr, average="macro",
+                                         zero_division=0)),
+        "accuracy_train": float(accuracy_score(y_tr, y_hat_tr)),
         "macro_auroc": _macro_auroc(y_te, modell.predict_proba(X_te),
                                     list(modell.classes_)),
         "accuracy": float(accuracy_score(y_te, y_hat)),
@@ -408,6 +426,7 @@ def phase_bewertung(panel: pd.DataFrame, parameter: pd.DataFrame,
     df = pd.DataFrame(zeilen)
     spalten = ["zielgroesse", "verfahren", "wiederholung", "fold",
                "macro_f1", "macro_auroc", "accuracy",
+               "macro_f1_train", "accuracy_train",
                "train_sekunden", "inferenz_sekunden",
                "train_sekunden_parallel", "inferenz_sekunden_parallel",
                "parallel_abweichung",
@@ -435,6 +454,11 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
     z["parallel_gewinn"] = (z["train_sekunden_mean"]
                             / z["train_sekunden_parallel_mean"])
     z["parallel_abweichung_max"] = g["parallel_abweichung"].max()
+    # UEBERANPASSUNG - wie in m02. Positiv heisst: im Training deutlich besser
+    # als auf unbekannten Stadtteilen.
+    z = z.join(g[["macro_f1_train", "accuracy_train"]].mean())
+    z["ueberanpassung_macro_f1"] = z["macro_f1_train"] - z["macro_f1_mean"]
+
     z = z.join(g[["n_brand_test", "extrapolationsanteil"]].mean())
     z = z.join(g[["macro_auroc"]].apply(lambda s: int(s["macro_auroc"].isna().sum()))
                 .rename("n_auroc_fehlend"))
@@ -442,8 +466,9 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
                ("_mean", "_std_folds", "_std_wiederholungen")]
     spalten += ([f"{m}_mean" for m in MASSE_PARALLEL]
                 + ["parallel_gewinn", "parallel_abweichung_max"])
-    z = z[spalten + ["n_brand_test", "extrapolationsanteil",
-                     "n_auroc_fehlend"]].reset_index()
+    z = z[spalten + ["macro_f1_train", "accuracy_train",
+                     "ueberanpassung_macro_f1", "n_brand_test",
+                     "extrapolationsanteil", "n_auroc_fehlend"]].reset_index()
     z.round(4).to_csv(OUT / "struktur_mittel.csv", index=False)
     return z
 

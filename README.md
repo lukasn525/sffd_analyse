@@ -14,6 +14,7 @@ pip install -r requirements.txt
 ## Ausführen
 
 ```bash
+python tools\sichere_ergebnisse.py name #    ZUERST: results/ sichern         < 1 min
 python prep\build.py                    # 1  Aufbereitung -> zwei Datensätze   ~2 min
 python tests\test_aufbereitung.py       #    19 Prüfungen an den Dateien       ~1 min
 python vorpruefung\v0_aufteilung.py     # 2  Selbsttest der Fold-Zuteilung    < 1 min

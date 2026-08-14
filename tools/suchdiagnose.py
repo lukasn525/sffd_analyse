@@ -1,10 +1,16 @@
 """
 Suchdiagnose - war die Hyperparametersuche am Limit?
 
-    python tools/suchdiagnose.py            beide Straenge
+    python tools/suchdiagnose.py            beide Straenge, alle Verfahren
     python tools/suchdiagnose.py menge      nur die Regression
     python tools/suchdiagnose.py struktur   nur die Klassifikation
     python tools/suchdiagnose.py --nur-xgboost   das billigste sinnvolle Mass
+    python tools/suchdiagnose.py --test     Rauchtest, Budget 6, ~3 min
+
+`--test` schreibt nach `results/suchdiagnose_test/` und laesst die echte
+Ausgabe unberuehrt. Vor einem zweistuendigen Lauf einmal ausfuehren - er
+prueft beide Straenge einmal durch, damit ein Fehler nicht erst nach der
+ganzen Rechenzeit auffaellt.
 
 Ausgang: results/suchdiagnose/kurve.csv · raender.csv · zusammenfassung.md
 
@@ -138,10 +144,21 @@ SEKUNDEN_50 = {("menge", "ridge"): 3, ("menge", "random_forest"): 210,
                ("struktur", "xgboost"): 233}
 
 
-def erweitert(name: str) -> dict:
+# Steuert die Verlustfunktion der REGRESSION und ist bei `multi:softprob`
+# bedeutungslos. XGBoost nimmt den Parameter stillschweigend an und ignoriert
+# ihn - ein Sechstel des Budgets ginge auf eine wirkungslose Dimension, und die
+# Suchkurve des Strukturstrangs fiele dadurch zu flach aus.
+# `m03_struktur.suchraum()` entfernt ihn aus demselben Grund; ohne diese Zeile
+# weicht die Diagnose vom Hauptlauf ab (gefunden im Rauchtest am 13.08.2026).
+NUR_REGRESSION = {"tweedie_variance_power"}
+
+
+def erweitert(name: str, strang: str = "menge") -> dict:
     """Suchraum eines Verfahrens mit den Erweiterungen ueberlagert."""
     raum = dict(SUCHRAEUME[name])
     raum.update({k: v for k, v in WEITER.get(name, {}).items() if k in raum})
+    if strang == "struktur":
+        raum = {k: v for k, v in raum.items() if k not in NUR_REGRESSION}
     return raum
 
 
@@ -209,7 +226,7 @@ def eine_suche(strang: str, name: str, train: pd.DataFrame, fold: int) -> list:
 
     suche = RandomizedSearchCV(
         estimator=modul.verfahren(name, n_jobs=1),
-        param_distributions=_verteilungen(erweitert(name), praefix),
+        param_distributions=_verteilungen(erweitert(name, strang), praefix),
         n_iter=BUDGET, cv=GroupKFold(n_splits=4), scoring=scoring,
         random_state=RANDOM_STATE, n_jobs=-1)
     suche.fit(X, y, groups=train["stadtteil"], **extra)
@@ -266,14 +283,26 @@ def raender(df: pd.DataFrame) -> pd.DataFrame:
         for p in WEITER.get(v, {}):
             if p not in g.columns:
                 continue
+            # `max_depth = None` heisst UNBEGRENZTE Tiefe. Ueber den DataFrame
+            # wird daraus NaN, und das sieht wie ein fehlender Wert aus statt
+            # wie der tiefste moegliche. Deshalb ausgeschrieben.
+            wert = sieger[p]
             zeilen.append({"strang": s, "verfahren": v, "fold": f,
-                           "parameter": p, "gewaehlt": sieger[p],
+                           "parameter": p,
+                           "gewaehlt": "None (unbegrenzt)" if pd.isna(wert)
+                                       else wert,
                            "sieger_im_alten_raum": int(sieger["im_alten_raum"])})
     return pd.DataFrame(zeilen)
 
 
 # ==========================================================================
 def main(argv: list[str]) -> int:
+    global BUDGET, OUT
+    if "--test" in argv:
+        BUDGET, OUT = 6, RESULTS_DIR / "suchdiagnose_test"
+        print("\n  RAUCHTEST - Budget 6, Ausgabe nach results/suchdiagnose_test/")
+        print("  Die Zahlen sind bedeutungslos. Geprueft wird nur, ob es laeuft.")
+
     straenge = [a for a in argv if a in ("menge", "struktur")] or \
                ["menge", "struktur"]
     verfahren = {"menge": ["ridge", "random_forest", "xgboost"],

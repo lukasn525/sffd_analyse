@@ -42,6 +42,15 @@ JEDEM Lauf, nicht nur beim ersten.
   9  Weicht eine Vorhersage zwischen einkernigem und parallelem Fit ab? Bei
      XGBoost erwartet (B-24), bei Ridge und RF nicht. Spalte
      parallel_abweichung_max.
+ 10  UEBERANPASSUNG (#51): Wie gross ist `ueberanpassung_RMSE` je Verfahren?
+     Erwartet: bei Ridge klein, bei den Baumverfahren gross. Der Wert ist
+     ZWISCHEN Konfigurationen zu vergleichen, nicht als Verhaeltnis zwischen
+     Verfahren - Baeume interpolieren ihre Trainingsdaten konstruktionsbedingt
+     (Begruendung an der Fundstelle in `ein_lauf`).
+ 11  Ist `ueberanpassung_RMSE` gegenueber der Sicherung vom 07.08. GESUNKEN?
+     Das waere der Beleg, dass die erweiterten Suchraeume (#49) einen Teil der
+     Ueberanpassung beseitigt haben - die Hypothese des Laufs. Vergleich gegen
+     `archiv/2026-08-14_budget50/`.
 
 STAND: vollstaendig, 06.08.2026.
 """
@@ -360,6 +369,37 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
         # XGBoost und gehoert in Kapitel 6 (docs/07_BEFUNDE.md, B-24).
         abweichung = float(np.max(np.abs(y_hat - y_par)))
 
+    # UEBERANPASSUNGSNACHWEIS, ergaenzt 14.08.2026 (Decision Log #51).
+    # Dieselbe Guete auf den TRAININGSstadtteilen. Der Abstand zwischen beiden
+    # ist der Standardnachweis fuer Ueberanpassung - ohne ihn bleibt die
+    # Diagnose eine Auslegung der Hold-out-Abweichung.
+    #
+    # KEIN zweiter Fit: nur eine zusaetzliche Vorhersage auf Daten, die das
+    # Modell schon gesehen hat. Sie steht NACH der Zeitmessung, damit
+    # Unterfrage 3 unberuehrt bleibt.
+    #
+    # Verglichen wird auf der BERICHTETEN Skala: `train[ziel]`, nicht die
+    # Groesse, auf der angepasst wurde (das ist immer die Rate, #43).
+    #
+    # WIE DIE ZAHL ZU LESEN IST - und wie nicht. Ein Random Forest mit
+    # `min_samples_leaf = 1` passt die Trainingsdaten KONSTRUKTIONSBEDINGT
+    # nahezu perfekt an; jeder Baum interpoliert seine eigene Stichprobe. Ein
+    # Trainings-R2 von 0,98 ist dort also erwartbar und nicht schon der Beweis
+    # einer krankhaften Ueberanpassung. Der Abstand ist deshalb NICHT als
+    # "Verfahren A ueberanpasst 16-mal staerker als B" zu lesen.
+    #
+    # Aussagekraeftig ist er in zwei Richtungen:
+    #   - zwischen KONFIGURATIONEN desselben Verfahrens (vor und nach der
+    #     Erweiterung der Suchraeume, #49) - dort ist der Vergleich sauber
+    #   - als Groessenordnung gegen die linearen Modelle, die per Konstruktion
+    #     nicht interpolieren koennen
+    # Der saubere Wert fuer Baeume waere die Out-of-Bag-Schaetzung; sie steht
+    # nur beim Random Forest zur Verfuegung und waere gegenueber Ridge und
+    # XGBoost asymmetrisch. Bewusst nicht erhoben, hier benannt.
+    y_hat_tr = modell.predict(X_tr) * (
+        train[EXPOSURE_ROH].astype(float).to_numpy() / 1000.0 if auf_rate else 1.0)
+    y_tr_echt = train[ziel].astype(float)
+
     return {
         "train_sekunden_parallel": train_par,
         "inferenz_sekunden_parallel": inferenz_par,
@@ -368,6 +408,8 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
         "RMSE": float(np.sqrt(mean_squared_error(y_te, y_hat))),
         "MAE": float(mean_absolute_error(y_te, y_hat)),
         "R2": float(r2_score(y_te, y_hat)),
+        "RMSE_train": float(np.sqrt(mean_squared_error(y_tr_echt, y_hat_tr))),
+        "R2_train": float(r2_score(y_tr_echt, y_hat_tr)),
         "train_sekunden": train_sek, "inferenz_sekunden": inferenz_sek,
         "n_train": len(train), "n_test": len(test),
         "extrapolationsanteil": extrapolationsanteil(train, test),
@@ -507,7 +549,8 @@ def phase_bewertung(panel: pd.DataFrame, parameter: pd.DataFrame,
         print(f"    Wiederholung {w}: {len(zeilen):>3} Laeufe")
     df = pd.DataFrame(zeilen)
     spalten = (["zielgroesse", "verfahren", "wiederholung", "fold",
-                "RMSE", "MAE", "R2", "train_sekunden", "inferenz_sekunden",
+                "RMSE", "MAE", "R2", "RMSE_train", "R2_train",
+                "train_sekunden", "inferenz_sekunden",
                 "train_sekunden_parallel", "inferenz_sekunden_parallel",
                 "parallel_abweichung",
                 "n_train", "n_test", "extrapolationsanteil",
@@ -553,11 +596,23 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
     z["parallel_abweichung_max"] = g["parallel_abweichung"].max()
     z = z.join(g[["extrapolationsanteil"]].mean())
     z = z.join(g[["n_negativ"]].sum().rename(columns={"n_negativ": "n_negativ_gesamt"}))
+
+    # UEBERANPASSUNG: Trainingsguete und der Abstand zur Testguete. Ein grosser
+    # positiver Wert heisst, das Modell erklaert die Trainingsstadtteile viel
+    # besser als unbekannte - genau das ist Ueberanpassung. Beim Poisson-GLM
+    # und bei Ridge ist ein kleiner Abstand zu erwarten, bei den Baumverfahren
+    # ein grosser (docs/06_RISIKEN.md, R-2).
+    z = z.join(g[["RMSE_train", "R2_train"]].mean())
+    z["ueberanpassung_RMSE"] = z["RMSE_mean"] - z["RMSE_train"]
+    z["ueberanpassung_R2"] = z["R2_train"] - z["R2_mean"]
+
     spalten = [f"{m}{s}" for m in MASSE for s in
                ("_mean", "_std_folds", "_std_wiederholungen")]
     spalten += ([f"{m}_mean" for m in MASSE_PARALLEL]
                 + ["parallel_gewinn", "parallel_abweichung_max"])
-    z = z[spalten + ["extrapolationsanteil", "n_negativ_gesamt"]].reset_index()
+    z = z[spalten + ["RMSE_train", "R2_train", "ueberanpassung_RMSE",
+                     "ueberanpassung_R2",
+                     "extrapolationsanteil", "n_negativ_gesamt"]].reset_index()
     z.round(4).to_csv(OUT / "menge_mittel.csv", index=False)
     return z
 

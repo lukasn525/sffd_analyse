@@ -193,6 +193,7 @@ Der vollständige Lauf, falls er wiederholt werden muss — Reihenfolge ist
 verbindlich, `m05` liest alles Vorherige:
 
 ```
+python tools/sichere_ergebnisse.py <name>   #    ZUERST: results/ sichern   < 1 min
 python prep/build.py                        # 0  zwei Datensätze            ~2 min
 python tests/test_aufbereitung.py           #    19 Prüfungen               ~1 min
 python vorpruefung/v0_aufteilung.py         # 1  Selbsttest der Aufteilung  < 1 min
@@ -207,7 +208,15 @@ python tools/codebook.py                    # 3  Merkmalstabelle Kap. 4    < 1 m
 python tools/pruefe_zahlen.py               #    Doku gegen results/       < 1 min
 ```
 
-Rund **zwei Stunden**. `v1` und `v2` lassen sich auch als `python
+**Sichern ist kein Ritual.** `results/` ist die einzige Stelle, an der die
+Ergebnisse liegen, sie steht in `.gitignore`, und jeder Lauf überschreibt sie.
+Ohne Kopie ist ein Lauf mit geänderter Konfiguration unumkehrbar. Wichtig
+dabei: **erst sichern, dann die Konfiguration ändern** — das Manifest liest
+`config_modelle.py` live und kann nicht wissen, womit die Dateien entstanden
+sind.
+
+Rund **zwei Stunden**, seit #49/#50 eher **drei** — die Tuningphase steigt von
+66 auf rund 139 Minuten. `v1` und `v2` lassen sich auch als `python
 vorpruefung/run.py` in einem Zug starten — die Reihenfolge ist dort zwingend,
 weil `v2` die Baseline-Werte liest.
 

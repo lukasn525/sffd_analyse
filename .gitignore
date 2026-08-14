@@ -4,6 +4,10 @@ data/processed/
 results/
 results_test_sample/
 
+# Gesicherte Ergebnisstände (tools/sichere_ergebnisse.py).
+# Kopien von results/, also aus demselben Grund ausgeschlossen.
+archiv/
+
 # Notebooks
 notebooks/
 *.ipynb
