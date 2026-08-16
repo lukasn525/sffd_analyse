@@ -67,10 +67,11 @@ PRUEFAUFTRAEGE nach jedem Lauf
   - UEBERANPASSUNG (#51): Wie gross ist `ueberanpassung_macro_f1`? Dieser
     Strang ist der, in dem Kreuzvalidierung und Hold-out sich widersprechen
     (R-2, B-42) - hier entscheidet sich, ob Ueberanpassung die Erklaerung ist.
-  - Ist der Wert gegenueber der Sicherung vom 07.08. GESUNKEN? Das waere der
-    Beleg, dass die erweiterten Suchraeume (#49) wirken: XGBoost waehlte dort
-    vier von fuenf Mal die kleinstmoegliche Baumtiefe. Vergleich gegen
-    `archiv/2026-08-14_budget50/`.
+  - Ist der Wert gegenueber `archiv/2026-08-14_budget50/` gesunken? XGBoost
+    waehlte dort vier von fuenf Mal die kleinstmoegliche Baumtiefe. NUR FUER
+    `07_BEFUNDE.md`: Nach #52 wird kein Vorher-Nachher-Vergleich berichtet.
+    Die Antwort entscheidet aber, wie belastbar die Ueberanpassungserklaerung
+    zu R-2 in Kapitel 8 formuliert werden darf.
 """
 import json
 import sys

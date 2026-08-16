@@ -47,10 +47,12 @@ JEDEM Lauf, nicht nur beim ersten.
      ZWISCHEN Konfigurationen zu vergleichen, nicht als Verhaeltnis zwischen
      Verfahren - Baeume interpolieren ihre Trainingsdaten konstruktionsbedingt
      (Begruendung an der Fundstelle in `ein_lauf`).
- 11  Ist `ueberanpassung_RMSE` gegenueber der Sicherung vom 07.08. GESUNKEN?
-     Das waere der Beleg, dass die erweiterten Suchraeume (#49) einen Teil der
-     Ueberanpassung beseitigt haben - die Hypothese des Laufs. Vergleich gegen
-     `archiv/2026-08-14_budget50/`.
+ 11  Ist `ueberanpassung_RMSE` gegenueber der Sicherung vom 07.08. gesunken?
+     Vergleich gegen `archiv/2026-08-14_budget50/`. NUR FUER `07_BEFUNDE.md`,
+     nicht fuer die Kapitel: Nach #52 wird ausschliesslich der neue Lauf
+     berichtet, ein Vorher-Nachher-Vergleich ausdruecklich nicht. Faellt die
+     Ueberanpassung NICHT, ist das ein Befund, der die Erklaerung zu R-2
+     schwaecht - und den man kennen sollte, bevor Kapitel 8 geschrieben wird.
 
 STAND: vollstaendig, 06.08.2026.
 """
