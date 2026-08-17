@@ -1,28 +1,22 @@
 """
 DER EINE BEFEHL. Erzeugt aus den Rohdaten die beiden finalen Datensaetze.
 
-    python prep/build.py
+    python prep/build.py            Aufbereitung
+    python prep/build.py tests      anschliessend die Pruefungen
 
-Ablauf:
+Eingang: data/raw/*  (sechs Rohquellen)
+Ausgang: data/processed/regression.parquet      4.620 x 25, modellfertig
+         data/processed/klassifikation.parquet  4.619 x 29, modellfertig
 
-    1  s1_daten.py        -> data/raw/*  (nur was in config.py auf True steht)
-                          -> data/processed/einsaetze.parquet   Zwischenstand
-    2  s2_datensaetze.py  -> data/processed/regression.parquet      FINAL
-                          -> data/processed/klassifikation.parquet  FINAL
+- Zwei Schritte: s1_daten laedt und verortet, s2_datensaetze baut das Panel.
+- Dieser Ordner erzeugt DATEN und sonst nichts. Baselines liegen in
+  vorpruefung/, der Verfahrensvergleich in modelle/.
+- Downloads steuern die DOWNLOAD_*-Schalter in config.py. Auf False (Default)
+  laeuft alles aus data/raw, ohne Internet und ohne API-Key.
+- Modellfertig heisst: identische Zeilen, Merkmale und Folds fuer alle
+  Verfahren.
 
-Danach ist die Aufbereitung fertig. Die beiden FINAL markierten Dateien sind
-modellfertig: identische Zeilen, Merkmale und Folds fuer alle Verfahren.
-
-Dieser Ordner erzeugt DATEN und sonst nichts. Die Messlatte (Baselines) und die
-Eignungspruefung liegen in vorpruefung/, der Verfahrensvergleich in modelle/.
-
-Argumente (optional):
-    python prep/build.py daten        wie ohne Argument
-    python prep/build.py tests        anschliessend die Pruefungen laufen lassen
-
-Downloads werden ueber die DOWNLOAD_*-Schalter in config.py gesteuert. Stehen
-sie auf False (Default), arbeitet der Befehl allein aus data/raw und braucht
-weder Internet noch API-Key.
+Ausfuehrlich: docs/08_FUNKTIONSDOKUMENTATION.md
 """
 import subprocess
 import sys
@@ -41,11 +35,24 @@ DATEIEN = [
 
 
 def schritt(nummer: str, titel: str) -> float:
+    """Gibt die Ueberschrift eines Arbeitsschrittes aus und startet die Uhr.
+
+    Ein:  Nummer wie "1/2", Titel des Schrittes
+    Aus:  Startzeitpunkt, gegen den die Dauer gerechnet wird
+    """
     print(f"\n{'=' * 78}\n  SCHRITT {nummer}: {titel}\n{'=' * 78}\n")
     return time.time()
 
 
 def uebersicht() -> None:
+    """Steckbrief der erzeugten Dateien: Zeilen, Spalten, Groesse, Zeitraum.
+
+    Ein:  die Konstante DATEIEN mit Pfad und Beschreibung
+    Aus:  nichts, reine Konsolenausgabe
+
+    - fehlt eine Datei, wird sie als FEHLT gemeldet statt den Lauf abzubrechen
+    - so ist beim Teillauf sofort sichtbar, was noch aussteht
+    """
     print(f"\n{'=' * 78}\n  ERGEBNIS\n{'=' * 78}\n")
     for pfad, beschreibung in DATEIEN:
         if not pfad.exists():
@@ -64,6 +71,13 @@ def uebersicht() -> None:
 
 
 def main() -> int:
+    """Faehrt beide Aufbereitungsschritte, dann die Uebersicht.
+
+    Ein:  optional das Argument "tests"
+    Aus:  Exitcode 0, bei "tests" der Code des Testlaufs
+
+    - die Reihenfolge ist zwingend: s2_datensaetze liest, was s1_daten schreibt
+    """
     import s1_daten
     import s2_datensaetze
 

@@ -194,6 +194,10 @@ wird beim Lesen darauf achten. **Vor dem nächsten Kapitelversand erledigen.**
 
 ### R-2 · Der Klassifikationsstrang — eingetreten, in beide Richtungen
 
+> **Ergänzt 17.08.2026, B-48:** Die erreichbare Obergrenze liegt bei Macro-F1
+> 0,457 (Stadtteilwissen), nicht bei 1,0. XGBoost schöpft davon 46,6 % aus.
+> Das ordnet den Strang ein, statt ihn nur als schwach zu berichten.
+
 | Auswertung | Mehrheitsklasse | Logit (Stufe 2) | Random Forest | XGBoost |
 |---|---|---|---|---|
 | Kreuzvalidierung, 50 Läufe | 0,223 | 0,297 | **0,3278 ± 0,0121** | **0,3322 ± 0,0125** |
@@ -257,6 +261,10 @@ Fußnote.
 
 ### R-1 · Die Verfahren trennen sich nicht — eingetreten wie vorhergesagt
 
+> **Ergänzt 17.08.2026, B-51:** Die Trennschärfe der Sekundärvergleiche liegt
+> bei 10 bis 68 %. „Kein Unterschied" ist nicht gezeigt, sondern nicht
+> gemessen — der Text muss das so sagen.
+
 **Stand 16.08.2026: vollständig eingetreten.** Im finalen Lauf ist **keine
 einzige** der sechs Paarungen trennbar — bei `anzahl_einsaetze` p_holm 0,773
 bis 0,967, bei `einsaetze_je_1000_ew` 0,117 bis 0,967, in der Klassifikation
@@ -301,6 +309,11 @@ Kreuzvalidierung jedem Fold die Parameter eines anderen geben und den Abfall
 messen. Nicht durchgeführt; Aufwand und Nutzen vor der Abgabe abzuwägen.
 
 ### R-5 · 29 unabhängige Einheiten
+
+> **Ergänzt 17.08.2026:** Effektive Stichprobe ≈ 38 bei einem Designeffekt von
+> 122, nur 140 verschiedene Merkmalsvektoren (B-49). Die Streuung der zehn
+> Wiederholungsmittel misst die Abhängigkeit von der Fold-Zuteilung, nicht die
+> Unsicherheit über die Grundgesamtheit — sie ist eine **Untergrenze** (B-50).
 
 4.620 Zeilen klingen komfortabel, es sind **35 Querschnittseinheiten × 132
 Monate**, davon 29 in der Entwicklung und 6 im Hold-out. Gemeinsame Ursache von
@@ -352,6 +365,11 @@ ungewöhnlich, dass kein anderer Stadtteil sie abdeckt.* Eine Aussage über die
 Stadt, nicht über die Modelle.
 
 ### R-11 · Pseudoreplikation
+
+> **Beziffert seit 17.08.2026 in `07_BEFUNDE.md`, B-50.** Die SD der zehn
+> Wiederholungsmittel liegt bei 2,773 statt der 6,629, die bei unabhängigen
+> Folds zu erwarten wären; im Strukturstrang unterscheiden sich die p-Werte
+> beider Ebenen um den Faktor 2.000.
 
 Der gepaarte Wilcoxon-Test setzt unabhängige Paare voraus; es sind dieselben 29
 Stadtteile in zehn Gruppierungen. Über 50 Läufe gerechnet fiele sein p-Wert
@@ -530,6 +548,8 @@ mit der Rate und mit −0,732 mit dem Kriminalitätsindex. Kontrolliert man daf�
 fällt die Within-Korrelation zwischen Kriminalitätsindex und Rate von **+0,644
 auf +0,230**.
 
+Herleitung: `07_BEFUNDE.md`, B-53.
+
 **Was zu tun ist:** Die Partialkorrelation berichten und `anzahl_einsaetze` mit
 Bevölkerungs-Offset als Hauptzielgröße führen — dort tritt der
 Nennerzusammenhang nicht auf.
@@ -616,6 +636,8 @@ Das Modell ist nirgends präzise, nicht nur in armen Stadtteilen. Zweitens ist
 das eine Prüfung auf Fehler*gleichheit*, nicht auf Verteilungsgerechtigkeit
 eines hypothetischen Einsatzes — die wäre eine andere Frage und wird hier nicht
 beantwortet.
+
+Herleitung und Reproduktionsweg: `07_BEFUNDE.md`, B-52.
 
 Diese Prüfung ist der Grund, warum das Ethikkapitel nicht bei „könnte
 problematisch sein" stehen bleiben muss. Ein gemessener und verneinter Verdacht

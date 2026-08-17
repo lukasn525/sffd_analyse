@@ -61,6 +61,12 @@
 | B-45 | 16.08. | `config_modelle.SUCHRAEUME`, finaler Lauf | 🔴 | **Weitere Suchraeume verschlechtern out-of-sample** — zweite Bestaetigung von B-41 |
 | B-46 | 16.08. | `m02/m03.ein_lauf`, `ueberanpassung_*` | 🔴 | **Ueberanpassung beziffert** — erklaert R-2 |
 | B-47 | 16.08. | `m04_shap.ablation_faktorgruppen` | 🟡 | **Attribution und Ablation widersprechen sich** — UF1 differenzierter |
+| B-48 | 17.08. | `vorpruefung/v4_decke.py`, `results/klassifikation/decke.csv` | 🔴 | **Der Strukturstrang hat eine bezifferbare Obergrenze** — 0,457 statt 1,0 |
+| B-49 | 17.08. | `data/processed/regression.parquet`, Varianzzerlegung | 🔴 | **Effektive Stichprobe 38, nicht 4.620** — 140 Merkmalsvektoren |
+| B-50 | 17.08. | `menge_folds.csv`, `struktur_folds.csv` | 🔴 | **Pseudoreplikation beziffert** — Faktor 2.000 im p-Wert |
+| B-51 | 17.08. | `vergleich.csv`, Trennschaerfesimulation | 🔴 | **Sekundaervergleiche haben 10 bis 68 % Trennschaerfe** — kein Gleichheitsnachweis |
+| B-52 | 17.08. | `menge_folds.csv` gegen Sozialprofil der Testfolds | 🟡 | **Fairness geprueft und verneint** — relative Guete ueber das Sozialgefaelle gleich |
+| B-53 | 17.08. | `regression.parquet`, Within-Korrelationen | 🟡 | **Nennerartefakt bei der Rate** — Partialkorrelation faellt von +0,644 auf +0,230 |
 
 ---
 
@@ -1690,6 +1696,302 @@ zehn Wiederholungsmittel und die Zahl der Wiederholungen mit Verschlechterung.
 **Was daraus NICHT folgt:** Den Merkmalssatz zu kuerzen. Er kommt aus dem
 Expose und ist durch die Fairness-Regel gebunden; nachtraeglich zu kuerzen waere
 eine ergebnisgetriebene Spezifikationswahl.
+
+
+---
+
+## B-48 · Der Strukturstrang hat eine bezifferbare Obergrenze
+
+**Fundstelle:** `vorpruefung/v4_decke.py`, `results/klassifikation/decke.csv`,
+`decke_marge.csv`, `decke_ausschoepfung.csv`.
+
+**Was aufgefallen ist.** Macro-F1 0,332 gegen die 1,0 einer fehlerfreien
+Vorhersage zu halten ist der falsche Massstab. Zwei Obergrenzen begrenzen den
+Strang, und beide entstehen VOR jeder Modellwahl.
+
+| Grenze | Macro-F1 | Bedeutung |
+|---|---|---|
+| Mehrheitsklasse (Stufe 1) | 0,2233 | triviale Baseline |
+| **Decke B — Stadtteilwissen** | **0,4572** | Modalklasse je Stadtteil perfekt bekannt |
+| Decke A — Label-Rauschen | 0,6404 ± 0,0163 | Klassenwahrscheinlichkeiten exakt bekannt |
+| fehlerfreie Vorhersage | 1,0000 | bei dieser Zielgroesse nicht erreichbar |
+
+**Decke A** entsteht aus der Konstruktion der Zielgroesse. `dominante_einsatzart`
+ist der argmax ueber vier Anteile desselben Monats. Zieht man jeden
+Stadtteil-Monat aus Multinomial(N, p_beobachtet) neu, kippt der argmax in
+12,5 % der Faelle. Bei 41,6 % der Zeilen liegt der Abstand zwischen Platz eins
+und zwei unter 0,20; der mittlere Siegeranteil betraegt 0,509.
+
+**Decke B** entsteht aus der Merkmalsstruktur und ist die BINDENDE. 84,6 % der
+Zeilen tragen die Modalklasse ihres eigenen Stadtteils — das Label ist fast
+vollstaendig stadtteilgebunden. Aber von den 29 Entwicklungsstadtteilen haben
+25 dieselbe Modalklasse (fehlalarm), 3 technische_hilfe, 1 rettung_ems.
+Stadtteilwissen ist damit arm, und mehr als Stadtteilwissen tragen die zwoelf
+Praediktoren nicht (B-49).
+
+**Ausschoepfung**, baselinekorrigiert als (Modell − Mehrheitsklasse) /
+(Decke − Mehrheitsklasse): xgboost 46,6 % von Decke B, random_forest 44,7 %.
+Der Rohquotient waere geschoent, weil der Sockel der Mehrheitsklasse keine
+Leistung des Modells ist.
+
+**Was daraus folgt.** Zwischen dem besten Verfahren (0,3322) und Decke B
+(0,4572) liegen 0,125 Macro-F1 — das ist alles, was Verfahrenswahl und
+Hyperparametersuche ueberhaupt noch holen koennten. Das erklaert B-47 (keine
+Merkmalsgruppe traegt) und B-51 (die Verfahren trennen sich nicht) aus
+derselben Ursache. Die Decken gehoeren VOR die Ergebnistabelle in Kapitel 7.2,
+nicht in die Limitationen — sonst lesen sie sich als nachtraegliche
+Entschuldigung statt als Massstab.
+
+Hold-out-Gegenstueck in `decke_holdout.csv`: Decke A 0,6785, Decke B 0,4219.
+
+---
+
+## B-49 · Die effektive Stichprobe ist 38, nicht 4.620
+
+**Fundstelle:** `data/processed/regression.parquet`, Varianzzerlegung der
+Praediktoren. **Diese Zahlen stehen NICHT in `results/`** — sie sind eine
+einmalige Rechnung. Reproduktion: Varianzanteil zwischen Stadtteilen als
+`d.groupby("stadtteil")[x].transform("mean").var() / d[x].var()`; ICC ueber
+`(MSB − MSW) / (MSB + (m−1)·MSW)` mit m = 132; Designeffekt `1 + (m−1)·ICC`.
+
+**Was aufgefallen ist.** Anteil der Gesamtvarianz je Merkmalsblock:
+
+| Merkmalsblock | zwischen Stadtteilen | innerhalb Stadtteil-Jahr |
+|---|---|---|
+| baulich (3 Merkmale, Land Use 2020) | 1,0000 | 0,0000 |
+| soziooekonomisch (5 ACS-Merkmale) | 0,52 – 0,92 | 0,0000 |
+| log_bevoelkerung | 0,857 | 0,0000 |
+| log_kriminalitaetsindex | 0,901 | 0,0027 |
+| monat_sin / monat_cos | 0,000 | 1,0000 |
+| ZIEL anzahl_einsaetze | 0,925 | 0,036 |
+
+Drei Kennzahlen daraus:
+
+- Ohne Saison und Kriminalitaetsindex haben die 4.620 Zeilen genau
+  **140 verschiedene Merkmalsvektoren** — 35 Stadtteile x 4 ACS-Jahrgaenge.
+- ICC der Zielgroesse 0,926, Designeffekt 122 → **effektive Stichprobe ~ 38**.
+  Fuer die Rate: ICC 0,693, Designeffekt 92, n_eff ~ 50.
+- 92,5 % der Varianz von `anzahl_einsaetze` liegt zwischen Stadtteilen.
+
+**Was daraus folgt.** Das ist die gemeinsame Ursache mehrerer Befunde. B-41 und
+B-45 (Flexibilitaet schadet), B-46 (Ueberanpassung), B-47 (nur eine
+Merkmalsgruppe traegt), B-48 (Decke B) und B-51 (keine Trennschaerfe) sind
+Auspraegungen desselben Sachverhalts: Der Merkmalssatz ist faktisch ein
+Querschnitt von 35 Einheiten, kein Panel von 4.620 Beobachtungen.
+
+**Der Mechanismus bei den Baumverfahren — ergaenzt 17.08.2026.** Warum die
+Baeume daran scheitern, laesst sich genau benennen, und das ist die bessere
+Antwort als "zu wenig Daten".
+
+Ein Baum sieht nicht 38 Einheiten, er sieht **3.828 Zeilen**. Er weiss nicht,
+dass 132 davon derselbe Stadtteil sind. Und weil die Merkmale innerhalb eines
+Stadtteils fast konstant sind (siehe Tabelle oben), genuegen ihm wenige Splits,
+um einen Stadtteil sauber zu isolieren; danach sagt er dessen Mittelwert
+vorher. Was entsteht, ist eine **Nachschlagetabelle ueber 29 Stadtteile**, keine
+funktionale Beziehung.
+
+Die Hyperparametersuche bestaetigt das. Gewaehlt wurden fuer `anzahl_einsaetze`:
+
+| Verfahren | max_depth je Fold | min_samples_leaf | n_estimators |
+|---|---|---|---|
+| random_forest | None, 32, 16, 16, 32 | 1 bis 9 | 366 bis 724 |
+| xgboost | 12, 8, 4, 7, 2 | – | 213 bis 557 |
+
+Bei Tiefe 16 sind bis zu 65.536 Blaetter moeglich; bei `max_depth=None` mit
+`min_samples_leaf=1` gibt es gar keine Obergrenze mehr. Dem stehen 38 effektive
+Einheiten gegenueber. Ab Tiefe 8 isoliert jedes Blatt weniger als eine
+effektive Einheit.
+
+Daraus folgt beides, was in den Zahlen steht: R2 = 0,984 im Training (die
+Tabelle ist auswendig gelernt) gegen 0,412 in der Kreuzvalidierung (ein
+unbekannter Stadtteil passt in kein gelerntes Blatt und faellt ins
+naechstgelegene — er bekommt das Niveau eines ANDEREN Stadtteils). Das ist
+zugleich die Erklaerung, warum der Extrapolationsanteil die Baumverfahren
+haerter trifft als Ridge (B-31, B-32).
+
+**Was daraus NICHT folgt:** dass die Baumverfahren wertlos waeren. Random
+Forest erreicht auf dem Hold-out R2 = 0,629. Sie fallen auf ein grobes
+Naechste-Nachbarn-Verhalten im Merkmalsraum zurueck — brauchbar, aber einem
+korrekt spezifizierten parametrischen Modell unterlegen. Die Aussage lautet:
+Sie koennen keine **generalisierende Struktur** finden, nicht: sie koennen
+nichts.
+
+**Einordnung fuer Kapitel 8 — und eine Warnung zur Formulierung.**
+Flaechenbezogene Untersuchungen arbeiten typischerweise mit wenigen Dutzend
+Gebietseinheiten; rund 38 effektive Einheiten sind hier keine Ausnahme.
+
+Die naheliegende Zuspitzung — "viele Arbeiten mit 35 Gebietseinheiten
+berichten p-Werte auf Basis der Zeilenzahl und merken es nicht" — ist ein
+Seitenhieb auf die Literatur OHNE BELEG und gehoert **nicht** in die Arbeit.
+In einer Bachelorarbeit liest sie sich nicht souveraen, sondern angreifbar.
+
+Tragfaehig ist die sachliche Fassung: die Groessenordnung als Eigenschaft des
+Gegenstands benennen, den eigenen Umgang damit dagegenstellen, beides belegen.
+Zwei kanonische Referenzen tragen das:
+
+- **Hurlbert, S. H. (1984):** Pseudoreplication and the Design of Ecological
+  Field Experiments. *Ecological Monographs* 54(2), 187–211. Die Referenz fuer
+  Pseudoreplikation — stuetzt den Test auf zehn statt fuenfzig Einheiten.
+- **Roberts, D. R. et al. (2017):** Cross-validation strategies for data with
+  temporal, spatial, hierarchical, or phylogenetic structure. *Ecography*
+  40(8), 913–929. Block- bzw. Leave-Group-Out-CV als empfohlene Praxis —
+  **Entlastung**, weil der Stadtteil-Split damit Standard ist, kein Sonderweg.
+
+Die ausformulierte Textfassung steht in `main.tex`, Kapitel 8.3, im
+Kommentarblock "DIE EFFEKTIVE STICHPROBE — WIE SIE ZU SCHREIBEN IST".
+
+Praezisierung, ohne die die Aussage zu UF1 angreifbar ist: Im Querschnitt
+korrelieren mehrere Merkmale aehnlich stark mit der Zielgroesse —
+`anteil_risikogewerbe_pct` r = +0,72, `anteil_wohngebaeude_pct` r = −0,79,
+`leerstandsquote_pct` r = +0,72 gegenueber r = +0,66 beim Kriminalitaetsindex.
+Der korrekte Satz lautet: **gegeben den Kriminalitaetsindex** tragen die
+uebrigen Bloecke nichts Eigenstaendiges mehr bei — nicht "nur Kriminalitaet
+haengt zusammen".
+
+---
+
+## B-50 · Die Pseudoreplikation ist beziffert
+
+**Fundstelle:** `results/regression/menge_folds.csv`,
+`results/klassifikation/vergleich.csv`. Ergaenzt R-11 um den Nachweis.
+
+**Was aufgefallen ist.** Fuer ridge auf `anzahl_einsaetze` betraegt die SD ueber
+alle 50 Laeufe 14,823. Diese Streuung wird von der Fold-Schwierigkeit
+beherrscht, nicht von der Modellguete: Die mittleren RMSE je Fold liegen bei
+33,2 / 40,6 / 45,3 / 31,2 / 32,2 — 14,1 RMSE Spannweite, allein danach, welche
+Stadtteile im Testfold liegen.
+
+Mittelt man je Wiederholung, bleiben zehn Werte mit einer SD von **2,773**.
+**Waeren die fuenf Folds unabhaengige Stichproben, muesste diese SD bei
+14,823 / √5 = 6,629 liegen.** Sie ist weniger als halb so gross — weil jede
+Wiederholung ueber DIESELBEN 29 Stadtteile mittelt. Die zehn Wiederholungen
+sind Umgruppierungen einer festen Menge, keine zehn Stichproben daraus.
+
+**Es geht nicht um die Breite der Konfidenzintervalle, sondern um die
+Freiheitsgrade.** Fuer ridge gegen das Poisson-GLM liefern beide Ebenen
+denselben Punktschaetzer (−2,531); das KI ist auf der Wiederholungsebene sogar
+etwas schmaler (3,47 statt 4,01). Was sich aendert, ist der p-Wert — und im
+Strukturstrang dramatisch:
+
+| Random Forest gegen Logit | n | Differenz | p |
+|---|---|---|---|
+| Wiederholungsebene | 10 | +0,030568 | 0,001953 |
+| Laufebene | 50 | +0,030568 | **0,000001** |
+
+Derselbe Effekt, ein p-Wert um den Faktor 2.000 kleiner, allein weil dieselben
+Stadtteile fuenfmal gezaehlt werden. Deshalb ist die Laufebene als sekundaer
+deklariert und traegt keine Aussage.
+
+**Die Einschraenkung, die auch danach bleibt (R-5).** Auch n = 10 ist nicht die
+wahre Unsicherheit. Die Streuung der zehn Wiederholungsmittel misst, wie stark
+das Ergebnis von der FOLD-ZUTEILUNG abhaengt — nicht, wie stark es davon
+abhaengt, WELCHE 29 Stadtteile vorliegen. Die zweite Frage ist mit diesen Daten
+nicht beantwortbar. Das Konfidenzintervall ist damit eine **Untergrenze** der
+wahren Unsicherheit, und genau so gehoert es in den Text.
+
+**Korrektur einer frueheren Formulierung:** Die Aussage, das zweistufige
+Mitteln sei "der Grund, warum die Konfidenzintervalle breit aussehen", ist
+falsch. Sie loest sich in einer Gegenrechnung auf und darf so nicht in die
+Arbeit.
+
+---
+
+## B-51 · Die Sekundaervergleiche haben 10 bis 68 % Trennschaerfe
+
+**Fundstelle:** `results/regression/vergleich.csv`,
+`results/klassifikation/vergleich.csv`, dazu eine Simulation des gepaarten
+Wilcoxon. **Die Trennschaerfewerte stehen NICHT in `results/`** — Reproduktion:
+Effektstaerke d aus Mittelwert und KI-Breite ueber SE = Breite / (2 · t(0,975;9)),
+sd = SE · √10; Trennschaerfe per Monte Carlo mit 4.000 Ziehungen.
+
+**Was aufgefallen ist.** Kein paarweiser Verfahrensvergleich wird signifikant
+(alle Holm-korrigierten p ≥ 0,117). Das ist aber **kein Nachweis von
+Gleichheit**, sondern eine Messluecke:
+
+| Vergleich | d | Trennschaerfe |
+|---|---|---|
+| ridge vs. random_forest (Anzahl) | 0,28 | 0,12 |
+| ridge vs. xgboost (Anzahl) | 0,31 | 0,14 |
+| random_forest vs. xgboost (Anzahl) | 0,52 | 0,30 |
+| random_forest vs. xgboost (Struktur) | 0,35 | **0,17** |
+
+Bei n = 10 braucht der gepaarte Wilcoxon d ≈ 0,8 fuer rund 60 % Trennschaerfe
+(alpha = 0,05, zweiseitig): d = 0,3 → 0,13; d = 0,5 → 0,28; d = 0,8 → 0,59;
+d = 1,0 → 0,78.
+
+**Zweiter Punkt, der dazugehoert.** p = 0,001953 im Strukturstrang ist das
+kleinste bei n = 10 ueberhaupt erreichbare Wilcoxon-p (10 von 10 gleiches
+Vorzeichen). Kleiner geht bei diesem Design nicht — was auch heisst, dass der
+Wert keine besonders starke Evidenz anzeigt, sondern die Aufloesungsgrenze.
+
+**Formulierungsauflage.** Der Text muss "nicht gemessen" sagen, nicht "kein
+Unterschied". Andernfalls ist es eine Ueberinterpretation eines Nullbefunds und
+in einer einzigen Nachfrage widerlegbar.
+
+---
+
+## B-52 · Fairness der Prognoseguete — geprueft und verneint
+
+**Fundstelle:** `results/regression/menge_folds.csv` und `baselines_folds.csv`,
+verknuepft mit dem Sozialprofil der Teststadtteile je Fold ueber
+`v0_aufteilung.wiederholte_aufteilung()`. **Nicht in `results/` abgelegt** —
+Reproduktion: je (Wiederholung, Fold) die mittlere Armutsquote der
+Teststadtteile berechnen und gegen die Fold-Guete stellen (Spearman, 50 Laeufe).
+
+**Was geprueft wurde.** Der naheliegende Vorwurf lautet: Das Modell ist fuer
+arme Stadtteile ungenauer, benachteiligt sie also.
+
+**Absolut besteht der Zusammenhang.** Spearman-Rho zwischen Armutsquote und
+RMSE liegt bei +0,35 bis +0,60 (p < 0,015) ueber alle Verfahren und beide
+Zielgroessen, einschliesslich der Poisson-Baseline.
+
+**Relativ zum Niveau verschwindet er vollstaendig.** Setzt man den RMSE ins
+Verhaeltnis zur mittleren Einsatzzahl des Folds, liegt Rho zwischen −0,006 und
++0,275, und **kein Wert ist auf 5 % signifikant** (kleinstes p = 0,053 bei
+xgboost auf der Rate).
+
+**Lesart.** Der absolute Fehler ist in aermeren Stadtteilen groesser, weil dort
+mehr Einsaetze stattfinden. Die relative Genauigkeit ist ueber das
+Sozialgefaelle hinweg gleich. Es liegt kein Hinweis auf systematische
+Benachteiligung vor.
+
+**Zwei Ehrlichkeiten dazu.** Erstens ist der relative Fehler auf allen Stufen
+hoch — im Mittel 0,48 bei `anzahl_einsaetze` und 0,66 bis 0,69 bei der Rate.
+Das Modell ist nirgends praezise, nicht nur in armen Stadtteilen. Zweitens ist
+das eine Pruefung auf FehlerGLEICHHEIT, nicht auf Verteilungsgerechtigkeit
+eines hypothetischen Einsatzes — die waere eine andere Frage.
+
+Traegt R-24 in `06_RISIKEN.md`. Ein gemessener und verneinter Verdacht ist
+belastbarer als ein ungeprueter.
+
+---
+
+## B-53 · Nennerartefakt zwischen Rate und Kriminalitaetsindex
+
+**Fundstelle:** `data/processed/regression.parquet`, Within-Korrelationen.
+**Nicht in `results/`** — Reproduktion: Abweichungen vom Stadtteil-Mittel
+bilden und korrelieren; Partialkorrelation ueber Residuen nach Regression auf
+`log_bevoelkerung`.
+
+**Was aufgefallen ist.** `einsaetze_je_1000_ew` hat die Bevoelkerung im Nenner.
+Der Kriminalitaetsindex ist ein Location Quotient, also Delikte PRO EINWOHNER —
+ebenfalls Bevoelkerung im Nenner. Innerhalb eines Stadtteils:
+
+| | Rho (within) |
+|---|---|
+| log_bevoelkerung ↔ Rate | −0,734 |
+| log_bevoelkerung ↔ Kriminalitaetsindex | −0,732 |
+| Kriminalitaetsindex ↔ Rate | +0,644 |
+| **Kriminalitaetsindex ↔ Rate, kontrolliert fuer Bevoelkerung** | **+0,230** |
+
+Sinkt die geschaetzte Bevoelkerung eines Stadtteils zwischen zwei
+ACS-Jahrgaengen, steigen beide Groessen mechanisch. Rund zwei Drittel des
+scheinbaren Within-Zusammenhangs sind dieser Nenner.
+
+**Was daraus folgt.** Ein Argument dafuer, `anzahl_einsaetze` mit
+Bevoelkerungs-Offset als Hauptzielgroesse zu fuehren — dort tritt der
+Nennerzusammenhang nicht auf. Traegt R-19 und die Entscheidung R-25
+(Berichtsumfang auf eine Zielgroesse verdichtet).
 
 ---
 

@@ -1,77 +1,50 @@
 """
 Verfahrensvergleich fuer die STRUKTUR der Einsatzlast.
 
-Eine Zielgroesse (`dominante_einsatzart`, vier Klassen) x zwei Verfahren
-(Random Forest, XGBoost) x 10 Wiederholungen x 5 Folds = 100 Laeufe.
-
     python modelle/m03_struktur.py            Tuning, Bewertung, Aggregation, Vergleich
     python modelle/m03_struktur.py holdout    zusaetzlich die einmalige Schlussbewertung
 
-Ausgang: results/klassifikation/struktur_folds.csv · struktur_mittel.csv
-                                tuning.csv · vergleich.csv · holdout.csv
+Eingang: data/processed/klassifikation.parquet
+Ausgang: results/klassifikation/struktur_folds.csv, struktur_mittel.csv,
+         tuning.csv, vergleich.csv, holdout.csv
 
-AUFBAU: Spiegelt m02_menge.py. Dieselben sieben Funktionen, dieselbe Reihenfolge,
-dieselben Fallstricke. Wer m02 gelesen hat, kennt die Struktur - hier stehen nur
-die Unterschiede.
+  - Eine Zielgroesse (dominante_einsatzart, vier ungeordnete Klassen) x zwei
+    Verfahren (Random Forest, XGBoost) x 10 Wiederholungen x 5 Folds = 100
+    Laeufe. Ridge hat auf einer nominalen Zielgroesse keine Entsprechung (#31)
+  - AUFBAU: spiegelt m02_menge.py - dieselben Funktionen, dieselbe
+    Reihenfolge, dieselben Fallstricke. Hier stehen nur die Unterschiede
+  - Guetemasse Macro-F1 (Hauptmass) und Macro-AUROC, Accuracy nachrichtlich;
+    getunt wird auf f1_macro. Stufe-2-Baseline ist die multinomiale
+    logistische Regression (#33), nicht die Mehrheitsklasse
+  - Holm entfaellt: Es gibt genau EINEN sekundaeren Test (RF gegen XGBoost),
+    und Regression und Klassifikation sind getrennte Testfamilien (B-6)
 
-STAND: vollstaendig, 06.08.2026.
-
---------------------------------------------------------------------------
-WAS ANDERS IST ALS IN m02
---------------------------------------------------------------------------
-  Zielgroesse   `dominante_einsatzart`, vier ungeordnete Klassen
-  Verfahren     nur RandomForestClassifier und XGBClassifier - Ridge hat auf
-                einer nominalen Zielgroesse keine Entsprechung (Decision Log #31)
-  Guetemasse    Macro-F1 (Hauptmass) und Macro-AUROC; Accuracy nur nachrichtlich
-  Baseline      Stufe 2 ist die multinomiale logistische Regression (#33),
-                nicht die Mehrheitsklasse
-  Scoring       beim Tuning "f1_macro" statt RMSE
-  Holm          entfaellt. Es gibt genau EINEN sekundaeren Test (RF gegen
-                XGBoost); eine Familie aus einem Test braucht keine Korrektur.
-                Entscheidung vom 05.08.2026: Regression und Klassifikation sind
-                getrennte Testfamilien (docs/07_BEFUNDE.md, B-6).
-
---------------------------------------------------------------------------
 DREI FALLSTRICKE, die es in m02 nicht gibt
---------------------------------------------------------------------------
-  1  KLASSENGEWICHTE statt Resampling. `class_weight="balanced"` beim Random
-     Forest, `sample_weight` beim XGBClassifier. KEIN SMOTE, kein Over- oder
-     Undersampling - das waere ein Eingriff in die Datenverteilung und wuerde
-     die Vergleichbarkeit mit den Baselines brechen.
+  1  KLASSENGEWICHTE statt Resampling - class_weight="balanced" beim RF,
+     sample_weight beim XGBClassifier. Kein SMOTE, kein Over- oder
+     Undersampling; das waere ein Eingriff in die Datenverteilung
+  2  LABEL-ENCODER EINMAL GLOBAL, nicht je Fold. Sonst verschiebt sich das
+     Mapping in Folds ohne eine Klasse und die Wahrscheinlichkeitsspalten
+     zeigen auf die falschen Klassen
+  3  MACRO-AUROC KANN UNDEFINIERT SEIN. Dann als FEHLEND fuehren, nicht durch
+     null ersetzen. zero_division=0 bei Macro-F1 muss gesetzt bleiben
 
-  2  LABEL-ENCODER EINMAL GLOBAL fitten, nicht je Fold. XGBClassifier erwartet
-     Integer-Labels 0..3. Wird der Encoder je Fold neu gefittet, verschiebt sich
-     das Mapping in Folds, in denen eine Klasse nicht auftritt - und die
-     Wahrscheinlichkeitsspalten zeigen dann auf die falschen Klassen.
-     Nach der Vorhersage die Spalten auf die Reihenfolge von KLASSEN
-     zurueckbringen.
-
-  3  MACRO-AUROC KANN UNDEFINIERT SEIN, wenn eine Klasse im Testfold fehlt.
-     Durch die doppelte Stratifizierung (#30) sollte das nicht vorkommen -
-     falls doch, den Wert als FEHLEND fuehren und nicht durch null ersetzen,
-     sonst zieht er den Mittelwert nach unten. `zero_division=0` bei Macro-F1
-     muss gesetzt bleiben, sonst bricht der Lauf ab.
-
---------------------------------------------------------------------------
 PRUEFAUFTRAEGE nach jedem Lauf
---------------------------------------------------------------------------
   - Schlaegt ueberhaupt ein Verfahren Stufe 2? Wenn nein, ist das ein
-    berichtbares Ergebnis und kein Fehler (docs/06_RISIKEN.md, R-2).
-  - Hat jeder Fold Brand-Testfaelle? In Wiederholung 0 erwartet: 13 · 9 · 6 · 3 · 2.
-  - Liegt Accuracy deutlich ueber Macro-F1? Das ist normal und selbst ein
-    Argument fuer die Metrikwahl - siehe docs/03_STAND.md.
-  - Wie viele Laeufe haben keine definierte Macro-AUROC? Erwartet: keiner.
-  - Passt die Zeilenzahl? 10 in tuning.csv, 100 in struktur_folds.csv.
-  - Wurde das Hold-out beruehrt? Ohne Argument darf keine Zeile mit
-    ist_holdout == 1 gelesen worden sein.
-  - UEBERANPASSUNG (#51): Wie gross ist `ueberanpassung_macro_f1`? Dieser
-    Strang ist der, in dem Kreuzvalidierung und Hold-out sich widersprechen
-    (R-2, B-42) - hier entscheidet sich, ob Ueberanpassung die Erklaerung ist.
-  - Ist der Wert gegenueber `archiv/2026-08-14_budget50/` gesunken? XGBoost
-    waehlte dort vier von fuenf Mal die kleinstmoegliche Baumtiefe. NUR FUER
-    `07_BEFUNDE.md`: Nach #52 wird kein Vorher-Nachher-Vergleich berichtet.
-    Die Antwort entscheidet aber, wie belastbar die Ueberanpassungserklaerung
-    zu R-2 in Kapitel 8 formuliert werden darf.
+    berichtbares Ergebnis und kein Fehler (R-2)
+  - Hat jeder Fold Brand-Testfaelle? In Wiederholung 0 erwartet 13/9/6/3/2
+  - Accuracy deutlich ueber Macro-F1? Normal, und selbst ein Argument fuer
+    die Metrikwahl
+  - Laeufe ohne definierte Macro-AUROC? Erwartet keiner
+  - Zeilenzahl: 10 in tuning.csv, 100 in struktur_folds.csv
+  - Hold-out unberuehrt, wenn ohne Argument gestartet?
+  - ueberanpassung_macro_f1 (#51): Dieser Strang ist der, in dem
+    Kreuzvalidierung und Hold-out sich widersprechen (R-2, B-42) - hier
+    entscheidet sich, ob Ueberanpassung die Erklaerung ist
+  - Gegenueber archiv/2026-08-14_budget50/ gesunken? Nur fuer 07_BEFUNDE.md;
+    nach #52 wird kein Vorher-Nachher berichtet
+
+Ausfuehrliche Fassung: docs/08_FUNKTIONSDOKUMENTATION.md
 """
 import json
 import sys
@@ -123,17 +96,19 @@ N_JOBS_SUCHE = -1
 # BAUSTEIN 1  Die Pipeline
 # ---------------------------------------------------------------------------
 def verfahren(name: str, n_jobs: int = N_JOBS_MODELL):
-    """Baut die ungetunte Pipeline. Kein Scaler - beide Verfahren sind Baeume.
+    """Baut die ungetunte Pipeline. Kein Scaler, beide Verfahren sind Baeume.
 
-    `n_jobs` steuert nur die Parallelisierung, nicht das Ergebnis. Voreinstellung
-    einkernig, damit die Laufzeiten vergleichbar bleiben.
+    Ein:  Verfahrensname, optional n_jobs
+    Aus:  Schaetzer ohne Hyperparameter
 
-    FALLSTRICK 1: Die Klassenverteilung ist stark schief (79 % Fehlalarm). Statt
-    zu resampeln bekommen beide Verfahren GEWICHTE. Beim Random Forest geht das
-    als Hyperparameter (`class_weight="balanced"`), beim XGBClassifier ueber
-    `sample_weight` beim Fit - das Verfahren kennt keinen entsprechenden
-    Parameter. Beides bewirkt dasselbe: seltene Klassen zaehlen mehr, ohne dass
-    eine einzige Zeile dupliziert oder geloescht wird.
+    - n_jobs steuert nur die Parallelisierung, nicht das Ergebnis; voreingestellt
+      einkernig
+    - Fallstrick 1: Die Klassenverteilung ist stark schief (79 % Fehlalarm).
+      Statt zu resampeln bekommen beide Verfahren Gewichte
+    - Random Forest ueber den Hyperparameter class_weight="balanced", XGBoost
+      ueber sample_weight beim Fit - das Verfahren kennt keinen solchen Parameter
+    - Wirkung in beiden Faellen gleich: seltene Klassen zaehlen mehr, ohne dass
+      eine Zeile dupliziert oder geloescht wird
     """
     if name == "random_forest":
         from sklearn.ensemble import RandomForestClassifier
@@ -148,18 +123,19 @@ def verfahren(name: str, n_jobs: int = N_JOBS_MODELL):
 
 
 def suchraum(name: str) -> dict:
-    """Uebersetzt SUCHRAEUME in scipy-Verteilungen - wie in m02, ohne Praefix.
+    """Uebersetzt SUCHRAEUME in scipy-Verteilungen, ohne Praefix.
 
-    Beide Verfahren sind hier nackte Schaetzer statt Pipelines, weil keine
-    Skalierung noetig ist. Die Suchraeume sind dieselben wie in der Regression;
-    das ist Absicht: Es wechselt nur die Verlustfunktion, nicht der
-    Ensemble-Mechanismus (docs/04_MODELLIERUNG.md, Abschnitt 3).
+    Ein:  Verfahrensname
+    Aus:  dict Parametername -> Verteilung
 
-    EINE AUSNAHME: `tweedie_variance_power` steuert die Verlustfunktion der
-    REGRESSION (Decision Log #42) und ist bei `multi:softprob` bedeutungslos.
-    XGBoost wuerde ihn stillschweigend annehmen und ignorieren - er wuerde dann
-    ein Sechstel des Tuning-Budgets auf eine wirkungslose Dimension verschwenden
-    und in tuning.csv eine Zahl ausweisen, die nichts bedeutet.
+    - beide Verfahren sind nackte Schaetzer statt Pipelines, weil keine
+      Skalierung noetig ist
+    - die Raeume sind dieselben wie in der Regression: es wechselt nur die
+      Verlustfunktion, nicht der Ensemble-Mechanismus
+    - Ausnahme: tweedie_variance_power steuert die Verlustfunktion der REGRESSION
+      (#42) und ist bei multi:softprob bedeutungslos. XGBoost naehme ihn an und
+      ignorierte ihn - ein Sechstel des Budgets auf einer wirkungslosen Dimension
+      und eine bedeutungslose Zahl in tuning.csv
     """
     from scipy.stats import loguniform, randint, uniform
 
@@ -183,12 +159,15 @@ def suchraum(name: str) -> dict:
 
 
 def kodiere(y: pd.Series) -> np.ndarray:
-    """Klassennamen -> Integer 0..3 nach der GLOBALEN Reihenfolge KLASSEN.
+    """Klassennamen -> Integer 0..3 nach der globalen Reihenfolge KLASSEN.
 
-    FALLSTRICK 2: Das Mapping haengt bewusst NICHT von den Daten ab, die gerade
-    vorliegen. Ein je Fold gefitteter LabelEncoder wuerde in einem Fold ohne
-    Brand die Zahlen verschieben, und die Wahrscheinlichkeitsspalten zeigten
-    danach auf die falschen Klassen - ohne Fehlermeldung.
+    Ein:  Reihe mit Klassennamen
+    Aus:  Integer-Array
+
+    - Fallstrick 2: Das Mapping haengt nicht von den gerade vorliegenden Daten ab
+    - ein je Fold gefitteter LabelEncoder verschoebe in einem Fold ohne Brand die
+      Zahlen; die Wahrscheinlichkeitsspalten zeigten danach auf die falschen
+      Klassen, ohne Fehlermeldung
     """
     index = {k: i for i, k in enumerate(KLASSEN)}
     unbekannt = set(y.unique()) - set(index)
@@ -197,7 +176,11 @@ def kodiere(y: pd.Series) -> np.ndarray:
 
 
 def _gewichte(y_int: np.ndarray) -> np.ndarray:
-    """`class_weight='balanced'` von Hand - fuer XGBoost, das keinen hat."""
+    """class_weight="balanced" von Hand, fuer XGBoost.
+
+    Ein:  Integer-Labels des Trainings
+    Aus:  Gewichtsvektor gleicher Laenge
+    """
     from sklearn.utils.class_weight import compute_sample_weight
     return compute_sample_weight("balanced", y_int)
 
@@ -206,16 +189,17 @@ def _gewichte(y_int: np.ndarray) -> np.ndarray:
 # BAUSTEIN 2  Das Tuning
 # ---------------------------------------------------------------------------
 def tune(name: str, train: pd.DataFrame) -> dict:
-    """Wie m02.tune, aber mit `f1_macro` als Scoring.
+    """Wie m02.tune, aber mit f1_macro als Scoring.
 
-    FALLSTRICK aus m02 gilt unveraendert: Der innere CV MUSS nach Stadtteil
-    gruppieren, sonst stehen dieselben 132 Zeilen eines Stadtteils in innerem
-    Training und innerer Validierung.
+    Ein:  Trainingsrahmen des Folds, Verfahren
+    Aus:  die Parameter als dict
 
-    Warum f1_macro und nicht Accuracy: Die Mehrheitsklasse allein erreicht ueber
-    0,8 Accuracy. Ein darauf optimiertes Tuning wuerde Modelle waehlen, die die
-    drei seltenen Klassen ignorieren - genau das, was die Fragestellung nicht
-    will (docs/03_STAND.md, Abschnitt 4).
+    - der Fallstrick aus m02 gilt unveraendert: Der innere CV muss nach Stadtteil
+      gruppieren, sonst stehen dieselben 132 Zeilen in innerem Training und
+      innerer Validierung
+    - f1_macro statt Accuracy, weil die Mehrheitsklasse allein ueber 0,8 Accuracy
+      erreicht; ein darauf optimiertes Tuning waehlte Modelle, die die drei
+      seltenen Klassen ignorieren
     """
     from sklearn.model_selection import GroupKFold, RandomizedSearchCV
 
@@ -244,13 +228,16 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
              test: pd.DataFrame, auch_parallel: bool = False) -> dict:
     """Ein Fit, eine Vorhersage, mit Zeitmessung - eine Zeile fuer die CSV.
 
-    Wie in m02 wird die Zeit UM `fit` und `predict` herum gemessen, und zwar
-    EINKERNIG fuer beide Verfahren. Die Wahrscheinlichkeiten fuer die AUROC
-    kommen aus einem zweiten Aufruf, damit `inferenz_sekunden` die reine
-    Klassenvorhersage misst und zwischen den Verfahren vergleichbar bleibt.
+    Ein:  Trainings- und Testrahmen, Verfahren, Parameter, auch_parallel
+    Aus:  dict mit Macro-F1, Macro-AUROC, Accuracy, Laufzeiten,
+          Extrapolationsanteil
 
-    `auch_parallel=True` misst denselben Fit zusaetzlich ueber alle Kerne.
-    Im Lauf steht es in jedem Aufruf auf True - keine Ausnahmen.
+    - die Zeit wird um fit und predict herum gemessen, einkernig fuer beide
+      Verfahren
+    - die Wahrscheinlichkeiten fuer die AUROC kommen aus einem zweiten Aufruf,
+      damit inferenz_sekunden die reine Klassenvorhersage misst
+    - auch_parallel=True misst denselben Fit zusaetzlich ueber alle Kerne; im Lauf
+      steht das Argument in jedem Aufruf auf True
     """
     from sklearn.metrics import accuracy_score, f1_score
 
@@ -258,6 +245,15 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
     y_tr, y_te = kodiere(train[ZIELKLASSE]), kodiere(test[ZIELKLASSE])
 
     def fitte(kerne: int):
+        """Fittet einen Schaetzer mit den Klassengewichten des Verfahrens.
+
+        Ein:  Schaetzer, Merkmalsmatrix, Integer-Labels
+        Aus:  der gefittete Schaetzer
+
+        - XGBoost bekommt sample_weight beim Fit
+        - der Random Forest hat die Gewichte bereits als Hyperparameter
+          (Fallstrick 1)
+        """
         m = verfahren(name, n_jobs=kerne).set_params(**parameter)
         t = time.perf_counter()
         if name == "xgboost":
@@ -310,10 +306,12 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
 def extrapolationsanteil(train: pd.DataFrame, test: pd.DataFrame) -> float:
     """Anteil der Testzeilen ausserhalb des Trainings-Wertebereichs.
 
-    Wortgleich zu m02_menge. Bewusst dupliziert statt importiert: Ein
-    gemeinsames Hilfsmodul fuer zwei Aufrufer braechte mehr Indirektion als
-    Ersparnis, und m03 soll unabhaengig von m02 lauffaehig bleiben
-    (docs/04_MODELLIERUNG.md, Abschnitt 4).
+    Ein:  Trainings- und Testmatrix
+    Aus:  Anteil zwischen 0 und 1
+
+    - wortgleich zu m02_menge, bewusst dupliziert statt importiert
+    - ein gemeinsames Hilfsmodul fuer zwei Aufrufer braechte mehr Indirektion als
+      Ersparnis, und m03 soll unabhaengig von m02 lauffaehig bleiben
     """
     lo, hi = train[MERKMALE].min(), train[MERKMALE].max()
     aussen = ((test[MERKMALE] < lo) | (test[MERKMALE] > hi)).any(axis=1)
@@ -321,11 +319,13 @@ def extrapolationsanteil(train: pd.DataFrame, test: pd.DataFrame) -> float:
 
 
 def _gepaart(a: np.ndarray, b: np.ndarray) -> dict:
-    """Ein gepaarter Wilcoxon plus die Zahlen, die auch ohne p-Wert tragen.
+    """Gepaarter Wilcoxon samt der Kennzahlen, die ohne p-Wert tragen.
 
-    Wortgleich zu m02_menge; siehe dort. `a` ist das Verfahren, `b` der Gegner,
-    die Differenz b - a ist der Vorteil von a. Bei Macro-F1 ist gross besser,
-    die Aufrufstelle dreht die Argumente entsprechend.
+    Ein:  zwei gepaarte Wertereihen (a = Verfahren, b = Gegner)
+    Aus:  dict mit p-Wert, mittlerer Differenz, Konfidenzintervall, Siegen
+
+    - wortgleich zu m02_menge
+    - bei Macro-F1 ist gross besser; die Aufrufstelle dreht die Argumente
     """
     from scipy.stats import t, wilcoxon
 
@@ -347,14 +347,15 @@ def _gepaart(a: np.ndarray, b: np.ndarray) -> dict:
 
 def _macro_auroc(y_true: np.ndarray, proba: np.ndarray,
                  klassen_modell: list) -> float:
-    """Macro-AUROC (One-vs-Rest), oder NaN wenn eine Klasse im Test fehlt.
+    """Macro-AUROC (One-vs-Rest), NaN wenn eine Klasse im Test fehlt.
 
-    FALLSTRICK 3: NICHT durch 0,5 ersetzen. Ein erfundener Wert saehe wie eine
-    Messung aus und zoege den Mittelwert nach unten. Fehlend heisst fehlend.
+    Ein:  wahre Labels, Wahrscheinlichkeitsmatrix, Klassenreihenfolge des Modells
+    Aus:  Zahl oder NaN
 
-    `labels=klassen_modell` bringt die Wahrscheinlichkeitsspalten in die
-    Reihenfolge, die das Modell tatsaechlich benutzt hat - der zweite Teil von
-    Fallstrick 2.
+    - Fallstrick 3: kein Ersatz durch 0,5 - ein erfundener Wert sieht wie eine
+      Messung aus und zieht den Mittelwert nach unten
+    - labels=klassen_modell bringt die Wahrscheinlichkeitsspalten in die
+      Reihenfolge, die das Modell benutzt hat (zweiter Teil von Fallstrick 2)
     """
     from sklearn.metrics import roc_auc_score
 
@@ -371,10 +372,13 @@ def _macro_auroc(y_true: np.ndarray, proba: np.ndarray,
 # ORCHESTRIERUNG
 # ---------------------------------------------------------------------------
 def phase_tuning(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
-    """Je Verfahren und Fold einmal `tune()` auf Wiederholung 0 - 10 Zeilen.
+    """Phase 1: je Verfahren und Fold einmal tune() auf Wiederholung 0.
 
-    Wie in m02 wird nichts wiederverwendet: `tuning.csv` ist ein Ergebnis
-    dieses Laufs, kein Eingang.
+    Ein:  Panel der Entwicklungsstadtteile
+    Aus:  tuning.csv mit 10 Zeilen
+
+    - wie in m02 wird nichts wiederverwendet: tuning.csv ist ein Ergebnis dieses
+      Laufs, kein Eingang
     """
     d = wiederholte_aufteilung(panel, wiederholung=0, selten=selten)
     zeilen = []
@@ -394,24 +398,38 @@ def phase_tuning(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
 
 
 def _rein_python(p: dict) -> dict:
-    """NumPy-Skalare in native Typen wandeln - wortgleich zu m02_menge.
+    """Wandelt NumPy-Skalare in native Typen, wortgleich zu m02_menge.
 
-    `np.int64` erbt nicht von `int` und ueberlebt `json.dumps` nicht. Ohne
-    diese Wandlung wuerde aus 287 die Zeichenkette "287", und `set_params`
-    braeche nach dem Tuning ab (docs/07_BEFUNDE.md, B-23).
+    Ein:  Parameter-dict aus best_params_
+    Aus:  dasselbe dict mit int/float
+
+    - np.int64 erbt nicht von int; ohne die Wandlung wuerde aus 287 die
+      Zeichenkette "287" und set_params braeche nach dem Tuning ab (B-23)
     """
     return {schluessel: (wert.item() if isinstance(wert, np.generic) else wert)
             for schluessel, wert in p.items()}
 
 
 def _parameter_je_fold(parameter: pd.DataFrame) -> dict:
+    """Liest tuning.csv als Nachschlagetabelle.
+
+    Ein:  tuning.csv als Datenrahmen
+    Aus:  {(verfahren, fold): Parameter-dict}
+    """
     return {(z["verfahren"], int(z["fold"])): json.loads(z["parameter_json"])
             for _, z in parameter.iterrows()}
 
 
 def phase_bewertung(panel: pd.DataFrame, parameter: pd.DataFrame,
                     selten: pd.Series) -> pd.DataFrame:
-    """10 Wiederholungen x 5 Folds x 2 Verfahren = 100 Zeilen."""
+    """Phase 2: 10 Wiederholungen x 5 Folds x 2 Verfahren = 100 Zeilen.
+
+    Ein:  Panel, Parametertabelle aus Phase 1
+    Aus:  struktur_folds.csv
+
+    - trainiert wird je Fold mit einem frischen Modell auf allen
+      Trainingsstadtteilen, nicht mit best_estimator_ aus dem Tuning
+    """
     param = _parameter_je_fold(parameter)
     zeilen = []
     for w in range(WIEDERHOLUNGEN):
@@ -443,7 +461,14 @@ MASSE_PARALLEL = ["train_sekunden_parallel", "inferenz_sekunden_parallel"]
 
 
 def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
-    """Zweistufig - wie in m02. Massgeblich ist `std_wiederholungen` (R-5)."""
+    """Phase 3: zweistufig mitteln, wie in m02.
+
+    Ein:  struktur_folds.csv als Datenrahmen
+    Aus:  struktur_mittel.csv
+
+    - massgeblich ist std_wiederholungen, nicht std_folds (R-5)
+    - die 50 Fold-Ergebnisse sind dieselben 29 Stadtteile in zehn Gruppierungen
+    """
     schluessel = ["zielgroesse", "verfahren"]
     g = folds.groupby(schluessel, sort=False)
     z = g[MASSE].mean().add_suffix("_mean")
@@ -475,17 +500,20 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
 
 
 def vergleiche(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
-    """Gepaarter Wilcoxon auf Macro-F1 - zwei primaere Tests, ein sekundaerer.
+    """Phase 4: gepaarter Wilcoxon auf Macro-F1.
 
-    KEIN HOLM. Die sekundaere Familie besteht aus einem einzigen Test (Random
-    Forest gegen XGBoost); eine Korrektur ueber einen Test ist die Identitaet.
-    Die Spalte `p_holm` bleibt deshalb leer, `n_tests_familie` steht auf 1.
-    Entscheidung vom 05.08.2026: Regression und Klassifikation sind getrennte
-    Testfamilien (docs/07_BEFUNDE.md, B-6). Das ist in Kapitel 7 zu benennen -
-    dieser Vergleich laeuft ungekorrigiert gegen alpha = 0,05.
+    Ein:  struktur_folds.csv, Baseline-Laeufe aus v1_baselines.py
+    Aus:  vergleich.csv
 
-    Teststufen wie in m02: `wiederholung` (n = 10) ist der Primaertest, `lauf`
-    (n = 50) die ausdruecklich gekennzeichnete Sensitivitaet (B-5).
+    - zwei primaere Tests (je Verfahren gegen Stufe 2), ein sekundaerer (RF gegen
+      XGBoost)
+    - kein Holm: eine Korrektur ueber einen einzigen Test ist die Identitaet.
+      p_holm bleibt leer, n_tests_familie steht auf 1
+    - Regression und Klassifikation sind getrennte Testfamilien (B-6); in
+      Kapitel 7 zu benennen, weil dieser Vergleich ungekorrigiert gegen
+      alpha = 0,05 laeuft
+    - Teststufen wie in m02: `wiederholung` (n = 10) primaer, `lauf` (n = 50) als
+      gekennzeichnete Sensitivitaet (B-5)
     """
     basis = baselines[baselines["modell"] == BASELINE_STUFE2]
     zeilen = []
@@ -500,6 +528,11 @@ def vergleiche(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
                   for n in VERFAHREN}
 
         def paar(links, rechts):
+            """Legt eine Vergleichszeile fuer vergleich.csv an.
+
+            Ein:  Rolle, Teststufe, Verfahren, Gegner, Wertereihen
+            Aus:  dict mit Testergebnis und Kennzahlen
+            """
             zusammen = pd.concat([links.rename("a"), rechts.rename("b")],
                                  axis=1, join="inner")
             fehlend = max(len(links), len(rechts)) - len(zusammen)
@@ -527,10 +560,13 @@ def vergleiche(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
 
 
 def leakage_diagnose(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
-    """Beziffert, was das Tuning auf Wiederholung 0 kostet - wie in m02.
+    """Beziffert, was das Tuning auf Wiederholung 0 kostet.
 
-    Bei Macro-F1 ist GROSS besser, der Vorsprung ist also Verfahren minus
-    Baseline. Ausfuehrliche Begruendung in `m02_menge.leakage_diagnose`.
+    Ein:  struktur_folds.csv, Baseline-Laeufe
+    Aus:  Datenrahmen mit dem Vorsprung in W0 gegen W1-9
+
+    - bei Macro-F1 ist gross besser; der Vorsprung ist Verfahren minus Baseline
+    - ausfuehrliche Begruendung in m02_menge.leakage_diagnose
     """
     basis = (baselines[baselines["modell"] == BASELINE_STUFE2]
              .set_index(["wiederholung", "fold"])["Macro-F1"])
@@ -554,11 +590,18 @@ def leakage_diagnose(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFra
 
 def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
              folds: pd.DataFrame) -> pd.DataFrame:
-    """EINMALIG - wie in m02, mit Macro-F1 statt RMSE als Auswahlkriterium.
+    """Einmalige Schlussbewertung, mit Macro-F1 als Auswahlkriterium.
 
-    Gewaehlt wird der Parametersatz des Folds mit dem HOECHSTEN Macro-F1 in
-    Wiederholung 0. Zu berichten ist, dass dies EINE Messung an SECHS Einheiten
-    ist (R-4).
+    Ein:  vollstaendiges Panel, Parametertabelle aus Phase 1
+    Aus:  holdout.csv
+
+    - gewaehlt wird der Parametersatz des Folds mit dem hoechsten Macro-F1 in
+      Wiederholung 0
+    - das Baseline-Modell stammt aus v1_baselines.logit_glm(); seit 10.08.2026
+      nicht mehr hier nachgebaut
+    - ohne Bezugspunkt ist ein Macro-F1 von 0,33 keine Aussage (B-38)
+    - zu berichten ist, dass dies EINE Messung an SECHS Einheiten ist: kein
+      Mittelwert, keine Streuung (R-4)
     """
     param = _parameter_je_fold(parameter)
     dev, ho = entwicklung_und_holdout(panel)
@@ -623,6 +666,16 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
 
 
 def main(argv: list[str]) -> int:
+    """Faehrt die vier Phasen und schreibt alle Ergebnisdateien.
+
+    Ein:  klassifikation.parquet; Argument "holdout" haengt die Schlussbewertung
+          an
+    Aus:  tuning.csv, struktur_folds.csv, struktur_mittel.csv, vergleich.csv,
+          leakage_diagnose.csv, optional holdout.csv; Exitcode
+
+    - ohne das Argument werden die Hold-out-Zeilen zu Beginn unwiderruflich
+      herausgefiltert
+    """
     if not PFAD_KLASSIFIKATION.exists():
         raise SystemExit(f"{PFAD_KLASSIFIKATION.relative_to(ROOT)} fehlt - "
                          f"erst 'python prep/build.py' ausfuehren.")

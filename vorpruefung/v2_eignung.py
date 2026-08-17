@@ -1,59 +1,36 @@
 """
 Eignungspruefung: Passen die gewaehlten Verfahren zu den Zielgroessen?
 
-Zweiter Schritt der Vorpruefung. Setzt `v1_baselines.py` voraus - die
-Baseline-Werte werden gelesen, nicht neu gerechnet.
+    python vorpruefung/v2_eignung.py
 
-Sechs Belege, mehr nicht:
+Eingang: data/processed/{regression,klassifikation}.parquet
+         results/klassifikation/baselines_klasse.csv (aus v1_baselines.py)
+Ausgang: results/eignungspruefung/eignungspruefung.md + 2 Abbildungen
+         results/eignungspruefung/annahmen.csv     Abschnitt 6, maschinenlesbar
+         results/eignungspruefung/qq_residuen.csv  Rohdaten fuer Abbildung A10
 
-  1  Zaehldaten sind ueberdispers          ->  zaehldatengerechte Verlust-
-                                               funktionen (#42); die Stufe-2-
-                                               Baseline bleibt das Poisson-GLM
-                                               (#45, Begruendung in Abschnitt 1)
-  2  Zusammenhaenge sind nicht linear      ->  Ridge auf log(1+y), nicht roh
-  3  Lineare Spezifikation reicht nicht    ->  Random Forest und XGBoost
-  4  Teststadtteile liegen oft ausserhalb  ->  Limitation, keine Verfahrensfrage
-  5  Merkmale trennen auch die Einsatzart  ->  RF und XGBoost im 2. Strang
-  6  Anforderungen je Verfahren geprueft   ->  Tabelle mit Teststatistik und
-                                               p-Wert, Auflage vom 10.08.2026
+  - Sechs Belege, mehr nicht: (1) Zaehldaten ueberdispers -> zaehldaten-
+    gerechte Verlustfunktionen (#42), (2) Zusammenhaenge nicht linear ->
+    Ridge auf log(1+y), (3) lineare Spezifikation reicht nicht -> RF und
+    XGBoost, (4) Teststadtteile liegen oft ausserhalb -> Limitation, keine
+    Verfahrensfrage, (5) Merkmale trennen auch die Einsatzart -> zweiter
+    Strang, (6) Anforderungen je Verfahren mit Teststatistik und p-Wert
+  - Abschnitt 6 ist Auflage Schroeter (10.08.2026) und fuehrt auch die
+    Zeilen, in denen eine Anforderung GAR NICHT besteht: Dass Baumverfahren
+    keine Verteilungsannahme haben, ist eine Aussage und keine Auslassung
+  - Abschnitt 2 ist Auflage R7 - erst plotten, dann ueber lineare Modelle
+    reden. Deshalb Streudiagramme und Residuenanalyse als Abbildung
+  - Abschnitt 5 ist noetig, weil die Regression den Klassifikationsstrang
+    nicht mitbeantwortet: Kruemmung bei der ANZAHL sagt nichts darueber, ob
+    dieselben Merkmale die ART trennen
+  - Was die Pruefung NICHT leistet: Sie unterscheidet nicht zwischen Random
+    Forest und XGBoost - das ist die empirische Forschungsfrage der Arbeit
+  - Gerechnet wird nur auf den TRAININGSSTADTTEILEN VON FOLD 1; ausgenommen
+    sind Abschnitt 4 und die aus v1 gelesenen Referenzwerte
+  - Der Bericht ist ein Befundblatt, keine Kapitelvorlage
 
-Abschnitt 6 ist Auflage Schroeter (10.08.2026): "Pruefung ob die Algorithmen
-auf den Daten passen, z.B. Varianzgleichheit, linearer Zusammenhang ... Jeder
-Algorithmus sollte dargestellt werden ... Test laufen lassen: in Tabelle
-Statistiken mit p-Werten anzeigen." Die Abschnitte 1 bis 5 belegen die
-VERFAHRENSWAHL, Abschnitt 6 fuehrt die Anforderungen je Verfahren zusammen -
-einschliesslich der Zeilen, in denen eine Anforderung GAR NICHT besteht. Genau
-die gehoeren hin: Dass Baumverfahren keine Verteilungsannahme haben, ist eine
-Aussage und keine Auslassung.
-
-Abschnitt 2 ist Auflage Schroeter (R7): "erstmal plotten, falls keine lineare
-Baseline, KEIN lineares Regressionsmodell." Deshalb Streudiagramme und
-Residuenanalyse, beides als Abbildung.
-
-Abschnitt 5 ist noetig, weil die Regression den Klassifikationsstrang NICHT
-mitbeantwortet: Dass der Zusammenhang zur Anzahl gekruemmt ist, sagt nichts
-darueber, ob dieselben Merkmale die Art der Einsaetze trennen koennen.
-
-Was diese Pruefung NICHT leistet: Sie unterscheidet nicht zwischen Random
-Forest und XGBoost. Welche der beiden Strategien gewinnt, ist die empirische
-Forschungsfrage der Arbeit - vorab noetig ist nur, dass beide plausibel sind.
-
-Gerechnet wird ausschliesslich auf den TRAININGSSTADTTEILEN VON FOLD 1 - die
-Teststadtteile duerfen keine Modellentscheidung beeinflussen. Ausgenommen sind
-Abschnitt 4 (Extrapolation, betrifft alle Folds naturgemaess) und die aus
-v1_baselines.py gelesenen Referenzwerte.
-
-Der Bericht ist ein BEFUNDBLATT, keine Kapitelvorlage: Er liefert Zahlen und
-Abbildungen, die Argumentation fuer Kapitel 6.2 wird von Hand geschrieben.
-
-Eingang:  data/processed/{regression,klassifikation}.parquet
-          results/klassifikation/baselines_klasse.csv
-Ausgang:  results/eignungspruefung/eignungspruefung.md + 2 Abbildungen
-          results/eignungspruefung/annahmen.csv      Abschnitt 6, maschinenlesbar
-          results/eignungspruefung/qq_residuen.csv   Rohdaten fuer Abbildung A10
-
-Ausfuehren:
-  python vorpruefung/v2_eignung.py
+Setzt v1_baselines.py voraus. Ausfuehrliche Fassung:
+docs/08_FUNKTIONSDOKUMENTATION.md
 """
 import sys
 from pathlib import Path
@@ -79,11 +56,21 @@ bericht: list[str] = []
 
 
 def log(txt: str = "") -> None:
+    """Gibt eine Zeile aus und haengt sie an den Berichtstext an.
+
+    Ein:  Textzeile (leer = Leerzeile)
+    Aus:  nichts; wirkt auf die Liste `bericht`
+    """
     print(txt)
     bericht.append(txt)
 
 
 def speichere(fig, name: str) -> None:
+    """Legt eine Abbildung im Ergebnisordner ab und vermerkt sie im Bericht.
+
+    Ein:  Matplotlib-Figur, Dateiname
+    Aus:  Datei in results/eignungspruefung/; die Figur wird geschlossen
+    """
     fig.tight_layout()
     fig.savefig(OUT / name, dpi=140)
     plt.close(fig)
@@ -92,40 +79,21 @@ def speichere(fig, name: str) -> None:
 
 # ---------------------------------------------------------------------------
 def dispersion(train: pd.DataFrame) -> None:
-    """Beleg 1: Die Zaehldaten sind ueberdispers - und was daraus folgt.
+    """Beleg 1: Dispersionsindex der beiden Zaehl-Zielgroessen.
 
-    NEU GEFASST AM 10.08.2026. Bis dahin schloss dieser Abschnitt aus der
-    Overdispersion, Poisson scheide aus und die Negative Binomial sei die
-    passende Baseline. Decision Log #45 hat am 06.08. das Gegenteil entschieden
-    und ist am 08.08. freigegeben worden - der Abschnitt argumentierte danach
-    gegen die eigene Umsetzung, und die erzeugte `eignungspruefung.md` trug den
-    Widerspruch weiter. Kein Rechenfehler, sondern Drift.
+    Ein:  Trainingszeilen von Fold 1
+    Aus:  Textabschnitt im Bericht, Dispersionsindex je Zielgroesse
 
-    DIE KORREKTE FOLGERUNG hat zwei Aeste, und nur der erste betrifft die
-    Baseline:
-
-      Verlustfunktion   Ein quadratischer Fehler auf rohen Zaehldaten ist bei
-                        diesem Dispersionsindex unangemessen. Daraus folgt
-                        `reg:tweedie` fuer XGBoost und `criterion="poisson"`
-                        fuer den Random Forest (#42). Das ist die eigentliche
-                        Konsequenz aus dieser Messung.
-
-      Baseline          Die Overdispersion verletzt die Poisson-Varianzannahme
-                        Var = mu. Beschaedigt werden dadurch die
-                        STANDARDFEHLER, nicht die Konsistenz des geschaetzten
-                        bedingten Mittelwerts (Gourieroux, Monfort & Trognon
-                        1984). Eine Baseline, die ausschliesslich
-                        Punktvorhersagen liefert - keine Koeffiziententests,
-                        keine Konfidenzintervalle -, ist davon nicht betroffen.
-                        Das Poisson-GLM bleibt Stufe 2 (#45).
-
-    Die Negative Binomial waere die Erweiterung fuer korrekte INFERENZ. Sie
-    loest damit ein Problem, das diese Baseline nicht hat, und bringt mit dem
-    Dispersionsparameter eine zusaetzliche Groesse mit - sie ist dann nicht
-    mehr "die einfachste Form, die zur Datenform passt".
-
-    Der gemessene Index bleibt unveraendert und wird weiterhin berichtet. Er
-    ist nicht falsch geworden, er traegt nur eine andere Schlussfolgerung.
+    - der Index Varianz/Mittelwert misst die Verletzung der Poisson-Annahme
+      Var = mu
+    - Folge 1, Verlustfunktion: ein quadratischer Fehler auf rohen Zaehldaten ist
+      bei diesem Index unangemessen -> reg:tweedie fuer XGBoost,
+      criterion="poisson" fuer den Random Forest (#42)
+    - Folge 2, Baseline: beschaedigt sind die Standardfehler, nicht die
+      Konsistenz des bedingten Mittelwerts (Gourieroux u.a. 1984). Das
+      Poisson-GLM bleibt Stufe 2 (#45)
+    - bis 10.08.2026 schloss dieser Abschnitt das Gegenteil und widersprach der
+      eigenen Umsetzung; der gemessene Index ist unveraendert geblieben
     """
     y = train[ZIELGROESSE].astype(float)
     index = y.var() / y.mean()
@@ -163,15 +131,17 @@ def dispersion(train: pd.DataFrame) -> None:
 
 # ---------------------------------------------------------------------------
 def linearitaet(train: pd.DataFrame) -> None:
-    """Beleg 2: Auflage Schroeter (R7) - plotten, bevor Ridge eingesetzt wird.
+    """Beleg 2: Korrelationen und Residuenbild (Auflage R7).
 
-    Zwei Diagnosen. Pearson misst den LINEAREN, Spearman den MONOTONEN
-    Zusammenhang; klaffen sie auseinander, ist der Zusammenhang gekruemmt.
-    Bewertet wird das nur, wo die Korrelation ueberhaupt substanziell ist - bei
-    einer Korrelation nahe null ist der Abstand Rauschen.
+    Ein:  Trainingszeilen von Fold 1
+    Aus:  Textabschnitt, Abbildungen 01_streudiagramme.png und 02_residuen.png
 
-    Danach Ridge einmal auf der Rohskala und einmal auf log(1+y), mit
-    Residuenbild. Ein Trichter zeigt, dass der Fehler mit dem Niveau waechst.
+    - Pearson misst den linearen, Spearman den monotonen Zusammenhang; ein
+      Auseinanderklaffen zeigt Kruemmung an
+    - bewertet wird nur, wo die Korrelation substanziell ist - nahe null ist der
+      Abstand Rauschen
+    - Ridge einmal auf der Rohskala, einmal auf log(1+y), mit Residuenbild
+    - ein Trichter im Residuenbild zeigt, dass der Fehler mit dem Niveau waechst
     """
     from sklearn.linear_model import Ridge
     from sklearn.pipeline import make_pipeline
@@ -183,12 +153,9 @@ def linearitaet(train: pd.DataFrame) -> None:
     log("`anzahl_einsaetze` ist eine Zaehlung, `einsaetze_je_1000_ew` eine Quote.\n")
     log("| Merkmal | Pearson (Anzahl) | Spearman | Pearson (Rate) | Spearman |")
     log("|---|---|---|---|---|")
-    # Massgeblich ist das MAXIMUM beider Korrelationen, nicht Pearson allein.
-    # Grund: Ist ein Zusammenhang stark gekruemmt, faellt Pearson gerade
-    # deshalb ab - ein reiner Pearson-Filter wuerde also ausgerechnet den
-    # staerksten Kruemmungsbefund aussortieren. Umgekehrt bleibt der Zweck
-    # erhalten: Liegen BEIDE Korrelationen nahe null, ist ihr Abstand Rauschen
-    # und sagt nichts ueber die Funktionsform.
+    # Massgeblich ist das MAXIMUM beider Korrelationen: Ein reiner
+    # Pearson-Filter sortierte gerade den staerksten Kruemmungsbefund aus.
+    # Liegen beide nahe null, ist ihr Abstand Rauschen.
     SCHWELLE = 0.20
 
     stark = {ZIELGROESSE: [], RATE: []}
@@ -260,11 +227,16 @@ def linearitaet(train: pd.DataFrame) -> None:
 
 # ---------------------------------------------------------------------------
 def spezifikation(train: pd.DataFrame) -> None:
-    """Beleg 3: Der RESET-Test verwirft die lineare Spezifikation.
+    """Beleg 3: RESET-Test und Interaktionsterme.
 
-    Er prueft, ob Potenzen der Vorhersage noch etwas erklaeren. Tun sie das,
-    hat das lineare Modell Struktur uebrig gelassen. Die Interaktionsterme
-    zeigen anschliessend, dass ein Teil davon Wechselwirkungen sind.
+    Ein:  Trainingszeilen von Fold 1
+    Aus:  Textabschnitt mit F-Wert, p-Wert und adjustiertem R2
+
+    - der RESET-Test prueft, ob Potenzen der Vorhersage noch etwas erklaeren
+    - tun sie das, hat das lineare Modell Struktur uebrig gelassen
+    - die 45 Interaktionsterme zeigen, dass ein Teil davon Wechselwirkungen sind
+    - beide Kennzahlen sind In-Sample-Groessen; die Uebertragung auf unbekannte
+      Stadtteile prueft v3_spezifikation.py
     """
     import statsmodels.api as sm
     from statsmodels.stats.diagnostic import linear_reset
@@ -308,7 +280,15 @@ def spezifikation(train: pd.DataFrame) -> None:
 
 # ---------------------------------------------------------------------------
 def extrapolation(panel: pd.DataFrame) -> None:
-    """Beleg 4: Wie oft liegt ein Teststadtteil ausserhalb des Gelernten?"""
+    """Beleg 4: Anteil der Teststadtteile ausserhalb des Gelernten.
+
+    Ein:  vollstaendiges Panel (alle Folds, Extrapolation betrifft jeden)
+    Aus:  Textabschnitt mit dem Anteil ausserhalb der Trainingsspanne
+
+    - ein hoher Anteil ist eine Limitation der Datenlage, keine Verfahrensfrage
+    - Baumverfahren extrapolieren grundsaetzlich nicht ueber den gesehenen
+      Wertebereich hinaus
+    """
     log("\n## 4  Teststadtteile liegen haeufig ausserhalb des Trainingsbereichs\n")
     log("| Fold | 1 | 2 | 3 | 4 | 5 | Mittel |")
     log("|---|---|---|---|---|---|---|")
@@ -336,21 +316,18 @@ def extrapolation(panel: pd.DataFrame) -> None:
 
 # ---------------------------------------------------------------------------
 def klassifikation(kl: pd.DataFrame) -> None:
-    """Beleg 5: Taugen dieselben Merkmale auch fuer die Einsatzart?
+    """Beleg 5: Trennen dieselben Merkmale auch die Einsatzart?
 
-    Eine Frage, die die Regression NICHT mitbeantwortet. Dass der Zusammenhang
-    zur ANZAHL gekruemmt ist, sagt nichts darueber, ob dieselben Merkmale die
-    ART trennen koennen - das sind zwei verschiedene Fragen an dieselben Spalten.
+    Ein:  klassifikation.parquet, baselines_klasse.csv
+    Aus:  Textabschnitt mit Kruskal-Wallis je Merkmal und den Baseline-Werten
 
-    Geprueft wird per Kruskal-Wallis je Merkmal ueber die vier Klassen:
-    nichtparametrisch, vertraegt ungleich grosse Gruppen. Trennt kein Merkmal,
-    ist die Zielgroesse mit diesen Praediktoren nicht vorhersagbar - und zwar
-    fuer JEDES Verfahren.
-
-    Danach werden die beiden Baseline-Stufen aus v1_baselines.py berichtet, um
-    das Signal ins Verhaeltnis zu setzen: Wie viel davon schoepft ein lineares
-    Modell aus? OB flexiblere Verfahren mehr herausholen, beantwortet m03 - mit
-    getunten Modellen ueber alle Wiederholungen und nicht mit einer Vorschau.
+    - eigene Frage: Kruemmung bei der ANZAHL sagt nichts darueber, ob dieselben
+      Merkmale die ART trennen
+    - Kruskal-Wallis ist nichtparametrisch und vertraegt ungleich grosse Gruppen
+    - trennt kein Merkmal, ist die Zielgroesse fuer JEDES Verfahren nicht
+      vorhersagbar
+    - die Baseline-Stufen werden nur gelesen, um das Signal einzuordnen; ob
+      flexiblere Verfahren mehr herausholen, beantwortet m03
     """
     from scipy.stats import kruskal
 
@@ -384,16 +361,9 @@ def klassifikation(kl: pd.DataFrame) -> None:
                          f"erst 'python vorpruefung/v1_baselines.py' ausfuehren.")
     basis = pd.read_csv(pfad)
 
-    # DIE SPALTE "je Fold" ZEIGT NUR WIEDERHOLUNG 0 - nachgezogen 10.08.2026.
-    # `v1_baselines.py` liefert seit dem 05.08. 50 Laeufe statt 5 (10
-    # Wiederholungen x 5 Folds), damit m03 gepaart testen kann. Diese Tabelle
-    # hat weiterhin alle Zeilen aufgereiht: eine Zelle mit 50 durch Punkte
-    # getrennten Werten, unlesbar und als "je Fold" auch falsch beschriftet.
-    #
-    # Der MITTELWERT bleibt bewusst ueber ALLE Laeufe gebildet - das ist der
-    # Wert, der in 03_STAND.md steht und gegen den m03 antritt. Gezeigt werden
-    # die fuenf Folds der Wiederholung 0, weil sie die Aufteilung aus der Datei
-    # sind (v0_aufteilung) und damit die nachvollziehbare.
+    # Die Spalte "je Fold" zeigt nur Wiederholung 0 - die Aufteilung aus der
+    # Datei und damit die nachvollziehbare. Der MITTELWERT bleibt ueber alle
+    # 50 Laeufe gebildet; das ist der Wert, gegen den m03 antritt.
     log("\nWie viel von diesem Signal schoepft ein lineares Modell aus?\n")
     log("| Stufe | Verfahren | Macro-F1 je Fold (Wiederholung 0) | Mittel (alle Laeufe) |")
     log("|---|---|---|---|")
@@ -423,16 +393,23 @@ def klassifikation(kl: pd.DataFrame) -> None:
 
 # ---------------------------------------------------------------------------
 def _z(wert: float, stellen: int = 1) -> str:
-    """Teststatistik mit deutschem Dezimalkomma - wie die p-Spalte daneben."""
+    """Teststatistik mit deutschem Dezimalkomma.
+
+    Ein:  Zahl, Nachkommastellen
+    Aus:  Zeichenkette
+    """
     return f"{wert:.{stellen}f}".replace(".", ",")
 
 
 def _p(wert: float) -> str:
-    """p-Wert deutsch. Unter 0,001 wird nicht mehr beziffert, sondern begrenzt.
+    """p-Wert deutsch; unter 0,001 wird begrenzt statt beziffert.
 
-    Grund: `4.0e-47` ist keine Information, die jemand liest - die Aussage ist
-    "praktisch null". Bei n = 3.036 findet ein Test ohnehin fast jede
-    Abweichung; die Effektgroesse traegt, nicht die Nachkommastelle.
+    Ein:  p-Wert
+    Aus:  Zeichenkette, ggf. "< 0,001"
+
+    - "4.0e-47" ist keine lesbare Information; die Aussage lautet "praktisch null"
+    - bei n = 3.036 findet ein Test fast jede Abweichung; die Effektgroesse
+      traegt, nicht die Nachkommastelle
     """
     if wert != wert:                      # NaN
         return "–"
@@ -442,44 +419,24 @@ def _p(wert: float) -> str:
 
 
 def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
-    """Beleg 6: Was verlangt jedes Verfahren - und haelt der Datensatz das?
+    """Beleg 6: Anforderungen je Verfahren mit formalen Tests.
 
-    AUFLAGE SCHROETER, 10.08.2026. Verlangt sind drei Dinge: die Anforderungen
-    JE VERFAHREN dargestellt, formale Tests statt Augenmass, und beides in
-    einer Tabelle mit Teststatistik und p-Wert.
+    Ein:  Trainingszeilen von Fold 1, Klassifikationspanel
+    Aus:  Textabschnitt, annahmen.csv, qq_residuen.csv
 
-    DREI SORTEN VON ZEILEN, und die dritte ist die wichtigste:
-
-      erfuellt            die Anforderung besteht und ist eingehalten
-      verletzt            sie besteht und ist verletzt - dann steht in der
-                          Spalte "Konsequenz", was daraus folgt
-      nicht erforderlich  das Verfahren stellt diese Anforderung gar nicht
-
-    Die dritte Sorte wegzulassen waere der Fehler. Dass Random Forest keine
-    Verteilungsannahme hat, ist eine AUSSAGE ueber das Verfahren - und sie ist
-    der halbe Grund, warum es im Vergleich steht. Eine Tabelle, die nur
-    verletzte Annahmen zeigt, laesst die Baumverfahren voraussetzungslos
-    aussehen; eine, die sie ganz weglaesst, beantwortet die Auflage nicht.
-
-    DREI NEUE TESTS, die es vorher nicht gab:
-
-      Cameron & Trivedi (1990)  Hilfsregression auf Ueberdispersion. Der
-                                Dispersionsindex aus Abschnitt 1 ist eine
-                                Kennzahl, kein Test - hier steht der t-Wert.
-      Breusch-Pagan             Varianzgleichheit der Residuen. Woertlich in
-                                der Auflage genannt.
-      Jarque-Bera               Normalitaet der Residuen, dazu Schiefe und
-                                Woelbung. Die zugehoerige Abbildung ist A10;
-                                die Rohdaten dafuer schreibt diese Funktion
-                                nach `qq_residuen.csv`, gezeichnet wird in
-                                m05 - dieses Skript erzeugt Befunde, keine
-                                druckfertigen Abbildungen.
-
-    WAS HIER NICHT STEHT: die Multikollinearitaet. Der VIF wird in
-    `m04_shap._vif()` gerechnet, weil seine einzige echte Konsequenz die
-    Interpretation der Beitraege betrifft. Ihn hier zu wiederholen hiesse,
-    dieselbe Zahl an zwei Orten zu fuehren - genau die Fehlerquelle, die
-    `tools/pruefe_zahlen.py` bewacht.
+    - Auflage Schroeter vom 10.08.2026: Anforderungen je Verfahren, formale Tests
+      statt Augenmass, Tabelle mit Teststatistik und p-Wert
+    - drei Sorten von Zeilen: erfuellt, verletzt (mit Spalte "Konsequenz") und
+      NICHT ERFORDERLICH
+    - die dritte Sorte ist die wichtigste: Dass Baumverfahren keine
+      Verteilungsannahme haben, ist eine Aussage ueber das Verfahren
+    - drei Tests kommen hier neu hinzu: Cameron & Trivedi (1990) auf
+      Ueberdispersion, Breusch-Pagan auf Varianzgleichheit, Jarque-Bera auf
+      Normalitaet samt Schiefe und Woelbung
+    - die Rohdaten fuer Abbildung A10 gehen nach qq_residuen.csv; gezeichnet wird
+      in m05
+    - der VIF steht bewusst nicht hier, sondern in m04_shap._vif(): dieselbe Zahl
+      an zwei Orten ist die Fehlerquelle, die tools/pruefe_zahlen.py bewacht
     """
     import statsmodels.api as sm
     from scipy import stats
@@ -492,10 +449,9 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
     y = train[ZIELGROESSE].astype(float).to_numpy()
 
     # --- Ueberdispersion, formal (Cameron & Trivedi 1990) -----------------
-    # Hilfsregression: z = ((y - mu)^2 - y) / mu auf mu, ohne Konstante. Der
-    # Koeffizient ist der Dispersionsparameter alpha der NB2-Form, H0 lautet
-    # alpha = 0 (Equidispersion). Einseitig, weil Unterdispersion hier keine
-    # sinnvolle Gegenhypothese waere.
+    # Hilfsregression z = ((y - mu)^2 - y) / mu auf mu, ohne Konstante. Der
+    # Koeffizient ist alpha der NB2-Form, H0: alpha = 0. Einseitig, weil
+    # Unterdispersion keine sinnvolle Gegenhypothese waere.
     poisson = sm.GLM(y, X, family=sm.families.Poisson(),
                      offset=np.log(train[EXPOSURE_ROH].astype(float))).fit()
     mu = np.asarray(poisson.fittedvalues, float)
@@ -505,8 +461,8 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
 
     # --- Streuung und Verteilung der Residuen -----------------------------
     # Geprueft wird das lineare Modell, fuer das Ridge steht: OLS auf log(1+y)
-    # mit denselben zwoelf Merkmalen. Ridge selbst hat denselben Erwartungswert
-    # und unterscheidet sich nur durch den Strafterm.
+    # mit denselben zwoelf Merkmalen - gleicher Erwartungswert, nur ohne
+    # Strafterm.
     diagnose, qq = {}, []
     for ziel in (ZIELGROESSE, RATE):
         ols = sm.OLS(np.log1p(train[ziel].astype(float)), X).fit()
@@ -527,13 +483,15 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
 
     def Z(verfahren, anforderung, pruefung, statistik, p, status, konsequenz,
           wert=float("nan")):
-        """Eine Zeile der Anforderungstabelle.
+        """Baut eine Zeile der Anforderungstabelle.
 
-        `statistik` ist die LESBARE Fassung mit Dezimalkomma, `wert` dieselbe
-        Zahl maschinenlesbar. Beides, weil `tools/pruefe_zahlen.py` den Sollwert
-        aus dieser Datei zieht und "t = 17,2" dafuer erst geparst werden
-        muesste - eine Zeichenkette, die man parst, ist eine Zeichenkette, die
-        sich beim naechsten Formatwechsel anders parst.
+        Ein:  Verfahren, Anforderung, Status, Test, Statistik, p-Wert, Konsequenz
+        Aus:  dict fuer den Tabellenaufbau
+
+        - `statistik` ist die lesbare Fassung mit Dezimalkomma, `wert` dieselbe Zahl
+          maschinenlesbar
+        - beides, weil tools/pruefe_zahlen.py den Sollwert aus dieser Datei zieht und
+          eine geparste Zeichenkette beim naechsten Formatwechsel anders parst
         """
         return {"verfahren": verfahren, "anforderung": anforderung,
                 "pruefung": pruefung, "statistik": statistik,
@@ -650,6 +608,17 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
 
 # ---------------------------------------------------------------------------
 def main() -> None:
+    """Rechnet die sechs Belege und schreibt Bericht, Tabellen und Abbildungen.
+
+    Ein:  beide Parquet-Dateien, baselines_klasse.csv
+    Aus:  eignungspruefung.md, annahmen.csv, qq_residuen.csv, 2 Abbildungen
+
+    - Schritt 2 von vorpruefung/run.py
+    - Grundlage sind die Trainingsstadtteile von Fold 1; die Teststadtteile
+      duerfen keine Modellentscheidung beeinflussen
+    - Abschnitt 6 uebernimmt die Kennzahlen aus 1, 3 und 4, statt sie neu zu
+      rechnen
+    """
     if not PFAD_REGRESSION.exists():
         raise SystemExit(f"{PFAD_REGRESSION.relative_to(ROOT)} fehlt - "
                          f"erst 'python prep/build.py' ausfuehren.")
@@ -665,9 +634,8 @@ def main() -> None:
         f"{train['stadtteil'].nunique()} Trainingsstadtteilen von Fold 1 "
         f"({len(train):,} Zeilen); die Teststadtteile bleiben unberuehrt.")
 
-    # Die Abschnitte 1, 3 und 4 geben ihre Kennzahlen zurueck, damit
-    # Abschnitt 6 sie nicht ein zweites Mal rechnen muss. Zweimal gerechnet
-    # hiesse zwei Zahlen, die auseinanderlaufen koennen.
+    # Abschnitt 6 uebernimmt die Kennzahlen aus 1, 3 und 4 - zweimal
+    # gerechnet hiesse zwei Zahlen, die auseinanderlaufen koennen.
     befunde = {"dispersion": dispersion(train)}
     linearitaet(train)
     befunde["reset"] = spezifikation(train)

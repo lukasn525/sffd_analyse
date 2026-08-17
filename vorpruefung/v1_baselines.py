@@ -1,48 +1,29 @@
 """
 Stufe 1 und 2: die Messlatte.
 
-Eine Baseline ist eine bewusst einfache Regel, die dieselbe Aufgabe loest und
-dieselben Daten sieht. Sie legt fest, was die Vergleichsverfahren mindestens
-schlagen muessen. Es gibt zwei Stufen:
+    python vorpruefung/v1_baselines.py
 
-  STUFE 1  Triviale Referenz - benutzt KEIN einziges Merkmal.
-           Regression:    Gesamtmittelwert der Trainingsstadtteile
-           Klassifikation: immer die haeufigste Klasse
-           Beantwortet: Steckt in den Merkmalen ueberhaupt Information?
+Eingang: data/processed/{regression,klassifikation}.parquet
+Ausgang: results/regression/baselines_{folds,mittel}.csv
+         results/klassifikation/baselines_klasse.csv
 
-  STUFE 2  Einfachste Referenz, die zur DATENFORM passt - benutzt alle Merkmale,
-           aber in der simpelsten Form.
-           Regression:    Poisson-GLM mit Offset (Zaehldaten mit Exposition)
-           Klassifikation: multinomiale logistische Regression (nominale Klassen)
-           Beide: kanonischer Link, unpenalisierte Maximum-Likelihood, KEIN
-           freier Hyperparameter - deshalb kein Tuning (Decision Log #45).
-           Beantwortet: Wie weit kommt man mit der einfachen Form?
+  - STUFE 1, triviale Referenz ohne ein einziges Merkmal: Gesamtmittelwert
+    der Trainingsstadtteile (Regression) bzw. immer die haeufigste Klasse
+    (Klassifikation). Beantwortet, ob in den Merkmalen ueberhaupt
+    Information steckt
+  - STUFE 2, einfachste Form, die zur DATENFORM passt: Poisson-GLM mit
+    Offset fuer Zaehldaten mit Exposition, multinomiales Logit fuer nominale
+    Klassen. Beide mit kanonischem Link, unpenalisiert und ohne freien
+    Hyperparameter - deshalb ohne Tuning (#45)
+  - Die Vergleichsverfahren in modelle/ muessen STUFE 2 schlagen, nicht die
+    triviale Referenz (#33)
+  - Gerechnet wird ueber alle 10 Wiederholungen x 5 Folds. Der gepaarte Test
+    (#34) braucht je Lauf einen Gegenwert auf DENSELBEN Testzeilen; die
+    Baseline ist damit Mitbewerber unter identischem Protokoll (Auflage C),
+    nicht bloss ein Referenzwert
+  - Derselbe Stadtteil-Split wie die Modelle, das Hold-out bleibt unberuehrt
 
-Stufe 3 sind die Vergleichsverfahren in modelle/. Ihre Aufgabe ist zu zeigen,
-dass sie Stufe 2 schlagen - sonst hat sich der Mehraufwand nicht gelohnt.
-
-Alle Baselines laufen ueber denselben STADTTEIL-SPLIT wie die Modelle: Der
-Teststadtteil ist unbekannt. Das Hold-out bleibt unberuehrt.
-
-WARUM UEBER ALLE 10 WIEDERHOLUNGEN (Ergaenzung 05.08.2026)
---------------------------------------------------------------------------
-Bis dahin lief hier nur die Aufteilung, die als `fold`-Spalte in den Dateien
-steht - also fuenf Laeufe. Die Vergleichsverfahren erzeugen 50. Die
-Primaeraussage nach Decision Log #34 ist aber ein GEPAARTER Test „Verfahren
-gegen Stufe 2", und der braucht je Lauf einen Gegenwert auf DENSELBEN
-Testzeilen. Fuer 45 der 50 Laeufe gab es keinen.
-
-Die Baseline ist damit kein Referenzwert, sondern ein Mitbewerber unter
-identischem Protokoll - so verlangt es auch Schroeters Auflage C („fuer alle
-Vergleichsmodelle identische Merkmale und Splits"). Der Aufwand faellt nicht
-ins Gewicht: 50 GLM-Anpassungen kosten zusammen wenige Sekunden.
-
-Eingang:  data/processed/{regression,klassifikation}.parquet
-Ausgang:  results/regression/baselines_{folds,mittel}.csv
-          results/klassifikation/baselines_klasse.csv
-
-Ausfuehren:
-  python vorpruefung/v1_baselines.py
+Ausfuehrliche Fassung: docs/08_FUNKTIONSDOKUMENTATION.md
 """
 import sys
 import warnings
@@ -76,7 +57,11 @@ LOGREG         = "Multinomiale logistische Regression"
 
 
 def bewerte_regression(y_true, y_pred) -> dict:
-    """RMSE, MAE, R2 - immer auf der ORIGINALSKALA der Zielgroesse."""
+    """RMSE, MAE und R2 auf der Originalskala der Zielgroesse.
+
+    Ein:  wahre und vorhergesagte Werte
+    Aus:  dict mit rmse, mae, r2
+    """
     from sklearn.metrics import (mean_absolute_error, mean_squared_error,
                                  r2_score)
     y_true, y_pred = np.asarray(y_true, float), np.asarray(y_pred, float)
@@ -88,37 +73,22 @@ def bewerte_regression(y_true, y_pred) -> dict:
 # ---------------------------------------------------------------------------
 def poisson_glm(train: pd.DataFrame, test: pd.DataFrame,
                 merkmale: list[str] | None = None) -> np.ndarray:
-    """Stufe 2 der Regression: vorhergesagte Einsatzzahlen.
+    """Stufe 2 der Regression: Poisson-GLM mit Offset.
 
-    `merkmale` ist der Merkmalssatz; ohne Angabe der volle. Der Parameter
-    existiert allein fuer die Faktorgruppen-Ablation in `m04_shap.py`, die
-    dasselbe Modell mit einer weggelassenen Gruppe anpasst. Ohne ihn muesste
-    die Ablation die Spezifikation nachbauen - und dann gaebe es sie zweimal.
-    Der Offset bleibt in jeder Variante bestehen: Er ist keine Merkmalsspalte.
+    Ein:  Trainings- und Testrahmen, optional ein reduzierter Merkmalssatz
+    Aus:  Vorhersagen auf der Originalskala, eine Zahl je Stadtteil-Monat
 
-    Poisson-GLM mit kanonischem log-Link, per unpenalisierter
-    Maximum-Likelihood angepasst. `log(Bevoelkerung)` geht als OFFSET ein, also
-    mit fest auf 1 gesetztem Koeffizienten: Das Modell schaetzt Einsaetze JE
-    EINWOHNER und multipliziert am Ende hoch - sonst sagt es vor allem die
-    Stadtteilgroesse vorher (#13). Kein freier Hyperparameter, also kein Tuning.
-
-    WARUM POISSON UND NICHT NEGATIVE BINOMIAL (Decision Log #45). Die Zaehldaten
-    sind ueberdispers (Dispersionsindex 62,8), die Poisson-Varianzannahme
-    Var = mu ist also verletzt. Das ist folgenlos fuer den Zweck dieser
-    Baseline: Der Poisson-Schaetzer bleibt konsistent, solange der BEDINGTE
-    MITTELWERT richtig spezifiziert ist, unabhaengig von der Varianzstruktur
-    (Gourieroux, Monfort & Trognon 1984, "Pseudo Maximum Likelihood Methods",
-    Econometrica 52, 701-720). Was die Ueberdispersion beschaedigt, sind die
-    STANDARDFEHLER - und die werden hier nicht verwendet, weil die Baseline
-    ausschliesslich Punktvorhersagen liefert. Keine Koeffiziententests, keine
-    Konfidenzintervalle.
-
-    Die Negative Binomial waere die Erweiterung fuer korrekte Inferenz. Sie
-    loest ein Problem, das wir nicht haben, und ist damit nicht mehr "die
-    einfachste Form, die zur Datenform passt".
-
-    Die Rate entsteht aus DERSELBEN Anpassung, geteilt durch die Bevoelkerung -
-    ein zweites Modell waere eine zweite Spezifikation.
+    - kanonischer log-Link, unpenalisierte Maximum-Likelihood
+    - log(Bevoelkerung) als OFFSET, Koeffizient fest auf 1: geschaetzt wird die
+      Rate, hochgerechnet wird am Ende (#13)
+    - kein freier Hyperparameter, deshalb kein Tuning
+    - `merkmale` existiert allein fuer die Faktorgruppen-Ablation in m04_shap;
+      der Offset bleibt in jeder Variante bestehen, er ist keine Merkmalsspalte
+    - Poisson statt Negative Binomial (#45): Die Ueberdispersion (Index 62,8)
+      beschaedigt die Standardfehler, nicht die Konsistenz des bedingten
+      Mittelwerts (Gourieroux, Monfort & Trognon 1984). Diese Baseline liefert
+      nur Punktvorhersagen und ist davon nicht betroffen
+    - die Rate stammt aus derselben Anpassung, geteilt durch die Bevoelkerung
     """
     import statsmodels.api as sm
 
@@ -135,36 +105,20 @@ def poisson_glm(train: pd.DataFrame, test: pd.DataFrame,
 
 
 def logit_glm(train: pd.DataFrame, merkmale: list[str] | None = None):
-    """Stufe 2 der Klassifikation: das angepasste multinomiale Logit.
+    """Stufe 2 der Klassifikation: multinomiales Logit.
 
-    `merkmale` wie bei `poisson_glm()`: ohne Angabe der volle Satz, sonst der
-    reduzierte fuer die Faktorgruppen-Ablation.
+    Ein:  Trainingsrahmen, optional ein reduzierter Merkmalssatz
+    Aus:  das angepasste Modell, nicht die Vorhersage
 
-    DIE EINZIGE STELLE, AN DER DIESES MODELL SPEZIFIZIERT IST (10.08.2026).
-    Bis dahin baute `m03_struktur.hold_out()` es ein zweites Mal nach -
-    dieselben vier Argumente, an zwei Orten aufgeschrieben. Aendert jemand
-    eines davon, misst die Kreuzvalidierung still gegen ein anderes Modell als
-    die Schlussbewertung, und keine Pruefung schlaegt an: `pruefe_zahlen.py`
-    vergleicht Dokumentation gegen `results/`, nicht Code gegen Code.
-
-    Der Mengenstrang war immer richtig gebaut - `m02_menge.hold_out()`
-    importiert `poisson_glm` aus dieser Datei. Der Fehler war die Asymmetrie:
-    derselbe Gedanke, einmal umgesetzt und einmal nicht.
-
-    Linear in den Log-Odds, unpenalisiert (C = inf; `penalty=None` ist seit
-    scikit-learn 1.8 veraltet, die Schaetzung ist bitgleich). Kein freier
-    Hyperparameter, also kein Tuning (#45). `class_weight="balanced"` statt
-    Resampling - kein SMOTE, keine duplizierte oder geloeschte Zeile.
-
-    RUECKGABE IST DAS MODELL, nicht die Vorhersage - anders als bei
-    `poisson_glm`. Beide Aufrufer brauchen aus DERSELBEN Anpassung drei Dinge:
-    Klassenvorhersage, Wahrscheinlichkeiten und die Klassenreihenfolge des
-    Modells. Ein zweites Fitten dafuer waere Verschwendung.
-
-    KONVERGENZWARNUNGEN werden hier bewusst NICHT abgefangen. Sie gehoeren dem
-    Aufrufer: `klassifikation()` zaehlt sie und berichtet sie
-    (docs/04_MODELLIERUNG.md, Sonderfaelle). Wuerde diese Funktion sie
-    schlucken, waere die Zahl still null.
+    - linear in den Log-Odds, unpenalisiert (C = inf), kein Tuning (#45)
+    - class_weight="balanced" statt Resampling: kein SMOTE, keine duplizierte
+      oder geloeschte Zeile
+    - Rueckgabe ist das Modell, weil beide Aufrufer aus derselben Anpassung
+      Klassenvorhersage, Wahrscheinlichkeiten und Klassenreihenfolge brauchen
+    - Konvergenzwarnungen werden nicht abgefangen; der Aufrufer zaehlt sie
+    - einzige Stelle, an der dieses Modell spezifiziert ist (seit 10.08.2026).
+      Zuvor baute m03_struktur.hold_out() es ein zweites Mal nach; eine Aenderung
+      an einem der beiden Orte blieb unbemerkt
     """
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import make_pipeline
@@ -180,12 +134,13 @@ def logit_glm(train: pd.DataFrame, merkmale: list[str] | None = None):
 def regression(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     """Beide Mengen-Zielgroessen, Stufe 1 und 2, je Wiederholung und Fold.
 
-    Die Rate ergibt sich aus derselben Poisson-Vorhersage geteilt durch die
-    Bevoelkerung - ein zweites Modell waere eine zweite Spezifikation und damit
-    unfair gegenueber den Vergleichsverfahren.
+    Ein:  regression.parquet, `selten` fuer die Stratifizierung
+    Aus:  Datenrahmen mit 200 Zeilen (50 Laeufe x 2 Zielgroessen x 2 Modelle)
 
-    50 Laeufe (10 Wiederholungen x 5 Folds) x 2 Zielgroessen x 2 Modelle
-    (Nullmarke, Poisson-GLM) = 200 Zeilen.
+    - Stufe 1: Gesamtmittelwert der Trainingsstadtteile
+    - Stufe 2: poisson_glm()
+    - die Rate entsteht aus derselben Poisson-Vorhersage geteilt durch die
+      Bevoelkerung; ein eigenes Ratenmodell waere eine zweite Spezifikation
     """
     OUT.mkdir(parents=True, exist_ok=True)
     zeilen = []
@@ -218,22 +173,18 @@ def regression(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
 
 def _zweistufig(df: pd.DataFrame, schluessel: list[str],
                 masse: list[str]) -> pd.DataFrame:
-    """Zweistufige Aggregation ueber alle Laeufe des Durchgangs.
+    """Zweistufige Aggregation ueber die Laeufe eines Durchgangs.
 
-    ZWEISTUFIG heisst: erst je Wiederholung ueber die 5 Folds mitteln, dann die
-    Streuung DIESER Werte berichten.
+    Ein:  Datenrahmen der Einzellaeufe (Wiederholung x Fold)
+    Aus:  je Modell und Zielgroesse eine Zeile mit Mittel und beiden Streuungen
 
-      `std_folds`            ueber alle 50 Einzellaeufe. Zu optimistisch, weil
-                             die Laeufe nicht unabhaengig sind - es sind
-                             dieselben 29 Stadtteile in zehn Gruppierungen.
-      `std_wiederholungen`   ueber die 10 Wiederholungsmittel. MASSGEBLICH
-                             (docs/06_RISIKEN.md, R-5).
-
-    Eine Datei beschreibt genau einen Durchgang. Frueher fuehrte sie zusaetzlich
-    Zeilen fuer Wiederholung 0 allein - das war historischer Ballast und vor
-    allem eine Falle: Wer den Filter vergisst, bekommt stillschweigend die
-    falsche Baseline. Wer diese Werte braucht, filtert `baselines_folds.csv`
-    auf `wiederholung == 0`; dort steht jeder Einzellauf.
+    - Stufe 1: je Wiederholung ueber die 5 Folds mitteln
+    - Stufe 2: Streuung dieser 10 Werte berichten -> `std_wiederholungen`
+    - `std_folds` ueber alle 50 Laeufe ist zu optimistisch: dieselben 29
+      Stadtteile in zehn Gruppierungen (R-5)
+    - beide Spalten wandern mit, damit der Unterschied sichtbar bleibt
+    - eine Datei beschreibt genau einen Durchgang; Einzellaeufe stehen in
+      baselines_folds.csv
     """
     g = df.groupby(schluessel, sort=False)
     z = g[masse].mean().add_suffix("_mean")
@@ -250,27 +201,16 @@ def _zweistufig(df: pd.DataFrame, schluessel: list[str],
 def klassifikation(kl: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     """Beide Stufen der Klassifikation, je Wiederholung und Fold.
 
-    STUFE 1, Mehrheitsklasse: sagt immer die im Training haeufigste Einsatzart
-    vorher. Accuracy faellt hoch aus, Macro-F1 niedrig - genau deshalb ist
-    Macro-F1 das massgebliche Guetemass.
+    Ein:  klassifikation.parquet, `selten` fuer die Stratifizierung
+    Aus:  Datenrahmen der Einzellaeufe, Zahl der Konvergenzwarnungen
 
-    STUFE 2, multinomiale logistische Regression: das Gegenstueck zum
-    Poisson-GLM - dieselbe Modellklasse, derselbe kanonische Link, derselbe
-    Verzicht auf einen Strafterm. Sie ist die einfachste Form, die zu einer
-    nominalen Zielgroesse passt. RF und XGBoost muessen SIE schlagen, nicht
-    die Mehrheitsklasse (Decision Log #33). Spezifiziert ist sie in
-    `logit_glm()` - an genau einer Stelle, siehe dort.
-
-    Zwei Ergaenzungen vom 05.08.2026, beide additiv:
-      - Schleife ueber die 10 Wiederholungen, damit m03 gepaart testen kann
-      - Macro-AUROC wird fuer Stufe 2 mitgerechnet. Ohne sie gaebe es fuer das
-        zweite Guetemass der Klassifikation keine Messlatte. Fuer die
-        Mehrheitsklasse ist sie nicht definiert (eine konstante Vorhersage hat
-        keine Rangfolge) und bleibt leer - NICHT 0,5, das waere eine erfundene
-        Zahl.
-
-    Konvergenzwarnungen werden GEZAEHLT und zurueckgegeben, nicht unterdrueckt
-    (docs/04_MODELLIERUNG.md, Sonderfaelle).
+    - Stufe 1: haeufigste Klasse des Trainings. Accuracy hoch, Macro-F1 niedrig -
+      deshalb ist Macro-F1 das massgebliche Guetemass
+    - Stufe 2: logit_glm(). Anderes Modell als das Poisson-GLM des Mengenstrangs;
+      RF und XGBoost muessen SIE schlagen (#33)
+    - Macro-AUROC nur fuer Stufe 2. Fuer die Mehrheitsklasse nicht definiert -
+      eine konstante Vorhersage hat keine Rangfolge - und bleibt leer statt 0,5
+    - Konvergenzwarnungen werden gezaehlt und zurueckgegeben, nicht unterdrueckt
     """
     from sklearn.exceptions import ConvergenceWarning
     from sklearn.metrics import accuracy_score, f1_score
@@ -318,12 +258,14 @@ def klassifikation(kl: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
 
 def _macro_auroc(y_true, proba: np.ndarray, klassen_modell: list,
                  klassen_alle: list) -> float:
-    """Macro-AUROC (One-vs-Rest), oder NaN wenn im Testfold eine Klasse fehlt.
+    """Macro-AUROC (One-vs-Rest), NaN wenn im Testfold eine Klasse fehlt.
 
-    NICHT durch 0,5 oder 0 ersetzen: Ein erfundener Wert zoege den Mittelwert
-    nach unten und saehe wie ein Messergebnis aus (docs/04_MODELLIERUNG.md,
-    Sonderfaelle). Durch die doppelte Stratifizierung (#30) sollte der Fall
-    nicht eintreten - wenn doch, muss er sichtbar bleiben.
+    Ein:  wahre Klassen, Wahrscheinlichkeitsmatrix, Klassenreihenfolge des Modells
+    Aus:  Zahl oder NaN
+
+    - kein Ersatzwert 0,5 oder 0: ein erfundener Wert zieht den Mittelwert nach
+      unten und sieht wie ein Messergebnis aus
+    - durch die doppelte Stratifizierung (#30) sollte der Fall nicht eintreten
     """
     from sklearn.metrics import roc_auc_score
 
@@ -338,6 +280,16 @@ def _macro_auroc(y_true, proba: np.ndarray, klassen_modell: list,
 
 # ---------------------------------------------------------------------------
 def run() -> None:
+    """Fuehrt beide Straenge aus und schreibt die drei Ergebnisdateien.
+
+    Ein:  beide Parquet-Dateien
+    Aus:  baselines_folds.csv, baselines_mittel.csv, baselines_klasse.csv
+
+    - Schritt 1 von vorpruefung/run.py
+    - das Stratifizierungsmass wird auch fuer die Regression aus der
+      Klassifikation gelesen (siehe v0_aufteilung)
+    - Konvergenzwarnungen werden am Ende zusammengefasst ausgegeben
+    """
     for pfad in (PFAD_REGRESSION, PFAD_KLASSIFIKATION):
         if not pfad.exists():
             raise SystemExit(f"{pfad.relative_to(ROOT)} fehlt - "

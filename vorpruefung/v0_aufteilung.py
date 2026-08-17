@@ -1,63 +1,28 @@
 """
-Wiederholte Splits - die eine Stelle, an der die Fold-Zuteilung je Wiederholung
-entsteht.
+Wiederholte Splits - die eine Stelle, an der die Fold-Zuteilung entsteht.
 
-WOZU DIESE DATEI UEBERHAUPT EXISTIERT
---------------------------------------------------------------------------
-Die Grundaufteilung steht als Spalten `fold` und `ist_holdout` in beiden
-Parquet-Dateien; erzeugt hat sie `prep/s2_datensaetze.ergaenze_aufteilung()`.
-Fuer die WIEDERHOLTEN Splits (docs/04_MODELLIERUNG.md, Abschnitt 2) reicht sie
-nicht aus. Zwei nachgewiesene Gruende, beide am 05.08.2026 am Datensatz
-gemessen (docs/07_BEFUNDE.md, B-1 und B-2):
+    python vorpruefung/v0_aufteilung.py    Selbsttest
 
-  1  Der `versatz` verteilt die Stadtteile reihum auf N_FOLDS + 1 = 6 Gruppen.
-     Wer i den Platz i belegt, landet in Gruppe (i + versatz) % 6. Zwei
-     Stadtteile liegen also genau dann in derselben Gruppe, wenn ihre Plaetze
-     modulo 6 uebereinstimmen - UNABHAENGIG vom Versatz. Der Versatz rotiert
-     damit nur die Beschriftung der Gruppen, nicht ihre Zusammensetzung. Ueber
-     versatz 0..9 entstehen 6 verschiedene Konstellationen, davon 4 Dubletten.
+Eingang: data/processed/{regression,klassifikation}.parquet mit den Spalten
+         fold und ist_holdout aus prep/s2_datensaetze.ergaenze_aufteilung()
+Ausgang: keine Datei - liefert Datenrahmen an v1_baselines.py, m02_menge.py
+         und m03_struktur.py
 
-  2  Rotiert die Beschriftung, rotiert auch Gruppe 0 - und Gruppe 0 IST das
-     Hold-out. Gemessen: bei versatz = 1 liegt kein einziger der sechs
-     urspruenglichen Hold-out-Stadtteile mehr im Hold-out. Die Wiederholungen
-     1 bis 9 wuerden auf genau den Stadtteilen trainieren und testen, die bis
-     zur Schlussbewertung unberuehrt bleiben muessen.
+  - Die Grundaufteilung aus der Datei reicht fuer die 10 Wiederholungen
+    nicht: ein Versatz rotiert nur die Beschriftung der Gruppen, nicht ihre
+    Zusammensetzung - und rotiert dabei das Hold-out mit (B-1, B-2)
+  - Gemischt wird deshalb INNERHALB der Rangbloecke. Jeder Fold behaelt
+    genau einen Stadtteil je Block, die Foldgroessen bleiben 6/6/6/6/5,
+    aber die Zusammensetzung aendert sich wirklich
+  - Drei Zusagen: das Hold-out bleibt fest, die doppelte Stratifizierung
+    (#30) bleibt erhalten, und Wiederholung 0 reproduziert die fold-Spalte
+    der Datei bitgenau - per assert geprueft, nicht behauptet
+  - Kein Leakage: gemischt wird ausschliesslich, WELCHE Stadtteile
+    gemeinsam getestet werden. Kein Modell sieht dadurch eine Zeile mehr
+  - Alle drei Aufrufer muessen dieselbe Zuteilung sehen, sonst vergleicht
+    der gepaarte Wilcoxon-Test still auf verschiedenen Zeilen
 
-Deshalb hier eine eigene Funktion mit drei Zusagen:
-
-  Das Hold-out bleibt FEST      die sechs Stadtteile mit ist_holdout == 1 aus
-                                der Datei, in jeder Wiederholung dieselben
-  Die Stratifizierung bleibt    sortiert nach brand-dominierten Monaten, bei
-                                Gleichstand nach Bevoelkerung (Decision Log #30)
-  Wiederholung 0 = die Datei    bitgenau dieselbe fold-Spalte; das wird bei
-                                jedem Aufruf per assert nachgeprueft
-
-WIE DIE WIEDERHOLUNGEN ENTSTEHEN
---------------------------------------------------------------------------
-Die 29 Entwicklungsstadtteile werden wie bisher nach (selten, bev) absteigend
-sortiert und reihum ausgeteilt. Neu ist nur, dass vor dem Austeilen INNERHALB
-der Rangbloecke gemischt wird - Block 0 sind die Plaetze 0-4, Block 1 die
-Plaetze 5-9 und so fort:
-
-    Rangblock 0   [Bayview, Bernal, Portola, Seacliff, Twin Peaks]
-    Rangblock 1   [...]                        -> jeder Block liefert genau
-    ...                                           EINEN Stadtteil je Fold
-
-Damit bekommt jeder Fold weiterhin genau einen Stadtteil aus jedem Rangblock -
-die doppelte Stratifizierung ueberlebt das Mischen unveraendert, und die
-Foldgroessen bleiben 6/6/6/6/5. Anders als beim Versatz aendert sich aber die
-ZUSAMMENSETZUNG der Folds, nicht nur ihre Nummer. Genau das brauchen die
-wiederholten Splits.
-
-Kein Leakage: Gemischt wird ausschliesslich die Frage, welche Stadtteile
-gemeinsam getestet werden. Kein Modell sieht dadurch eine Zeile mehr.
-
-Benutzt von `vorpruefung/v1_baselines.py`, `modelle/m02_menge.py` und
-`modelle/m03_struktur.py` - alle drei muessen dieselbe Zuteilung sehen, sonst
-vergleicht der gepaarte Wilcoxon-Test still auf verschiedenen Zeilen.
-
-Selbsttest:
-  python vorpruefung/v0_aufteilung.py
+Ausfuehrliche Fassung: docs/08_FUNKTIONSDOKUMENTATION.md
 """
 from __future__ import annotations
 
@@ -82,17 +47,16 @@ SELTENE_KLASSE = "brand"
 
 
 def selten_je_stadtteil(klassifikation: pd.DataFrame) -> pd.Series:
-    """Zahl der brand-dominierten Monate je Stadtteil - das Stratifizierungsmass.
+    """Zahl der brand-dominierten Monate je Stadtteil.
 
-    Wortgleich zu dem, was `prep/s2_datensaetze.run()` beim Bau der Dateien
-    gerechnet hat. Es steht hier noch einmal, weil die Modellskripte den Wert
-    brauchen, er aber nicht in den Dateien abgelegt ist: In `regression.parquet`
-    gibt es keine Klassenspalte, und die fold-Spalte allein sagt nicht, WIE sie
-    zustande kam.
+    Ein:  klassifikation.parquet als Datenrahmen
+    Aus:  Reihe stadtteil -> Anzahl
 
-    Fuer die Regression heisst das: `klassifikation.parquet` mitlesen, auch wenn
-    nur die Menge modelliert wird. Das ist kein Leakage - die Zahl geht in kein
-    Modell ein, sie bestimmt nur, welche Stadtteile gemeinsam getestet werden.
+    - Stratifizierungsmass der Fold-Zuteilung (#30)
+    - identisch zur Berechnung in prep/s2_datensaetze.run()
+    - der Wert steht in keiner Datei; deshalb liest auch der Regressionsstrang
+      klassifikation.parquet mit
+    - kein Leakage: geht in kein Modell ein, bestimmt nur die Testgruppen
     """
     return (klassifikation[klassifikation[ZIELKLASSE] == SELTENE_KLASSE]
             .groupby("stadtteil").size())
@@ -100,19 +64,18 @@ def selten_je_stadtteil(klassifikation: pd.DataFrame) -> pd.Series:
 
 def wiederholte_aufteilung(daten: pd.DataFrame, wiederholung: int = 0,
                            selten: pd.Series | None = None) -> pd.DataFrame:
-    """Schreibt die fold-Spalte fuer eine Wiederholung. Hold-out bleibt fest.
+    """Belegt die fold-Spalte fuer eine Wiederholung neu.
 
-    `wiederholung` 0 liefert exakt die Aufteilung aus der Datei - das wird per
-    assert geprueft, nicht nur behauptet. 1 bis WIEDERHOLUNGEN-1 liefern
-    verschiedene Zusammensetzungen bei gleicher Stratifizierung.
+    Ein:  Datenrahmen mit fold/ist_holdout, Wiederholung 0..9, `selten`
+    Aus:  Kopie mit neuer fold-Spalte; ist_holdout unveraendert
 
-    `selten` ist die Reihe aus `selten_je_stadtteil()`. Fehlt sie, wird nur nach
-    Bevoelkerung stratifiziert - das reproduziert die Dateien NICHT und ist nur
-    fuer Sonderfaelle gedacht.
-
-    Rueckgabe ist eine Kopie mit neu belegter Spalte `fold`; `ist_holdout` wird
-    unveraendert uebernommen. Die Hold-out-Zeilen behalten fold = 0 und werden
-    von `fold_masken()` in jeder Wiederholung ausgeschlossen.
+    - Wiederholung 0 reproduziert die Datei bitgenau, per assert geprueft
+    - Wiederholungen 1..9 mischen innerhalb der Rangbloecke; Foldgroessen und
+      Stratifizierung bleiben erhalten
+    - Hold-out-Zeilen behalten fold = 0 und bleiben in jeder Wiederholung
+      ausgeschlossen
+    - ohne `selten` wird nur nach Bevoelkerung stratifiziert; das reproduziert
+      die Datei NICHT und ist nur fuer Sonderfaelle gedacht
     """
     if "ist_holdout" not in daten.columns or "fold" not in daten.columns:
         raise ValueError("Datensatz ohne fold/ist_holdout - erst prep/build.py.")
@@ -154,11 +117,13 @@ def wiederholte_aufteilung(daten: pd.DataFrame, wiederholung: int = 0,
 
 def entwicklung_und_holdout(daten: pd.DataFrame
                             ) -> tuple[pd.Series, pd.Series]:
-    """Masken fuer die Schlussbewertung: 29 Entwicklungs- gegen 6 Hold-out-Stadtteile.
+    """Masken der Schlussbewertung: 29 Entwicklungs- gegen 6 Hold-out-Stadtteile.
 
-    Das Gegenstueck zu `fold_masken()` fuer den einen Lauf, der das Hold-out
-    ueberhaupt anfassen darf. Steht hier und nicht im Modellskript, damit es
-    genau eine Stelle im Repo gibt, an der `ist_holdout == 1` gelesen wird.
+    Ein:  Datenrahmen mit Spalte ist_holdout
+    Aus:  zwei boolesche Reihen (Entwicklung, Hold-out)
+
+    - Gegenstueck zu fold_masken() fuer den einen Lauf, der das Hold-out liest
+    - einzige Stelle im Repo, die ist_holdout == 1 auswertet
     """
     return daten["ist_holdout"] == 0, daten["ist_holdout"] == 1
 
@@ -167,6 +132,18 @@ def entwicklung_und_holdout(daten: pd.DataFrame
 # Selbsttest - beantwortet die vier Fragen, an denen diese Datei haengt
 # ==========================================================================
 def _selbsttest() -> int:
+    """Selbsttest ueber alle 10 Wiederholungen.
+
+    Ein:  beide Parquet-Dateien
+    Aus:  Exitcode 0 bei Erfolg, 1 bei mindestens einem Fehler
+
+    Geprueft wird:
+    - Foldgroessen 6/6/6/6/5
+    - mindestens ein Brand-Testfall je Fold
+    - Hold-out in jeder Wiederholung unveraendert
+    - 10 verschiedene Partitionen, keine Dubletten
+    - kein Stadtteil zugleich Trainings- und Testfall
+    """
     r = pd.read_parquet(PFAD_REGRESSION)
     k = pd.read_parquet(PFAD_KLASSIFIKATION)
     selten = selten_je_stadtteil(k)

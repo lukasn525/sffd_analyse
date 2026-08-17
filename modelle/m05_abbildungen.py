@@ -3,135 +3,64 @@ Alle Abbildungen fuer Kapitel 7 - aus den CSV-Dateien, nicht von Hand.
 
     python modelle/m05_abbildungen.py
 
-Eingang: results/regression/*.csv · results/klassifikation/*.csv
-         results/spezifikation/*.csv
+Eingang: results/regression/*.csv, results/klassifikation/*.csv,
+         results/spezifikation/*.csv, results/eignungspruefung/qq_residuen.csv,
          results/shap/{ablation_exposition,gruppen,faktorgruppen_menge,
-                       extrapolation_zusammenhang}.csv
-Ausgang: results/abbildungen/*.pdf
+         extrapolation_zusammenhang}.csv
+Ausgang: results/abbildungen/a1..a10.pdf
 
-STAND: neu gefasst 07.08.2026, um A6-A9 erweitert 10.08.2026. Setzt m02, m03,
-m04, v1 und v3 voraus.
+  - Dieses Skript RECHNET NICHTS, es liest nur. Dadurch laesst sich eine
+    Darstellung aendern, ohne die Modelle neu zu rechnen
+  - A1 gegen Baseline (Primaeraussage nach #34), A2 Foldstruktur (warum
+    gepaart wird), A3 Spezifikation gegen Verfahren (UF4, B-41), A4 Laufzeit
+    gegen Guete (UF3), A5 Hold-out, A6 Faktorgruppen (UF1), A7 Extrapolation
+    (R-3), A8 Hyperparameterstabilitaet, A9 Parallelisierung (zweite Haelfte
+    UF3), A10 QQ-Diagramm der Residuen (Auflage 10.08.2026)
+  - WARUM GEPAART (Neuschnitt 07.08.2026): Die 50 Laeufe unterscheiden sich
+    darin, welche Stadtteile im Testfold liegen - Bayview hat ein Vielfaches
+    der Einsaetze von Seacliff, also schwankt der RMSE zwischen 13 und 76
+    unabhaengig vom Verfahren. Rohwert-Streuung 12,4 bis 15,5 RMSE,
+    Verfahrensunterschied rund 2. Jedes Verfahren sieht aber DIESELBEN Folds:
+    Ueber die gepaarte Differenz kuerzt sich die Fold-Streuung heraus (2,4
+    bis 4,3). Es ist dieselbe Paarung, auf der der Wilcoxon-Test beruht
 
-Dieses Skript RECHNET NICHTS. Es liest nur. Dadurch laesst sich eine Darstellung
-aendern, ohne die Modelle neu zu rechnen, und nach einem neuen Lauf ist ein
-Befehl genug.
+ANFORDERUNGEN AN DIE DARSTELLUNG - Gestaltung war im Gutachten ein eigenes
+Bewertungskriterium
+  Format     PDF, nicht PNG. Rasterbilder werden im Druck unscharf
+  Groesse    in der ENDGROESSE erzeugen, nicht in LaTeX schrumpfen, sonst
+             steht dort 5-pt-Schrift. Mindestens 9 pt
+  Titel      KEINE in der Abbildung - die Bildunterschrift ist der Titel
+  Graustufen Verfahren zusaetzlich ueber Schraffur und Marker unterscheiden
+  Achsen     Beschriftung mit Einheit, deutsches Dezimalkomma
+  Nulllinie  bei Differenzen und R2 einzeichnen - das Vorzeichen ist die
+             Aussage
+  Richtung   an jeder Differenzachse muss stehen, welche Seite besser ist.
+             Bei RMSE links, bei Macro-F1 rechts - wer das verwechselt, liest
+             das Ergebnis genau falsch herum
+  Streuung   immer benennen, worueber sie gebildet ist: ueber die 10
+             Wiederholungsmittel, nicht ueber die 50 Einzellaeufe (R-5)
 
---------------------------------------------------------------------------
-WARUM DER SATZ AM 07.08.2026 NEU GESCHNITTEN WURDE
---------------------------------------------------------------------------
-Der erste Satz bestand aus Boxplots der Rohwerte je Verfahren und einem
-Balkendiagramm gegen die Baseline. Beides zeigte den Vergleich nicht, und zwar
-aus einem messbaren Grund.
-
-Die 50 Laeufe unterscheiden sich darin, WELCHE Stadtteile im Testfold liegen.
-Bayview hat ein Vielfaches der Einsaetze von Seacliff, also schwankt der RMSE
-zwischen 13 und 76 - unabhaengig vom Verfahren. Die Streuung der Rohwerte
-betraegt 12,4 bis 15,5 RMSE, der Verfahrensunterschied rund 2. Ein Boxplot der
-Rohwerte zeigt daher fast ausschliesslich Fold-Streuung.
-
-Jedes Verfahren sieht aber DIESELBEN Folds. Bildet man die Differenz je Lauf,
-kuerzt sich die Fold-Streuung heraus: Die Streuung der gepaarten Differenz
-ueber die 10 Wiederholungsmittel betraegt 2,4 bis 4,3. Gepaarte Daten ungepaart
-darzustellen verschenkt genau die Information, fuer die das Design gebaut wurde
-- und es ist dieselbe Paarung, auf der der Wilcoxon-Test beruht (#34).
-
-Das alte A2 hatte zusaetzlich einen einfachen Darstellungsfehler: Balken ab
-null, waehrend sich alles zwischen 33,98 und 36,51 abspielt. Die Unterschiede
-lagen in den obersten sechs Prozent der Bildhoehe.
-
---------------------------------------------------------------------------
-ZEHN ABBILDUNGEN
---------------------------------------------------------------------------
-A1 bis A5 tragen den Verfahrensvergleich, A6 bis A9 die Interpretation, A10
-die Annahmenpruefung. Alle zehn lesen ausschliesslich CSV - die Regel "dieses
-Skript rechnet nichts" gilt unveraendert auch fuer die fuenf neuen.
-
-  a1_gegen_baseline.pdf   Gepaarte Differenz zur Stufe-2-Baseline, ein Punkt je
-                          Wiederholung, beide Straenge nebeneinander. Das ist
-                          die Primaeraussage nach Decision Log #34.
-
-  a2_foldstruktur.pdf     Die Rohwerte je Fold, Verfahren als Linien. Zeigt,
-                          dass die Streuung aus dem Fold stammt und nicht aus
-                          dem Verfahren - die Begruendung fuer A1.
-
-  a3_spezifikation.pdf    Was bewegt mehr: die Wahl des Verfahrens oder die
-                          Wahl der Spezifikation? Antwort auf Unterfrage 4,
-                          Grundlage von B-41.
-
-  a4_laufzeit_guete.pdf   Trainingszeit gegen Prognoseguete, ein Punkt je
-                          Verfahren. Unterfrage 3.
-
-  a5_holdout.pdf          Die einmalige Auswertung auf den sechs
-                          zurueckgehaltenen Stadtteilen, beide Straenge.
-
-  a6_faktorgruppen.pdf    Welche der drei Faktorgruppen des Exposes traegt wie
-                          viel? Das ist UNTERFRAGE 1 - die einzige der vier, zu
-                          der es bisher keine Abbildung gab, sondern nur
-                          Konsolenausgabe von m04.
-
-  a7_extrapolation.pdf    Extrapolationsanteil eines Laufs gegen den dort
-                          gemessenen Fehler, 50 Punkte je Verfahren, mit
-                          Spearman-rho. Macht R-3 sichtbar und liefert die
-                          Begruendung, die A2 nur behauptet.
-
-  a8_hyperparameter.pdf   Wie stabil ist die Modellwahl? Die fuenf Fold-
-                          Parametersaetze je Verfahren, jeder auf seine Lage im
-                          eigenen Suchraum normiert. Grundlage fuer Kapitel 8.
-
-  a9_parallelisierung.pdf Parallelisierungsgewinn je Verfahren. Zweite Haelfte
-                          von Unterfrage 3, die A4 nicht zeigt: A4 traegt die
-                          EINKERNIGE Zeit auf, hier steht, was Kerne bringen -
-                          und wo sie nichts bringen.
-
-  a10_qq_residuen.pdf     QQ-Diagramm der Residuen der linearen Spezifikation.
-                          Auflage vom 10.08.2026, gehoert zu Abschnitt 6 der
-                          Eignungspruefung. Zeigt, WO die Verteilung von der
-                          Normalverteilung abweicht - der Test sagt nur, DASS.
-
---------------------------------------------------------------------------
-ANFORDERUNGEN AN DIE DARSTELLUNG
---------------------------------------------------------------------------
-Sie landen im gedruckten Dokument, und Gestaltung war im Gutachten ein eigenes
-Bewertungskriterium.
-
-  Format        PDF, nicht PNG. Rasterbilder werden im Druck unscharf.
-  Groesse       In der ENDGROESSE erzeugen, nicht gross erzeugen und in LaTeX
-                schrumpfen - sonst steht dort 5-pt-Schrift. Mindestens 9 pt.
-  Titel         KEINE Titel in der Abbildung. Die Bildunterschrift in LaTeX ist
-                der Titel; beides doppelt sich sonst.
-  Graustufen    Verfahren zusaetzlich ueber Schraffur und Marker unterscheiden,
-                nicht allein ueber Farbe.
-  Achsen        Beschriftung mit Einheit, deutsches Dezimalkomma.
-  Nulllinie     Wo eine Differenz oder ein R2 dargestellt wird, ist sie
-                einzuzeichnen - das Vorzeichen ist die Aussage.
-  Richtung      Bei jeder Differenzachse muss dastehen, welche Seite besser
-                ist. Bei RMSE ist das links, bei Macro-F1 rechts - wer das
-                verwechselt, liest das Ergebnis genau falsch herum.
-  Streuung      IMMER benennen, worueber sie gebildet ist: ueber die 10
-                Wiederholungsmittel, nicht ueber die 50 Einzellaeufe (R-5).
-
---------------------------------------------------------------------------
 PRUEFAUFTRAEGE
---------------------------------------------------------------------------
-  - Sind alle fuenf PDF entstanden und in LaTeX einbindbar?
+  - Sind alle zehn PDF entstanden und in LaTeX einbindbar?
   - Schneidet in A1 die Nulllinie eine der Boxen? Dann darf im Text kein
-    Unterschied zur Baseline behauptet werden, den der Test nicht deckt (R-6).
-  - Traegt jede Differenzachse die Richtungsangabe, und zeigt sie bei Macro-F1
-    in die andere Richtung als bei RMSE?
-  - Stimmt der Referenzwert in A3 mit `linear` aus v3 und mit der
-    Stufe-2-Baseline aus v1 ueberein? Alle drei muessen dieselbe Zahl sein.
+    Unterschied behauptet werden, den der Test nicht deckt (R-6)
+  - Traegt jede Differenzachse die Richtungsangabe, bei Macro-F1
+    entgegengesetzt zu RMSE?
+  - Stimmt der Referenzwert in A3 mit `linear` aus v3 und der Stufe-2-
+    Baseline aus v1 ueberein? Alle drei muessen dieselbe Zahl sein
   - In Graustufen ausdrucken: sind die Verfahren noch unterscheidbar?
-  - A6: Summiert sich jeder Balken auf 100 %? Steht in der Fusszeile, dass der
-    Mengenbalken KOEFFIZIENTEN und die Strukturbalken SHAP-Werte zeigen? Die
-    beiden Groessen sind nicht dasselbe und duerfen nicht als eine gelesen
-    werden.
+  - A6: Summiert sich jeder Balken auf 100 %, und steht in der Fusszeile,
+    dass der Mengenbalken KOEFFIZIENTEN und die Strukturbalken SHAP-Werte
+    zeigt? Die beiden Groessen sind nicht dasselbe
   - A7: Liegen die drei Verfahren bei gleichem x uebereinander? Muessen sie -
-    der Extrapolationsanteil ist eine Eigenschaft des Folds, nicht des
-    Verfahrens. Andernfalls stimmt die Fold-Zuordnung nicht.
-  - A8: Klebt ein Parameter am Rand seines Suchraums (Lage nahe 0 oder 1)? Dann
-    war der Raum zu eng gewaehlt, und das gehoert in die Limitationen.
-  - A9: Steht die Linie bei 1,0 und ist beschriftet? Werte UNTER 1 heissen
-    "parallel langsamer" - ohne die Linie liest man sie als Gewinn.
+    der Extrapolationsanteil ist eine Eigenschaft des Folds
+  - A8: Klebt ein Parameter am Rand seines Suchraums? Dann war der Raum zu
+    eng, und das gehoert in die Limitationen
+  - A9: Steht die Linie bei 1,0 und ist sie beschriftet? Werte darunter
+    heissen "parallel langsamer"
+
+Setzt m02, m03, m04, v1 und v3 voraus. Ausfuehrliche Fassung:
+docs/08_FUNKTIONSDOKUMENTATION.md
 """
 import json
 import sys
@@ -214,16 +143,24 @@ RANG_VERFAHREN = {"ridge": 0, "random_forest": 1, "xgboost": 2}
 
 
 def _sekunden(wert: float) -> str:
-    """Sekunden lesbar beschriften.
+    """Beschriftet Sekundenwerte lesbar.
 
-    Zwei Nachkommastellen reichen fuer die Ensembles (5,83 s), nicht fuer Ridge
-    (0,011 s) - dort stuende sonst zweimal "0,01 s" und die Abbildung
-    behauptete, der parallele Fit sei gleich schnell gewesen.
+    Ein:  Zahl in Sekunden
+    Aus:  Zeichenkette mit Dezimalkomma
+
+    - zwei Nachkommastellen reichen fuer die Ensembles (5,83 s), nicht fuer Ridge
+      (0,011 s); dort stuende sonst zweimal "0,01 s" und die Abbildung
+      behauptete, der parallele Fit sei gleich schnell gewesen
     """
     return (f"{wert:.2f}" if wert >= 1 else f"{wert:.3f}").replace(".", ",") + " s"
 
 
 def _matplotlib():
+    """Setzt Schriftgroessen, Schrift und Rahmen fuer alle Abbildungen.
+
+    Ein:  nichts
+    Aus:  nichts; wirkt auf die globalen rcParams
+    """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -241,12 +178,13 @@ def _matplotlib():
 def _komma(FuncFormatter, stellen: int = 2, vorzeichen: bool = False):
     """Deutsches Dezimalkomma auf den Achsen.
 
-    `stellen` ist nicht kosmetisch: Macro-F1 liegt zwischen 0,328 und 0,334 -
-    mit zwei Nachkommastellen stuenden an allen Achsenmarken dieselben "0,33",
-    und die Abbildung waere sinnlos.
+    Ein:  Zahl, Nachkommastellen, Schalter fuer explizites Vorzeichen
+    Aus:  Zeichenkette
 
-    `vorzeichen` setzt auf Differenzachsen ein explizites Plus. Ohne das liest
-    sich "2,5" wie ein Absolutwert statt wie ein Abstand.
+    - `stellen` ist nicht kosmetisch: Macro-F1 liegt zwischen 0,328 und 0,334;
+      mit zwei Nachkommastellen stuende an allen Achsenmarken "0,33"
+    - `vorzeichen` setzt auf Differenzachsen ein explizites Plus, sonst liest sich
+      "2,5" wie ein Absolutwert statt wie ein Abstand
     """
     fmt = "{:+,." + str(stellen) + "f}" if vorzeichen else "{:,." + str(stellen) + "f}"
     return FuncFormatter(lambda x, _: fmt.format(x).replace(",", " ")
@@ -254,12 +192,21 @@ def _komma(FuncFormatter, stellen: int = 2, vorzeichen: bool = False):
 
 
 def _prozent(FuncFormatter, stellen: int = 0):
-    """Prozentachse mit deutschem Dezimalkomma."""
+    """Prozentwert mit deutschem Dezimalkomma.
+
+    Ein:  Anteil zwischen 0 und 1
+    Aus:  Zeichenkette
+    """
     fmt = "{:." + str(stellen) + "f}"
     return FuncFormatter(lambda x, _: fmt.format(x * 100).replace(".", ",") + " %")
 
 
 def _text(pfad: Path) -> pd.DataFrame | None:
+    """Setzt einen Textblock unter die Abbildung.
+
+    Ein:  Figur, Text
+    Aus:  nichts
+    """
     return pd.read_csv(pfad) if pfad.exists() else None
 
 
@@ -267,10 +214,12 @@ def _text(pfad: Path) -> pd.DataFrame | None:
 def _gepaarte_differenz() -> list[dict]:
     """Je Verfahren die 10 Wiederholungsmittel der Differenz zur Baseline.
 
-    Gepaart wird auf (wiederholung, fold) - also auf identischen Testzeilen.
-    Genau diese Paarung liegt auch dem Wilcoxon-Test in m02/m03 zugrunde; die
-    Abbildung zeigt damit dieselbe Groesse, die getestet wird, und nicht eine
-    andere, die zufaellig aehnlich aussieht.
+    Ein:  Laufdatei des Strangs, Baseline-Laeufe
+    Aus:  dict Verfahren -> zehn Differenzen
+
+    - gepaart wird auf (wiederholung, fold), also auf identischen Testzeilen
+    - dieselbe Paarung liegt dem Wilcoxon-Test in m02/m03 zugrunde; die Abbildung
+      zeigt damit die getestete Groesse und nicht eine aehnlich aussehende andere
     """
     reihen = []
 
@@ -299,15 +248,17 @@ def _gepaarte_differenz() -> list[dict]:
 
 
 def a1_gegen_baseline(plt, FuncFormatter) -> list:
-    """Die Primaeraussage: jedes Verfahren gegen seine Stufe-2-Baseline.
+    """A1: jedes Verfahren gegen seine Stufe-2-Baseline (Primaeraussage).
 
-    Dargestellt sind die 10 Wiederholungsmittel als Punkte und ihre Verteilung
-    als Kasten. Ein Fehlerbalken waere hier die schlechtere Wahl: Bei zehn
-    Werten zeigt der Punktschwarm die Verteilung selbst, statt sie durch eine
-    Kennzahl zu ersetzen, die Symmetrie unterstellt.
+    Ein:  menge_folds.csv, struktur_folds.csv, beide Baseline-Dateien
+    Aus:  a1_gegen_baseline.pdf
 
-    Die Nulllinie ist die Baseline. Wo der Kasten sie schneidet, ist der
-    Unterschied nicht gesichert - unabhaengig davon, was der Mittelwert sagt.
+    - dargestellt sind die 10 Wiederholungsmittel als Punkte und ihre Verteilung
+      als Kasten
+    - ein Fehlerbalken waere schlechter: bei zehn Werten zeigt der Punktschwarm
+      die Verteilung selbst, statt Symmetrie zu unterstellen
+    - die Nulllinie ist die Baseline; wo der Kasten sie schneidet, ist der
+      Unterschied nicht gesichert - unabhaengig vom Mittelwert
     """
     reihen = _gepaarte_differenz()
     if not reihen:
@@ -356,11 +307,16 @@ def a1_gegen_baseline(plt, FuncFormatter) -> list:
 
 # ===========================================================================
 def a2_foldstruktur(plt, FuncFormatter) -> list:
-    """Warum in A1 gepaart wird: die Folds bewegen alle Verfahren gemeinsam.
+    """A2: Rohwerte je Fold - Begruendung fuer die Paarung in A1.
 
-    Gezeigt wird eine einzelne Wiederholung, sonst waeren es 50 Linien. Die
-    Aussage haengt nicht an der Auswahl - die uebrigen neun sehen genauso aus,
-    was sich an der Streuungszerlegung in der Fusszeile ablesen laesst.
+    Ein:  menge_folds.csv
+    Aus:  a2_foldstruktur.pdf
+
+    - die Folds bewegen alle Verfahren gemeinsam; die Streuung stammt aus dem
+      Fold, nicht aus dem Verfahren
+    - gezeigt wird eine einzelne Wiederholung, sonst waeren es 50 Linien
+    - die Aussage haengt nicht an der Auswahl; die Streuungszerlegung in der
+      Fusszeile belegt das
     """
     f, b = _text(REG / "menge_folds.csv"), _text(REG / "baselines_folds.csv")
     if f is None or b is None:
@@ -402,7 +358,11 @@ def a2_foldstruktur(plt, FuncFormatter) -> list:
 
 # ===========================================================================
 def _spezifikationszeilen() -> list[tuple[str, float, str]]:
-    """(Beschriftung, RMSE, Gruppe) fuer A3 - alles aus CSV, nichts von Hand."""
+    """Sammelt die Balkenwerte fuer A3 aus drei Ergebnisdateien.
+
+    Ein:  spezifikation_mittel.csv, menge_mittel.csv, baselines_mittel.csv
+    Aus:  Liste (Gruppe, Beschriftung, RMSE)
+    """
     zeilen = []
     b = _text(REG / "baselines_mittel.csv")
     if b is None:
@@ -440,15 +400,15 @@ def _spezifikationszeilen() -> list[tuple[str, float, str]]:
 
 
 def a3_spezifikation(plt, FuncFormatter) -> list:
-    """Unterfrage 4: Was bewegt mehr - das Verfahren oder die Spezifikation?
+    """A3: Verfahren gegen Spezifikation (Unterfrage 4).
 
-    Alle Werte sind RMSE auf `anzahl_einsaetze`, gemittelt ueber dieselben 50
-    Laeufe. Sie sind damit unmittelbar vergleichbar; es ist kein Wechsel des
-    Massstabs zwischen den Gruppen im Spiel.
+    Ein:  spezifikation_mittel.csv, menge_mittel.csv, baselines_mittel.csv
+    Aus:  a3_spezifikation.pdf
 
-    Die Balken sind nach Gruppen sortiert, nicht global - sonst stuende die
-    Referenz mitten zwischen den Verfahren und die Gruppierung waere nicht
-    ablesbar.
+    - alle Werte sind RMSE auf anzahl_einsaetze, gemittelt ueber dieselben 50
+      Laeufe und damit unmittelbar vergleichbar
+    - die Balken sind nach Gruppen sortiert, nicht global; sonst stuende die
+      Referenz mitten zwischen den Verfahren
     """
     zeilen = _spezifikationszeilen()
     if len(zeilen) < 4:
@@ -498,10 +458,14 @@ def a3_spezifikation(plt, FuncFormatter) -> list:
 
 # ===========================================================================
 def a4_laufzeit_guete(plt, FuncFormatter) -> list:
-    """Unterfrage 3: Aufwand gegen Guete.
+    """A4: Aufwand gegen Guete, ein Punkt je Verfahren (Unterfrage 3).
 
-    Die Zeitachse ist logarithmisch, weil zwischen Ridge und den Ensembles
-    Groessenordnungen liegen - linear waere Ridge ein Punkt auf der Null.
+    Ein:  menge_folds.csv, struktur_folds.csv
+    Aus:  a4_laufzeit_guete.pdf
+
+    - die Zeitachse ist logarithmisch, weil zwischen Ridge und den Ensembles
+      Groessenordnungen liegen; linear waere Ridge ein Punkt auf der Null
+    - aufgetragen ist die einkernige Zeit; was Kerne bringen, zeigt A9
     """
     from matplotlib.lines import Line2D
     from matplotlib.ticker import LogLocator, NullFormatter
@@ -581,14 +545,15 @@ def a4_laufzeit_guete(plt, FuncFormatter) -> list:
 
 # ===========================================================================
 def a5_holdout(plt, FuncFormatter) -> list:
-    """Die einmalige Auswertung auf den sechs zurueckgehaltenen Stadtteilen.
+    """A5: die einmalige Auswertung auf den sechs zurueckgehaltenen Stadtteilen.
 
-    Anders als in A1 gibt es hier KEINE Streuung - das Hold-out wird genau
-    einmal ausgewertet. Fehlerbalken waeren an dieser Stelle falsch; die
-    Einmaligkeit ist der Zweck des Hold-outs.
+    Ein:  holdout.csv beider Straenge
+    Aus:  a5_holdout.pdf
 
-    Alle drei Stufen stehen nebeneinander, damit sichtbar bleibt, wovon der
-    Abstand gemessen wird.
+    - keine Streuung, anders als in A1: das Hold-out wird genau einmal
+      ausgewertet, Fehlerbalken waeren falsch
+    - alle drei Stufen stehen nebeneinander, damit sichtbar bleibt, wovon der
+      Abstand gemessen wird
     """
     aufgaben = []
     h = _text(REG / "holdout.csv")
@@ -645,18 +610,17 @@ def a5_holdout(plt, FuncFormatter) -> list:
 
 # ===========================================================================
 def _faktorgruppen_balken() -> list[tuple[str, str, pd.Series]]:
-    """(Strang, Beschriftung, Anteile je Gruppe) - alles aus CSV.
+    """Anteile je Faktorgruppe fuer einen Strang.
 
-    ZWEI QUELLEN, ZWEI GROESSEN - das ist der Grund fuer die Fusszeile der
-    Abbildung. Der Mengenbalken zeigt standardisierte KOEFFIZIENTEN des
-    Poisson-GLM, die Strukturbalken zeigen SHAP-BEITRAEGE. Beide sind auf
-    Summe 1 normiert und damit nebeneinander lesbar, aber sie sind nicht
-    dieselbe Groesse und duerfen nicht als eine gelesen werden.
+    Ein:  gruppen.csv bzw. faktorgruppen_menge.csv
+    Aus:  (Strang, Beschriftung, Anteile je Gruppe)
 
-    Dass die Menge aus der Baseline kommt, ist kein Notbehelf: m04 ueberspringt
-    dort jedes Vergleichsverfahren, weil keines seine Stufe-2-Baseline schlaegt
-    - und Beitraege eines unterlegenen Modells waeren erklaertes Rauschen. Das
-    beste Modell des Mengenstrangs IST das Poisson-GLM.
+    - zwei Quellen, zwei Groessen: der Mengenbalken zeigt standardisierte
+      KOEFFIZIENTEN des Poisson-GLM, die Strukturbalken zeigen SHAP-BEITRAEGE
+    - beide sind auf Summe 1 normiert und nebeneinander lesbar, aber nicht
+      dieselbe Groesse - daher die Fusszeile der Abbildung
+    - dass die Menge aus der Baseline kommt, ist kein Notbehelf: m04 ueberspringt
+      dort jedes Vergleichsverfahren, weil keines seine Baseline schlaegt
     """
     balken = []
 
@@ -676,16 +640,17 @@ def _faktorgruppen_balken() -> list[tuple[str, str, pd.Series]]:
 
 
 def a6_faktorgruppen(plt, FuncFormatter) -> list:
-    """UNTERFRAGE 1: Welche Faktorgruppe traegt wie viel?
+    """A6: Welche Faktorgruppe traegt wie viel? (Unterfrage 1)
 
-    Gestapelte Balken statt gruppierter: Die Anteile summieren sich je Modell
-    auf 100 %, und genau diese Aufteilung ist die Aussage. Gruppierte Balken
-    wuerden zum Vergleich EINER Gruppe zwischen den Modellen einladen - das
-    traegt hier nicht, weil die Werte aus verschiedenen Groessen stammen.
+    Ein:  gruppen.csv, faktorgruppen_menge.csv
+    Aus:  a6_faktorgruppen.pdf
 
-    Die Segmente sind ueber die Schraffur unterschieden, nicht ueber den
-    Grauwert. Fuenf Grautoene in einem Balken sind im Schwarzweissdruck nicht
-    mehr sicher zu trennen.
+    - gestapelte statt gruppierter Balken: die Anteile summieren sich je Modell
+      auf 100 %, und diese Aufteilung ist die Aussage
+    - gruppierte Balken luden zum Vergleich einer Gruppe zwischen den Modellen
+      ein; das traegt nicht, weil die Werte aus verschiedenen Groessen stammen
+    - die Segmente sind ueber Schraffur unterschieden: fuenf Grautoene in einem
+      Balken sind im Schwarzweissdruck nicht sicher zu trennen
     """
     balken = _faktorgruppen_balken()
     if not balken:
@@ -741,18 +706,18 @@ def a6_faktorgruppen(plt, FuncFormatter) -> list:
 
 # ===========================================================================
 def a7_extrapolation(plt, FuncFormatter) -> list:
-    """Warum manche Folds schwer sind - R-3 als Bild statt als Vorbehalt.
+    """A7: Extrapolationsanteil gegen Fehler, 50 Punkte je Verfahren.
 
-    Ein Punkt je Lauf, 50 je Verfahren. Die drei Verfahren liegen bei gleichem
-    x uebereinander, weil der Extrapolationsanteil eine Eigenschaft des FOLDS
-    ist und nicht des Verfahrens - das ist kein Darstellungsfehler, sondern
-    die halbe Aussage.
+    Ein:  extrapolation_zusammenhang.csv, menge_folds.csv
+    Aus:  a7_extrapolation.pdf
 
-    ABGRENZUNG ZU #34, dieselbe wie in `m04.extrapolation_aufschluesseln`: Hier
-    wird die Testmenge NICHT nach Extrapolationsgrad geschnitten und darin nach
-    Verfahrensunterschieden gesucht. Die Einheit bleibt der Lauf, die Frage
-    lautet, warum Laeufe unterschiedlich schwer sind. Die Primaeraussage bleibt
-    unberuehrt.
+    - macht R-3 sichtbar und liefert die Begruendung, die A2 nur behauptet
+    - die drei Verfahren liegen bei gleichem x uebereinander, weil der
+      Extrapolationsanteil eine Eigenschaft des FOLDS ist; das ist kein
+      Darstellungsfehler, sondern die halbe Aussage
+    - Spearman-rho steht in der Abbildung
+    - Abgrenzung zu #34 wie in m04.extrapolation_aufschluesseln: Die Testmenge
+      wird nicht nach Extrapolationsgrad geschnitten, die Einheit bleibt der Lauf
     """
     f = _text(REG / "menge_folds.csv")
     if f is None:
@@ -809,18 +774,20 @@ def a7_extrapolation(plt, FuncFormatter) -> list:
 
 # ===========================================================================
 def _lage_im_suchraum(name: str, parameter: str, wert) -> float | None:
-    """Relative Lage eines gefundenen Wertes in SEINEM Suchraum, 0 bis 1.
+    """Relative Lage eines gefundenen Wertes in seinem Suchraum, 0 bis 1.
 
-    Ohne diese Normierung liessen sich die Parameter nicht in eine Abbildung
-    bringen: `alpha` laeuft ueber sechs Zehnerpotenzen, `subsample` ueber 0,4
-    Einheiten. Die Frage lautet ohnehin nicht "welcher Wert", sondern "wie weit
-    streuen die fuenf Folds in dem Raum, der zur Verfuegung stand".
+    Ein:  Parametername, gefundener Wert
+    Aus:  Zahl zwischen 0 und 1, oder None
 
-    Die Umrechnung spiegelt `m02.suchraum()`: loguniform wird logarithmisch
-    normiert, `int` und `uniform` linear, `choice` ueber die Position in der
-    Liste aus config_modelle. Faellt ein Wert aus seinem Raum, gibt es None -
-    dann hat sich der Suchraum seit dem Lauf geaendert, und die Zeile fehlt in
-    der Abbildung, statt eine falsche Lage vorzutaeuschen.
+    - ohne Normierung liessen sich die Parameter nicht gemeinsam darstellen:
+      alpha laeuft ueber sechs Zehnerpotenzen, subsample ueber 0,4 Einheiten
+    - die Frage lautet nicht "welcher Wert", sondern "wie weit streuen die fuenf
+      Folds im verfuegbaren Raum"
+    - die Umrechnung spiegelt m02.suchraum(): loguniform logarithmisch, int und
+      uniform linear, choice ueber die Listenposition
+    - faellt ein Wert aus seinem Raum, gibt es None; dann hat sich der Suchraum
+      seit dem Lauf geaendert und die Zeile fehlt, statt eine falsche Lage
+      vorzutaeuschen
     """
     spez = SUCHRAEUME.get(name, {}).get(parameter)
     if spez is None or wert is None:
@@ -841,7 +808,16 @@ def _lage_im_suchraum(name: str, parameter: str, wert) -> float | None:
 
 
 def _hyperparameter_lagen() -> pd.DataFrame:
-    """Je (Strang, Verfahren, Parameter) die fuenf Fold-Werte, auf 0..1 normiert."""
+    """Bereitet die Fold-Parametersaetze fuer A8 auf.
+
+    Ein:  tuning.csv eines Strangs
+    Aus:  Liste (Verfahren, Parameter, Lagen der fuenf Folds)
+
+    - in der Regression steht jeder Suchlauf zweimal in der Datei, einmal je
+      Zielgroesse; gesucht wurde aber nur einmal auf der Rate (#43)
+    - ohne Entdopplung stuenden zehn statt fuenf Punkte je Parameter und die
+      Streuung saehe halb so gross aus
+    """
     zeilen = []
     for strang, pfad in (("Menge", REG / "tuning.csv"),
                          ("Struktur", KLA / "tuning.csv")):
@@ -868,20 +844,18 @@ def _hyperparameter_lagen() -> pd.DataFrame:
 
 
 def a8_hyperparameter(plt, FuncFormatter) -> list:
-    """Wie stabil ist die Modellwahl bei 29 Entwicklungsstadtteilen?
+    """A8: Stabilitaet der Modellwahl bei 29 Entwicklungsstadtteilen.
 
-    Jede Zeile ist ein Hyperparameter, die fuenf Punkte sind die fuenf Folds.
-    Die graue Strecke ist der volle Suchraum. Streuen die Punkte ueber die
-    ganze Strecke, hat die Kreuzvalidierung diesen Parameter nicht bestimmt -
-    das Tuning waehlt dann faktisch zufaellig.
+    Ein:  tuning.csv beider Straenge
+    Aus:  a8_hyperparameter.pdf
 
-    Das ist eine Aussage fuer Kapitel 8 und keine Fehlermeldung: Bei 23
-    Trainingsstadtteilen je Fold ist genau dieses Verhalten zu erwarten, und es
-    ist der ehrlichere Umgang damit, es zu zeigen statt die fuenf Parameter-
-    saetze nur zu mitteln.
-
-    Die Spannweite rechts ist die Kennzahl dazu: 1,00 heisst "von einem Rand
-    des Suchraums zum anderen".
+    - jede Zeile ist ein Hyperparameter, die fuenf Punkte sind die fuenf Folds,
+      die graue Strecke ist der volle Suchraum
+    - streuen die Punkte ueber die ganze Strecke, hat die Kreuzvalidierung diesen
+      Parameter nicht bestimmt; das Tuning waehlt dann faktisch zufaellig
+    - das ist eine Aussage fuer Kapitel 8 und keine Fehlermeldung: bei 23
+      Trainingsstadtteilen je Fold ist es zu erwarten
+    - die Spannweite rechts ist die Kennzahl dazu; 1,00 heisst "von Rand zu Rand"
     """
     d = _hyperparameter_lagen()
     if not len(d):
@@ -954,20 +928,18 @@ def a8_hyperparameter(plt, FuncFormatter) -> list:
 
 # ===========================================================================
 def a9_parallelisierung(plt, FuncFormatter) -> list:
-    """Die zweite Haelfte von Unterfrage 3: Was bringen zusaetzliche Kerne?
+    """A9: Parallelisierungsgewinn je Verfahren (Unterfrage 3, zweite Haelfte).
 
-    A4 traegt die EINKERNIGE Trainingszeit auf - das ist der Aufwand, der
-    zwischen den Verfahren vergleichbar ist. Diese Abbildung zeigt die andere
-    Groesse, die im selben Lauf miterhoben wurde: den Faktor, um den derselbe
-    Fit ueber alle Kerne schneller wird.
+    Ein:  menge_folds.csv, struktur_folds.csv
+    Aus:  a9_parallelisierung.pdf
 
-    Die Linie bei 1,0 ist nicht Dekoration. Ein Wert DARUNTER heisst, dass der
-    parallele Fit LANGSAMER war - der Verwaltungsaufwand der Threads uebersteigt
-    den Gewinn. Ohne die Linie liest man solche Balken als kleinen Gewinn.
-
-    Bei Ridge ist ein Wert um 1 zu erwarten: Eine geschlossene Loesung hat
-    nichts zu verteilen. Auch das ist ein Ergebnis fuer Unterfrage 4 und kein
-    Messfehler.
+    - A4 traegt die einkernige Trainingszeit auf; hier steht der Faktor, um den
+      derselbe Fit ueber alle Kerne schneller wird
+    - die Linie bei 1,0 ist keine Dekoration: Werte darunter heissen, dass der
+      parallele Fit langsamer war - der Verwaltungsaufwand der Threads uebersteigt
+      den Gewinn
+    - bei Ridge ist ein Wert um 1 zu erwarten; eine geschlossene Loesung hat nichts
+      zu verteilen. Auch das ist ein Ergebnis
     """
     zeilen = []
     for strang, pfad in (("Menge", REG / "menge_mittel.csv"),
@@ -1030,27 +1002,21 @@ def a9_parallelisierung(plt, FuncFormatter) -> list:
 
 # ===========================================================================
 def a10_qq_residuen(plt, FuncFormatter) -> list:
-    """Halten die Residuen der linearen Spezifikation die Normalverteilung?
+    """A10: QQ-Diagramm der Residuen der linearen Spezifikation.
 
-    Schroeter hat den QQ-Plot am 10.08.2026 selbst genannt. Er beantwortet eine
-    Frage, die ein Test allein nicht beantwortet: WO die Abweichung liegt.
-    Jarque-Bera sagt nur, DASS die Verteilung nicht normal ist - bei n = 3.036
-    sagt er das ohnehin fast immer.
+    Ein:  qq_residuen.csv aus v2_eignung.annahmen()
+    Aus:  a10_qq_residuen.pdf
 
-    Zu lesen ist die Abbildung an den ENDEN. Liegen die Punkte in der Mitte auf
-    der Geraden und biegen nur aussen ab, ist die Verteilung im Kern normal und
-    hat schwere Raender - genau das, was bei Einsatzzahlen zu erwarten ist.
-    Eine Kruemmung ueber die ganze Laenge waere etwas anderes und schwerer
-    wiegend.
-
-    WOZU DAS UEBERHAUPT GEZEIGT WIRD, obwohl Normalitaet fuer die Punktprognose
-    nicht erforderlich ist (siehe die Tabelle in Abschnitt 6 der
-    Eignungspruefung): Die Anforderung wird geprueft und die Antwort lautet
-    "besteht hier nicht". Das ist eine Aussage. Sie ungeprueft zu lassen waere
-    keine.
-
-    Gezeichnet, nicht gerechnet - die Quantile stehen fertig in
-    `qq_residuen.csv`, erzeugt von `v2_eignung.annahmen()`.
+    - gezeichnet, nicht gerechnet: die Quantile stehen fertig in der CSV
+    - beantwortet, WO die Abweichung liegt; Jarque-Bera sagt nur, DASS die
+      Verteilung nicht normal ist, und bei n = 3.036 sagt er das fast immer
+    - zu lesen an den Enden: Punkte in der Mitte auf der Geraden und nur aussen
+      abbiegend heisst im Kern normal mit schweren Raendern - bei Einsatzzahlen zu
+      erwarten
+    - eine Kruemmung ueber die ganze Laenge waere schwerer wiegend
+    - gezeigt wird die Abbildung, obwohl Normalitaet fuer die Punktprognose nicht
+      erforderlich ist: Die Anforderung wird geprueft, die Antwort lautet "besteht
+      hier nicht". Sie ungeprueft zu lassen waere keine Aussage
     """
     d = _text(RESULTS_DIR / "eignungspruefung" / "qq_residuen.csv")
     if d is None:
@@ -1090,6 +1056,14 @@ def a10_qq_residuen(plt, FuncFormatter) -> list:
 
 # ===========================================================================
 def main() -> int:
+    """Erzeugt alle zehn Abbildungen nacheinander.
+
+    Ein:  die CSV-Dateien aus m02, m03, m04, v1, v2 und v3
+    Aus:  results/abbildungen/a1..a10.pdf; Exitcode
+
+    - fehlt eine Eingangsdatei, wird die betroffene Abbildung uebersprungen und
+      gemeldet; ein fehlender Lauf soll die uebrigen neun nicht verhindern
+    """
     if not (REG / "menge_mittel.csv").exists() and \
        not (KLA / "struktur_mittel.csv").exists():
         raise SystemExit("Keine Ergebnisdateien - erst m02 und m03 ausfuehren.")

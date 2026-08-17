@@ -110,6 +110,11 @@ QUELLEN = {
 
 
 def _get(url: str, params: dict) -> requests.Response:
+    """Ruft eine URL mit Wiederholversuchen ab.
+
+    Ein:  URL, optionale Parameter
+    Aus:  Antwort der Anfrage
+    """
     headers = {"X-App-Token": DATASF_APP_TOKEN} if DATASF_APP_TOKEN else {}
     r = requests.get(url, params=params, headers=headers, timeout=60)
     r.raise_for_status()
@@ -117,7 +122,15 @@ def _get(url: str, params: dict) -> requests.Response:
 
 
 def lade_datasf(name: str, limit: int = 50_000) -> pd.DataFrame:
-    """Eine DataSF-Quelle vollstaendig holen und die Spaltentypen setzen."""
+    """Holt eine DataSF-Quelle vollstaendig und setzt die Spaltentypen.
+
+    Ein:  Datensatz-ID der Socrata-API, Zielpfad, optionale Typangaben
+    Aus:  Parquet-Datei in data/raw; Rueckgabe der Zeilenzahl
+
+    - paginiert, weil die API je Anfrage deckelt
+    - die Typen werden explizit gesetzt: sonst raet pandas bei GEOIDs auf int
+      und die fuehrende Null faellt weg
+    """
     _, pfad, select, where, order, _, datum, zahlen = QUELLEN[name]
     url = f"https://data.sfgov.org/resource/{pfad}.json"
     basis = {"$select": select, "$order": order}
@@ -160,10 +173,13 @@ def lade_datasf(name: str, limit: int = 50_000) -> pd.DataFrame:
 
 
 def lade_acs(year: int) -> pd.DataFrame:
-    """ACS 5-Year Estimates auf Tract-Ebene fuer San Francisco County.
+    """Holt die ACS 5-Year Estimates auf Tract-Ebene fuer San Francisco County.
 
-    Eigene Funktion, weil die Census-API ein anderes Format liefert als DataSF:
-    Kopfzeile plus Datenzeilen als verschachtelte Liste.
+    Ein:  Jahrgang, Variablenliste aus config.py
+    Aus:  eine CSV je Jahrgang in data/raw
+
+    - eigene Funktion, weil die Census-API ein anderes Format liefert als
+      DataSF: Kopfzeile plus Datenzeilen als verschachtelte Liste
     """
     codes = list(ACS_VARIABLES)
     r = requests.get(
@@ -183,6 +199,15 @@ def lade_acs(year: int) -> pd.DataFrame:
 
 
 def run_download() -> None:
+    """Laedt alle Rohquellen nach data/raw.
+
+    Ein:  die Quellen-IDs und ACS-Jahrgaenge aus config.py
+    Aus:  Parquet- und CSV-Dateien in data/raw; Exitcode
+
+    - Schritt 1a von prep/build.py
+    - vorhandene Dateien werden uebersprungen, damit ein Teillauf nicht erneut
+      ueber die APIs geht
+    """
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     aktiv = [n for n, q in QUELLEN.items() if q[0]]
     if DOWNLOAD_ACS:
@@ -224,7 +249,14 @@ def run_download() -> None:
 # TEIL B  SFFD - Einsatzdaten
 # ==========================================================================
 def prepare_sffd(df: pd.DataFrame) -> pd.DataFrame:
-    """Dedup, Antwortzeit, Zeit-Features, Stadtteilnamen normalisieren."""
+    """Bereitet Dedup, Antwortzeit, Zeitmerkmale und Stadtteilnamen auf.
+
+    Ein:  die rohe SFFD-Tabelle
+    Aus:  dieselbe Tabelle, bereinigt und um Zeitspalten ergaenzt
+
+    - der Dedup laeuft ueber die Einsatznummer und wird gezaehlt ausgegeben
+    - doppelte Meldungen desselben Einsatzes waeren sonst zwei Zeilen
+    """
     n_vorher = len(df)
     df = df.drop_duplicates(subset=["incident_number"], keep="first").copy()
     if n_vorher - len(df):
@@ -248,7 +280,14 @@ def prepare_sffd(df: pd.DataFrame) -> pd.DataFrame:
 # TEIL C  ACS - soziooekonomische Merkmale
 # ==========================================================================
 def acs_je_neighborhood(acs: pd.DataFrame, crosswalk: pd.DataFrame) -> pd.DataFrame:
-    """Tract -> Neighborhood. Mediane bevoelkerungsgewichtet, Zaehler summiert."""
+    """Aggregiert Census Tracts auf Stadtteile.
+
+    Ein:  ACS-Tabelle auf Tract-Ebene, Crosswalk
+    Aus:  eine Zeile je Stadtteil und Jahrgang
+
+    - Mediane werden bevoelkerungsgewichtet gemittelt, Zaehlgroessen summiert
+    - ein Median laesst sich nicht addieren, daher die Gewichtung
+    """
     m = acs.merge(crosswalk, on="geoid", how="left").dropna(subset=["neighborhood"])
     for col in ACS_GEWICHTET:
         m[f"_w_{col}"] = m[col] * m["total_population"]
@@ -265,23 +304,34 @@ def acs_je_neighborhood(acs: pd.DataFrame, crosswalk: pd.DataFrame) -> pd.DataFr
 
 
 def acs_snapshot(jahr: int, acs_years: list[int]) -> int:
-    """Letzter zum Prognosezeitpunkt TATSAECHLICH PUBLIZIERTER ACS-Jahrgang.
+    """Waehlt den zum Prognosezeitpunkt tatsaechlich publizierten ACS-Jahrgang.
 
-    Bedingung: acs_jahr <= Einsatzjahr - ACS_PUBLIKATIONS_LAG. Zwei Stufen der
-    Absicherung: "letzter verfuegbarer" statt "zeitlich naechster" Snapshot
-    (Decision Log #4) und zusaetzlich die reale Publikationsverzoegerung von
-    ~1 Jahr (#11) - ohne sie haette ein Einsatz aus 2023 den Jahrgang 2023
-    bekommen, der erst Ende 2024 erschienen ist.
+    Ein:  Einsatzjahr, verfuegbare ACS-Jahrgaenge
+    Aus:  der zu verwendende Jahrgang
 
-    Vor dem ersten Snapshot gibt es keinen vergangenen Jahrgang; Rueckgriff auf
-    den aeltesten als dokumentierte Limitation - die Hauptanalyse beginnt 2015.
+    - Bedingung: acs_jahr <= Einsatzjahr - ACS_PUBLIKATIONS_LAG
+    - zwei Stufen der Absicherung: "letzter verfuegbarer" statt "zeitlich
+      naechster" Snapshot (#4) und zusaetzlich die reale
+      Publikationsverzoegerung von rund einem Jahr (#11)
+    - ohne die zweite haette ein Einsatz aus 2023 den Jahrgang 2023 bekommen,
+      der erst Ende 2024 erschienen ist
+    - vor dem ersten Snapshot gibt es keinen vergangenen Jahrgang; Rueckgriff auf
+      den aeltesten als dokumentierte Limitation, die Hauptanalyse beginnt 2015
     """
     return max([a for a in acs_years if a <= int(jahr) - ACS_PUBLIKATIONS_LAG],
                default=min(acs_years))
 
 
 def join_acs(sffd: pd.DataFrame, nb_per_year: dict[int, pd.DataFrame]) -> pd.DataFrame:
-    """Jeder Einsatz bekommt den zu seinem Jahr passenden ACS-Snapshot."""
+    """Fuegt jedem Einsatz den passenden ACS-Jahrgang an.
+
+    Ein:  Einsatztabelle, ACS-Jahrgaenge je Stadtteil
+    Aus:  Einsatztabelle mit den soziooekonomischen Merkmalen
+
+    - massgeblich ist der Jahrgang, der zum Einsatzzeitpunkt veroeffentlicht war
+      (ACS_PUBLIKATIONS_LAG)
+    - sonst stuende im Modell Information, die es damals nicht gab
+    """
     jahrgaenge = sorted(nb_per_year)
     sffd = sffd.copy()
     sffd["acs_year"] = sffd["year"].apply(lambda y: acs_snapshot(y, jahrgaenge))
@@ -302,8 +352,14 @@ def join_acs(sffd: pd.DataFrame, nb_per_year: dict[int, pd.DataFrame]) -> pd.Dat
 # TEIL D  GEOMETRIE
 # ==========================================================================
 def neighborhoods_gdf():
-    """Neighborhood-Polygone. Beide Spatial Joins nutzen dieselbe Geometrie,
-    damit sich Kriminalitaets- und Baumerkmale auf identische Flaechen beziehen."""
+    """Laedt die Neighborhood-Polygone.
+
+    Ein:  nichts
+    Aus:  GeoDataFrame der Stadtteilgeometrien
+
+    - beide Spatial Joins nutzen dieselbe Geometrie, damit sich Kriminalitaets-
+      und Baumerkmale auf identische Flaechen beziehen
+    """
     import geopandas as gpd
     gdf = gpd.read_file(RAW_DIR / "neighborhoods.geojson")
     gdf["neighborhood"] = gdf["nhood"].str.strip().str.title()
@@ -313,13 +369,19 @@ def neighborhoods_gdf():
 # ==========================================================================
 # TEIL E  CRIME - relativer Kriminalitaetsindex je Stadtteil x Monat
 # ==========================================================================
-def crime_monatlich() -> pd.DataFrame:
-    """Deliktzahlen je Neighborhood und Monat aus beiden SFPD-Quellen.
+def crime_monatlich(hist: pd.DataFrame, neu: pd.DataFrame,
+                    crosswalk: pd.DataFrame) -> pd.DataFrame:
+    """Zaehlt Delikte je Stadtteil und Monat aus beiden SFPD-Quellen.
 
-    Modern (e3si-785i, ab 2018-01) ist bereits voraggregiert; da der Index ALLE
-    Straftaten zaehlt, werden die Kategorien summiert - eine Harmonisierung der
-    Kategorienschemata eruebrigt sich. Historisch (tmnf-yvry, bis 2017) hat
-    keine Stadtteilspalte, daher Spatial Join der Koordinaten.
+    Ein:  historische Tabelle (bis 2017), moderne Tabelle (ab 2018-01),
+          Crosswalk fuer den Spatial Join
+    Aus:  eine Zeile je Stadtteil und Monat mit der Deliktzahl
+
+    - zwei Quellen mit Schnitt 2018
+    - die moderne ist voraggregiert und hat eine Stadtteilspalte, die historische
+      nicht; dort ein Spatial Join der Koordinaten ins Polygon
+    - der Index zaehlt alle Straftaten, deshalb werden die Kategorien summiert;
+      eine Harmonisierung der Kategorienschemata eruebrigt sich damit
     """
     import geopandas as gpd
 
@@ -367,7 +429,10 @@ def crime_monatlich() -> pd.DataFrame:
 
 
 def kriminalitaetsindex(nb_per_year: dict[int, pd.DataFrame]) -> pd.DataFrame:
-    """Relativer Kriminalitaetsindex je Neighborhood und Monat.
+    """Berechnet den relativen Kriminalitaetsindex je Stadtteil und Monat.
+
+    Ein:  monatliche Deliktzahlen, Einwohnerzahlen, Fensterlaenge
+    Aus:  Indexspalte je Stadtteil-Monat, dazu crime_rate_raw
 
     Definition (Location Quotient der Kriminalitaetsbelastung):
 
@@ -375,18 +440,16 @@ def kriminalitaetsindex(nb_per_year: dict[int, pd.DataFrame]) -> pd.DataFrame:
         rate(Stadt,t) = Delikte(Stadt, gleiches Fenster) / Einwohner(Stadt)
         index(i,t)    = rate(i,t) / rate(Stadt,t)
 
-    Lesart: 1,0 = Belastung wie im Stadtdurchschnitt desselben Monats.
-
-    Warum relativ statt absolut? Der SFPD-Systemwechsel im Mai 2018 veraendert
-    das stadtweite Niveau. Ein multiplikativer Niveausprung wirkt auf Zaehler
-    und Nenner gleich und kuerzt sich heraus. Verbleibende Limitation: Eine
-    Verschiebung in der ZUSAMMENSETZUNG der erfassten Delikte, die einzelne
-    Stadtteile staerker trifft, kuerzt sich nicht heraus (Kap. 6.3).
-
-    Kein Leakage: Das Fenster endet strikt im Vormonat.
-
-    `crime_rate_raw` (Delikte je 1.000 Ew.) ist NUR deskriptiv fuer Kapitel 5.1,
-    kein Modellmerkmal - sie enthaelt den Bruch von 2018.
+    - Lesart: 1,0 = Belastung wie im Stadtdurchschnitt desselben Monats
+    - relativ statt absolut, weil der SFPD-Systemwechsel im Mai 2018 das
+      stadtweite Niveau veraendert; ein multiplikativer Niveausprung wirkt auf
+      Zaehler und Nenner gleich und kuerzt sich heraus
+    - verbleibende Limitation: eine Verschiebung in der ZUSAMMENSETZUNG der
+      erfassten Delikte, die einzelne Stadtteile staerker trifft, kuerzt sich
+      nicht heraus (Kap. 6.3)
+    - kein Leakage: das Fenster endet strikt im Vormonat
+    - crime_rate_raw (Delikte je 1.000 Ew.) ist nur deskriptiv fuer Kapitel 5.1
+      und kein Modellmerkmal - sie enthaelt den Bruch von 2018
     """
     monatlich = crime_monatlich()
 
@@ -437,9 +500,12 @@ def kriminalitaetsindex(nb_per_year: dict[int, pd.DataFrame]) -> pd.DataFrame:
 # TEIL F  LAND USE - bauliche Merkmale
 # ==========================================================================
 def land_use_je_neighborhood() -> pd.DataFrame:
-    """Parzellen-Centroid -> Neighborhood, dann Aggregation je Neighborhood.
+    """Ordnet Parzellen-Centroide Stadtteilen zu und aggregiert je Stadtteil.
 
-    Statisch (Snapshot 2020, einziger verfuegbarer Jahrgang).
+    Ein:  Parzellentabelle, Stadtteilgeometrien
+    Aus:  eine Zeile je Stadtteil mit den baulichen Merkmalen
+
+    - statisch: Snapshot 2020, der einzige verfuegbare Jahrgang
     """
     import geopandas as gpd
     from shapely.geometry import shape
@@ -503,10 +569,13 @@ QUOTEN = [
 
 
 def berechne_quoten(df: pd.DataFrame) -> pd.DataFrame:
-    """Anteilswerte in [0,1]; Nenner <= 0 ergibt NaN statt Division durch Null.
+    """Rechnet Anteilswerte in [0,1].
 
-    Kriminalitaet taucht hier NICHT auf: Sie geht als relativer Index je
-    Stadtteil x Monat ein (Decision Log #17), nicht als Anteil.
+    Ein:  Zaehler- und Nennerspalten
+    Aus:  Anteilsspalten; Nenner <= 0 ergibt NaN statt Division durch Null
+
+    - Kriminalitaet taucht hier nicht auf: Sie geht als relativer Index je
+      Stadtteil x Monat ein (#17), nicht als Anteil
     """
     for name, zaehler, nenner in QUOTEN:
         z = pd.to_numeric(df[zaehler], errors="coerce").astype(float)
@@ -522,6 +591,16 @@ def berechne_quoten(df: pd.DataFrame) -> pd.DataFrame:
 # Ablauf
 # ==========================================================================
 def run_join() -> pd.DataFrame:
+    """Fuehrt alle Rohquellen zur Einsatztabelle zusammen.
+
+    Ein:  die Dateien aus run_download()
+    Aus:  data/processed/einsaetze.parquet; Exitcode
+
+    - Reihenfolge: SFFD aufbereiten, ACS anfuegen, Kriminalitaetsindex und
+      Baumerkmale ueber die Stadtteilgeometrie anspielen, Quoten rechnen
+    - der Kriminalitaetsindex ist die einzige monatlich variierende
+      Merkmalsquelle; ACS ist jaehrlich, Land Use ein Snapshot 2020
+    """
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     fehlend = [f"{d} (Schalter {s})" for d, s in BENOETIGT.items()
                if not (RAW_DIR / d).exists()]

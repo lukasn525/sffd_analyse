@@ -1941,6 +1941,79 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 % Symmetrie linear/Bagging/Boosting besteht also nur im Regressionsstrang.
 % Der Vergleich dort ist damit einer zwischen zwei Baumverfahren, die sich
 % konstruktionsbedingt aehnlicher sind als Ridge, RF und XGBoost einander.
+%
+% ===================================================================
+% DIE EFFEKTIVE STICHPROBE -- WIE SIE ZU SCHREIBEN IST (B-49, B-50)
+% ===================================================================
+% Die Zahl lautet: rund 38 effektive Einheiten bei 4.620 Zeilen (ICC 0,926,
+% Designeffekt 122). Ohne Saison und Kriminalitaetsindex nehmen die Merkmale
+% nur 140 verschiedene Werte an.
+%
+% DER TON ENTSCHEIDET HIER MEHR ALS DIE ZAHL. Drei Fassungen:
+%
+%   FALSCH, defensiv:  "Leider standen nur 35 Stadtteile zur Verfuegung."
+%                      Liest sich als Entschuldigung und laedt zur Nachfrage ein.
+%
+%   FALSCH, offensiv:  "Viele Arbeiten mit 35 Gebietseinheiten berichten
+%                      p-Werte auf Basis der Zeilenzahl und merken es nicht."
+%                      Ein Seitenhieb auf die Literatur OHNE BELEG. In einer
+%                      Bachelorarbeit ist das angreifbar, nicht souveraen.
+%                      NICHT SO SCHREIBEN.
+%
+%   RICHTIG, sachlich: Die Groessenordnung als Eigenschaft des Gegenstands
+%                      benennen, die eigene Behandlung dagegenstellen, beides
+%                      belegen. Etwa:
+%
+%     "Flaechenbezogene Untersuchungen arbeiten typischerweise mit wenigen
+%      Dutzend Gebietseinheiten; die effektive Stichprobe liegt hier bei rund
+%      38. Entscheidend ist weniger diese Groesse als der Umgang mit ihr:
+%      Getestet wird auf den zehn Wiederholungsmitteln statt auf den 50
+%      Einzellaeufen, weil letztere Pseudoreplikation waeren (Hurlbert 1984);
+%      validiert wird stadtteilweise statt zufaellig, weil zufaelliges k-Fold
+%      bei Abhaengigkeitsstrukturen zu optimistische Schaetzungen liefert
+%      (Roberts et al. 2017). Die berichtete Streuung quantifiziert die
+%      Abhaengigkeit von der Fold-Zuteilung und ist damit eine UNTERGRENZE der
+%      Unsicherheit ueber die Grundgesamtheit der Stadtteile."
+%
+% BELEGE, die diese Fassung tragen -- beide sind kanonisch und zitierfaehig:
+%   Hurlbert, S. H. (1984): Pseudoreplication and the Design of Ecological
+%     Field Experiments. Ecological Monographs 54(2), S. 187-211.
+%     -> die Referenz fuer Pseudoreplikation ueberhaupt
+%   Roberts, D. R. et al. (2017): Cross-validation strategies for data with
+%     temporal, spatial, hierarchical, or phylogenetic structure.
+%     Ecography 40(8), S. 913-929.
+%     -> Block-/Leave-Group-Out-CV als empfohlene Praxis; ENTLASTUNG, weil der
+%        Stadtteil-Split damit Standard ist und kein Sonderweg
+%
+% WARUM DAS IN DIE ARBEIT GEHOERT UND NICHT NUR INS KOLLOQUIUM: Wer die Zahl
+% selbst nennt und methodisch beantwortet, nimmt der Frage die Spitze. Wer sie
+% verschweigt, laesst sie sich stellen. Das Gutachten bewertet nach R6/R9
+% nicht, ob Probleme auftreten, sondern ob sie methodisch geloest wurden.
+%
+% -------------------------------------------------------------------
+% DIE FORMULIERUNG OBEN IST EIN GERUEST, KEINE VORLAGE.
+% Eigener Satzbau, eigene Reihenfolge, eigene Laenge - und Schroeters
+% Stilvorgaben (keine Kursivschrift, keine Anfuehrungszeichen, keine
+% Zwischenfazits, Blindabsaetze) gelten ohnehin. FREI sind Ton, Aufbau und
+% Umfang. ERHALTEN BLEIBEN MUESSEN nur die pruefbaren Behauptungen:
+%
+%   - die Zahlen: n_eff ~ 38, ICC 0,926, Designeffekt 122, 140 Merkmalsvektoren
+%   - Hurlbert (1984) an der Stelle "warum n = 10 und nicht 50"
+%   - Roberts et al. (2017) an der Stelle "warum stadtteilweise, nicht zufaellig"
+%   - die Richtung: die berichtete Streuung ist eine UNTERGRENZE
+%   - kein unbelegter Seitenhieb auf andere Arbeiten
+%
+% FALLE BEIM UMFORMULIEREN: Aus "Untergrenze der Unsicherheit" wird leicht
+% "das Konfidenzintervall ist konservativ" oder "vorsichtig geschaetzt".
+% Das ist das GEGENTEIL und waere falsch. Konservativ hiesse zu breit; hier
+% ist es zu SCHMAL, weil alle zehn Wiederholungen dieselben 29 Stadtteile
+% teilen (B-50). Sichere Wendungen: "eher zu schmal als zu breit", "die
+% tatsaechliche Unsicherheit liegt darueber".
+%
+% KI-VERZEICHNIS: Wird eine hier vorformulierte Passage als Geruest genutzt,
+% gehoert ein Eintrag in die Tabelle am Ende des Dokuments - nach dem Muster
+% der vorhandenen Eintraege mit Prompt und Ergebnisverweis.
+% ===================================================================
 
 % ===================================================
 \section{Fazit und Ausblick}

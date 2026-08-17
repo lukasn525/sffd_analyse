@@ -1,19 +1,23 @@
 """
-DER EINE BEFEHL der Vorpruefung.
+Der eine Befehl der Vorpruefung.
 
     python vorpruefung/run.py
 
-Ablauf:
+Eingang: data/processed/{regression,klassifikation}.parquet
+Ausgang: results/{regression,klassifikation}/baselines_*.csv
+         results/eignungspruefung/eignungspruefung.md
 
-    1  v1_baselines.py  -> results/{regression,klassifikation}/baselines_*.csv
-                           Stufe 1 (trivial) und Stufe 2 (einfachste passende Form)
-    2  v2_eignung.py    -> results/eignungspruefung/eignungspruefung.md
-                           Welche Verfahrensklasse passt zu welcher Zielgroesse?
+  - Schritt 1  v1_baselines.py  legt die Messlatte: Stufe 1 (trivial) und
+    Stufe 2 (einfachste zur Datenform passende Form)
+  - Schritt 2  v2_eignung.py    prueft, welche Verfahrensklasse zu welcher
+    Zielgroesse passt
+  - Die Reihenfolge ist zwingend: die Eignungspruefung LIEST die
+    Baseline-Werte, sie rechnet sie nicht neu
+  - v0_aufteilung.py (Selbsttest), v3_spezifikation.py und v4_decke.py
+    laufen einzeln und haengen nicht an diesem Befehl
+  - Voraussetzung ist ein Lauf von prep/build.py
 
-Reihenfolge ist zwingend: Die Eignungspruefung LIEST die Baseline-Werte.
-
-Danach steht fest, was die Vergleichsverfahren in modelle/ schlagen muessen und
-warum sie ueberhaupt antreten. Voraussetzung ist ein Lauf von prep/build.py.
+Ausfuehrliche Fassung: docs/08_FUNKTIONSDOKUMENTATION.md
 """
 import sys
 import time
@@ -23,10 +27,24 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
 def schritt(nummer: str, titel: str) -> None:
+    """Gibt die Ueberschrift eines Arbeitsschrittes aus.
+
+    Ein:  Nummer wie "1/2", Titel des Schrittes
+    Aus:  nichts, reine Konsolenausgabe
+    """
     print(f"\n{'=' * 78}\n  SCHRITT {nummer}: {titel}\n{'=' * 78}\n")
 
 
 def main() -> int:
+    """Faehrt beide Schritte der Vorpruefung nacheinander.
+
+    Ein:  nichts; setzt einen Lauf von prep/build.py voraus
+    Aus:  Exitcode 0
+
+    - Schritt 1 v1_baselines.run(), Schritt 2 v2_eignung.main()
+    - die Reihenfolge ist zwingend: die Eignungspruefung liest die
+      Baseline-Werte, sie rechnet sie nicht neu
+    """
     import v1_baselines
     import v2_eignung
 

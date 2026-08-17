@@ -1,21 +1,13 @@
 """
 Konfiguration der Datenaufbereitung.
 
-HIER STEHT, WAS IN DIE PARQUET-DATEIEN GESCHRIEBEN WIRD: Analysezeitraum,
-ausgeschlossene Stadtteile, Praediktoren, Zielgroessen, Klassen und die Zahl der
-Folds. Jede dieser Festlegungen bestimmt, welche Spalten die Datensaetze haben
-oder wie sie belegt sind.
+Ausgang: Konstanten fuer prep/, vorpruefung/ und modelle/.
 
-Was nur beim Rechnen gilt - Suchraeume, Tuning-Budget, Random State, Zahl der
-Wiederholungen - steht in modelle/config_modelle.py und beruehrt keine Datei auf
-der Platte.
+- Hier steht, was in die Parquet-Dateien GESCHRIEBEN wird. Was nur beim
+  RECHNEN gilt, steht in modelle/config_modelle.py.
+- N_FOLDS steht deshalb hier: es belegt die Spalte `fold`.
 
-Die Trennlinie ist also nicht "Daten gegen Modelle". N_FOLDS zum Beispiel steht
-hier, obwohl es nach Modellierung klingt: Es bestimmt die Spalte `fold` in
-beiden Datensaetzen. Die Modellskripte lesen diese Festlegung, sie treffen sie
-nicht.
-
-Bezug: docs/03_STAND.md, docs/02_ENTSCHEIDUNGEN.md
+Ausfuehrlich: docs/08_FUNKTIONSDOKUMENTATION.md
 """
 from pathlib import Path
 
@@ -37,9 +29,7 @@ PFAD_KLASSIFIKATION = PROCESSED_DIR / "klassifikation.parquet"
 # ==========================================================================
 # 2  DOWNLOADS  (Schritt: prep/s1_daten.py)
 # ==========================================================================
-# Alle Schalter stehen per Default auf False. `python prep/build.py` laeuft
-# dann allein aus data/raw und braucht weder Internet noch API-Key.
-# Zum Neuladen einer Quelle den jeweiligen Schalter auf True setzen.
+# Default False: build.py laeuft aus data/raw, ohne Internet und API-Key.
 DOWNLOAD_SFFD             = False
 DOWNLOAD_CROSSWALK        = False
 DOWNLOAD_ACS              = False
@@ -66,25 +56,17 @@ ACS_VARIABLES = {
     "B25002_001E": "total_housing_units",
 }
 
-# Historische SFPD-Daten: Startdatum. Der Kriminalitaetsindex nutzt ein
-# rollierendes 12-Monats-Fenster, das im VORMONAT endet; fuer den ersten
-# Analysemonat 2015-01 werden daher die Delikte aus 2014 benoetigt.
-# Die Lag-Vorlaufmonate (2014) brauchen KEINEN Kriminalitaetsindex - sie liefern
-# ausschliesslich Einsatzzaehlungen fuer die Lags und werden nach der
-# Lag-Bildung wieder entfernt.
+# Das Indexfenster endet im Vormonat - fuer 2015-01 braucht es 2014.
 CRIME_HISTORISCH_AB  = "2014-01-01"
 CRIME_HISTORISCH_BIS = "2018-01-01"   # exklusiv; ab hier greift e3si-785i
 
 # ==========================================================================
 # 3  JOINS  (Schritt: prep/s1_daten.py)
 # ==========================================================================
-# Publikationsverzoegerung der ACS-5-Jahres-Schaetzungen: Jahrgang y erscheint
-# erst ca. Dezember y+1. Ein Modell, das im Jahr y schon den Jahrgang y nutzt,
-# waere zum Prognosezeitpunkt nicht implementierbar (Decision Log #11).
+# ACS-Jahrgang y erscheint erst um Dezember y+1 (Decision Log #11).
 ACS_PUBLIKATIONS_LAG = 1
 
-# Laenge des rollierenden Fensters des Kriminalitaetsindex, endend im Vormonat
-# -> strikt rueckwaertsgerichtet, kein Leakage (Decision Log #17).
+# Indexfenster, endend im Vormonat - strikt rueckwaerts, kein Leakage (#17).
 CRIME_FENSTER_MONATE = 12
 
 # Land-Use-Kategorien (Snapshot 2020, einziger verfuegbarer Jahrgang).
@@ -97,63 +79,30 @@ ANTWORTZEIT_MIN, ANTWORTZEIT_MAX = 0, 60
 # ==========================================================================
 # 4  ANALYSEZEITRAUM UND ANALYSEEINHEITEN
 # ==========================================================================
-# Hart fixiert, NICHT aus den Daten abgeleitet: Jeder Lauf liefert denselben
-# Zeitraum, egal wie weit der letzte DataSF-Download reicht (Decision Log #18).
-#
-# START 2015-01: frueheste Periode mit vollstaendigen ACS-Merkmalen unter
-#   Beruecksichtigung des Publikationsversatzes (Decision Log #5, #11).
-# ENDE  2025-12: letztes vollstaendiges Kalenderjahr (Decision Log #12).
+# Hart fixiert, nicht aus den Daten abgeleitet (#18).
+#   START  frueheste Periode mit vollstaendigen ACS-Merkmalen (#5, #11)
+#   ENDE   letztes vollstaendiges Kalenderjahr (#12)
 START = 201501
 ENDE  = 202512
 
-# Lag-Vorlauf (Decision Log #23, 2026-07-27)
-# --------------------------------------------------------------------------
-# lag_12 fuer Januar 2015 braucht Januar 2014. Frueher fehlte dieser Monat im
-# Panel, weshalb das erste Jahr je Stadtteil per dropna verlorenging und die
-# Regression erst 2016-01 begann - waehrend die Klassifikation ab 2015-01 lief.
-#
-# Die Lags brauchen ausschliesslich `anzahl_einsaetze` aus der Vergangenheit,
-# KEINE ACS-Merkmale. Der Grund fuer START = 2015 (Akademikerquote) betrifft nur
-# die Praediktoren der Zielzeile, nicht deren Vergangenheitswerte. Einsatzzahlen
-# liegen bis 2003 vor.
-#
-# Ablauf: ab START-VORLAUF aggregieren -> Lags bilden -> auf START zuschneiden.
-# Die Vorlaufmonate gehen ausschliesslich ueber shift() ein, nie als eigene
-# Zeile. Ergebnis: 4.620 statt 4.200 Modellzeilen, beide Datensaetze decken
-# denselben Zeitraum ab.
+# Lag-Vorlauf (#23): ab START-VORLAUF aggregieren, Lags bilden, auf START
+# zuschneiden. Ohne ihn beginnt die Regression erst 2016-01. 4.620 statt 4.200.
 VORLAUF_MONATE = 12
 
-# Stadtteile ohne nennenswerte Wohnbevoelkerung (Decision Log #19). Fuer ein
-# bevoelkerungsbezogenes Risikomodell keine sinnvolle Analyseeinheit: jede
-# Pro-Kopf-Groesse wird dort beliebig gross, weil der Nenner gegen null geht.
-#   Golden Gate Park  45 Einwohner, Kriminalitaetsindex im Median 186
-#   Lincoln Park     299 Einwohner
-#   McLaren Park     507 Einwohner, zusaetzlich Census-Artefakt (Armutsquote 0,90)
-# Median aller uebrigen Stadtteile: 14.435 Einwohner.
+# Parks ohne Wohnbevoelkerung (#19): 45 bis 507 Einwohner gegen 14.435 im
+# Median. Jede Pro-Kopf-Groesse wird dort beliebig gross.
 PARKGEBIETE = ["Golden Gate Park", "Lincoln Park", "Mclaren Park"]
 
-# Ein Monat gilt als verdaechtig unvollstaendig, wenn seine stadtweite
-# Einsatzzahl unter diesem Anteil des Median-Monats liegt. Nur Warnung, kein
-# automatischer Filter - massgeblich bleibt ENDE.
+# Warnschwelle fuer unvollstaendige Monate. Kein Filter - massgeblich ist ENDE.
 VOLLSTAENDIGKEITS_SCHWELLE = 0.5
 
 # ==========================================================================
 # 5  MERKMALE DER REGRESSION
 # ==========================================================================
 # Praediktoren gemaess Expose: soziooekonomisch, kriminalitaetsbezogen, baulich.
-#
-# log_bevoelkerung statt roher Einwohnerzahl (Exposure, Decision Log #13): ohne
-# diese Kontrolle sagt das Modell im Kern die Stadtteilgroesse vorher. Die
-# Bevoelkerung ist die Groesse mit dem Vorzeichenwechsel - sie korreliert +0,20
-# mit der absoluten Einsatzzahl, aber -0,42 mit Einsaetzen je 1.000 Einwohner.
-# (Die frueher hier genannte Armutsquote wechselt das Vorzeichen NICHT: +0,49
-# absolut, +0,46 pro Kopf. Korrektur vom 28.07.2026, docs/02_ENTSCHEIDUNGEN.md)
-#
-# log_kriminalitaetsindex (Decision Log #17/#19): der Index ist ein Quotient,
-# also multiplikativ und rechtsschief. Logarithmiert ist er symmetrisch um 0
-# (0 = Stadtdurchschnitt, +0,69 = doppelt so hoch). Fuer Baumverfahren ist die
-# monotone Transformation wirkungsneutral, deshalb einheitlich fuer ALLE
-# Modelle (Fairness-Regel).
+# log_bevoelkerung als Groessenkontrolle (#13), log_kriminalitaetsindex weil der
+# Index multiplikativ ist (#17/#19). Beide Logarithmen gelten fuer ALLE Modelle
+# gleich (Fairness-Regel).
 PRAEDIKTOREN = [
     "median_haushaltseinkommen", "armutsquote_pct", "akademikerquote_pct",
     "median_miete", "leerstandsquote_pct", "log_bevoelkerung",
@@ -162,48 +111,21 @@ PRAEDIKTOREN = [
     "anteil_risikogewerbe_pct",
 ]
 
-# Rohwerte: keine Modellmerkmale, aber im Datensatz mitgefuehrt fuer den
-# Offset des Poisson-GLM, die Raten-Sensitivitaet und die Deskription in
-# Kap. 5.1. Bis Decision Log #45 (06.08.2026) hiess das hier "NegBin-Offset";
-# die Stufe-2-Baseline ist seither ein Poisson-GLM. Der Offset selbst ist
-# unveraendert log(gesamtbevoelkerung) - nur die Verteilungsannahme des
-# Modells hat gewechselt, nicht die Rolle dieser Spalte.
+# Rohwerte: keine Merkmale, aber Offset des Poisson-GLM und Deskription 5.1.
 EXPOSURE_ROH = "gesamtbevoelkerung"
 CRIME_ROH    = "kriminalitaetsindex"
 
-# Saison: Kalendermonat als Sinus/Kosinus.
-# Der Monat als ZAHL 1-12 waere eine schlechte Kodierung - Dezember und Januar
-# haetten den Abstand 11, obwohl sie benachbart sind, und ein linearer
-# Koeffizient koennte ein U-foermiges Jahresmuster grundsaetzlich nicht
-# abbilden. sin/cos legen die Monate auf ein Zifferblatt.
+# Saison als sin/cos - der Monat als Zahl gaebe Dezember und Januar Abstand 11.
 SAISON = ["monat_sin", "monat_cos"]
 
-# Lags: Vergangenheitswerte der Zielgroesse, je Stadtteil. Sie bleiben im
-# Datensatz, sind aber KEIN Modellmerkmal mehr (Decision Log #29).
-#
-# Grund: Der Verfahrensvergleich laeuft seit dem 28.07.2026 ueber einen
-# STADTTEIL-Split - trainiert wird auf 23 Stadtteilen je Fold, getestet auf
-# unbekannten. Der Vormonatswert eines Teststadtteils waere dabei technisch
-# verfuegbar, denn es ist seine eigene Vergangenheit. Genau dann erklaert aber
-# wieder seine Historie das Ergebnis statt seiner Struktur - und die
-# Forschungsfrage bliebe unbeantwortet.
-#
-# Wozu sie dann noch da sind: zur DESKRIPTION der zeitlichen Struktur in
-# Kapitel 4 (Autokorrelation Lag 1 innerhalb eines Stadtteils). Es ist KEIN
-# zweiter Analysestrang mit Zeitschnitt geplant - der waere ein zweiter
-# Validierungsrahmen und verstiesse gegen R1 und R8 (praezisiert 04.08.2026,
-# Decision Log #29). Sie formen den Datensatz auch nicht: Das dropna auf die
-# Lags entfernt dank Vorlauf null Zeilen.
-# Leakage-sicher gebildet: strikt rueckwaertsgerichtet, shift() VOR rolling().
+# Lags bleiben im Datensatz, sind aber KEIN Modellmerkmal (#29): sonst
+# erklaerte die Historie das Ergebnis statt der Struktur. Nur fuer die
+# Deskription in Kapitel 4. Strikt rueckwaerts, shift() VOR rolling().
 LAGS = ["lag_1", "lag_12", "rolling_mean_3"]
 
-# Ein Merkmalssatz - identisch fuer Ridge, Random Forest und XGBoost.
-#
-# Bewusst NICHT enthalten: das rohe `jahr` und die Stadtteil-ID. Baumverfahren
-# koennen nicht extrapolieren und ordnen unbekannte Werte dem letzten Blatt zu,
-# waehrend Ridge linear weiterrechnet - das wuerde den Verfahrensvergleich
-# verzerren. Eine Stadtteil-ID waere unter einem Stadtteil-Split ohnehin
-# sinnlos: Der Teststadtteil ist im Training nie vorgekommen.
+# Ein Merkmalssatz fuer alle drei Verfahren. Ohne rohes `jahr` und
+# Stadtteil-ID: Baeume koennen nicht extrapolieren, Ridge schon - das
+# verzerrte den Vergleich.
 FEATURE_SETS = {
     "S": PRAEDIKTOREN + SAISON,
 }
@@ -211,12 +133,10 @@ FEATURE_SETS = {
 # ==========================================================================
 # 6  MERKMALE UND ZIELGROESSEN DER KLASSIFIKATION
 # ==========================================================================
-# NFIRS-Codes sind hierarchisch; die fuehrende Ziffer bezeichnet die Serie.
-# Zusammengefasst wird entlang der fachlichen Bedeutung, nicht nach Haeufigkeit
-# (Decision Log #21).
-#   100 Brand · 200 Ueberdruck/Explosion ohne Feuer · 300 Rettungsdienst
-#   400 Gefahrenlage · 500 Serviceeinsatz · 600 Good Intent · 700 Fehlalarm
-#   800 Naturereignis · 900 Sonstige
+# NFIRS: die fuehrende Ziffer bezeichnet die Serie. Zusammengefasst nach
+# fachlicher Bedeutung, nicht nach Haeufigkeit (#21).
+#   100 Brand · 300 Rettungsdienst · 600/700 Fehlalarm
+#   200/400/500/800/900 technische Hilfe und Gefahrenlagen
 NFIRS_GRUPPEN = {
     "1": "Brand",
     "3": "Rettung/EMS",
@@ -231,15 +151,8 @@ NFIRS_GRUPPEN = {
 KLASSEN    = ["Brand", "Rettung/EMS", "Technische Hilfe/Gefahr", "Fehlalarm/Good Intent"]
 RESTKLASSE = "Technische Hilfe/Gefahr"
 
-# Zielgroessen der Klassifikation: die ZUSAMMENSETZUNG der Einsatzlast je
-# Stadtteil und Monat, nicht die Art des einzelnen Einsatzes (Decision Log #29).
-#
-# Warum der Wechsel: Innerhalb eines Stadtteil-Monats tragen ALLE Einsaetze
-# identische Strukturmerkmale. 350.481 Einzeleinsaetze enthielten nur 4.619
-# verschiedene Profile; ein perfektes Modell auf den Strukturmerkmalen haette
-# 49,9 % Treffer erreicht gegenueber 48,2 % fuer blosses Raten. Auf Stadtteil-
-# ebene ist dieselbe Frage dagegen beantwortbar: Der Fehlalarm-Anteil laesst
-# sich fuer einen unbekannten Stadtteil mit R2 0,66 vorhersagen.
+# Zielgroesse ist die ZUSAMMENSETZUNG der Einsatzlast je Stadtteil-Monat (#29).
+# Auf Einzeleinsatz-Ebene waeren es nur 4.619 Profile fuer 350.481 Einsaetze.
 ANTEILE = [f"anteil_{k}" for k in
            ["brand", "rettung_ems", "technische_hilfe", "fehlalarm"]]
 
@@ -252,9 +165,7 @@ ANZAHLEN = [f"anzahl_{k}" for k in
 # dieselben Folds, dieselben Verfahren (Fairness-Regel, Gutachten R1).
 MERKMALE_STRUKTUR = list(PRAEDIKTOREN)
 
-# Ergebnisvariablen - duerfen NIEMALS Merkmal sein. Sie stehen erst nach dem
-# Einsatz fest oder sind eine Folge der Einsatzart; ihre Verwendung waere
-# Leakage im engeren Sinn (Decision Log #20).
+# Ergebnisvariablen - NIEMALS Merkmal. Stehen erst nach dem Einsatz fest (#20).
 ERGEBNISVARIABLEN = [
     "schaetzung_sachschaden_usd", "loeschfahrzeuge", "loeschkraefte",
     "rettungsdienst_einheiten", "alarmstufe", "antwortzeit_min",
@@ -266,33 +177,17 @@ ERGEBNISVARIABLEN = [
 # ==========================================================================
 # 7  VALIDIERUNG  (Schritt: prep/s2_datensaetze.py, Teil A)
 # ==========================================================================
-# STADTTEIL-SPLIT (Decision Log #29). Die Forschungsfrage lautet: Laesst sich
-# aus Strukturmerkmalen vorhersagen, wie viele und welche Einsaetze ein
-# Stadtteil hat? Diese Frage prueft man, indem man einen Stadtteil komplett
-# zurueckhaelt - nicht, indem man die Zeitachse schneidet. Bei einem Zeitschnitt
-# steht jeder Stadtteil in Training UND Test; das Modell kennt sein Niveau
-# bereits und die Strukturmerkmale muessen nichts erklaeren.
-#
-#     29 Stadtteile -> 5 Folds (6/6/6/6/5)   6 Stadtteile -> Hold-out
-#     jeder Stadtteil ist genau einmal Testfall, nie zugleich Trainingsfall
-#
-# Zuteilung stratifiziert nach Bevoelkerung: Die Stadtteile werden nach
-# Einwohnerzahl sortiert und reihum auf die Gruppen verteilt. Damit deckt jede
-# Gruppe die gesamte Groessenspanne ab - sonst laege im Test zufaellig nur
-# Downtown oder nur Seacliff. Stratifiziert wird nach einem PRAEDIKTOR, nicht
-# nach der Zielgroesse; sonst floesse Testinformation in die Gruppenbildung ein.
-# Die Stadtteile werden reihum auf N_FOLDS + 1 Gruppen verteilt. Gruppe 0 ist
-# das Hold-out, die Gruppen 1..N_FOLDS sind die Folds. Bei 35 Stadtteilen
-# ergibt das 6 Hold-out-Stadtteile und Folds der Groesse 6, 6, 6, 6, 5.
+# STADTTEIL-SPLIT (#29): ein Stadtteil wird komplett zurueckgehalten. Bei einem
+# Zeitschnitt stuende jeder Stadtteil in Training UND Test und das Modell
+# kennte sein Niveau bereits.
+#     29 Stadtteile -> 5 Folds (6/6/6/6/5)   6 -> Hold-out
+# Stratifiziert nach einem PRAEDIKTOR, nicht nach der Zielgroesse.
 N_FOLDS = 5
 
 # ==========================================================================
 # 8  SPALTENNAMEN  englisch -> deutsch
 # ==========================================================================
-# Die Rohquellen (DataSF, Census) liefern englische Namen; ab dem Ende von
-# prep/s1_daten.py heisst im Projekt alles deutsch. Dieses Mapping ist die
-# einzige Stelle, an der der Wechsel passiert. Steht hier unten, weil man es
-# beim Arbeiten praktisch nie anfasst - im Gegensatz zu allem darueber.
+# Englisch -> deutsch. Einzige Stelle des Wechsels, deshalb ganz unten.
 spalten_deutsch = {
     # ── SFFD Einsatzfelder (Quelldaten) ──────────────────────────────────────
     "incident_number":               "einsatz_nummer",

@@ -1,96 +1,50 @@
 """
-Wie gut KANN die Einsatzart bei dieser Zielgroesse ueberhaupt vorhergesagt werden?
+Wie gut KANN die Einsatzart mit diesen Merkmalen ueberhaupt vorhergesagt werden?
 
     python vorpruefung/v4_decke.py            Entwicklungspanel, 29 Stadtteile
     python vorpruefung/v4_decke.py holdout    zusaetzlich die 6 gesperrten
 
 Eingang: data/processed/klassifikation.parquet
          results/klassifikation/struktur_mittel.csv (optional, fuer die Quoten)
-Ausgang: results/klassifikation/decke.csv
-         results/klassifikation/decke_marge.csv
-         results/klassifikation/decke_ausschoepfung.csv
-         results/klassifikation/decke.md
-         mit Argument "holdout" dieselben Dateien mit Endung _holdout
+Ausgang: results/klassifikation/decke.csv, decke_marge.csv,
+         decke_ausschoepfung.csv, decke.md - mit Argument "holdout" dieselben
+         Dateien mit Endung _holdout
 
-STAND: vollstaendig, 17.08.2026.
+  - Der Strukturstrang erreicht Macro-F1 um 0,33. Gegen 1,0 gehalten sieht
+    das misslungen aus; diese Lesart vergleicht mit einer Obergrenze, die
+    bei DIESER Zielgroesse und DIESEM Merkmalssatz nicht erreichbar ist
+  - DECKE A, Label-Rauschen: `dominante_einsatzart` ist kein beobachtetes
+    Merkmal, sondern der argmax ueber vier Anteilsspalten. Liegen zwei
+    Anteile dicht beieinander, entscheidet die Monatsziehung. Gemessen per
+    parametrischem Bootstrap aus Multinomial(N, p_beobachtet) - das ist die
+    Guete eines Modells, das die wahren Wahrscheinlichkeiten exakt kennt
+  - DECKE B, Grenze des Stadtteilwissens: Alle Praediktoren sind
+    stadtteilgebunden (baulich konstant, sozial je Stadtteil-Jahr,
+    Kriminalitaet zu 90 % zwischen den Stadtteilen). Mehr als die
+    Modalklasse SEINES Stadtteils kann ein Modell daraus nicht ableiten.
+    Diese Decke liegt deutlich unter A, weil fast alle Stadtteile dieselbe
+    Modalklasse haben
+  - Berichtet wird die baselinekorrigierte Ausschoepfung
+    (Modell - Mehrheitsklasse) / (Decke - Mehrheitsklasse). Der
+    Rohquotient waere geschoent: Der Sockel von Macro-F1 0,22 ist keine
+    Leistung des Modells
+  - Beide Decken entstehen VOR jeder Modellwahl. Sie zu beziffern ist keine
+    nachtraegliche Entlastung, sondern die Voraussetzung dafuer, 0,33
+    ueberhaupt einordnen zu koennen (B-48)
 
---------------------------------------------------------------------------
-WOZU DIESES SKRIPT
---------------------------------------------------------------------------
-Der Strukturstrang erreicht Macro-F1 um 0,33. Gegen die 1,0 einer fehlerfreien
-Vorhersage gehalten sieht das nach einem misslungenen Modell aus. Diese Lesart
-ist falsch, und dieses Skript belegt, warum: Sie vergleicht das Ergebnis mit
-einer Obergrenze, die bei DIESER Zielgroesse und DIESEM Merkmalssatz gar nicht
-erreichbar ist.
-
-Zwei Obergrenzen begrenzen den Strukturstrang, und beide entstehen VOR jeder
-Modellwahl - die eine in der Konstruktion der Zielgroesse, die andere in der
-Struktur der Merkmale. Sie zu beziffern ist keine nachtraegliche Entlastung,
-sondern die Voraussetzung dafuer, Macro-F1 0,33 ueberhaupt einordnen zu
-koennen. Ohne sie bleibt jede Aussage ueber den Strukturstrang eine Vermutung.
-
-  DECKE A - LABEL-RAUSCHEN AUS DEM ARGMAX
-  `dominante_einsatzart` ist kein beobachtetes Merkmal, sondern der argmax
-  ueber vier Anteilsspalten desselben Stadtteil-Monats. Wo zwei Anteile dicht
-  beieinander liegen, entscheidet der Zufall der Monatsziehung, welche Klasse
-  gewinnt - nicht die Struktur des Stadtteils.
-  Gemessen wird das mit einem parametrischen Bootstrap: Jeder Stadtteil-Monat
-  wird aus Multinomial(N, p_beobachtet) neu gezogen und geprueft, ob der argmax
-  kippt. Der Macro-F1 zwischen dem beobachteten und dem neu gezogenen Label ist
-  die Guete, die ein Modell erreichte, das die wahren Klassenwahrscheinlichkeiten
-  EXAKT kennt. Kein Verfahren kann darueber hinaus.
-
-  DECKE B - GRENZE DES STADTTEILWISSENS
-  Alle zwoelf Praediktoren sind stadtteilgebunden: die baulichen konstant ueber
-  den gesamten Zeitraum, die sozialen konstant je Stadtteil-Jahr, der
-  Kriminalitaetsindex zu 90 Prozent zwischen den Stadtteilen. Ein Modell kann
-  aus ihnen nur Stadtteilwissen ziehen. Die zugehoerige Obergrenze ist deshalb
-  die Guete einer Vorhersage, die jedem Stadtteil-Monat die Modalklasse SEINES
-  Stadtteils zuweist - mehr traegt Stadtteilwissen nicht.
-  Diese Decke liegt DEUTLICH unter Decke A. Der Grund steht in der Tabelle
-  `decke.csv`: Die Modalklassen der Stadtteile sind fast alle dieselbe.
-
-  AUSSCHOEPFUNG
-  Berichtet wird die baselinekorrigierte Quote
-
-      (Modell - Mehrheitsklasse) / (Decke - Mehrheitsklasse)
-
-  Der Rohquotient Modell/Decke waere geschoent: Ein Modell, das nur die
-  Mehrheitsklasse nachbaut, erreicht bereits Macro-F1 0,22 - dieser Sockel
-  gehoert nicht zur Leistung des Modells und darf nicht mitgezaehlt werden.
-
---------------------------------------------------------------------------
 FALLSTRICKE
---------------------------------------------------------------------------
-  1  DAS HOLD-OUT BLEIBT GESPERRT. Ohne das Argument "holdout" wird auf
-     `ist_holdout == 0` gefiltert, wie in m02 und m03. Die Decke ist zwar eine
-     Eigenschaft der ZIELGROESSE und beruehrt keine Praediktoren - aber die
-     Sperre gilt konstruktiv fuer alle Skripte, nicht nach Ermessen.
+  1  Ohne Argument "holdout" wird auf ist_holdout == 0 gefiltert wie in m02
+     und m03. Die Decke ist zwar eine Eigenschaft der ZIELGROESSE und
+     beruehrt keinen Praediktor - die Sperre gilt trotzdem konstruktiv
+  2  Zeilen mit N = 0 gibt es hier nicht, das Skript prueft es trotzdem:
+     rng.multinomial lieferte stumm einen Nullvektor, dessen argmax immer
+     auf die erste Klasse zeigt - eine erfundene Beobachtung
+  3  Der Bootstrap braucht RANDOM_STATE aus config_modelle.py, sonst
+     schwankt Decke A zwischen zwei Laeufen und die Zahl in der Arbeit passt
+     nicht mehr zur Zahl in der CSV
+  4  Decke A ist eine Obergrenze, kein Zielwert. Bindend ist Decke B
 
-  2  MONATE OHNE EINSAETZE gibt es in dieser Tabelle nicht (N >= 1 in allen
-     Zeilen), das Skript prueft es trotzdem. Bei N = 0 waere p undefiniert und
-     `rng.multinomial` wuerde stumm einen Nullvektor liefern, dessen argmax
-     immer auf die erste Klasse zeigt - eine erfundene Beobachtung.
-
-  3  DER BOOTSTRAP BRAUCHT EINEN FESTEN RANDOM_STATE. Ohne ihn schwankt Decke A
-     zwischen zwei Laeufen, und die Zahl in der Arbeit passt nicht mehr zur
-     Zahl in der CSV. RANDOM_STATE steht in config_modelle.py und ist derselbe wie im
-     Verfahrensvergleich.
-
-  4  DECKE A IST EINE OBERGRENZE, KEIN ZIELWERT. Sie beziffert, was bei
-     perfekter Kenntnis der Klassenwahrscheinlichkeiten uebrig bliebe. Dass ein
-     Modell sie nicht erreicht, ist kein Mangel - Decke B ist die bindende.
-
---------------------------------------------------------------------------
-PRUEFAUFTRAEGE
---------------------------------------------------------------------------
-  - Liegt Decke B UNTER Decke A? Wenn nicht, ist etwas falsch: Stadtteilwissen
-    kann das Label-Rauschen nicht unterbieten.
-  - Liegen beide Decken UEBER dem Macro-F1 der Mehrheitsklasse? Eine Decke
-    unterhalb der trivialen Baseline waere ein Rechenfehler.
-  - Wie viele Stadtteile teilen dieselbe Modalklasse? Je hoeher diese Zahl,
-    desto enger Decke B - das ist die inhaltliche Begruendung des Befundes.
-  - Passt die Zeilenzahl? 4 Zeilen in decke.csv, 6 in decke_marge.csv.
+Ausfuehrliche Fassung: docs/08_FUNKTIONSDOKUMENTATION.md
 """
 
 from __future__ import annotations
@@ -118,19 +72,28 @@ ZIEHUNGEN = 200
 
 
 def _macro_f1(a, b) -> float:
+    """Macro-F1 zweier Klassenreihen; fehlende Klassen zaehlen als 0.
+
+    Ein:  zwei Reihen von Klassenlabels
+    Aus:  Zahl
+    """
     return float(f1_score(a, b, average="macro", zero_division=0))
 
 
 def decke_a(panel: pd.DataFrame) -> tuple[float, float, float]:
-    """Label-Rauschen des argmax, parametrischer Bootstrap.
+    """Decke A: Label-Rauschen des argmax, parametrischer Bootstrap.
 
-    Jeder Stadtteil-Monat wird aus Multinomial(N, p_beobachtet) neu gezogen.
-    Zurueck kommen der mittlere Macro-F1 zwischen beobachtetem und neu
-    gezogenem Label, dessen Streuung ueber die Ziehungen und der Anteil der
-    Zeilen, deren argmax dabei mindestens einmal kippt.
+    Ein:  Panel mit den vier Anteilsspalten und der Einsatzzahl N
+    Aus:  (mittlerer Macro-F1, Streuung ueber die Ziehungen, Kippanteil)
 
-    FALLSTRICK 2: Zeilen mit N = 0 werden vorher ausgeschlossen, nicht auf eine
-    Klasse gesetzt.
+    - jeder Stadtteil-Monat wird aus Multinomial(N, p_beobachtet) neu gezogen
+    - der Macro-F1 zwischen beobachtetem und neu gezogenem Label ist die Guete
+      eines Modells mit exakter Kenntnis der Klassenwahrscheinlichkeiten
+    - kein Verfahren kann darueber hinaus
+    - der Kippanteil gibt an, wie viele Zeilen ihren argmax mindestens einmal
+      wechseln
+    - Fallstrick 2: Zeilen mit N = 0 werden ausgeschlossen, nicht auf eine Klasse
+      gesetzt
     """
     zaehler = panel[ZAEHLER].to_numpy(dtype=float)
     n = zaehler.sum(axis=1).astype(int)
@@ -149,12 +112,15 @@ def decke_a(panel: pd.DataFrame) -> tuple[float, float, float]:
 
 
 def decke_b(panel: pd.DataFrame) -> tuple[float, float, pd.Series]:
-    """Obergrenze des Stadtteilwissens: Modalklasse je Stadtteil.
+    """Decke B: Modalklasse je Stadtteil, Obergrenze des Stadtteilwissens.
 
-    Mehr als die haeufigste Klasse seines Stadtteils kann ein Modell aus
-    stadtteilgebundenen Merkmalen nicht ableiten. Zurueck kommen der Macro-F1
-    dieser Zuweisung, der Anteil der so korrekt getroffenen Zeilen und die
-    Verteilung der Modalklassen ueber die Stadtteile.
+    Ein:  Panel mit Stadtteil- und Klassenspalte
+    Aus:  (Macro-F1 der Zuweisung, Trefferanteil, Verteilung der Modalklassen)
+
+    - aus stadtteilgebundenen Merkmalen kann ein Modell nicht mehr ableiten als
+      die haeufigste Klasse seines Stadtteils
+    - die Verteilung der Modalklassen ist die inhaltliche Begruendung, warum
+      diese Decke tief liegt
     """
     modal = panel.groupby("stadtteil")[ZIEL].agg(lambda s: s.mode().iloc[0])
     vorhersage = panel["stadtteil"].map(modal)
@@ -163,11 +129,14 @@ def decke_b(panel: pd.DataFrame) -> tuple[float, float, pd.Series]:
 
 
 def marge(panel: pd.DataFrame) -> pd.DataFrame:
-    """Wie knapp faellt der argmax aus?
+    """Abstand zwischen groesstem und zweitgroesstem Klassenanteil.
 
-    Abstand zwischen dem groessten und dem zweitgroessten Klassenanteil je
-    Stadtteil-Monat. Ein kleiner Abstand heisst: das Label haette bei einer
-    anderen Monatsziehung anders gelautet.
+    Ein:  Panel mit den vier Anteilsspalten
+    Aus:  Datenrahmen mit der Verteilung des Abstands
+
+    - ein kleiner Abstand heisst: das Label haette bei einer anderen
+      Monatsziehung anders gelautet
+    - die Tabelle zeigt, wie gross der Anteil solcher Zeilen ist
     """
     anteile = np.sort(panel[[f"anteil_{k}" for k in KLASSEN]].to_numpy(), axis=1)
     d = anteile[:, -1] - anteile[:, -2]
@@ -185,9 +154,13 @@ def ausschoepfung(modelle: dict[str, float], basis: float,
                   a: float, b: float) -> pd.DataFrame:
     """Baselinekorrigierte Quote je Verfahren gegen beide Decken.
 
-    (Modell - Mehrheitsklasse) / (Decke - Mehrheitsklasse). Der Rohquotient
-    Modell/Decke waere geschoent, weil der Sockel der Mehrheitsklasse keine
-    Leistung des Modells ist.
+    Ein:  Modellwerte aus struktur_mittel.csv, Mehrheitsklassen-Basis, Decke A,
+          Decke B
+    Aus:  Datenrahmen mit einer Quote je Verfahren und Decke
+
+    - Formel: (Modell - Mehrheitsklasse) / (Decke - Mehrheitsklasse)
+    - der Rohquotient Modell/Decke waere geschoent: der Sockel der
+      Mehrheitsklasse ist keine Leistung des Modells
     """
     zeilen = []
     for name, wert in modelle.items():
@@ -203,6 +176,16 @@ def ausschoepfung(modelle: dict[str, float], basis: float,
 
 def bericht(tab: pd.DataFrame, aus: pd.DataFrame, mrg: pd.DataFrame,
             kipp: float, treffer: float, modal: pd.Series, n_stadtteile: int) -> str:
+    """Setzt die Ergebnistabellen zu decke.md zusammen.
+
+    Ein:  Deckentabelle, Ausschoepfung, Margenverteilung, Kipp- und
+          Trefferanteil, Modalklassen, Zahl der Stadtteile
+    Aus:  Markdown-Text
+
+    - reine Formatierung, hier wird nichts gerechnet
+    - Ziehungszahl und RANDOM_STATE stehen im Kopf, damit die Datei ohne den Code
+      lesbar bleibt
+    """
     z = "\n".join([
         "# Obergrenzen des Strukturstrangs",
         "",
@@ -242,6 +225,17 @@ def bericht(tab: pd.DataFrame, aus: pd.DataFrame, mrg: pd.DataFrame,
 
 
 def main(argv: list[str]) -> int:
+    """Rechnet beide Decken, Marge und Ausschoepfung; schreibt vier Dateien.
+
+    Ein:  klassifikation.parquet; Argument "holdout" oeffnet die 6 gesperrten
+          Stadtteile; struktur_mittel.csv optional fuer die Quoten
+    Aus:  decke.csv, decke_marge.csv, decke_ausschoepfung.csv, decke.md
+          (mit Endung _holdout, wenn das Argument gesetzt ist); Exitcode
+
+    - ohne das Argument wird auf ist_holdout == 0 gefiltert (Fallstrick 1)
+    - fehlt struktur_mittel.csv, entfaellt nur die Ausschoepfungstabelle; die
+      beiden Decken haengen nicht von Modellergebnissen ab
+    """
     if not PFAD.exists():
         raise SystemExit(f"{PFAD.relative_to(ROOT)} fehlt - erst 'python prep/build.py'.")
     OUT.mkdir(parents=True, exist_ok=True)
