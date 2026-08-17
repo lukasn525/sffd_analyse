@@ -1481,6 +1481,97 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 % nicht von Hand. Sie sind damit reproduzierbar und bei neuen Laeufen in einem
 % Befehl aktualisiert.
 % =========================================================================
+%
+% =========================================================================
+% BEFUNDLAGE -- Stand 17.08.2026, Durchsicht aller Dateien in results/
+% Vollstaendige Tabellen: docs/Guetemasse_Uebersicht_2026-08-17.md
+% =========================================================================
+%
+% B1  DIE STUFE-2-BASELINE GEWINNT -- IN BEIDEN VALIDIERUNGEN, BEI BEIDEN
+%     ZIELGROESSEN.
+%     Kreuzvalidierung anzahl_einsaetze: Poisson-GLM RMSE 33,978 / R2 0,542
+%     gegen ridge 36,509 / 0,514, random_forest 35,606 / 0,412, xgboost
+%     37,772 / 0,510. Hold-out: GLM RMSE 22,350 / R2 0,801 gegen ridge
+%     23,387 / 0,782, xgboost 26,179 / 0,727, random_forest 30,501 / 0,629.
+%     Die Rangfolge auf dem Hold-out ist ueber beide Zielgroessen identisch:
+%     Poisson-GLM > ridge ~ xgboost > random_forest.
+%     Das ist die zentrale Aussage von 7.1 und darf nicht relativiert werden.
+%     Quelle: results/regression/baselines_mittel.csv, menge_mittel.csv,
+%     holdout.csv.
+%
+% B2  DIE SPEZIFIKATIONSPRUEFUNG IST DER UNABHAENGIGE BELEG FUER B1 --
+%     SIE GEHOERT IN DEN HAUPTTEXT, NICHT IN DEN ANHANG.
+%     Erweitert man das GLM um nichtlineare Terme, bricht die Prognose
+%     zusammen: linear (12 Terme) R2 0,542 -> quadrate (22) -5,971 ->
+%     interaktionen (57) -6,247 -> beides (67) -16,454. Alle 50 Laeufe
+%     konvergiert, also kein numerisches Artefakt.
+%     ARGUMENTATIVE FUNKTION: Der Befund zeigt OHNE Rueckgriff auf die drei
+%     ML-Verfahren, dass Flexibilitaet in diesen Daten aktiv schadet. Damit
+%     ist erklaert, WARUM Random Forest und XGBoost das GLM nicht schlagen --
+%     es liegt an der Datenstruktur, nicht an Tuning oder Implementierung.
+%     Das nimmt der Pruefungsfrage "haben Sie nicht einfach schlecht
+%     getunt?" die Spitze. Vgl. auch die Suchdiagnose mit Budget 100
+%     (results/suchdiagnose/), die zeigt, dass ein groesseres Budget die
+%     Guete nicht bewegt.
+%     Quelle: results/spezifikation/spezifikation_mittel.csv.
+%
+% B3  DER STRUKTURSTRANG IST SCHWACH -- UND DAS IST ZU BERICHTEN.
+%     Kreuzvalidierung Macro-F1: Mehrheitsklasse 0,223, Logit 0,297,
+%     random_forest 0,328, xgboost 0,332. Hold-out: Logit 0,327,
+%     xgboost 0,260, random_forest 0,257 -- die Rangfolge DREHT SICH.
+%     Random-Forest-Macro-AUROC faellt von 0,739 (CV) auf 0,521 (Hold-out),
+%     also praktisch Zufall.
+%     KEIN Verfahren erreicht die Accuracy der Mehrheitsklasse (0,806 CV /
+%     0,711 Hold-out). Das ist Folge der Metrikwahl, nicht ein Fehler --
+%     muss aber offen dastehen, sonst wirkt es verschwiegen.
+%     Quelle: results/klassifikation/baselines_klasse_mittel.csv,
+%     struktur_mittel.csv, holdout.csv.
+%
+% B4  IM STRUKTURSTRANG TRAEGT KEINE MERKMALSGRUPPE.
+%     Groesster Ablationseffekt ueberhaupt: 0,024 Macro-F1 (Logit,
+%     groessenkontrolle). Bei random_forest liegt der Kriminalitaetseffekt
+%     bei 0,000 mit 5 von 10 Wiederholungen -- exakt Muenzwurf.
+%     Zum Vergleich Mengenstrang: kriminalitaetsbezogen weglassen kostet
+%     +24,274 RMSE bei 10 von 10 Wiederholungen.
+%     Das ist ein eigenstaendiges Ergebnis zu UF1: Die Einsatzart laesst
+%     sich aus diesen Merkmalen im Kern nicht vorhersagen.
+%     Quelle: results/shap/ablation_faktorgruppen_mittel.csv.
+%
+% B5  DIE PUNKTWERTE BEI DER RATE SIND NICHT RANGIERBAR.
+%     R2-Streuung ueber die Folds uebersteigt den R2-Mittelwert:
+%     random_forest 0,241 +/- 1,247; ridge 0,300 +/- 0,933.
+%     Zusaetzlich widersprechen sich RMSE und R2 zwischen den Verfahren.
+%     Das ist selbst der Befund und so zu schreiben (Gutachten R6) --
+%     keine Rangfolge konstruieren.
+%     Quelle: results/regression/menge_mittel.csv.
+%
+% B6  UEBERANPASSUNG UND AUFWAND -- BELEG FUER UF3/UF4.
+%     R2 Training gegen R2 Kreuzvalidierung (anzahl_einsaetze):
+%     ridge 0,826/0,514 (Differenz 0,313), xgboost 0,983/0,510 (0,473),
+%     random_forest 0,984/0,412 (0,572).
+%     Random Forest braucht 7,92 s Training gegen 0,009 s bei ridge --
+%     Faktor 860 -- und generalisiert dabei am schlechtesten.
+%     Sauberes Effizienzargument, gehoert nach 7.3.
+%     Quelle: results/regression/menge_mittel.csv, klassifikation/
+%     struktur_mittel.csv.
+%
+% B7  TRENNSCHAERFE -- WARUM DIE SEKUNDAERVERGLEICHE NICHTS ZEIGEN.
+%     Alle paarweisen Verfahrensvergleiche nach Holm p >= 0,117.
+%     Die zugehoerigen Effektstaerken liegen bei d = 0,21 bis 0,87, die
+%     Trennschaerfe des gepaarten Wilcoxon mit n = 10 damit bei 10 bis 68 %.
+%     FORMULIERUNGSAUFLAGE: "Die Verfahren unterscheiden sich nicht" ist
+%     nicht gezeigt, sondern NICHT GEMESSEN. Der Unterschied gehoert in den
+%     Text, sonst ist es eine Ueberinterpretation eines Nullbefunds.
+%     Ergaenzend: p = 0,001953 im Strukturstrang ist das kleinste bei n = 10
+%     ueberhaupt erreichbare Wilcoxon-p (10 von 10 gleiches Vorzeichen).
+%     Quelle: results/regression/vergleich.csv, klassifikation/vergleich.csv.
+%
+% B8  HOLD-OUT IST LEICHTER ALS DIE KREUZVALIDIERUNG -- BENENNEN.
+%     Extrapolationsanteil 7,6 % (Hold-out) gegen 33,7 % (CV). Deshalb
+%     liegen alle Hold-out-Werte ueber den CV-Werten. Ohne diesen Hinweis
+%     wirkt die Schlussbewertung geschoent.
+%     Quelle: results/regression/holdout.csv, menge_mittel.csv.
+% =========================================================================
 \subsection{Ergebnisse Einsatzhäufigkeit (Regression)}
 % LEITFRAGE: Haengen Einsatzhaeufigkeit und Stadtteilmerkmale zusammen --
 % koennen die Modelle die ZAHL der Einsaetze vorhersagen?
