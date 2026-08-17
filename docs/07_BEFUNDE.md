@@ -58,6 +58,9 @@
 | B-42 | 07.08. | `m03_struktur.hold_out()`, `06_RISIKEN.md` R-2 | 🔴 | **CV und Hold-out widersprechen sich** — keine Rangfolge zulaessig |
 | B-43 | 11.08. | `v1_baselines.py` / `m03_struktur.hold_out()` | 🟡 | **doppelte Spezifikation** — selbst gefunden, behoben |
 | B-44 | 11.08. | `v2_eignung.py` §1, `results/eignungspruefung/` | 🔴 | **Begruendung widersprach der Umsetzung** — behoben, Pruefung eingebaut |
+| B-45 | 16.08. | `config_modelle.SUCHRAEUME`, finaler Lauf | 🔴 | **Weitere Suchraeume verschlechtern out-of-sample** — zweite Bestaetigung von B-41 |
+| B-46 | 16.08. | `m02/m03.ein_lauf`, `ueberanpassung_*` | 🔴 | **Ueberanpassung beziffert** — erklaert R-2 |
+| B-47 | 16.08. | `m04_shap.ablation_faktorgruppen` | 🟡 | **Attribution und Ablation widersprechen sich** — UF1 differenzierter |
 
 ---
 
@@ -1500,6 +1503,193 @@ Name.
 (Kapitel 8). Gemeinsamer Nenner: In beiden Faellen lebte **eine Information an
 zwei Orten**, und nur einer wurde gepflegt. Eine allgemeinverstaendliche
 Fassung liegt in `entwuerfe/erklaerung_fehler_2026-08-11.md`.
+
+---
+
+## B-45 · Weitere Suchraeume verschlechtern die Prognose — B-41 zum zweiten Mal
+
+> **NUR INTERN. Geht NICHT in die Arbeit.** Dieser Befund beruht auf dem
+> Vergleich zweier Laeufe, und nach Decision Log **#52** wird genau ein Lauf
+> berichtet — kein Vorher-Nachher, keine zweite Ergebnisreihe. Er steht hier
+> als Nachvollziehbarkeit der Konfigurationsentscheidung und als Warnung fuer
+> kuenftige Laeufe, nicht als Kapitelinhalt.
+>
+> Was aus ihm in die Arbeit darf: die Begruendung der Suchraeume ueber die
+> **gewaehlten Hyperparameter** einer Vorabpruefung (Werte an der Grenze) und
+> die Feststellung, dass die Budgetverdopplung bei vier von fuenf Verfahren
+> wirkungslos war. Beides sind Aussagen ueber die Suche, nicht ueber
+> Ergebniszahlen.
+
+**Fundstelle:** `config_modelle.SUCHRAEUME` nach Decision Log #49, finaler Lauf
+vom 16.08.2026 gegen `archiv/2026-08-14_budget50`.
+
+**Was aufgefallen ist.** Die Suchdiagnose vom 13.08. hatte gezeigt, dass in
+sechs von sieben geprueften Parametern mindestens ein Fold-Sieger an oder
+jenseits der Grenze lag - am deutlichsten bei `max_depth` von XGBoost im
+Strukturstrang, wo vier von fuenf Folds die Untergrenze 3 waehlten. Die Raeume
+wurden geoeffnet (#49), das Budget mitgezogen (#50). Im **inneren**
+Kreuzvalidierungswert brachte das eine Verbesserung von +0,19 RMSE bei XGBoost.
+
+Auf unbekannten Stadtteilen ist das Ergebnis **schlechter**:
+
+| `anzahl_einsaetze`, RMSE | Budget 50 | final | |
+|---|---|---|---|
+| Ridge | 36,51 | 36,51 | ±0,00 |
+| Random Forest | 35,63 | 35,61 | −0,03 |
+| **XGBoost** | 35,88 | **37,77** | **+1,89** |
+
+Und die Folge ist keine Kleinigkeit: XGBoost war vorher von der Baseline **nicht
+unterscheidbar** (p 0,232 bzw. 0,375) und liegt nun in beiden Zielgroessen
+**gesichert dahinter** (p 0,020). Im Strukturstrang bewegt sich nichts
+(0,328 → 0,328 und 0,334 → 0,332).
+
+**Warum das kein Fehler ist, sondern der Befund.** Es ist exakt das Muster aus
+B-41, nur an einer anderen Stelle. Dort verschlechterten nichtlineare
+Erweiterungen des GLM die Prognose um Faktor drei bis fuenf, obwohl RESET-Test
+und adjustiertes R2 sie in-sample klar stuetzten. Hier verschlechtert ein
+groesserer Suchraum die Prognose, obwohl der innere CV-Wert steigt.
+
+**Zwei unabhaengige Demonstrationen desselben Prinzips:** Was auf den
+Trainingseinheiten besser aussieht, generalisiert bei 23 unabhaengigen
+Einheiten schlechter - einmal an der Funktionsform, einmal an der
+Hyperparametersuche. Das ist der uebertragbare methodische Beitrag der Arbeit
+und gehoert in Kapitel 8.
+
+**Warum trotzdem dieser Lauf berichtet wird.** #52, festgelegt am 14.08. und
+damit **vor** dem Lauf: Die alten Suchraeume waren nachweislich bindend, das ist
+ein Defekt ohne Gegenargument. Die Ausnahmeklausel greift nur bei technischen
+Fehlern, nicht bei unguenstigeren Zahlen. Ohne diese vorab getroffene Regel
+haette man jetzt die Wahl zwischen einer Konfiguration, die man in Kenntnis
+ihres schlechteren Ergebnisses gewaehlt hat, und einer mit bekanntem Defekt -
+beides angreifbar.
+
+**Nebenbefund zum Aufwand.** Die Laufzeitfaktoren steigen, weil `max_depth`
+beim Random Forest jetzt bis 48 und bis `None` reicht: Ridge ist nun 861-mal
+schneller als Random Forest (vorher 526) und 106-mal schneller als XGBoost
+(vorher 130). Der Aufwandsnachteil der Ensembles waechst mit der Freiheit, die
+man ihnen gibt - ohne Gegenwert in der Guete.
+
+---
+
+## B-46 · Die Ueberanpassung ist beziffert — R-2 hat eine Erklaerung
+
+**Fundstelle:** `m02_menge.ein_lauf` und `m03_struktur.ein_lauf`, Spalten
+`RMSE_train`, `R2_train`, `macro_f1_train`; Aggregate `ueberanpassung_*`
+(Decision Log #51).
+
+**Was aufgefallen ist.** R-2 hielt fest, dass im Strukturstrang
+Kreuzvalidierung und Hold-out sich widersprechen. Offen war, ob die sechs
+Hold-out-Stadtteile schwerer sind oder ob die Baumverfahren ueberanpassen. Die
+Hold-out-Tabelle allein entscheidet das schon:
+
+| | Kreuzvalidierung | Hold-out | |
+|---|---|---|---|
+| Mehrheitsklasse | 0,223 | 0,208 | −0,015 |
+| **Logit (Baseline)** | 0,297 | **0,327** | **+0,029** |
+| Random Forest | 0,328 | 0,257 | −0,071 |
+| XGBoost | 0,332 | 0,260 | −0,072 |
+
+Waeren die Stadtteile schwerer, muesste jedes Modell einbrechen. Die Baseline
+wird stattdessen **besser**. Und die Baumverfahren trainieren im Hold-out auf
+29 statt 23 Stadtteilen, also mit **mehr** Daten - und werden trotzdem
+deutlich schlechter.
+
+**Jetzt gemessen statt geschlossen.** Abstand zwischen Trainings- und Testguete,
+Mittel ueber 300 bzw. 100 Laeufe:
+
+| | Menge (RMSE) | Menge (R2) | Struktur (Macro-F1) |
+|---|---|---|---|
+| Ridge | **7,02** | 0,312 | – |
+| Random Forest | 27,09 | 0,572 | **0,244** |
+| XGBoost | 29,39 | 0,473 | **0,170** |
+
+Die Baumverfahren erklaeren die Trainingsstadtteile fast perfekt
+(R2 0,984 und 0,983) und die Teststadtteile schlechter als das GLM.
+
+**Die Einschraenkung, die dazugehoert.** Ein Wald mit `min_samples_leaf = 1`
+interpoliert seine Trainingsdaten **konstruktionsbedingt**; ein Trainings-R2 von
+0,98 ist dort erwartbar und fuer sich genommen kein Beweis krankhafter
+Ueberanpassung. Der Abstand ist deshalb NICHT als Verhaeltnis zwischen
+Verfahren zu lesen ("XGBoost ueberanpasst viermal so stark wie Ridge"), sondern
+als Groessenordnung gegen die linearen Modelle, die nicht interpolieren koennen.
+Der saubere Wert fuer Baeume waere die Out-of-Bag-Schaetzung; sie gibt es nur
+beim Random Forest und waere gegenueber Ridge und XGBoost asymmetrisch -
+bewusst nicht erhoben.
+
+**Fuer die Arbeit.** Ueberanpassung ist der **Mechanismus** hinter der Antwort
+auf UF4. Ohne ihn ist "Verfahrenskomplexitaet bringt hier nichts" eine
+Beobachtung; mit ihm eine Erklaerung.
+
+**Nicht beantwortbar, und das ist mein Planungsfehler:** Ob die Ueberanpassung
+durch die erweiterten Suchraeume gesunken ist, laesst sich nicht sagen - die
+Sicherung vom 07.08. hat die Spalten nicht, weil #51 erst danach entstand. Fuer
+die Arbeit folgenlos, weil #52 den Vorher-Nachher-Vergleich ohnehin nicht
+berichtet.
+
+---
+
+## B-47 · Attribution und Ablation widersprechen sich — UF1 ist differenzierter
+
+**Fundstelle:** `results/shap/gruppen.csv` und `faktorgruppen_menge.csv`
+(Attribution) gegen `ablation_faktorgruppen_mittel.csv` (Ablation).
+
+**Was aufgefallen ist.** Die Attribution weist im Mengenstrang 36,2 % der
+Koeffizientenmasse dem Kriminalitaetsindex zu, 25,6 % den baulichen und 23,2 %
+den soziooekonomischen Merkmalen - alle drei Faktorgruppen tragen also bei. Die
+Ablation sagt etwas anderes:
+
+| weggelassen | Menge (RMSE) | Logit | RF | XGB |
+|---|---|---|---|---|
+| kriminalitaetsbezogen | **+24,27** | +0,0008 | +0,0004 | +0,0020 |
+| groessenkontrolle | −6,86 | **+0,0239** | **+0,0176** | +0,0158 |
+| soziooekonomisch | −6,33 | −0,0131 | +0,0032 | **+0,0180** |
+| baulich | −5,44 | −0,0112 | −0,0041 | −0,0058 |
+| saison | +0,24 | +0,0036 | +0,0045 | +0,0083 |
+
+Positive Werte heissen "schlechter ohne die Gruppe". Im Mengenstrang ist der
+Kriminalitaetsindex unverzichtbar und **alle uebrigen Gruppen verbessern die
+Prognose durch ihr Weglassen**. Im Strukturstrang ist er dagegen praktisch
+wertlos; dort traegt die Bevoelkerung.
+
+**Drei Mechanismen erklaeren das vollstaendig, alle am Datensatz messbar.**
+
+*Zeitliche Aufloesung.* Eindeutige Werte je Stadtteil ueber 132 Monate:
+`log_kriminalitaetsindex` **128,6**, die ACS-Merkmale und `log_bevoelkerung`
+jeweils **4** (fuenf Jahrgaenge mit Publikationsversatz), die drei baulichen
+Merkmale **1** - konstant, weil sie aus dem Land-Use-Snapshot 2020 stammen. Der
+Kriminalitaetsindex ist das einzige monatlich variierende Merkmal.
+
+*Kollinearitaet.* Er korreliert mit `anteil_risikogewerbe_pct` **+0,739**,
+`leerstandsquote_pct` +0,636, `armutsquote_pct` +0,622 und
+`anteil_wohngebaeude_pct` −0,603. Er ist ein **Sammelindikator**, der die
+soziooekonomische und bauliche Information mittraegt - nur besser aufgeloest.
+Gegeben ihn sind die uebrigen redundant, und bei 23 Trainingsstadtteilen kosten
+redundante Praediktoren mehr Varianz, als sie Verzerrung abbauen.
+
+*Der Offset.* Die Groessenkontrolle schadet in der Menge und ist in der Struktur
+das wertvollste Merkmal. Das Poisson-GLM hat `log(Bevoelkerung)` ohnehin als
+Offset - der Praediktor ist dort ein redundanter freier Parameter (R-9). Die
+Klassifikationsmodelle haben keinen Offset.
+
+**Der klarste Einzelbefund:** Die **baulichen** Merkmale schaden in allen vier
+Modellen und beiden Straengen. Es sind genau die drei, die aus dem Snapshot
+eines einzelnen Jahres stammen und je Stadtteil konstant sind - drei
+Koeffizienten, gefittet auf 23 Stadtteile Zwischenvarianz.
+
+**Wie UF1 damit zu beantworten ist.** Nicht "nur der Kriminalitaetsindex
+traegt" - diese Formulierung waere falsch und im Strukturstrang widerlegt.
+Sondern: **Die drei Faktorgruppen des Exposes tragen dieselbe Information
+mehrfach; welche davon nuetzt, haengt an der zeitlichen Aufloesung und an der
+Modellform.**
+
+**Kein Signifikanztest** (Entscheidung in `ablation_faktorgruppen`): Die
+Testfamilien sind mit #38 festgelegt, weitere Tests wuerden die
+Korrekturstruktur beruehren. Berichtet werden Mittelwert, Streuung ueber die
+zehn Wiederholungsmittel und die Zahl der Wiederholungen mit Verschlechterung.
+
+**Was daraus NICHT folgt:** Den Merkmalssatz zu kuerzen. Er kommt aus dem
+Expose und ist durch die Fairness-Regel gebunden; nachtraeglich zu kuerzen waere
+eine ergebnisgetriebene Spezifikationswahl.
 
 ---
 

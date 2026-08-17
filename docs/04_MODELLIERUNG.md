@@ -115,7 +115,8 @@ Die Spalte **Art** entscheidet, *wie* der Wert zu begründen ist.
 | Hold-out-Größe | 6 Stadtteile | folgt aus `N_FOLDS + 1` | Folge |
 | Stratifizierung | Bevölkerung + seltenste Klasse | `ergaenze_aufteilung` | zwingend |
 | **Wiederholungen** | **10** | `config_modelle.WIEDERHOLUNGEN` | **Abwägung** |
-| **Tuning-Budget** | **50 Iterationen** | `config_modelle.TUNING_BUDGET` | **Abwägung** |
+| **Tuning-Budget** | **100 Iterationen** | `config_modelle.TUNING_BUDGET` | **hergeleitet** (#50) |
+| **Suchräume** | vier erweitert am 13.08. | `config_modelle.SUCHRAEUME` | **begründet** (#49) |
 | Suchverfahren | Randomized statt Grid | `SUCHRAEUME` | begründbar |
 | Innere Folds beim Tuning | 4, gruppiert nach Stadtteil | `GroupKFold(4)` | Abwägung |
 | Tuning-Zeitpunkt | einmal auf Wiederholung 0 | #34 | Abwägung |
@@ -162,12 +163,38 @@ wird in zehn verschiedenen Fold-Konstellationen getestet. Unbedingt dazusagen:
 Der Präzisionsgewinn ist **kleiner als √10**, weil die Läufe nicht unabhängig
 sind (R-5).
 
-**50 Tuning-Iterationen.** Bergstra & Bengio (2012) zeigen, dass Zufallssuche
-mit wenigen Dutzend Iterationen eine Gittersuche meist schlägt, weil sie den
-Suchraum in den relevanten Dimensionen dichter abtastet. Der eigentliche Punkt
-ist aber die **Gleichheit**: Ridge hat nur einen Hyperparameter und bräuchte
-weniger — ein ungleiches Budget wäre kein Algorithmenvergleich mehr, sondern
-ein Budgetvergleich.
+**100 Tuning-Iterationen** (#50, 13.08.2026 — vorher 50 und dort als reine
+Abwägung geführt). Bergstra & Bengio (2012, S. 296) geben die geschlossene Form
+
+> P = 1 − (1 − v/V)^T
+
+für die Wahrscheinlichkeit an, mit T Zufallsziehungen mindestens einmal in einen
+Zielbereich vom relativen Volumen v/V zu treffen. Für v/V = 0,05 ergibt das
+**92,3 % bei T = 50** und **99,4 % bei T = 100**.
+
+Der Ausdruck enthält die **Dimension des Suchraums nicht**. Genau deshalb
+bekommen Ridge mit einem und XGBoost mit sieben Hyperparametern dasselbe
+Budget, ohne dass dem höherdimensionalen Verfahren ein Nachteil entsteht — das
+ist die Antwort auf den naheliegenden Einwand, XGBoost bräuchte mehr Ziehungen.
+Ein ungleiches Budget wäre kein Algorithmenvergleich mehr, sondern ein
+Budgetvergleich.
+
+> **Beim Zitieren beachten:** Die beiden Prozentwerte sind **unsere Anwendung**
+> ihrer Formel, nicht ihre Aussage. Die verbreitete Angabe „60 Ziehungen für das
+> beste Fünf-Prozent-Fenster" steht **nicht** in dem Papier — im Volltext
+> geprüft am 13.08.2026; dessen eigene Simulation rechnet mit 1 %. Die Formel
+> zitieren, die Zahlen als eigene Rechnung kennzeichnen.
+
+**Der Anlass für die Erhöhung war nicht das Budget selbst**, sondern die
+Erweiterung von vier Suchräumen (#49): Ein weiterer Raum verdünnt die gute
+Region, dieselbe Zahl Ziehungen deckt ihn schlechter ab. Wer den Raum öffnet,
+muss das Budget mitziehen.
+
+**Gemessen** (`tools/suchdiagnose.py`, 13.08.2026): Die Verdopplung allein ist
+bei **vier von fünf** Verfahren wirkungslos — Random Forest im Mengenstrang
+gewinnt auf vier Nachkommastellen exakt null, Ridge +0,0065, beide
+Strukturverfahren +0,0001. Nur XGBoost in der Regression gewinnt spürbar. So
+gehört es in Kapitel 6: für ein Verfahren belegt, für vier ohne Wirkung.
 
 ---
 

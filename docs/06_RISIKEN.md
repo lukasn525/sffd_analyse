@@ -1,7 +1,8 @@
 # Risikoregister der Modellierung
 
 > **Lebensdauer:** ändert sich, wenn ein Risiko eintritt, entschärft wird oder
-> wegfällt. **Vollständig neu gefasst am 07.08.2026** nach dem finalen Lauf von
+> wegfällt. Neu gefasst am 07.08.2026, **auf den finalen Lauf vom 16.08.2026
+> nachgezogen** (R-1 und R-2). Ursprünglich nach dem Lauf von
 > `m02`, `m03`, `m04`, `m05` und nach den Entscheidungen #37 bis #46.
 >
 > **Diese Datei enthält keine eigenen Ergebniszahlen.** Sie zitiert
@@ -154,8 +155,18 @@ wird beim Lesen darauf achten. **Vor dem nächsten Kapitelversand erledigen.**
 
 | Auswertung | Mehrheitsklasse | Logit (Stufe 2) | Random Forest | XGBoost |
 |---|---|---|---|---|
-| Kreuzvalidierung, 50 Läufe | 0,223 | 0,297 | **0,3276 ± 0,0129** | **0,3343 ± 0,0128** |
-| Hold-out, einmalig | 0,208 | **0,327** | 0,255 | 0,274 |
+| Kreuzvalidierung, 50 Läufe | 0,223 | 0,297 | **0,3278 ± 0,0121** | **0,3322 ± 0,0125** |
+| Hold-out, einmalig | 0,208 | **0,327** | 0,257 | 0,260 |
+| Abstand Training zu Test | – | – | **+0,244** | **+0,170** |
+
+**Neu am 16.08.2026: der Widerspruch ist erklärt.** Die dritte Zeile ist der
+Überanpassungsnachweis nach #51. Wären die sechs Hold-out-Stadtteile schlicht
+schwerer, müsste **jedes** Modell einbrechen. Die Baseline wird dort aber
+**besser** (0,297 → 0,327) und die Mehrheitsklasse bleibt etwa gleich
+(0,223 → 0,208); nur die beiden Baumverfahren stürzen um 0,07 bzw. 0,07 ab —
+und das, obwohl sie im Hold-out auf 29 statt 23 Stadtteilen trainieren, also
+mit **mehr** Daten. Mehr Trainingsdaten und trotzdem schlechter: Das ist
+Überanpassung, keine schwierige Testmenge (`07_BEFUNDE.md`, **B-46**).
 
 **Drei Befunde, alle zu berichten:**
 
@@ -205,10 +216,13 @@ Fußnote.
 
 ### R-1 · Die Verfahren trennen sich nicht — eingetreten wie vorhergesagt
 
-Bei `anzahl_einsaetze` ist **keine** der drei Paarungen trennbar (p_holm
-durchgehend 1,000). Bei `einsaetze_je_1000_ew` trennt genau **eine**: Ridge
-gegen XGBoost, −0,47 RMSE, p_holm 0,035. Elf von zwölf Paarungen sind „nicht
-unterscheidbar".
+**Stand 16.08.2026: vollständig eingetreten.** Im finalen Lauf ist **keine
+einzige** der sechs Paarungen trennbar — bei `anzahl_einsaetze` p_holm 0,773
+bis 0,967, bei `einsaetze_je_1000_ew` 0,117 bis 0,967, in der Klassifikation
+p 0,625. Zwölf von zwölf Paarungen sind „nicht unterscheidbar".
+
+> Die Aussage „keine Rangfolge zulässig" gilt damit **ohne Ausnahme** — in
+> beiden Zielgrößen der Menge und in der Struktur.
 
 **Folgenlos für die Arbeit — weil #34 das vorab entschieden hat**, am
 04.08.2026 und vor dem ersten Modelllauf: Die Forschungsfrage wird über drei
@@ -277,12 +291,13 @@ die Generalisierbarkeit.
 unter der finalen Spezifikation erst recht gegenstandslos:
 
 - Es gibt **keinen Rückstand mehr zu erklären**. Bei `anzahl_einsaetze` liegen
-  Random Forest und XGBoost 0,88 bzw. 0,64 RMSE **vor** Ridge, bei der Rate
-  0,49 bzw. 0,47.
-- Der Zusammenhang zwischen Extrapolationsanteil und RMSE ist ausgerechnet bei
-  **Ridge am stärksten** (ρ +0,298 / +0,311) und bei den Baumverfahren
-  schwächer (+0,126 bis +0,188). Wäre Extrapolation der Hebel gegen die Bäume,
-  müsste es umgekehrt sein.
+  Random Forest 0,90 RMSE **vor** Ridge, XGBoost 1,26 dahinter; bei der Rate
+  Random Forest 0,49 davor, XGBoost 0,12 dahinter.
+- Der Zusammenhang zwischen Extrapolationsanteil und RMSE ist bei **Ridge am
+  stärksten** (ρ +0,302 / +0,309) und beim **Random Forest am schwächsten**
+  (+0,108 / +0,162), bei XGBoost dazwischen (+0,247 / +0,316). Wäre
+  Extrapolation der Hebel gegen die Bäume, müsste es umgekehrt sein. Beim
+  Random Forest ist der Zusammenhang nicht einmal signifikant (p 0,456 / 0,261).
 
 **Der Satz in Kapitel 7 und 8 muss lauten: geprüft und nicht bestätigt.** Das
 ist ein stärkerer Beitrag als die ursprüngliche Vermutung, weil er eine

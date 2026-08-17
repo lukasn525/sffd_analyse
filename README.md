@@ -73,9 +73,12 @@ vorpruefung/   die Messlatte    v0_aufteilung   wiederholte Splits, Selbsttest
                                 v3_spezifikation  haelt die Nichtlinearitaet?
 modelle/       der Vergleich    m02_menge · m03_struktur · m04_shap · m05_abbildungen
 tests/                          test_aufbereitung
-tools/         NICHT ABGABE     pruefe_zahlen   Doku gegen results/
-                                codebook        Merkmalstabelle für Kapitel 4
-                                aufraeumen      verwaiste Artefakte, Vorschau
+tools/         NICHT ABGABE     pruefe_zahlen      Doku gegen results/
+                                codebook           Merkmalstabelle für Kapitel 4
+                                aufraeumen         verwaiste Artefakte, Vorschau
+                                sichere_ergebnisse results/ nach archiv/ kopieren
+                                suchdiagnose       war die Hyperparametersuche am Limit?
+archiv/        NICHT ABGABE     gesicherte Ergebnisstände, je mit Manifest
 entwuerfe/     NICHT ABGABE     E-Mails, Erklärungen
 data/          raw · processed
 results/       regression · klassifikation · eignungspruefung · shap ·

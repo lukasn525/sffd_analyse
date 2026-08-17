@@ -121,9 +121,12 @@ vorpruefung/  die Messlatte      v0_aufteilung.py  wiederholte Splits
 modelle/      der Vergleich      m02_menge.py · m03_struktur.py · m04_shap.py
               Stufe 3            m05_abbildungen.py · config_modelle.py
 tests/                           test_aufbereitung.py
-tools/        NICHT ABGABE       pruefe_zahlen.py  Doku gegen results/
-                                 codebook.py       Merkmalstabelle Kap. 4
-                                 aufraeumen.py     verwaiste Artefakte
+tools/        NICHT ABGABE       pruefe_zahlen.py       Doku gegen results/
+                                 codebook.py            Merkmalstabelle Kap. 4
+                                 aufraeumen.py          verwaiste Artefakte
+                                 sichere_ergebnisse.py  results/ nach archiv/
+                                 suchdiagnose.py        war die Suche am Limit?
+archiv/       NICHT ABGABE       gesicherte Ergebnisstände mit Manifest
 ```
 
 `tools/` wird vor dem Packen des Abgabe-ZIP gelöscht. **Eine Ausnahme:** Die
@@ -173,12 +176,20 @@ Zwei Regeln, die dabei gelten:
 | Business Understanding | ✅ Exposé, Kap. 1/4 |
 | Data Understanding | ✅ Eignungsprüfung gerechnet (`vorpruefung/`), fünf Belege |
 | Data Preparation | ✅ **abgeschlossen** — ein Befehl, zwei Datensätze, 19/19 Prüfungen |
-| Modeling | ✅ **abgeschlossen** — finaler Lauf 07.08.2026 |
+| Modeling | ✅ **abgeschlossen** — finaler Lauf **16.08.2026**, Budget 100, Suchräume nach #49 |
 | Evaluation | ✅ **abgeschlossen** — Hold-out einmalig ausgewertet, beide Stränge |
 | Deployment | ⬜ nicht Teil der Arbeit (Limitation, vgl. Schröer et al. 2021) |
 
 **Nächster Schritt:** Kapitel 6 bis 9 schreiben. Gerechnet ist alles; seit dem
 08.08.2026 ist zudem keine Festlegung mehr unabgestimmt (#47).
+
+**Stand 16.08.2026 — finaler Lauf durch.** Budget 100 und vier erweiterte
+Suchräume (#49, #50), Hauptanalyse vorab festgelegt (#52). Neue Ergebnisse:
+Ridge **und XGBoost** liegen gesichert hinter der Stufe-2-Baseline, keine
+Verfahrenspaarung ist trennbar (R-1 vollständig eingetreten), die Überanpassung
+ist beziffert (#51, B-46) und die Faktorgruppen sind nicht nur attribuiert,
+sondern abladiert (B-47). Zahlen ausschließlich in `03_STAND.md` §5 — der
+Zahlenwächter deckt 116 Werte ab und läuft fehlerfrei.
 
 **Stand 11.08.2026.** Aus der Sprechstunde vom 10.08. sind umgesetzt: die
 Anforderungstabelle je Verfahren mit drei formalen Tests (`03_STAND.md` §7,
@@ -287,3 +298,8 @@ Prompt, URL. Die Kennung wird im Text wie eine Quelle zitiert.
 | anthropic2026o | Anthropic Claude | 2026 | Claude Opus | „Implementiere die Modellierung: die fünf offenen Funktionen in `m02_menge.py`, dann `m03_struktur.py`, eine Negative-Binomial-Variante ohne Offset in `v1_baselines.py`, danach `m04_shap.py` und `m05_abbildungen.py`. Frage nach, wenn etwas unklar ist, und dokumentiere alle Befunde." → Decision Log #36–#41, `docs/07_BEFUNDE.md` mit 22 Einträgen, `vorpruefung/v0_aufteilung.py` | https://claude.ai |
 | anthropic2026p | Anthropic Claude | 2026 | Claude Opus | „Schau dir das Projekt an: Wie lange dauerte eine Umwandlung von `modelle/` in Jupyter Notebooks? Welche weiteren Abbildungen sind möglich? Wie ließe sich der Code kürzen? Gibt es alte Dateien, die nicht mehr gebraucht werden?" → Abbildungen A6–A10 in `m05_abbildungen.py`, `tools/aufraeumen.py`, Fund der beiden Dokumentationsfehler | https://claude.ai |
 | anthropic2026q | Anthropic Claude | 2026 | Claude Opus | „Analysiere die Sprechstunden-Mitschrift vom 10.08.2026 und ihre Auswirkungen auf das Projekt. Behebe die gefundenen Fehler nachhaltig und setze die Auflagen um." → `tools/codebook.py`, Abschnitt 6 der Eignungsprüfung mit Cameron & Trivedi, Breusch-Pagan und Jarque-Bera, `03_STAND.md` §7, fünfte Strukturprüfung im Zahlenwächter, Decision-Log-Befunde B-43 und B-44 | https://claude.ai |
+| anthropic2026r | Anthropic Claude | 2026 | Claude Opus | „Schaetze den Aufwand einer Umwandlung von `modelle/` in Jupyter Notebooks, analysiere moegliche weitere Abbildungen, pruefe Kuerzungspotenzial im Code und suche verwaiste Dateien.“ → Abbildungen A6-A9, `tools/aufraeumen.py`, Fund zweier Dokumentationsfehler (B-43, B-44) | https://claude.ai |
+| anthropic2026s | Anthropic Claude | 2026 | Claude Opus | „Behebe die beiden gefundenen Fehler nachhaltig, setze die offenen Auflagen der Sprechstunde vom 10.08. um und ziehe die Dokumentation glatt.“ → `tools/codebook.py`, Abschnitt 6 der Eignungspruefung mit drei formalen Tests, Abbildung A10, fuenfte Strukturpruefung im Zahlenwaechter | https://claude.ai |
+| anthropic2026t | Anthropic Claude | 2026 | Claude Opus | „Pruefe, ob Tuning-Budget und Suchraeume belegbar sind; baue eine Diagnose, die misst, ob mehr Ziehungen oder weitere Raeume etwas bringen.“ → `tools/suchdiagnose.py`, Verifikation der Formel bei Bergstra und Bengio im Volltext, Decision Log #49 und #50 | https://claude.ai |
+| anthropic2026u | Anthropic Claude | 2026 | Claude Opus | „Belege, ob Ueberanpassung vorliegt, sichere die vorherigen Ergebnisse ab und bringe den Code auf einen finalen Stand.“ → Trainingsguete je Lauf (#51), Faktorgruppen-Ablation in `m04_shap.py`, `tools/sichere_ergebnisse.py`, Decision Log #52 | https://claude.ai |
+| anthropic2026v | Anthropic Claude | 2026 | Claude Opus | „Werte den finalen Lauf aus und ziehe die gesamte Dokumentation nach; arbeite die Befunde in die LaTeX-Datei ein.“ → `03_STAND.md` Abschnitte 5 und 7, Befunde B-45 bis B-47, Nachzug von R-1 und R-2, Schreibanleitungen zu Kapitel 6.4, 7.3 und 7.4 in `main.tex` | https://claude.ai |

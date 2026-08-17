@@ -436,10 +436,18 @@ def pruefe_negative_vorhersagen(erg: Ergebnis) -> None:
 def pruefe_signifikanzen(erg: Ergebnis) -> None:
     """Welche Paarungen sind signifikant? Aendert sich das, aendert sich Kapitel 7."""
     for datei, erwartet in (
+            # Stand nach dem finalen Lauf vom 16.08.2026 (#49/#50/#52). Bis
+            # dahin war "ridge vs xgboost|einsaetze_je_1000_ew" die einzige
+            # trennbare Verfahrenspaarung; mit den erweiterten Suchraeumen
+            # verschlechtert sich XGBoost und liegt nun selbst gesichert hinter
+            # der Baseline. R-1 ist damit vollstaendig eingetreten: KEINE
+            # Verfahrenspaarung ist mehr trennbar, nur noch Abstaende zur
+            # Baseline sind signifikant.
             ("regression/vergleich.csv",
              {"ridge vs Poisson-GLM|anzahl_einsaetze",
               "ridge vs Poisson-GLM|einsaetze_je_1000_ew",
-              "ridge vs xgboost|einsaetze_je_1000_ew"}),
+              "xgboost vs Poisson-GLM|anzahl_einsaetze",
+              "xgboost vs Poisson-GLM|einsaetze_je_1000_ew"}),
             ("klassifikation/vergleich.csv",
              {"random_forest vs Multinomiale logistische Regression|dominante_einsatzart",
               "xgboost vs Multinomiale logistische Regression|dominante_einsatzart"})):
@@ -574,9 +582,24 @@ ALTLASTEN = [
             ausser=r"je Fold|Fold \d"),
     Altlast("0,290", "0,297", "Logit-Vortest, ersetzt durch den vollen Lauf"),
     Altlast("0,298", "0,297", "Logit mit C = 1,0, ersetzt (#45)"),
-    Altlast("0,020", None, "rho aus dem Lauf vor #43 (B-31), neu gemessen"),
+    # `ausser` seit 16.08.2026: Im finalen Lauf ist 0,020 der p-Wert von
+    # XGBoost gegen die Baseline (§5.1). Ohne die Ausnahme meldet der Waechter
+    # eine echte Zahl als Altlast - ein Fehlalarm, der die uebrigen Meldungen
+    # entwertet, weil man aufhoert hinzusehen.
+    Altlast("0,020", None, "rho aus dem Lauf vor #43 (B-31), neu gemessen",
+            ausser=r"signifikant|unterscheidbar"),
     Altlast("α/7", None, "eine Testfamilie mit 7 Tests, ersetzt (#38)"),
     Altlast("550", None, "altes Laufzeitverhaeltnis Ridge/Random Forest"),
+    # Werte aus dem Lauf mit Budget 50 (07.08.2026). Nach Decision Log #52 wird
+    # ausschliesslich der finale Lauf berichtet - kein Vorher-Nachher, keine
+    # zweite Ergebnisreihe. Taucht eine dieser Zahlen in docs/ auf, ist sie
+    # entweder ein Rueckblick (dann markiert) oder ein Verstoss gegen #52.
+    Altlast("35,88", "37,77", "XGBoost RMSE, Lauf mit Budget 50 (#52)"),
+    Altlast("35,63", "35,61", "Random Forest RMSE, Budget 50 (#52)"),
+    Altlast("0,3343", "0,3322", "XGBoost Macro-F1, Budget 50 (#52)"),
+    Altlast("0,3276", "0,3278", "Random Forest Macro-F1, Budget 50 (#52)"),
+    Altlast("57,86", "56,90", "XGBoost ohne Exposition, Budget 50 (#52)"),
+    Altlast("526", "861", "Laufzeitfaktor Ridge/Random Forest, Budget 50 (#52)"),
 ]
 
 # Zeilen mit diesen Markern sind bewusste Rueckblicke und keine Altlast.

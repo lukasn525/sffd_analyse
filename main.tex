@@ -1369,6 +1369,62 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 
 \subsection{Modellspezifische Tuning-Befunde}
 % Auffälligkeiten pro Verfahren -- KEINE Wiederholung der Funktionsweise (steht in 2.3).
+%
+% ===================================================================
+% STAND 16.08.2026. Quellen: Decision Log #49, #50, #52;
+% docs/07_BEFUNDE.md B-45; results/suchdiagnose/; Abbildung A8.
+% ===================================================================
+%
+% BUDGET -- hergeleitet, nicht gewaehlt. Bergstra und Bengio (2012, S. 296)
+% geben die geschlossene Form P = 1 - (1 - v/V)^T fuer die Wahrscheinlichkeit
+% an, mit T Zufallsziehungen mindestens einmal in einen Zielbereich vom
+% relativen Volumen v/V zu treffen. Fuer v/V = 0,05: T = 50 -> 92,3 %,
+% T = 100 -> 99,4 %. Verwendet wird T = 100.
+%   Der Ausdruck enthaelt die DIMENSION des Suchraums nicht -- deshalb erhalten
+%   Ridge mit einem und XGBoost mit sieben Hyperparametern dasselbe Budget,
+%   ohne Nachteil fuer das hoeherdimensionale Verfahren. Das ist die Antwort
+%   auf den naheliegenden Einwand.
+%   ACHTUNG BEIM ZITIEREN: Die beiden Prozentzahlen sind die EIGENE Anwendung
+%   ihrer Formel, nicht ihre Aussage. Die verbreitete Angabe "60 Ziehungen fuer
+%   das beste Fuenf-Prozent-Fenster" steht NICHT in dem Papier (im Volltext
+%   geprueft am 13.08.2026); dessen eigene Simulation rechnet mit 1 %.
+%   Formel als eigene Rechnung kennzeichnen, sonst ist es ein Zitatfehler.
+%
+% SUCHRAEUME -- vier davon erweitert, weil das Optimum an der Grenze lag:
+%   alpha (Ridge)        1e-3..1e3  ->  1e-5..1e5
+%   max_depth (RF)       [None,8,12,16,24] -> [8,12,16,24,32,48,None]
+%   max_depth (XGBoost)  3..10      ->  1..14
+%   reg_lambda (XGBoost) 1e-2..1e2  ->  1e-4..1e4
+%   NICHT erweitert: max_features, min_samples_leaf, subsample,
+%   colsample_bytree -- deren Grenzen sind NATUERLICH (alle Merkmale, eine
+%   Beobachtung je Blatt, der ganze Datensatz), dahinter existiert nichts.
+%   Dass der Random Forest dort ans Limit geht, ist ein BEFUND ueber das
+%   Verfahren: Es will maximale Flexibilitaet.
+%
+% DIE BEGRUENDUNG, in einem Satz: In sechs von sieben geprueften Parametern lag
+% mindestens ein Fold-Sieger an oder jenseits der alten Grenze. Am deutlichsten
+% max_depth von XGBoost im Strukturstrang -- dort waehlten VIER VON FUENF Folds
+% den Wert 3, also die Untergrenze; mit geoeffneter Grenze waehlen sie 2, 2, 1.
+% Es ist eine Aussage ueber die SUCHE, nicht ueber das Ergebnis.
+% Abbildung A8 zeigt das: Lage jedes gewaehlten Werts im eigenen Suchraum.
+%
+% ES WIRD GENAU EIN LAUF BERICHTET -- Decision Log #52.
+% Kein Vorher-Nachher, keine zweite Ergebnisreihe, keine Zahl aus einer
+% frueheren Konfiguration. Die Begruendung der Suchraeume steht auf den
+% GEWAEHLTEN HYPERPARAMETERN einer Vorabpruefung (Werte an der Grenze), nicht
+% auf deren Guetemassen -- deshalb entsteht hier nirgends der Eindruck zweier
+% Analysen. Wer beim Schreiben versucht ist, eine Verbesserung oder
+% Verschlechterung gegenueber einer aelteren Einstellung zu erwaehnen: nicht
+% tun. Die internen Vergleichsbefunde stehen in docs/07_BEFUNDE.md und sind
+% ausdruecklich NICHT fuer die Kapitel bestimmt.
+%
+% ZUR EHRLICHKEIT GEHOERT DAGEGEN: Die Verdopplung des Budgets ist fuer VIER
+% VON FUENF Verfahren wirkungslos -- gemessen in der Vorabpruefung vom
+% 13.08.2026 (results/suchdiagnose/). Random Forest im Mengenstrang gewinnt
+% auf vier Nachkommastellen exakt null, Ridge +0,0065, beide Strukturverfahren
+% +0,0001; nur XGBoost in der Regression gewinnt spuerbar. So gehoert es in den
+% Text: fuer ein Verfahren belegt, fuer vier ohne Wirkung. Das ist eine
+% Aussage ueber die SUCHE und beruehrt keine Ergebniszahl.
 
 % ===================================================
 \section{Evaluation}
@@ -1469,9 +1525,144 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 
 \subsection{Trainings- und Inferenzaufwand}
 % Laufzeiten, Tuning-Aufwand.                             -> UF3
+%
+% ===================================================================
+% STAND 16.08.2026. Zahlen: docs/03_STAND.md Abschnitt 5.4.
+% Abbildungen A4 (Aufwand gegen Guete) und A9 (Parallelisierung).
+% ===================================================================
+%
+% MESSUMGEBUNG zuerst nennen, sonst sind die Zahlen nicht lesbar:
+% Intel Core i5-7300U @ 2,60 GHz, 2 physische / 4 logische Kerne, 7,8 GB RAM,
+% Windows 10 Pro, Python 3.14.0. Ein Durchgang, ohne Nebenlast.
+%
+% TRAININGSZEIT JE FOLD, EINKERNIG (der zwischen den Verfahren vergleichbare
+% Wert -- Begruendung fuer einkernig: siehe 6.1):
+%       Menge, anzahl_einsaetze   Ridge 0,009 s | XGBoost 0,98 s | RF 7,92 s
+%       Menge, Rate               Ridge 0,009 s | XGBoost 0,93 s | RF 7,79 s
+%       Struktur                              XGBoost 2,07 s | RF 3,57 s
+%       Inferenz, Menge           Ridge 0,003 s | XGBoost 0,011 s | RF 0,183 s
+%   => Ridge ist 106-mal schneller als XGBoost und 861-mal schneller als
+%      Random Forest. KEINE Faktoren aus einer anderen Konfiguration nennen
+%      (#52). DAS IST DIE BELASTBARSTE AUSSAGE DER ARBEIT, weil hier
+%      Groessenordnungen liegen und nicht Prozentpunkte -- und weil UF3 gegen
+%      R-1 immun ist: Im Aufwand trennen sich die Verfahren eindeutig.
+%   Einordnung dazu: Ridge ist bei besserer Guete als XGBoost und nicht
+%   unterscheidbarer gegenueber Random Forest 106- bzw. 861-mal schneller.
+%
+% PARALLELISIERUNGSGEWINN (einkernige Zeit / parallele Zeit):
+%       Menge      Ridge 1,33 / 1,23 | RF 2,23 / 2,18 | XGBoost 0,73 / 0,72
+%       Struktur                       RF 1,66        | XGBoost 0,77
+%   BEI XGBOOST LIEGT DER GEWINN UNTER 1 -- der Fit ueber alle Kerne dauert
+%   LAENGER als der einkernige. Auf zwei physischen Kernen uebersteigt der
+%   Verwaltungsaufwand der Threads den Gewinn. Random Forest profitiert, weil
+%   seine Baeume unabhaengig sind; Ridge hat als geschlossene Loesung nichts zu
+%   verteilen (Gewinn um 1 erwartbar, kein Messfehler). Abbildung A9.
+%
+% EINSCHRAENKUNG, die zwingend dazugehoert (R-15, R-16):
+%   - Der Parallelisierungsgewinn ist staerker an diese Maschine gebunden als
+%     die Einkern-Zeiten. Zwei physische Kerne mit Hyperthreading sind ein
+%     Grenzfall; auf acht echten Kernen fielen die Faktoren anders aus.
+%   - Bei einer U-Serie-CPU ist thermische Drosselung ueber eine Laufzeit von
+%     mehreren Stunden nicht auszuschliessen.
+%   - UF3 beruht auf EINER Zeitmessung je Konfiguration, nicht auf einer
+%     Wiederholungsmessung.
+%   - XGBoost ist nicht threaddeterministisch: Bei anderer Kernzahl weichen
+%     die Vorhersagen ab (B-24). Die berichteten Guetemasse stammen aus dem
+%     einkernigen Fit und sind davon unberuehrt -- das ist zu sagen, sonst
+%     liest es sich wie ein Reproduzierbarkeitsproblem der Ergebnisse.
+%
+% ZUM TUNING-AUFWAND: 25 Suchlaeufe (15 Regression, 10 Klassifikation) mal
+% 100 Ziehungen mal 4 innere Folds = 10.000 Modellanpassungen, 139 Minuten
+% Suchzeit. Das ist die Kennzahl fuer die Komplexitaet des "V" in E-V-A
+% (Auflage 10.08.2026, in 01_VORGABEN.md noch als offen vermerkt).
 
 \subsection{Interpretierbarkeit: SHAP-Analyse}
 % Einflussstärke der Faktorgruppen.                       -> UF1
+%
+% ===================================================================
+% STAND 16.08.2026 -- ERGEBNISSE LIEGEN VOR. Zahlen: docs/03_STAND.md
+% Abschnitt 5.6, Analyse: docs/07_BEFUNDE.md B-47. Abbildung A6.
+% ===================================================================
+%
+% DIESER ABSCHNITT HAT ZWEI TEILE, und der zweite widerspricht dem ersten.
+% Genau das ist der Befund -- nicht als Widerspruch schreiben, sondern als
+% Unterscheidung zwischen zwei verschiedenen Fragen.
+%
+% TEIL 1 -- ATTRIBUTION: Wie verteilt ein Modell seine Aufmerksamkeit?
+%   Quelle: results/shap/gruppen.csv, faktorgruppen_menge.csv (Abbildung A6).
+%   Menge (Poisson-GLM, standardisierte Koeffizienten):
+%       kriminalitaetsbezogen 36,2 % | baulich 25,6 % | soziooekonomisch 23,2 %
+%       Groessenkontrolle 11,2 % | Saison 3,9 %
+%   Struktur (SHAP): RF soziooekonomisch 34,9 % / baulich 29,2 % / krimi 16,7 %
+%                    XGB soziooekonomisch 50,3 % / krimi 14,8 % / baulich 13,4 %
+%   Aussage: Alle drei Faktorgruppen des Exposes tragen bei, keine ist
+%   bedeutungslos. Die TREIBER unterscheiden sich zwischen den Straengen --
+%   Menge vom Kriminalitaetsindex, Struktur von der Soziooekonomie.
+%   WICHTIG: Menge = Koeffizienten, Struktur = SHAP. Zwei verschiedene
+%   Groessen, beide auf Summe 1 normiert. Das MUSS dastehen (siehe A6-Fusszeile).
+%   Warum die Menge aus der Baseline kommt: Kein Vergleichsverfahren schlaegt
+%   sie, Beitraege eines unterlegenen Modells waeren erklaertes Rauschen.
+%
+% TEIL 2 -- ABLATION: Was ist eine Gruppe WERT?
+%   Quelle: results/shap/ablation_faktorgruppen_mittel.csv
+%   Jede Gruppe einmal weggelassen, positive Zahl = schlechter ohne sie.
+%       weggelassen              Menge(RMSE)  Logit     RF        XGB
+%       kriminalitaetsbezogen      +24,27    +0,0008  +0,0004  +0,0020
+%       Groessenkontrolle           -6,86    +0,0239  +0,0176  +0,0158
+%       soziooekonomisch            -6,33    -0,0131  +0,0032  +0,0180
+%       baulich                     -5,44    -0,0112  -0,0041  -0,0058
+%       Saison                      +0,24    +0,0036  +0,0045  +0,0083
+%
+%   Attribution sagt, WIE das Modell schaut. Ablation sagt, WAS FEHLT, wenn
+%   man es wegnimmt. Ein Merkmal kann viel Masse binden und ersetzbar sein.
+%
+% DIE DREI MECHANISMEN -- so und in dieser Reihenfolge schreiben, sie
+% erklaeren den Widerspruch VOLLSTAENDIG und machen ihn ungefaehrlich:
+%
+%   (1) ZEITLICHE AUFLOESUNG. Eindeutige Werte je Stadtteil ueber 132 Monate:
+%       log_kriminalitaetsindex 128,6 -- ACS-Merkmale und log_bevoelkerung
+%       je 4 (fuenf Jahrgaenge mit Publikationsversatz) -- die drei baulichen
+%       Merkmale 1, also KONSTANT, weil Land-Use-Snapshot 2020.
+%       Der Kriminalitaetsindex ist das EINZIGE monatlich variierende Merkmal.
+%
+%   (2) KOLLINEARITAET. Er korreliert mit anteil_risikogewerbe_pct +0,739,
+%       leerstandsquote_pct +0,636, armutsquote_pct +0,622,
+%       anteil_wohngebaeude_pct -0,603. Er ist ein SAMMELINDIKATOR, der die
+%       soziooekonomische und bauliche Information mittraegt -- nur besser
+%       aufgeloest. Gegeben ihn sind die uebrigen redundant, und bei 23
+%       Trainingsstadtteilen kosten redundante Praediktoren mehr Varianz, als
+%       sie Verzerrung abbauen. (Passt zum hoechsten VIF 12,29.)
+%
+%   (3) DER OFFSET. Groessenkontrolle schadet in der Menge (-6,86) und ist in
+%       der Struktur das wertvollste Merkmal (+0,016 bis +0,024). Das
+%       Poisson-GLM hat log(Bevoelkerung) ohnehin als OFFSET -- der Praediktor
+%       ist dort ein redundanter freier Parameter. Die Klassifikationsmodelle
+%       haben keinen Offset und brauchen die Groesse als Signal.
+%
+% DER KLARSTE EINZELBEFUND, eigener Absatz:
+%   Die BAULICHEN Merkmale schaden in ALLEN VIER Modellen und BEIDEN
+%   Straengen. Es sind genau die drei, die aus dem Snapshot eines einzelnen
+%   Jahres stammen und je Stadtteil konstant sind -- drei Koeffizienten,
+%   gefittet auf 23 Stadtteile Zwischenvarianz. Das ist gleichzeitig eine
+%   Limitation der Datenlage (nur ein Land-Use-Jahrgang verfuegbar) und ein
+%   methodischer Befund.
+%
+% SO IST UF1 ZU BEANTWORTEN -- und NICHT anders:
+%   FALSCH: "Nur der Kriminalitaetsindex traegt." Im Strukturstrang widerlegt,
+%           dort ist er praktisch wertlos (+0,0004 bis +0,0020).
+%   RICHTIG: Die drei Faktorgruppen des Exposes tragen dieselbe Information
+%            MEHRFACH; welche davon nuetzt, haengt an der zeitlichen
+%            Aufloesung und an der Modellform.
+%
+% ZWEI SAETZE, DIE NICHT FEHLEN DUERFEN:
+%   - Kein Signifikanztest auf der Ablation. Die Testfamilien sind mit
+%     Decision Log #38 festgelegt; weitere Tests wuerden die
+%     Holm-Korrekturstruktur beruehren. Berichtet werden Mittelwert, Streuung
+%     ueber die zehn Wiederholungsmittel und die Zahl der Wiederholungen mit
+%     Verschlechterung (bei kriminalitaetsbezogen: 10 von 10).
+%   - Aus der Ablation folgt NICHT, den Merkmalssatz zu kuerzen. Er kommt aus
+%     dem Expose und ist durch die Fairness-Regel gebunden; nachtraeglich zu
+%     kuerzen waere eine ergebnisgetriebene Spezifikationswahl.
 
 % ---- ÜBERNAHME AUS EXPOSÉ (Kap. 3, Abs. 4) -- Satzfragment ----
 

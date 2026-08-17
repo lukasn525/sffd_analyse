@@ -55,7 +55,7 @@ Nach jedem Lauf von `v1_baselines.py`, `v3_spezifikation.py`, `m02`, `m03`,
 
 ## Was er prüft
 
-113 Wertprüfungen und fünf Strukturprüfungen. Jede Wertprüfung liest ihren
+116 Wertprüfungen und fünf Strukturprüfungen. Jede Wertprüfung liest ihren
 Sollwert bei jedem Lauf **neu aus `results/`**, nie aus einem Dokument, und
 sucht ihn zeilengenau: nicht „steht die Zahl irgendwo im Kapitel", sondern
 „steht sie in der Tabellenzeile, die zu diesem Verfahren gehört".

@@ -4,10 +4,11 @@
 > Dateien und die Thesis verweisen darauf, statt Werte abzuschreiben. Nach jedem
 > `python prep/build.py` wird diese Datei einmal überschrieben.
 >
-> Stand **2026-08-07**, alle Werte an den erzeugten Dateien nachgerechnet.
-> Abschnitte 1–2 vom 03.08., Abschnitt 3 und 4 am 07.08. nachgezogen
-> (Baselinewechsel #45, Extrapolationszahlen aus dem finalen Lauf),
-> Abschnitt 5 aus dem finalen Modelllauf vom 07.08.
+> Stand **2026-08-16**, alle Werte an den erzeugten Dateien nachgerechnet.
+> Abschnitte 1–2 vom 03.08., Abschnitt 4 am 07.08. nachgezogen
+> (Baselinewechsel #45), Abschnitte 3, 5 und 7 aus dem **finalen Modelllauf
+> vom 16.08.2026** — Budget 100, Suchräume nach #49, Hold-out einmalig
+> ausgewertet.
 
 ```
 python prep/build.py                 # zwei Datensätze + Baselines
@@ -127,10 +128,13 @@ treffe Ridge und die Baumverfahren unterschiedlich. **Beides ist gemessen und
 nicht haltbar — unter der finalen Spezifikation sogar mit umgekehrtem
 Vorzeichen:**
 
-- Extrapolationsanteil gegen RMSE, Spearman ρ über 50 Läufe: **Ridge +0,298 /
-  +0,311** (`anzahl` / Rate), Random Forest +0,126 / +0,181, XGBoost +0,173 /
-  +0,188. Der Zusammenhang ist ausgerechnet bei **Ridge am stärksten** — wäre
-  Extrapolation der Hebel gegen die Baumverfahren, müsste es umgekehrt sein.
+- Extrapolationsanteil gegen RMSE, Spearman ρ über 50 Läufe: **Ridge +0,302 /
+  +0,309** (`anzahl` / Rate), Random Forest +0,108 / +0,162, XGBoost +0,247 /
+  +0,316. Der Zusammenhang ist bei **Ridge am stärksten und beim Random Forest
+  am schwächsten** — wäre Extrapolation der Hebel gegen die Baumverfahren,
+  müsste es umgekehrt sein. Nur bei Ridge und bei XGBoost auf der Rate ist er
+  überhaupt signifikant (p 0,033 · 0,029 · 0,025), beim Random Forest nicht
+  (p 0,456 · 0,261).
 - Es gibt seit #43 ohnehin **keinen Rückstand mehr zu erklären**: Bei
   `anzahl_einsaetze` liegen Random Forest und XGBoost um 0,88 bzw. 0,64 RMSE
   **vor** Ridge, bei der Rate um 0,49 bzw. 0,47. Die Korrelation dieser
@@ -278,10 +282,15 @@ Genau diese Lücke sollen die Strukturmerkmale schließen.
 
 ## 5. Die Modellergebnisse
 
-> Stand **06.08.2026**, erster vollständiger Lauf auf der Zielmaschine.
-> 10 Wiederholungen × 5 Folds, Tuning einmal auf Wiederholung 0, Budget 50.
-> Alle Modelle einkernig gefittet. **Hold-out unberührt.**
+> Stand **16.08.2026**, finaler Lauf. 10 Wiederholungen × 5 Folds, Tuning
+> einmal auf Wiederholung 0, **Budget 100** (#50), Suchräume nach **#49**.
+> Alle Modelle einkernig gefittet. Hold-out **einmalig** ausgewertet (5.7).
 > Streuung ist `std_wiederholungen` über die 10 Wiederholungsmittel.
+>
+> **Dies ist die Hauptanalyse** (#52, festgelegt vor dem Lauf). Frühere Läufe
+> liegen unter `archiv/` und werden **nicht** als zweite Ergebnisreihe
+> berichtet — kein Vorher-Nachher, keine Zahl aus einer anderen Konfiguration.
+> Jede Zahl in diesem Abschnitt stammt aus dem Lauf vom 16.08.2026.
 
 ### 5.0 Die Spezifikation — eine, für alle Modelle gleich
 
@@ -302,40 +311,44 @@ Expositionsbehandlung ist kein zweiter Betriebsmodus, sondern eine Ablation
 | Zielgröße | Verfahren | RMSE | MAE | R² | Trainingszeit |
 |---|---|---|---|---|---|
 | `anzahl_einsaetze` | **Poisson-GLM** | **33,98 ± 3,11** | 22,94 | 0,542 | – |
-| | Random Forest | 35,63 ± 3,51 | 25,41 | 0,402 | 5,78 s |
-| | XGBoost | 35,88 ± 2,55 | 24,49 | 0,532 | 1,43 s |
-| | Ridge | 36,51 ± 2,76 | 24,40 | 0,511 | 0,011 s |
+| | Random Forest | 35,61 ± 3,74 | 25,50 | 0,412 | 7,92 s |
+| | Ridge | 36,51 ± 2,77 | 24,39 | 0,514 | 0,009 s |
+| | XGBoost | 37,77 ± 3,26 | 25,81 | 0,510 | 0,98 s |
 | `einsaetze_je_1000_ew` | **Poisson-GLM** | **4,08 ± 0,62** | 2,25 | 0,367 | – |
-| | Random Forest | 4,19 ± 0,63 | 2,43 | 0,251 | 5,88 s |
-| | XGBoost | 4,20 ± 0,44 | 2,31 | 0,508 | 1,43 s |
-| | Ridge | 4,68 ± 0,24 | 2,50 | 0,283 | 0,011 s |
+| | Random Forest | 4,20 ± 0,65 | 2,44 | 0,241 | 7,79 s |
+| | XGBoost | 4,57 ± 0,67 | 2,50 | 0,473 | 0,93 s |
+| | Ridge | 4,69 ± 0,25 | 2,50 | 0,300 | 0,009 s |
 
 **Primäraussage nach #34** — gepaarter Wilcoxon auf den 10 Wiederholungsmitteln,
 positive Differenz heißt das Verfahren ist besser:
 
-| Zielgröße | Verfahren gegen Baseline | Differenz | gewonnen | p | Befund |
-|---|---|---|---|---|---|
-| `anzahl_einsaetze` | Random Forest | −1,65 | 3/10 | 0,160 | **nicht unterscheidbar** |
-| | XGBoost | −1,90 | 3/10 | 0,232 | **nicht unterscheidbar** |
-| | Ridge | −2,53 | 2/10 | 0,010 | signifikant schlechter |
-| `einsaetze_je_1000_ew` | Random Forest | −0,11 | 4/10 | 0,557 | **nicht unterscheidbar** |
-| | XGBoost | −0,13 | 3/10 | 0,375 | **nicht unterscheidbar** |
-| | Ridge | −0,60 | 1/10 | 0,004 | signifikant schlechter |
+| Zielgröße | Verfahren gegen Baseline | Differenz | 95-%-KI | gewonnen | p | Befund |
+|---|---|---|---|---|---|---|
+| `anzahl_einsaetze` | Random Forest | −1,63 | [−4,22; +0,96] | 3/10 | 0,232 | **nicht unterscheidbar** |
+| | Ridge | −2,53 | [−4,27; −0,79] | 2/10 | 0,010 | signifikant schlechter |
+| | XGBoost | −3,79 | [−6,71; −0,88] | 2/10 | 0,020 | **signifikant schlechter** |
+| `einsaetze_je_1000_ew` | Random Forest | −0,12 | [−0,50; +0,26] | 3/10 | 0,557 | **nicht unterscheidbar** |
+| | XGBoost | −0,49 | [−0,91; −0,08] | 1/10 | 0,020 | **signifikant schlechter** |
+| | Ridge | −0,61 | [−0,93; −0,29] | 1/10 | 0,004 | signifikant schlechter |
 
-**Kein Verfahren schlägt die Baseline.** Random Forest und XGBoost erreichen in
-beiden Zielgrößen ihr Niveau, Ridge bleibt in beiden signifikant darunter.
+**Kein Verfahren schlägt die Baseline.** Nur Random Forest erreicht ihr Niveau,
+ohne es zu übertreffen; **Ridge und XGBoost bleiben in beiden Zielgrößen
+signifikant darunter.**
 
 **Verfahrensvergleich** (sekundär, Holm über 6 Tests):
 
 | Zielgröße | Paarung | Differenz | p_holm | Befund |
 |---|---|---|---|---|
-| `anzahl_einsaetze` | alle drei Paarungen | ≤ 0,88 | 1,000 | nicht unterscheidbar |
-| `einsaetze_je_1000_ew` | Ridge – XGBoost | −0,47 | 0,035 | **XGBoost besser** |
-| | Ridge – Random Forest | −0,49 | 0,186 | nicht unterscheidbar |
-| | Random Forest – XGBoost | +0,01 | 1,000 | nicht unterscheidbar |
+| `anzahl_einsaetze` | Random Forest – XGBoost | +2,17 | 0,773 | nicht unterscheidbar |
+| | Ridge – XGBoost | +1,26 | 0,967 | nicht unterscheidbar |
+| | Ridge – Random Forest | −0,90 | 0,967 | nicht unterscheidbar |
+| `einsaetze_je_1000_ew` | Random Forest – XGBoost | +0,37 | 0,117 | nicht unterscheidbar |
+| | Ridge – Random Forest | −0,49 | 0,137 | nicht unterscheidbar |
+| | Ridge – XGBoost | −0,12 | 0,967 | nicht unterscheidbar |
 
-Nur eine einzige Paarung ist trennbar. Bei `anzahl_einsaetze` überlappen die
-Streuungsbereiche durchgehend — dort ist keine Rangfolge zulässig (R-1).
+**Keine einzige Paarung ist trennbar.** R-1 ist damit vollständig eingetreten:
+Eine Rangfolge zwischen den drei Verfahren ist in keiner Zielgröße zulässig.
+Berichtbar bleibt ausschließlich der Abstand zur Baseline.
 
 **Nebeneffekt der Verlustfunktion (#42):** **keine negativen Vorhersagen**,
 in keinem der 300 Läufe. Tweedie und Poisson haben eine Log-Verknüpfung und
@@ -345,23 +358,23 @@ statt nachträglich geprüft.
 ### 5.2 Struktur — beide Verfahren schlagen die Stufe-2-Baseline in der Kreuzvalidierung
 
 > **Achtung, gilt nur für die Kreuzvalidierung.** Auf dem Hold-out kehrt sich
-> das Ergebnis um: dort gewinnt das Logit mit 0,327 gegen XGBoost 0,274 und
-> Random Forest 0,255 (Abschnitt 5.7). Beide Auswertungen sind zu berichten;
+> das Ergebnis um: dort gewinnt das Logit mit 0,327 gegen XGBoost 0,260 und
+> Random Forest 0,257 (Abschnitt 5.7). Beide Auswertungen sind zu berichten;
 > Analyse in `07_BEFUNDE.md`, B-42. Eine Rangfolge zwischen Logit und
 > Baumverfahren ist im Strukturstrang **nicht** zulässig.
 
 | Verfahren | Macro-F1 | Macro-AUROC | Accuracy | Trainingszeit |
 |---|---|---|---|---|
 | Mehrheitsklasse (Stufe 1) | 0,223 | – | 0,806 | – |
-| **Multinomiales Logit (Stufe 2)** | **0,297** | 0,705 | 0,584 | – |
-| Random Forest | 0,3276 ± 0,0129 | 0,735 | 0,761 | 2,05 s |
-| XGBoost | 0,3343 ± 0,0128 | 0,751 | 0,754 | 1,64 s |
+| **Multinomiales Logit (Stufe 2)** | **0,297 ± 0,014** | 0,705 | 0,584 | – |
+| Random Forest | 0,3278 ± 0,0121 | 0,739 | 0,762 | 3,57 s |
+| XGBoost | 0,3322 ± 0,0125 | 0,735 | 0,744 | 2,07 s |
 
-| Paarung | Differenz | gewonnen | p | Befund |
-|---|---|---|---|---|
-| Random Forest gegen Stufe 2 | +0,0304 | **10/10** | 0,002 | **signifikant besser** |
-| XGBoost gegen Stufe 2 | +0,0371 | **10/10** | 0,002 | **signifikant besser** |
-| Random Forest – XGBoost | −0,0067 | 2/10 | 0,131 | nicht unterscheidbar |
+| Paarung | Differenz | 95-%-KI | gewonnen | p | Befund |
+|---|---|---|---|---|---|
+| Random Forest gegen Stufe 2 | +0,0306 | [+0,022; +0,040] | **10/10** | 0,002 | **signifikant besser** |
+| XGBoost gegen Stufe 2 | +0,0350 | [+0,021; +0,050] | **10/10** | 0,002 | **signifikant besser** |
+| Random Forest – XGBoost | −0,0045 | [−0,014; +0,005] | 4/10 | 0,625 | nicht unterscheidbar |
 
 Beide Verfahren gewinnen in **allen zehn** Wiederholungen — der kleinste bei
 n = 10 erreichbare p-Wert. Die Richtung ist damit eindeutig, nicht knapp.
@@ -407,23 +420,28 @@ den Verfahren vergleichbar ist:
 
 | | Ridge | XGBoost | Random Forest |
 |---|---|---|---|
-| Menge, `anzahl_einsaetze` | **0,011 s** | 1,43 s | 5,78 s |
-| Menge, Rate | **0,011 s** | 1,43 s | 5,88 s |
-| Struktur | – | 1,78 s | 2,18 s |
-| Inferenz, Menge | 0,003 s | 0,016 s | 0,083 s |
+| Menge, `anzahl_einsaetze` | **0,009 s** | 0,98 s | 7,92 s |
+| Menge, Rate | **0,009 s** | 0,93 s | 7,79 s |
+| Struktur | – | 2,07 s | 3,57 s |
+| Inferenz, Menge | 0,003 s | 0,011 s | 0,183 s |
 
-Ridge ist bei nicht unterscheidbarer Güte **130-mal schneller als XGBoost** und
-**526-mal schneller als Random Forest**. Das ist die belastbarste Aussage des
-Aufwandvergleichs, weil zwischen den Verfahren Größenordnungen liegen und
-nicht Prozentpunkte.
+Ridge ist **106-mal schneller als XGBoost** und **861-mal schneller als Random
+Forest** — bei besserer Güte als XGBoost und nicht unterscheidbarer gegenüber
+Random Forest. Das ist die belastbarste Aussage des Aufwandvergleichs, weil
+zwischen den Verfahren Größenordnungen liegen und nicht Prozentpunkte.
+
+> Die Suchräume nach #49 lassen beim Random Forest `max_depth` bis 48 und bis
+> `None` zu; die gewählten Wälder sind entsprechend groß. Der Aufwandsnachteil
+> der Ensembles skaliert mit der Freiheit, die ihnen der Suchraum lässt —
+> ohne Gegenwert in der Güte.
 
 **Parallelisierungsgewinn** — Faktor, um den der Fit über alle vier logischen
 Kerne schneller ist:
 
 | | Ridge | Random Forest | XGBoost |
 |---|---|---|---|
-| Menge | 1,08 / 1,05 | 2,19 / 2,25 | **0,68 / 0,71** |
-| Struktur | – | 1,53 | **0,77** |
+| Menge | 1,33 / 1,23 | 2,23 / 2,18 | **0,73 / 0,72** |
+| Struktur | – | 1,66 | **0,77** |
 
 **Bei XGBoost liegt der Gewinn unter 1** — der Fit über alle Kerne dauert
 *länger* als der einkernige (B-28). Random Forest profitiert, weil seine Bäume
@@ -457,15 +475,15 @@ Hyperparameter. Damit ist der Effekt der Spezifikation isoliert.
 | Modell | RMSE | R² |
 |---|---|---|
 | **Poisson-GLM (Referenz)** | **33,98** | 0,542 |
-| Random Forest, mit Exposition | **35,63** | 0,402 |
-| Random Forest, ohne Exposition | 64,81 | −1,023 |
-| XGBoost, mit Exposition | **35,88** | 0,532 |
-| XGBoost, ohne Exposition | 57,86 | −0,042 |
-| Ridge, mit Exposition | 36,51 | 0,511 |
+| Random Forest, mit Exposition | **35,61** | 0,412 |
+| Random Forest, ohne Exposition | 64,81 | −1,018 |
+| XGBoost, mit Exposition | **37,77** | 0,510 |
+| XGBoost, ohne Exposition | 56,90 | −0,099 |
+| Ridge, mit Exposition | 36,51 | 0,514 |
 
 **Der Effekt der Spezifikation übersteigt den Effekt der Verfahrenswahl um mehr
-als eine Größenordnung:** zwischen den drei Verfahren liegen **0,9 RMSE**,
-zwischen den Spezifikationen eines Verfahrens **22 bis 29**.
+als eine Größenordnung:** zwischen den drei Verfahren liegen **2,2 RMSE**,
+zwischen den Spezifikationen eines Verfahrens **19 bis 29**.
 
 Der Grund ist die **multiplikative Größenstruktur**. Baumverfahren geben je
 Blatt einen festen Wert aus und können „Einsätze = Bevölkerung × Risiko" nicht
@@ -513,11 +531,11 @@ XGBoost. Beides auf Fold 5, dem Fold mit dem geringsten Extrapolationsanteil
 
 | Faktorgruppe | **Menge** (Poisson-GLM) | **Struktur** (RF) | **Struktur** (XGBoost) |
 |---|---|---|---|
-| kriminalitätsbezogen | **36,2 %** | 16,7 % | 13,4 % |
-| baulich | 25,6 % | 29,2 % | 21,1 % |
-| sozioökonomisch | 23,2 % | **34,9 %** | **45,3 %** |
-| Größenkontrolle | 11,2 % | 10,3 % | 10,1 % |
-| Saison | 3,9 % | 8,8 % | 10,2 % |
+| kriminalitätsbezogen | **36,2 %** | 16,7 % | 14,8 % |
+| baulich | 25,6 % | 29,2 % | 13,4 % |
+| sozioökonomisch | 23,2 % | **34,9 %** | **50,3 %** |
+| Größenkontrolle | 11,2 % | 10,3 % | 10,4 % |
+| Saison | 3,9 % | 8,8 % | 11,2 % |
 
 **Alle drei Faktorgruppen des Exposés tragen in beiden Strängen bei** — UF1 ist
 mit ja beantwortet, und keine Gruppe ist bedeutungslos.
@@ -525,17 +543,68 @@ mit ja beantwortet, und keine Gruppe ist bedeutungslos.
 **Die Treiber unterscheiden sich aber zwischen den Strängen.** Wie *viele*
 Einsätze ein Stadtteil hat, hängt am stärksten vom Kriminalitätsindex ab
 (36,2 %). *Welche Art* dort überwiegt, wird vor allem von den sozioökonomischen
-Merkmalen bestimmt (34,9 bzw. 45,3 %), während der Kriminalitätsindex dort auf
+Merkmalen bestimmt (34,9 bzw. 50,3 %), während der Kriminalitätsindex dort auf
 den dritten Platz zurückfällt.
 
-Beide Verfahren der Struktur stimmen in der Rangfolge der ersten drei Gruppen
-überein — sozioökonomisch vor baulich vor kriminalitätsbezogen. Nur die beiden
-letzten Plätze tauschen. Das erfüllt den Prüfauftrag „stimmen RF und XGBoost
-überein" (`m04_shap.py`).
+Beide Verfahren der Struktur setzen sozioökonomisch an die erste Stelle; auf den
+Plätzen zwei und drei tauschen sie (RF baulich vor kriminalitätsbezogen,
+XGBoost umgekehrt). Das erfüllt den Prüfauftrag „stimmen RF und XGBoost
+überein" (`m04_shap.py`) mit dem Vorbehalt, dass nur der erste Platz stabil ist.
 
 **Multikollinearität:** höchster VIF 12,29 bei `median_haushaltseinkommen`, auf
 beiden Bezugsmengen identisch. Deshalb die blockweise Auswertung — einzelne
 Merkmalsbeiträge wären Scheinpräzision.
+
+#### Zweite Antwort auf UF1: die Ablation der Faktorgruppen
+
+Die Tabelle oben ist **Attribution** — sie sagt, wie ein Modell seine
+Aufmerksamkeit verteilt. Sie sagt nicht, was eine Gruppe *wert* ist: Ein Merkmal
+kann viel Masse binden und dennoch ersetzbar sein. Deshalb wird jede Gruppe
+einmal weggelassen und der Verlust gemessen (`m04_shap.ablation_faktorgruppen`).
+Positive Werte heißen **schlechter ohne die Gruppe**.
+
+| weggelassen | Menge (RMSE) | Struktur Logit | Struktur RF | Struktur XGB |
+|---|---|---|---|---|
+| kriminalitätsbezogen | **+24,27** | +0,0008 | +0,0004 | +0,0020 |
+| Größenkontrolle | −6,86 | **+0,0239** | **+0,0176** | +0,0158 |
+| sozioökonomisch | −6,33 | −0,0131 | +0,0032 | **+0,0180** |
+| baulich | −5,44 | −0,0112 | −0,0041 | −0,0058 |
+| Saison | +0,24 | +0,0036 | +0,0045 | +0,0083 |
+
+**Die Ablation widerspricht der Attribution — und das ist der Befund.** Im
+Mengenstrang ist der Kriminalitätsindex unverzichtbar; die übrigen Gruppen
+*verbessern* die Prognose durch ihr Weglassen. Im Strukturstrang ist er dagegen
+praktisch wertlos, dort trägt die Bevölkerung.
+
+Drei Mechanismen erklären das vollständig, alle drei am Datensatz messbar:
+
+**1. Zeitliche Auflösung.** Eindeutige Werte je Stadtteil über 132 Monate:
+`log_kriminalitaetsindex` **128,6** — die ACS-Merkmale und `log_bevoelkerung`
+jeweils **4** (fünf Jahrgänge mit Publikationsversatz), die drei baulichen
+Merkmale **1**, also konstant, weil sie aus dem Land-Use-Snapshot 2020 stammen.
+Der Kriminalitätsindex ist das **einzige monatlich variierende Merkmal**.
+
+**2. Kollinearität.** Er korreliert mit `anteil_risikogewerbe_pct` **+0,739**,
+`leerstandsquote_pct` +0,636, `armutsquote_pct` +0,622 und
+`anteil_wohngebaeude_pct` −0,603. Er ist damit ein **Sammelindikator**, der die
+sozioökonomische und bauliche Information mitträgt — nur monatlich aufgelöst.
+Gegeben ihn sind die übrigen Merkmale redundant, und bei 23 Trainingsstadtteilen
+kosten redundante Prädiktoren mehr Varianz, als sie Verzerrung abbauen.
+
+**3. Der Offset.** Im Mengenstrang schadet die Größenkontrolle (−6,86), im
+Strukturstrang ist sie das wertvollste Merkmal. Das Poisson-GLM hat
+`log(Bevölkerung)` ohnehin als **Offset** — der Prädiktor ist dort ein
+redundanter freier Parameter (R-9). Die Klassifikationsmodelle haben keinen
+Offset und brauchen die Größe als Signal.
+
+**Der klarste Einzelbefund:** Die **baulichen** Merkmale schaden in *allen vier
+Modellen und beiden Strängen*. Es sind genau die drei, die aus einem Snapshot
+eines einzelnen Jahres stammen und je Stadtteil konstant sind — drei
+Koeffizienten, gefittet auf 23 Stadtteile Zwischenvarianz.
+
+Die Formulierung „nur ein Merkmal trägt" wäre falsch. Richtig ist: **Die drei
+Faktorgruppen des Exposés tragen dieselbe Information mehrfach; welche davon
+nützt, hängt an der zeitlichen Auflösung und an der Modellform.**
 
 ### 5.7 Die Schlussbewertung auf dem Hold-out
 
@@ -549,9 +618,9 @@ Einmalig, auf sechs Stadtteilen, die in **kein** Tuning, **keine** Bewertung und
 |---|---|---|---|---|---|
 | 1 | Gesamtmittelwert | 50,23 | −0,006 | 3,30 | −3,320 |
 | **2** | **Poisson-GLM** | **22,35** | **0,801** | **0,98** | **0,621** |
-| 3 | Ridge | 23,71 | 0,776 | 1,14 | 0,485 |
-| 3 | XGBoost | 26,33 | 0,724 | 1,06 | 0,549 |
-| 3 | Random Forest | 30,58 | 0,627 | 1,56 | 0,034 |
+| 3 | Ridge | 23,39 | 0,782 | 1,15 | 0,472 |
+| 3 | XGBoost | 26,18 | 0,727 | 1,14 | 0,486 |
+| 3 | Random Forest | 30,50 | 0,629 | 1,56 | 0,032 |
 
 **Der Befund der Kreuzvalidierung bestätigt sich:** Auch auf unberührten Daten
 erzielt die Baseline in beiden Zielgrößen den geringsten Fehler.
@@ -562,8 +631,8 @@ erzielt die Baseline in beiden Zielgrößen den geringsten Fehler.
 |---|---|---|---|---|
 | 1 | Mehrheitsklasse | 0,208 | – | 0,711 |
 | **2** | **Multinomiales Logit** | **0,327** | **0,756** | 0,472 |
-| 3 | XGBoost | 0,274 | 0,637 | 0,574 |
-| 3 | Random Forest | 0,255 | 0,507 | 0,563 |
+| 3 | XGBoost | 0,260 | 0,611 | 0,553 |
+| 3 | Random Forest | 0,257 | 0,521 | 0,570 |
 
 **Hier weicht die Schlussbewertung von der Kreuzvalidierung ab** — dort schlugen
 beide Verfahren die Baseline in 10 von 10 Wiederholungen.
@@ -618,6 +687,12 @@ ist nicht nachweisbar (B-27).
 | E-Mail an Schröter | ✅ **abgeschickt 08.08.2026** — Poisson statt Negative Binomial (#45), Expositionsbehandlung für alle Verfahren (#43), Primärtest auf den 10 Wiederholungsmitteln (#37), zwei Testfamilien (#38). Antwort ausstehend, `06_RISIKEN.md` R-14 |
 | **„Generalisierung auf unbekannte Stadtteile" in den Text** | **offen, zugesagt** — der Begriff ist Schröter gegenüber als umgesetzt gemeldet, steht aber noch nicht in `main.tex`. Gehört wörtlich in die Zielsetzung und in Kapitel 5.4 (`06_RISIKEN.md`, R-17) |
 | Ertrag des Klassifikationsstrangs | offen als **Befund**, nicht als Aufgabe: bestes Verfahren 0,334 von maximal 1,0, und CV und Hold-out widersprechen sich (`06_RISIKEN.md`, R-2) |
+| Komplexität des „V" in E-V-A (Auflage 10.08.) | ✅ beziffert — 10.000 Modellanpassungen im Tuning, 139 min Suchzeit, dazu 600 Bewertungs- und 1.200 Ablationsläufe |
+| ~20 Codeausschnitte (Auflage 10.08.) | **offen** — Kandidaten stehen in `07_BEFUNDE.md` (B-16, B-23, B-24, B-45) |
+| Formalregeln beim Schreiben (Auflage 10.08.) | **offen** — keine Kursive, keine Anführungszeichen, keine Unterstreichungen, „o.A." bei unbekanntem Autor |
+| Demo-Modus fürs Kolloquium | **offen** — ein voller Lauf dauert rund drei Stunden und ist nicht vorführbar |
+| Quellenprüfung | **offen** — verifiziert sind `Grinsztajn2022` und `Bergstra2012`; Hoerl, Breiman, Chen, Probst, Gourieroux, Cameron & Trivedi stehen aus |
+| Zahlenwächter auf `main.tex` ausweiten | **offen** — er liest `docs/`; die Thesis ist die letzte ungeschützte Driftfläche |
 | Kapitel 6 bis 9 | zu schreiben |
 
 ---
