@@ -1,8 +1,10 @@
 # Risikoregister der Modellierung
 
 > **Lebensdauer:** ändert sich, wenn ein Risiko eintritt, entschärft wird oder
-> wegfällt. Neu gefasst am 07.08.2026, **auf den finalen Lauf vom 16.08.2026
-> nachgezogen** (R-1 und R-2). Ursprünglich nach dem Lauf von
+> wegfällt. Neu gefasst am 07.08.2026, auf den finalen Lauf vom 16.08.2026
+> nachgezogen (R-1 und R-2), **am 17.08.2026 um die Angriffsfläche außerhalb
+> der Methodik erweitert** (R-18 bis R-24: Datenvalidität, inhaltlicher Nutzen,
+> Ethik). Ursprünglich nach dem Lauf von
 > `m02`, `m03`, `m04`, `m05` und nach den Entscheidungen #37 bis #46.
 >
 > **Diese Datei enthält keine eigenen Ergebniszahlen.** Sie zitiert
@@ -10,7 +12,7 @@
 > steht, steht sie als Beleg für die Einstufung eines Risikos, nicht als
 > Ergebnis.
 
-**Die Nummern R-1 bis R-16 sind Zitierschlüssel und werden nicht neu vergeben.**
+**Die Nummern R-1 bis R-25 sind Zitierschlüssel und werden nicht neu vergeben.**
 Sie werden in `main.tex`, in den Docstrings von `m03`, `m04`, `m05`
 und in `07_BEFUNDE.md` zitiert. Ein erledigtes Risiko behält seine Nummer und
 wandert in Abschnitt 3, statt gelöscht zu werden — sonst zeigen die
@@ -35,6 +37,37 @@ verteidigbares Resultat, kein Negativbefund.
 
 ---
 
+## 1b. Angriffsfläche — die kurze Übersicht
+
+Wo die Arbeit heute am ehesten aufgemacht wird, nach Wucht sortiert. Jede Zeile
+ist unten ausgeführt.
+
+| # | Angriff | Wucht | Steht dem entgegen |
+|---|---|---|---|
+| **R-22** | „Wozu ist das gut? Sie sagen Stadtteile vorher, die alle bekannt sind." | **hoch** | Erklärungs- statt Prognoseabsicht offenlegen — die Arbeit sucht Struktur*faktoren*, keinen Einsatzplan |
+| **R-18** | „Ihr wichtigstes Merkmal misst Polizeipräsenz, nicht Kriminalität." | **hoch** | Zugeben, in die Limitationen, Lum/Isaac zitieren |
+| **R-20** | „Sie verteilen Ressourcen nach Armut — das ist algorithmisches Redlining." | **hoch** | Deployment ist abgegrenzt; dazu die Fairnessprüfung R-24 |
+| **R-2** | Der Strukturstrang widerspricht sich zwischen CV und Hold-out | hoch, eingetreten | beide Auswertungen berichten, dazu die Decken (R-21b) |
+| **R-19** | Kriminalitätsindex und Einsatzlast messen teils dasselbe | mittel–hoch | offen benennen, Partialkorrelation berichten |
+| **R-21** | Ökologischer Fehlschluss und MAUP | mittel | Ergebnisse ausdrücklich auf Stadtteilebene begrenzen |
+| **R-4/R-5** | Sechs bzw. 29 unabhängige Einheiten | eingetreten | bereits offen benannt, n_eff ≈ 38 |
+| **R-1** | Die Verfahren trennen sich nicht | eingetreten | Trennschärfe beziffern, nicht als Gleichheit lesen |
+| **R-23** | Rückkopplung bei hypothetischem Einsatz | gering | Deployment ausgeschlossen, Grenze benennen |
+| **R-24** | „Ihr Modell ist für arme Stadtteile schlechter." | **entkräftet** | geprüft: relativ zum Niveau kein Zusammenhang |
+
+**Die drei Sätze, die diese Übersicht zusammenfassen.** Methodisch ist die
+Arbeit gut abgesichert — der Stadtteil-Split entspricht dem Standard für
+geclusterte Daten (Roberts et al. 2017), die Fairnessfrage ist geprüft und
+verneint, die Testkonstruktion ist offengelegt. Angreifbar ist sie an zwei
+Stellen, die nicht in der Methodik liegen: an der **Validität des
+Kriminalitätsindex**, der die Ablation dominiert und dennoch eine
+Verwaltungsstatistik ist, und am **Zweck** — eine Prognose für unbekannte
+Stadtteile hat in einer Stadt mit 35 bekannten Stadtteilen keinen unmittelbaren
+Anwendungsfall. Beides ist mit einer ehrlichen Umdeutung zu halten: Die Arbeit
+ist eine Erklärungsstudie mit Prognosewerkzeugen, keine Einsatzplanung.
+
+---
+
 ## 2. Aktives Register
 
 Sortiert nach Stufe. „Eingetreten" heißt: Das Risiko hat sich realisiert und
@@ -53,6 +86,14 @@ ist jetzt eine Eigenschaft des Ergebnisses, mit der die Arbeit umgehen muss.
 | **R-16** | XGBoost ist nicht threaddeterministisch | **neu**, mittel | B-24 |
 | **R-15** | UF3 beruht auf einer einzigen, nicht wiederholten Zeitmessung | **neu**, mittel | `03_STAND.md` §5.4 |
 | **R-6** | Merkmale sind innerhalb eines Jahres konstant | gering | B-18 |
+| **R-22** | Der praktische Nutzen des Prognoseziels ist nicht belegt | **neu**, hoch | §2.2 |
+| **R-18** | Der Kriminalitätsindex misst auch Polizeipräsenz | **neu**, hoch | §2.2 |
+| **R-20** | Proxy-Diskriminierung über sozioökonomische Merkmale | **neu**, hoch | §2.2 |
+| **R-19** | Zirkularität zwischen Kriminalitätsindex und Einsatzlast | **neu**, mittel–hoch | §2.2 |
+| **R-21** | Ökologischer Fehlschluss und MAUP | **neu**, mittel | §2.2 |
+| **R-23** | Rückkopplung, falls das Modell je eingesetzt würde | **neu**, gering | §2.2 |
+| **R-24** | Systematisch schlechtere Güte für arme Stadtteile | **neu**, geprüft und verneint | §2.2 |
+| **R-25** | Berichtsumfang auf eine Mengen-Zielgröße verdichtet | **neu**, Entscheidung | §2.2 |
 | **R-8** | ACS-Trefferquote 2009 nur 63,1 % | gering | `03_STAND.md` §1 |
 | ~~R-13~~ | ~~Spezifikationsentscheidungen nach dem ersten Lauf~~ | **entfällt** — siehe unten | #42, #43, #45 |
 
@@ -414,6 +455,223 @@ vorher, nicht seine Monatsdynamik. Genau das ist die Forschungsfrage.
 63,1 % im Jahrgang 2009, gegenüber 99,2 % in 2021/23. Für die Hauptanalyse ab
 2015 folgenlos, gehört in die Limitationen.
 
+
+---
+
+## 2.2 Inhaltlicher Nutzen, Datenvalidität und Ethik
+
+Ergänzt am 17.08.2026. Die Risiken R-1 bis R-17 betreffen Methodik, Anwendung
+der Verfahren, Ergebnisse und Vergleichbarkeit. Sie decken nicht ab, ob die
+Analyse **inhaltlich etwas wert** ist und ob sie **ethisch tragfähig** ist. Das
+sind die beiden Fragen, auf die eine gut abgesicherte Arbeit am ehesten
+unvorbereitet trifft.
+
+### R-22 · Der praktische Nutzen des Prognoseziels ist nicht belegt — NEU, hoch
+
+Der schärfste verfügbare Angriff, und er zielt nicht auf die Methode, sondern
+auf den Zweck.
+
+Der Stadtteil-Split misst, wie gut sich ein **unbekannter** Stadtteil aus
+seinem Querschnittsprofil vorhersagen lässt. San Francisco hat aber keine
+unbekannten Stadtteile — alle 35 liegen mit 132 Monaten Historie vor. Für den
+operativen Einsatz wäre die eigene Vergangenheit eines Stadtteils die weitaus
+stärkere Information, und genau die schließt Decision Log #29 als Modellmerkmal
+aus: `lag_1`, `lag_12` und `rolling_mean_3` stehen in der Datei, aber nicht im
+Modell.
+
+Das ist **kein Fehler, sondern eine bewusste Entscheidung** — und sie muss als
+solche im Text stehen, sonst wirkt sie wie ein Versehen. Die Arbeit fragt nach
+dem Erklärungsbeitrag von Strukturfaktoren, nicht nach dem besten Einsatzplan.
+Wer Lags aufnimmt, misst die Trägheit der Zeitreihe und nicht mehr den Beitrag
+von Armut, Bausubstanz und Kriminalität.
+
+**Konsequenz für die Verschriftlichung.** Das Wort „Prognose" trägt die Arbeit
+nicht allein. Sie ist eine **Erklärungsstudie, die Prognosegüte als Maßstab
+benutzt** — out-of-sample zu messen ist strenger als In-sample-Signifikanz und
+genau deshalb gewählt. Diese Umdeutung gehört in Kapitel 3 (Zielsetzung), nicht
+erst in die Limitationen. Der Übertragungsnutzen liegt bei Städten, die
+**keine** Einsatzhistorie je Stadtteil haben — das ist der Anwendungsfall, den
+das Modell tatsächlich bedient, und er ist zu benennen.
+
+### R-18 · Der Kriminalitätsindex misst auch Polizeipräsenz — NEU, hoch
+
+`log_kriminalitaetsindex` ist das einzige Merkmal, dessen Weglassen die
+Prognose messbar verschlechtert (+24,3 RMSE, 10 von 10 Wiederholungen). Der
+gesamte inhaltliche Befund zu UF1 hängt an dieser einen Spalte. Sie stammt aus
+SFPD Incident Reports — also aus **polizeilich registrierten** Delikten.
+
+Registrierte Kriminalität ist keine Kriminalität. Sie ist das Produkt aus
+Tatgeschehen, Anzeigebereitschaft der Bevölkerung und Kontrollintensität der
+Polizei. Wo mehr gestreift wird, wird mehr registriert. Der Location Quotient
+misst damit teilweise, wo die Polizei präsent ist — und Polizeipräsenz ist in
+US-Städten historisch ungleich über Stadtteile verteilt. Dass ein solches Maß
+der stärkste Prädiktor ist, ist deshalb interpretationsbedürftig und nicht
+einfach ein Befund über Brandrisiko.
+
+**Was zu tun ist:** In die Limitationen, mit Beleg. Der kanonische Nachweis für
+die Rückkopplung zwischen Polizeieinsatz und registrierter Kriminalität ist
+Lum & Isaac (2016). Die Aussage lautet dann nicht mehr „Kriminalität erklärt
+Feuerwehreinsätze", sondern „die **registrierte Kriminalitätsbelastung** eines
+Stadtteils ist der stärkste verfügbare Indikator" — schwächer formuliert, aber
+haltbar.
+
+### R-19 · Zirkularität zwischen Prädiktor und Zielgröße — NEU, mittel–hoch
+
+Beide Größen könnten dieselbe latente Eigenschaft messen: die allgemeine
+Aktivitäts- und Belastungslage eines Stadtteils. Ein erheblicher Teil der
+SFFD-Einsätze sind Fehlalarme und Rettungsdiensteinsätze — Kategorien, die mit
+Bevölkerungsdichte, Notruffrequenz und sozialer Lage zusammenhängen, nicht mit
+Brandlast.
+
+Dazu kommt ein **mechanischer** Anteil bei der Rate: `einsaetze_je_1000_ew` hat
+die Bevölkerung im Nenner, der Location Quotient ebenfalls (Delikte pro
+Einwohner). Innerhalb eines Stadtteils korreliert `log_bevoelkerung` mit −0,734
+mit der Rate und mit −0,732 mit dem Kriminalitätsindex. Kontrolliert man dafür,
+fällt die Within-Korrelation zwischen Kriminalitätsindex und Rate von **+0,644
+auf +0,230**.
+
+**Was zu tun ist:** Die Partialkorrelation berichten und `anzahl_einsaetze` mit
+Bevölkerungs-Offset als Hauptzielgröße führen — dort tritt der
+Nennerzusammenhang nicht auf.
+
+### R-20 · Proxy-Diskriminierung über sozioökonomische Merkmale — NEU, hoch
+
+Der Merkmalssatz enthält Armutsquote, Medianeinkommen, Akademikerquote,
+Medianmiete und Leerstandsquote. Ethnische Zugehörigkeit ist **kein** Merkmal —
+aber in einer segregierten Stadt sind Stadtteil und Sozialprofil starke Proxys
+dafür. Ein Modell, das Ressourcen nach diesen Größen verteilte, wäre
+Diskriminierung über Stellvertretermerkmale, auch ohne die geschützte
+Eigenschaft je zu sehen. Das ist die Struktur, die als algorithmisches
+Redlining beschrieben wird.
+
+**Was der Arbeit hier hilft:** Die Deployment-Phase von CRISP-DM ist
+ausdrücklich abgegrenzt. Es wird nichts eingesetzt und nichts zugeteilt. Diese
+Abgrenzung ist bislang als **Umfangsentscheidung** formuliert — sie sollte
+zusätzlich als **ethische Grenze** formuliert werden. Das kostet zwei Sätze und
+verwandelt eine Lücke in eine bewusste Position.
+
+Zweiter Punkt, der zu benennen ist: Ressourcenzuteilung nach vorhergesagtem
+Bedarf ist nicht per se ungerecht — in der Notfallversorgung ist Zuteilung nach
+Bedarf sogar das Ziel. Der Unterschied zur Polizeiarbeit liegt darin, dass ein
+zusätzlicher Löschzug einem Stadtteil nützt, während zusätzliche Streifen ihn
+belasten. Dieses Argument gehört in die Diskussion, denn es unterscheidet die
+Arbeit von der Predictive-Policing-Kritik, statt ihr auszuweichen.
+
+### R-21 · Ökologischer Fehlschluss und MAUP — NEU, mittel
+
+Zwei klassische Einwände gegen jede Analyse auf Flächeneinheiten:
+
+**Ökologischer Fehlschluss.** Ein Zusammenhang zwischen Armutsquote und
+Einsatzlast auf Stadtteilebene sagt nichts über einzelne Haushalte. Der Satz
+„arme Menschen verursachen mehr Feuerwehreinsätze" folgt aus den Ergebnissen
+**nicht** und darf nirgends stehen (Robinson 1950).
+
+**Modifiable Areal Unit Problem.** Die Ergebnisse hängen an der gewählten
+Gebietseinteilung. Dieselben Rohdaten auf den 242 Census Tracts statt auf den
+35 Analysis Neighborhoods könnten andere Koeffizienten und eine andere
+Rangfolge liefern (Openshaw 1984). Der Zuschnitt ist eine Setzung, keine
+Naturgegebenheit — die Wahl der Analysis Neighborhoods ist zu begründen
+(offizielle Abgrenzung, Verfügbarkeit des Crosswalks) und ihre Wirkung als
+Limitation zu benennen.
+
+Beides ist billig zu entschärfen: je ein Absatz in Kapitel 8.3, keine
+Rechnung nötig.
+
+### R-23 · Rückkopplung bei hypothetischem Einsatz — NEU, gering
+
+Würde das Modell zur Ressourcenverteilung genutzt, entstünde die aus dem
+Predictive Policing bekannte Schleife: mehr Präsenz → mehr registrierte
+Ereignisse → Bestätigung der Vorhersage. Beim Feuerwehreinsatz ist die Schleife
+schwächer als bei der Polizei, weil ein Brand auch ohne Präsenz gemeldet wird —
+bei **Fehlalarmen**, der mit 79 % dominanten Klasse, ist sie aber durchaus
+denkbar.
+
+Praktisch gering, weil nichts eingesetzt wird. Gehört trotzdem in einen Satz
+des Ausblicks, weil es die Grenze markiert, an der aus einer Erklärungsstudie
+ein Eingriff würde.
+
+### R-24 · Fairness der Prognosegüte — NEU, geprüft und verneint
+
+Der naheliegende Vorwurf lautet: Das Modell ist für arme Stadtteile ungenauer,
+also benachteiligt es sie. Geprüft am 17.08.2026 über alle 50 Läufe, indem je
+Fold das Sozialprofil der Teststadtteile gegen die Fold-Güte gestellt wurde.
+
+**Absolut** besteht der Zusammenhang: Spearman-Rho zwischen Armutsquote und
+RMSE liegt bei +0,35 bis +0,60 (p < 0,015) über alle Verfahren und beide
+Zielgrößen, einschließlich der Poisson-Baseline.
+
+**Relativ zum Niveau** verschwindet er vollständig. Setzt man den RMSE ins
+Verhältnis zur mittleren Einsatzzahl des Folds, liegt Rho zwischen −0,006 und
++0,275, und **kein Wert ist auf 5 % signifikant** (kleinstes p = 0,053 bei
+XGBoost auf der Rate).
+
+**Lesart:** Der absolute Fehler ist in ärmeren Stadtteilen größer, weil dort
+schlicht mehr Einsätze stattfinden. Die relative Genauigkeit ist über das
+Sozialgefälle hinweg gleich. Es liegt kein Hinweis auf systematische
+Benachteiligung vor.
+
+**Zwei Ehrlichkeiten dazu.** Erstens ist der relative Fehler auf allen Stufen
+hoch — im Mittel 0,48 bei `anzahl_einsaetze` und 0,66 bis 0,69 bei der Rate.
+Das Modell ist nirgends präzise, nicht nur in armen Stadtteilen. Zweitens ist
+das eine Prüfung auf Fehler*gleichheit*, nicht auf Verteilungsgerechtigkeit
+eines hypothetischen Einsatzes — die wäre eine andere Frage und wird hier nicht
+beantwortet.
+
+Diese Prüfung ist der Grund, warum das Ethikkapitel nicht bei „könnte
+problematisch sein" stehen bleiben muss. Ein gemessener und verneinter Verdacht
+ist stärker als ein ungeprüfter.
+
+### R-25 · Berichtsumfang des Mengenstrangs verdichtet — NEU, Entscheidung
+
+Am 17.08.2026 entschieden: Der Mengenstrang wird im **Bericht** auf
+`anzahl_einsaetze` verdichtet. Gerechnet bleiben beide Zielgrößen, `results/`
+und der Code sind unverändert, es wird kein Lauf wiederholt.
+
+**Warum die Anzahl und nicht die Rate**
+
+1. Kapitel 1.2 nennt wörtlich „die Einsatzhäufigkeit als Anzahl Einsätze pro
+   Stadtteil und Monat". Die Rate kommt in der Forschungsfrage nicht vor —
+   ihr Wegfall lässt die Fragestellung unangetastet.
+2. Die Ratenmodellierung bleibt erhalten: Seit #43 modellieren alle Verfahren
+   die Rate und multiplizieren zurück, das GLM trägt `log(Bevölkerung)` als
+   Offset. Die Expositionsbehandlung ist über `ablation_exposition.csv` weiter
+   belegt.
+3. Bei der Rate ist die R²-Streuung über die Folds größer als der Mittelwert
+   (random_forest 0,241 ± 1,247). Eine Rangfolge wäre dort nicht belastbar.
+4. Nennerartefakt (R-19): Bevölkerung steht im Nenner der Rate und des
+   Kriminalitätsindex; die Within-Korrelation fällt nach Kontrolle von +0,644
+   auf +0,230. Mit der Rate verschwindet diese Flanke.
+
+**Was der Schnitt kostet — geprüft: nichts.** Alle sechs Rate-Tests stimmen in
+Richtung und Signifikanzmuster mit den Anzahl-Tests überein; kein sekundärer
+Vergleich wird bei der Rate signifikant. Signifikanztests gesamt 15 → 9,
+berichtete Einzelläufe 300 → 150.
+
+**Zwei Stellen, die dabei korrekt bleiben müssen:**
+
+- **Laufzeit (UF3).** Die Zeiten sind je Zielgröße gemessen. Berichtet wird die
+  Zeile `anzahl_einsaetze` — kein Mittelwert über beide, keine Gesamtlaufzeit
+  des Skripts. Die Rate liefert dieselben Zeiten mit unter 6 % Abweichung; das
+  ist eine zweite Messung derselben Größenordnung und **schwächt R-15 ab**.
+- **Abbildungen.** Alle zehn zeigen weiterhin beide Zielgrößen und werden nicht
+  gefiltert. Abbildungen zählen nicht zu den 40 bis 60 Seiten (Schröter,
+  10.08.), tragen die Robustheitsprüfung also kostenlos. Die Bildunterschriften
+  müssen das benennen, sonst steht in der Abbildung mehr als im Text.
+
+Damit ist Schröters Auflage „alle Analysen in die Arbeit" erfüllt — die Rate
+erscheint als Robustheitsbefund statt als zweite gleichrangige Tabelle. Das
+adressiert zugleich R8 des Gutachtens (Fokus statt Breite).
+
+### Was die Literatur als Standard hergibt
+
+| Einwand | Standard | Was er für diese Arbeit bedeutet |
+|---|---|---|
+| Validierung bei geclusterten Daten | Roberts et al. (2017), *Ecography* 40(8), 913–929 | **Entlastung.** Block- bzw. Leave-Group-Out-Kreuzvalidierung ist die empfohlene Praxis, wenn Abhängigkeitsstrukturen vorliegen; zufälliges k-Fold liefert zu optimistische Schätzungen. Der Stadtteil-Split ist damit kein Sonderweg, sondern der Standard — mit Zitat belegbar |
+| Registrierte Kriminalität als Prädiktor | Lum & Isaac (2016), *Significance* 13(5), 14–19 | **Belastung.** Kanonischer Nachweis der Rückkopplung zwischen Polizeieinsatz und registrierten Delikten. Gehört zu R-18 |
+| Schlüsse von Flächen auf Personen | Robinson (1950), *Am. Sociol. Rev.* 15(3), 351–357 | Formulierungsauflage: keine Aussage über Individuen |
+| Abhängigkeit vom Gebietszuschnitt | Openshaw (1984), *Environment and Planning A* 16(1), 17–31 | Begründung der Analysis Neighborhoods, MAUP als Limitation |
+| Vergleichbare Studien | Fire-/Emergency-Event-Prognose auf Stadtteilebene arbeitet regelmäßig mit **Negative-Binomial- und Poisson-Regression als Referenz** | **Entlastung.** Dass ein GLM die Vergleichsverfahren schlägt, ist in diesem Feld kein Ausreißer, sondern anschlussfähig |
+
 ---
 
 ## 3. Erledigt, entfallen, behoben
@@ -500,6 +758,12 @@ vorliegen.
 | „Sie haben nur 35 Stadtteile — wie belastbar sind Ihre Ergebnisse?" | R-5, offen benannt. 29 unabhängige Entwicklungseinheiten, `std_wiederholungen` statt `std_folds`, Primärtest auf 10 Mitteln, Konfidenzintervall enger als die wahre Unsicherheit |
 | „Ihre sozioökonomischen Merkmale ändern sich nur jährlich. Was sagt Ihr Modell dann eigentlich vorher?" | R-6: das **Niveau** eines unbekannten Stadtteils, nicht seine Monatsdynamik. Das ist die Forschungsfrage, nicht ein Mangel |
 | „Ist Ridge bei Zähldaten überhaupt das richtige Modell?" | Ridge rechnet auf `log(1+y)` und modelliert seit #43 die Rate — es bekommt die multiplikative Struktur damit ebenso wie das Poisson-GLM. Und empirisch: Ridge ist bei nicht unterscheidbarer Güte 130-mal schneller als XGBoost |
+| *(neu)* „Wozu ist das gut? Sie sagen Stadtteile vorher, die Sie alle kennen." | R-22. Die Arbeit ist eine Erklärungsstudie, die Prognosegüte als **Maßstab** benutzt, weil out-of-sample strenger ist als In-sample-Signifikanz. Die eigene Einsatzhistorie ist bewusst kein Merkmal (#29) — sonst misst man die Trägheit der Zeitreihe statt den Beitrag der Strukturfaktoren. Übertragungsnutzen: Städte ohne Einsatzhistorie je Stadtteil |
+| *(neu)* „Ihr wichtigstes Merkmal misst doch nur, wo die Polizei hinfährt." | R-18. Zugestanden. Registrierte Kriminalität ist Tatgeschehen × Anzeigebereitschaft × Kontrollintensität (Lum & Isaac 2016). Die Aussage lautet deshalb „registrierte Kriminalitätsbelastung ist der stärkste verfügbare Indikator", nicht „Kriminalität erklärt Feuerwehreinsätze" |
+| *(neu)* „Sie verteilen Ressourcen nach Armut. Ist das nicht Redlining?" | R-20. Deployment ist ausdrücklich abgegrenzt — als ethische Grenze, nicht nur als Umfangsentscheidung. Dazu der Unterschied zur Polizeiarbeit: Ein zusätzlicher Löschzug nützt einem Stadtteil, zusätzliche Streifen belasten ihn |
+| *(neu)* „Ist Ihr Modell für arme Stadtteile schlechter?" | R-24, **geprüft und verneint.** Absolut ja (Rho +0,35 bis +0,60), relativ zum Einsatzniveau nein (kein Wert auf 5 % signifikant). Der absolute Fehler ist größer, weil dort mehr passiert |
+| *(neu)* „Gilt Ihr Befund auch für einzelne Haushalte?" | R-21. Nein. Ökologischer Fehlschluss (Robinson 1950); die Ergebnisse gelten auf Stadtteilebene und nur dort. Zusätzlich hängen sie am Gebietszuschnitt (MAUP, Openshaw 1984) |
+| *(neu)* „Warum nach Stadtteil aufteilen und nicht zufällig?" | Roberts et al. (2017): Block-Kreuzvalidierung ist bei Abhängigkeitsstrukturen die empfohlene Praxis, zufälliges k-Fold liefert zu optimistische Schätzungen. Der Split ist Standard, kein Sonderweg |
 | *(zu erwarten)* „Sie haben die Spezifikation im Verlauf geändert." | Ja — das ist der CRISP-DM-Kreislauf, und ohne ihn gäbe es die Antwort auf UF4 nicht. Beide Spezifikationen sind berichtet (§5.5), das Hold-out war nie berührt, und die Änderung machte die Regressionslatte **härter** statt weicher (R-13) |
 
 ---
@@ -533,10 +797,27 @@ vorliegen.
    Rechenproblem. Ein im Kolloquium gestellter Punkt ist eine Frage; ein
    vorher genannter ist eine Angabe.
 
+10. **Die Zweckfrage vorne klären, nicht hinten.** Die Umdeutung von
+    „Prognose" zu „Erklärungsstudie mit Prognosegüte als Maßstab" gehört in
+    Kapitel 3, nicht in die Limitationen. Wer sie erst hinten liest, hat
+    vorne schon eine andere Arbeit erwartet (R-22).
+11. **Den Kriminalitätsindex sprachlich zurücknehmen.** Überall
+    „registrierte Kriminalitätsbelastung" statt „Kriminalität". Das ist keine
+    Abschwächung, sondern die korrekte Bezeichnung der Messgröße (R-18).
+12. **Die Deployment-Abgrenzung als ethische Grenze formulieren**, nicht nur
+    als Umfangsentscheidung. Zwei Sätze, die aus einer Lücke eine Position
+    machen (R-20).
+13. **Die Fairnessprüfung berichten, auch weil sie negativ ausfällt.** Ein
+    gemessener und verneinter Verdacht trägt mehr als ein ungeprüfter (R-24).
+14. **Keine Aussage über Personen.** Der Satz „arme Menschen verursachen mehr
+    Einsätze" folgt aus nichts in dieser Arbeit (R-21).
+
 > **Der Leitsatz aus dem Gutachten, an dem dieses Register hängt:** Probleme zu
 > *erkennen* reicht nicht — bewertet wird, ob sie methodisch *gelöst* wurden.
 > Von den ursprünglich zwölf Risiken sind fünf gelöst, drei eingetreten und als
-> Ergebnis berichtbar, vier offen benannt. Zwei Ungleichbehandlungen zwischen
+> Ergebnis berichtbar, vier offen benannt; die sieben am 17.08. ergänzten
+> Risiken zu Nutzen, Validität und Ethik sind einer geprüft und verneint
+> (R-24), sechs offen benannt. Zwei Ungleichbehandlungen zwischen
 > Baseline und Vergleichsverfahren wurden gesucht, gemessen und beseitigt; drei
 > plausible Erklärungen (B-31, B-34, B-39) wurden geprüft und verworfen, bevor
 > sie in die Arbeit kamen. Das ist die Erzählung, die dieses Register trägt.

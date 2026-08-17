@@ -1487,8 +1487,15 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 % Vollstaendige Tabellen: docs/Guetemasse_Uebersicht_2026-08-17.md
 % =========================================================================
 %
-% B1  DIE STUFE-2-BASELINE GEWINNT -- IN BEIDEN VALIDIERUNGEN, BEI BEIDEN
-%     ZIELGROESSEN.
+% B1  IM MENGENSTRANG GEWINNT DIE STUFE-2-BASELINE -- IN BEIDEN VALIDIERUNGEN
+%     UND BEI BEIDEN MENGEN-ZIELGROESSEN.
+%     ACHTUNG, HAEUFIGE FEHLLESUNG: Diese Aussage gilt AUSSCHLIESSLICH fuer den
+%     Mengenstrang. Es gibt zwei verschiedene Stufe-2-Baselines --
+%     Poisson-GLM fuer die Regression (beide Zielgroessen, die Rate entsteht
+%     aus derselben Vorhersage geteilt durch die Bevoelkerung, #43) und
+%     multinomiale logistische Regression fuer die Klassifikation. Im
+%     STRUKTURSTRANG faellt das Ergebnis anders aus, siehe B3.
+%     Ein Satz wie "die Baseline schlaegt alle Verfahren" ist FALSCH.
 %     Kreuzvalidierung anzahl_einsaetze: Poisson-GLM RMSE 33,978 / R2 0,542
 %     gegen ridge 36,509 / 0,514, random_forest 35,606 / 0,412, xgboost
 %     37,772 / 0,510. Hold-out: GLM RMSE 22,350 / R2 0,801 gegen ridge
@@ -1516,6 +1523,13 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 %     Quelle: results/spezifikation/spezifikation_mittel.csv.
 %
 % B3  DER STRUKTURSTRANG IST SCHWACH -- UND DAS IST ZU BERICHTEN.
+%     GEGENSTUECK ZU B1: Hier ist die Stufe-2-Baseline die multinomiale
+%     logistische Regression, NICHT das Poisson-GLM. Und hier schlagen die
+%     Baumverfahren die Baseline in der Kreuzvalidierung sehr wohl --
+%     random_forest +0,031 und xgboost +0,035 Macro-F1, beide p = 0,0020.
+%     Die Aussage "die Baseline gewinnt immer" gilt also NICHT projektweit.
+%     Sie gilt im Mengenstrang; im Strukturstrang gewinnt die Baseline erst
+%     auf dem Hold-out, und genau dieser Umschlag ist der Befund.
 %     Kreuzvalidierung Macro-F1: Mehrheitsklasse 0,223, Logit 0,297,
 %     random_forest 0,328, xgboost 0,332. Hold-out: Logit 0,327,
 %     xgboost 0,260, random_forest 0,257 -- die Rangfolge DREHT SICH.
@@ -1536,6 +1550,82 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 %     Das ist ein eigenstaendiges Ergebnis zu UF1: Die Einsatzart laesst
 %     sich aus diesen Merkmalen im Kern nicht vorhersagen.
 %     Quelle: results/shap/ablation_faktorgruppen_mittel.csv.
+%
+% B10 BERICHTSUMFANG: DER MENGENSTRANG WIRD AUF EINE ZIELGROESSE VERDICHTET.
+%     Entscheidung vom 17.08.2026. GERECHNET bleiben beide Zielgroessen -
+%     results/ und der Code sind unveraendert, es wird KEIN Lauf wiederholt.
+%     Verdichtet wird allein die BERICHTERSTATTUNG.
+%
+%     WAS BLEIBT UND WAS GEHT
+%       Fliesstext, Tabellen im Hauptteil, Signifikanztests   nur anzahl_einsaetze
+%       einsaetze_je_1000_ew                                  ein Absatz + Anhangstabelle
+%       ABBILDUNGEN                                           BEIDE Zielgroessen
+%
+%     WARUM anzahl_einsaetze UND NICHT DIE RATE
+%     1  Kapitel 1.2 nennt woertlich "die Einsatzhaeufigkeit als Anzahl
+%        Einsaetze pro Stadtteil und Monat". Die Rate kommt in der
+%        Forschungsfrage NICHT vor. Streicht man sie, bleibt die Fragestellung
+%        unangetastet; streicht man die Anzahl, muss die FF umgeschrieben werden.
+%     2  Die Ratenmodellierung geht NICHT verloren. Seit #43 modellieren alle
+%        Verfahren die Rate und multiplizieren zurueck; das Poisson-GLM traegt
+%        log(Bevoelkerung) als Offset. Der methodische Beitrag - die
+%        Expositionsbehandlung - bleibt vollstaendig und ist ueber
+%        results/shap/ablation_exposition.csv weiter belegt (22 bis 29 RMSE).
+%     3  Bei der Rate sind die Werte nicht rangierbar: R2-Streuung ueber die
+%        Folds bis 1,247 bei einem Mittelwert von 0,241 (random_forest).
+%        Bei anzahl_einsaetze maximal 0,600 bei 0,412.
+%     4  Nennerartefakt (R-19): Bevoelkerung steht im Nenner der Rate UND des
+%        Kriminalitaetsindex. Die Within-Korrelation faellt nach Kontrolle von
+%        +0,644 auf +0,230. Mit der Rate verschwindet diese offene Flanke.
+%     5  R2 war bei der Rate ohnehin nur nachrichtlich - sie streut zwischen
+%        den Stadtteilen um Faktor 32 (06_RISIKEN.md, Abschnitt 6, Punkt 2).
+%
+%     WAS DER SCHNITT KOSTET - GEPRUEFT, NICHTS
+%     Alle sechs Rate-Tests stimmen in Richtung UND Signifikanzmuster mit den
+%     Anzahl-Tests ueberein. Kein sekundaerer Vergleich wird bei der Rate
+%     signifikant (nach Holm p >= 0,117). Es gibt keine Aussage, die nur die
+%     Rate traegt. Einziger Unterschied: die staerkste Signifikanz liegt bei
+%     der Rate (ridge gegen GLM p = 0,0039 statt 0,0098) - gleiche Richtung,
+%     eine Nachkommastelle.
+%
+%     ZAHLEN NACH DEM SCHNITT
+%       Signifikanztests gesamt (beide Straenge)   15  ->   9
+%       davon primaer im Mengenstrang               6  ->   3
+%       Zeilen menge_mittel / baselines_mittel      6/4 ->  3/2
+%       Zeilen holdout.csv (Regression)            10  ->   5
+%       berichtete Einzellaeufe                   300  -> 150
+%
+%     ZWEI STELLEN, DIE DABEI RICHTIG BLEIBEN MUESSEN
+%     a) LAUFZEIT (UF3). Die Zeiten sind JE ZIELGROESSE gemessen, jede
+%        Zielgroesse bekommt einen eigenen Fit. Berichtet wird die Zeile
+%        anzahl_einsaetze: ridge 0,0092 s, xgboost 0,9795 s, random_forest
+%        7,9227 s Training. KEIN Mittelwert ueber beide Zielgroessen und keine
+%        Gesamtlaufzeit des Skripts, die beide enthaelt.
+%        CHANCE: Die Rate liefert dieselben Zeiten mit unter 6 % Abweichung
+%        (ridge 0,0092 / xgboost 0,9261 / random_forest 7,7869). Das ist eine
+%        zweite Messung derselben Groessenordnung und schwaecht R-15 ab. Ein
+%        Satz dazu gehoert in 7.3.
+%     b) ABBILDUNGEN. Alle zehn trennen nach Zielgroesse und werden NICHT
+%        gefiltert. Begruendung: Abbildungen zaehlen nicht zu den 40 bis 60
+%        Seiten (Schroeter, 10.08.) und muessen nicht beschrieben werden. Sie
+%        tragen die Robustheitspruefung damit kostenlos. Die Bildunterschriften
+%        muessen aber sagen, dass die zweite Zielgroesse als Robustheitspruefung
+%        mitlaeuft - sonst steht in der Abbildung mehr als im Text, ohne dass
+%        der Leser weiss warum.
+%        m05_abbildungen.py bleibt unveraendert. Es liest ausschliesslich CSV
+%        und trainiert nichts; ein Neulauf koennte keine Zahl aendern - deshalb
+%        waere ein Filter zwar risikofrei, ist aber nicht noetig.
+%
+%     FORMULIERUNG FUER DEN ROBUSTHEITSABSATZ IN 7.1
+%     "Die Befunde sind gegenueber der Wahl der Zielgroessenskalierung robust:
+%      Richtung und Signifikanzmuster stimmen bei anzahl_einsaetze und
+%      einsaetze_je_1000_ew ueberein (Anhang X). Berichtet wird im Folgenden
+%      die Anzahl, weil die Expositionsbehandlung bereits im Modell steckt und
+%      die Ratenwerte ueber die Folds so stark streuen, dass eine Rangfolge der
+%      Verfahren dort nicht belastbar waere."
+%     Das ist ein BEFUND. Zwei gleichrangige Tabellen waeren Redundanz - und
+%     genau das, was das Gutachten als "umfangreich, aber nicht fokussiert"
+%     bemaengelt hat.
 %
 % B9  DIE OBERGRENZEN DES STRUKTURSTRANGS -- DAMIT WIRD B3 UND B4 ERST LESBAR.
 %     Macro-F1 0,33 gegen die 1,0 einer fehlerfreien Vorhersage zu halten ist
