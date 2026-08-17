@@ -22,6 +22,8 @@ python vorpruefung\run.py               #    Messlatte + Eignung (v1 und v2)   ~
 python vorpruefung\v3_spezifikation.py  #    Gegenprobe zur Eignungsprüfung    ~2 min
 python modelle\m02_menge.py holdout     # 3  Regression (der lange Teil)      ~55 min
 python modelle\m03_struktur.py holdout  #    Klassifikation                   ~45 min
+python vorpruefung\v4_decke.py          #    Obergrenzen des Strukturstrangs  < 1 min
+python vorpruefung\v4_decke.py holdout  #    dieselben, inklusive Hold-out    < 1 min
 python modelle\m04_shap.py              #    Faktorgruppen, Ablation, VIF     ~10 min
 python modelle\m05_abbildungen.py       #    zehn Abbildungen (liest nur CSV) < 1 min
 python tools\codebook.py                # 4  Merkmalstabelle für Kapitel 4    < 1 min
@@ -71,6 +73,7 @@ vorpruefung/   die Messlatte    v0_aufteilung   wiederholte Splits, Selbsttest
                und die Eignung  v1_baselines    Stufe 1 + Stufe 2
                                 v2_eignung      welche Verfahrensklasse passt?
                                 v3_spezifikation  haelt die Nichtlinearitaet?
+                                v4_decke        Obergrenzen der Einsatzart-Prognose
 modelle/       der Vergleich    m02_menge · m03_struktur · m04_shap · m05_abbildungen
 tests/                          test_aufbereitung
 tools/         NICHT ABGABE     pruefe_zahlen      Doku gegen results/

@@ -1537,6 +1537,47 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 %     sich aus diesen Merkmalen im Kern nicht vorhersagen.
 %     Quelle: results/shap/ablation_faktorgruppen_mittel.csv.
 %
+% B9  DIE OBERGRENZEN DES STRUKTURSTRANGS -- DAMIT WIRD B3 UND B4 ERST LESBAR.
+%     Macro-F1 0,33 gegen die 1,0 einer fehlerfreien Vorhersage zu halten ist
+%     der falsche Massstab. Zwei Decken begrenzen den Strang, beide entstehen
+%     VOR jeder Modellwahl (vorpruefung/v4_decke.py, Entwicklungspanel):
+%
+%       Mehrheitsklasse (Stufe 1)      0,2233   triviale Baseline
+%       Decke B - Stadtteilwissen      0,4572   Modalklasse je Stadtteil bekannt
+%       Decke A - Label-Rauschen       0,6404   Klassenwahrsch. exakt bekannt (+/- 0,0163)
+%       fehlerfreie Vorhersage         1,0000   nicht erreichbar
+%
+%     DECKE A entsteht aus der Konstruktion der Zielgroesse. dominante_einsatzart
+%     ist der argmax ueber vier Anteile desselben Monats. Zieht man jeden
+%     Stadtteil-Monat aus Multinomial(N, p_beobachtet) neu, kippt der argmax in
+%     12,5 % der Faelle. Bei 41,6 % der Zeilen liegt der Abstand zwischen Platz
+%     eins und zwei unter 0,20, der mittlere Siegeranteil betraegt 0,509.
+%
+%     DECKE B entsteht aus der Merkmalsstruktur und ist die BINDENDE. 84,6 % der
+%     Zeilen tragen die Modalklasse ihres eigenen Stadtteils -- das Label ist
+%     fast vollstaendig stadtteilgebunden. Aber von den 29 Entwicklungsstadtteilen
+%     haben 25 dieselbe Modalklasse (fehlalarm), 3 technische_hilfe, 1
+%     rettung_ems. Stadtteilwissen ist damit arm, und mehr als Stadtteilwissen
+%     tragen die zwoelf Praediktoren nicht (siehe Varianzzerlegung, Kap. 8.3).
+%
+%     AUSSCHOEPFUNG, baselinekorrigiert als (Modell - Mehrheitsklasse) /
+%     (Decke - Mehrheitsklasse) -- der Rohquotient waere geschoent, weil der
+%     Sockel der Mehrheitsklasse keine Leistung des Modells ist:
+%       xgboost        0,3322   46,6 % von Decke B   26,1 % von Decke A
+%       random_forest  0,3278   44,7 % von Decke B   25,1 % von Decke A
+%
+%     ZU SCHREIBEN: Der Abstand zwischen dem besten Verfahren (0,3322) und
+%     Decke B (0,4572) ist alles, was Verfahrenswahl und Hyperparametersuche
+%     ueberhaupt noch holen koennten -- 0,125 Macro-F1. Das erklaert B4
+%     (keine Merkmalsgruppe traegt) und B7 (die Verfahren trennen sich nicht)
+%     aus derselben Ursache und macht aus dem schwaechsten Kapitel einen
+%     methodischen Befund. Die Decken gehoeren VOR die Ergebnistabelle in 7.2,
+%     nicht in die Limitationen -- sonst liest es sich als nachtraegliche
+%     Entschuldigung statt als Massstab.
+%     Quelle: results/klassifikation/decke.csv · decke_marge.csv ·
+%             decke_ausschoepfung.csv · decke.md
+%     Hold-out-Gegenstueck in decke_holdout.csv: Decke A 0,6785, Decke B 0,4219.
+%
 % B5  DIE PUNKTWERTE BEI DER RATE SIND NICHT RANGIERBAR.
 %     R2-Streuung ueber die Folds uebersteigt den R2-Mittelwert:
 %     random_forest 0,241 +/- 1,247; ridge 0,300 +/- 0,933.

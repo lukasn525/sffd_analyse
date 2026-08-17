@@ -43,7 +43,7 @@ ZIELGROESSE  = "anzahl_einsaetze"
 RATE         = "einsaetze_je_1000_ew"   # zweite Zielgroesse der Menge
 ZIELKLASSE   = "dominante_einsatzart"   # Zielgroesse der Klassifikation
 SCHLUESSEL   = ["stadtteil", "jahr", "monat", "jahr_monat"]
-R_NEBEN      = [EXPOSURE_ROH, CRIME_ROH]   # NegBin-Offset, Deskription 5.1
+R_NEBEN      = [EXPOSURE_ROH, CRIME_ROH]   # Poisson-Offset, Deskription 5.1
 AUFTEILUNG   = ["fold", "ist_holdout"]
 
 # NFIRS-Gruppe -> Spaltensuffix. Die Reihenfolge folgt KLASSEN aus config.py.

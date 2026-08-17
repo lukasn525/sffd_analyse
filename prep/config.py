@@ -163,7 +163,11 @@ PRAEDIKTOREN = [
 ]
 
 # Rohwerte: keine Modellmerkmale, aber im Datensatz mitgefuehrt fuer den
-# NegBin-Offset, die Raten-Sensitivitaet und die Deskription in Kap. 5.1.
+# Offset des Poisson-GLM, die Raten-Sensitivitaet und die Deskription in
+# Kap. 5.1. Bis Decision Log #45 (06.08.2026) hiess das hier "NegBin-Offset";
+# die Stufe-2-Baseline ist seither ein Poisson-GLM. Der Offset selbst ist
+# unveraendert log(gesamtbevoelkerung) - nur die Verteilungsannahme des
+# Modells hat gewechselt, nicht die Rolle dieser Spalte.
 EXPOSURE_ROH = "gesamtbevoelkerung"
 CRIME_ROH    = "kriminalitaetsindex"
 

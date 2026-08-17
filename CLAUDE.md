@@ -117,6 +117,9 @@ vorpruefung/  die Messlatte      v0_aufteilung.py  wiederholte Splits
               Stufe 1 + 2        v2_eignung.py     welche Verfahrensklasse passt?
                                  v3_spezifikation.py  haelt die Nichtlinearitaet
                                                    out-of-sample? (B-41)
+                                 v4_decke.py       Obergrenzen des Struktur-
+                                                   strangs: Label-Rauschen und
+                                                   Stadtteilwissen (B-48)
                                  run.py
 modelle/      der Vergleich      m02_menge.py · m03_struktur.py · m04_shap.py
               Stufe 3            m05_abbildungen.py · config_modelle.py

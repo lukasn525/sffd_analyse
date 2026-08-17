@@ -583,6 +583,30 @@ def _vif(panel: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> int:
+    """Sechs Auswertungen zu Unterfrage 1, in dieser Reihenfolge.
+
+    1  ATTRIBUTION. Fuer jede Kombination aus Zielgroesse und Verfahren, die
+       `schlagen_die_latte()` durchlaesst, werden auf dem ruhigsten Fold
+       SHAP-Beitraege berechnet und zu Faktorgruppen verdichtet
+       -> beitraege.csv, gruppen.csv, uebersprungen.csv.
+       Schlaegt kein Modell seine Baseline, bleibt der Block leer - das ist
+       ein Ergebnis, kein Fehler (R-2). Genau das ist im Mengenstrang der Fall.
+    2  EXTRAPOLATION aufgeschluesselt nach Merkmal und Stadtteil, plus der
+       Zusammenhang zum RMSE -> extrapolation_*.csv.
+    3  ABLATION DER EXPOSITION: dieselben Baumverfahren ohne die Rueck-
+       transformation ueber die Einwohnerzahl -> ablation_exposition.csv.
+    4  FAKTORGRUPPEN DES MENGENSTRANGS aus der Baseline, weil dort Schritt 1
+       leer bleibt -> faktorgruppen_menge.csv.
+    5  ABLATION DER FAKTORGRUPPEN: was kostet das Weglassen einer Gruppe
+       -> ablation_faktorgruppen.csv, ablation_faktorgruppen_mittel.csv.
+    6  VIF als Kollinearitaetsmass -> vif.csv.
+
+    Das Hold-out wird vor Schritt 1 herausgefiltert und nie wieder angefasst;
+    dieses Skript kennt kein "holdout"-Argument. Die Schritte 3 bis 5 sind
+    Zusatzbelege und beruehren den Verfahrensvergleich nicht - sie erklaeren
+    ihn nur. Mit `--ohne-baeume` laeuft Schritt 5 nur auf den GLM-Baselines,
+    was die Laufzeit von rund zehn auf unter eine Minute drueckt.
+    """
     for pfad, wer in ((RESULTS_DIR / "regression" / "vergleich.csv", "m02"),
                       (RESULTS_DIR / "klassifikation" / "vergleich.csv", "m03")):
         if not pfad.exists():
