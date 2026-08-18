@@ -545,7 +545,10 @@ ACS & American Community Survey \\[12pt]
 AUROC & Area Under the Receiver Operating Characteristic \\[12pt]
 CRISP-DM & Cross-Industry Standard Process for Data Mining \\[12pt]
 EDA & Explorative Datenanalyse \\[12pt]
+GLM & Generalized Linear Model \\[12pt]
+ICC & Intraclass Correlation Coefficient \\[12pt]
 MAE & Mean Absolute Error \\[12pt]
+NFIRS & National Fire Incident Reporting System \\[12pt]
 RMSE & Root Mean Square Error \\[12pt]
 SFFD & San Francisco Fire Department \\[12pt]
 SFPD & San Francisco Police Department \\[12pt]
@@ -617,6 +620,12 @@ Characteristic (AUROC) für die Klassifikation -- im Rahmen einer stadtteilweise
 Kreuzvalidierung gegenübergestellt.\footnote{In
 Anlehnung an Anthropic Claude (2026), KI-Verzeichnis Prompt 1}
 
+% AUFLAGE SCHROETER 04.08.2026 (R-17, 03_STAND.md Abschnitt 6: "offen, zugesagt"):
+% Die Zielsetzung der Validierung ist WOERTLICH als "Generalisierung auf unbekannte
+% Stadtteile" zu formulieren. Der Begriff ist Schroeter gegenueber als umgesetzt
+% gemeldet, steht aber weder hier noch in 5.4. Ein Satz an dieser Stelle, ein
+% zweiter in 5.4 -- beide muessen die Wendung enthalten.
+
 Daraus ergibt sich folgende zentrale Forschungsfrage:
 
 \begin{quote}
@@ -633,8 +642,8 @@ Daraus leiten sich folgende Unterfragen ab:
         kriminalitätsbezogenen und baulichen Merkmalen und der stadtteilbezogenen
         Einsatzhäufigkeit bzw. Einsatzart feststellen?
   \item Wie unterscheiden sich Ridge Regression, Random Forest und XGBoost hinsichtlich ihrer
-        Prognosegüte (RMSE/MAE/R² bzw. F1/AUROC) im Vergleich zu naiven Baselines, bewertet
-        mittels zeitreihengerechter Kreuzvalidierung?
+        Prognosegüte (RMSE/MAE/R² bzw. Macro-F1/Macro-AUROC) im Vergleich zu den Baselines,
+        bewertet mittels stadtteilweiser Kreuzvalidierung?
   \item Wie verhalten sich die Modelle hinsichtlich Trainings- und Inferenzaufwand?
   \item Welche Implikationen ergeben sich aus den Ergebnissen für die Modellauswahl bei
         vergleichbaren tabellarischen Prognoseaufgaben?
@@ -936,8 +945,8 @@ dabei nicht beansprucht.
 %   Klassenverteilung der Einsatzart (79/16/3/1,5 %)          -> 4  Befund
 %   Zusammenfassung der NFIRS-Serien zu vier Klassen          -> 5  Eingriff
 %   Overdispersion / Dispersionsindex der Zielgroesse         -> 4  Befund
-%   Wahl der Negative Binomial als Baseline                   -> 5  Festlegung
-%   Baseline-WERTE (R2 0,472 usw.)                            -> 5  Auflage
+%   Wahl des Poisson-GLM als Stufe-2-Baseline (#45)           -> 5  Festlegung
+%   Baseline-WERTE (R2 0,542 / RMSE 33,98 usw.)               -> 5  Auflage
 %                                                                  Schroeter:
 %                                                                  Baseline in
 %                                                                  die Data
@@ -964,7 +973,8 @@ dabei nicht beansprucht.
 %   Trainings- und Inferenzzeiten                             -> 7
 %   Vergleich der Verfahren untereinander, Rangfolge oder     -> 8
 %     deren Verweigerung bei ueberlappender Streuung
-%   Effektive Stichprobe von 35 Einheiten, Extrapolation      -> 8  Limitation
+%   Effektive Stichprobe: 35 Stadtteile, davon 29 in der      -> 8  Limitation
+%     Entwicklung; n_eff ~ 38 (ICC 0,926). Extrapolation
 %
 % ZWEI SONDERFAELLE, die erfahrungsgemaess Aerger machen:
 %
@@ -1017,12 +1027,19 @@ entstammen den Schätzungen der ACS.
 
 % ---- ÜBERNAHME AUS EXPOSÉ (Kap. 3, Abs. 1, letzter Satz) -- Tempus angepasst ----
 
-Im Data Understanding wurde zudem die Klassenverteilung der Einsatzart geprüft; bei ausgeprägten
-Ungleichgewichten werden seltene Kategorien zusammengefasst oder die Klassifikation auf zwei
-Klassen vereinfacht, etwa Brand vs. Nicht-Brand.
+Im Data Understanding wurde zudem die Klassenverteilung der Einsatzart geprüft.
 
-% Hinweis: Der zweite Teilsatz beschreibt eine Aufbereitungsentscheidung und gehört
-% streng genommen nach 5.1. Hier nur der Befund, dort die Konsequenz.
+% ACHTUNG, EXPOSE-ANKUENDIGUNG IST UEBERHOLT. Der urspruengliche Satz endete mit
+% "bei ausgepraegten Ungleichgewichten werden seltene Kategorien zusammengefasst
+% oder die Klassifikation auf zwei Klassen vereinfacht, etwa Brand vs. Nicht-Brand".
+% Das ist NICHT eingetreten: Die Zielgroesse hat vier Klassen (79,0 / 16,3 / 3,1 /
+% 1,5 %), die Schieflage wird ueber class_weight="balanced" und Macro-F1 als
+% Hauptmass behandelt, nicht ueber Zusammenlegung. Der Befund selbst gehoert
+% hierher, die Behandlung nach 6.
+
+% Hinweis: Hier steht nur der Befund (Klassenverteilung 79,0 / 16,3 / 3,1 / 1,5 %),
+% die Konsequenz gehoert nach 5.3 (Bildung der vier Klassen per argmax) und die
+% Behandlung der Schieflage nach 6 (class_weight, Macro-F1 statt Accuracy).
 % ---- ENDE ÜBERNAHME ----
 
 % ===================================================
@@ -1163,13 +1180,28 @@ entstehen.
 %                                                 -> LISTING 2: Lag-Bildung
 % - Zielgroessen (vier):
 %     anzahl_einsaetze       Zaehldaten; Mittel 75,9, Median 53, Max 451,
-%                            Dispersionsindex 62,8, Nullanteil 0,02 %
-%                            -> begruendet NegBin statt Poisson
+%                            Dispersionsindex 62,8 (voller Datensatz) bzw.
+%                            54,2 (Trainingsstadtteile Fold 1) -- BEIDE Werte
+%                            sind korrekt, sie beziehen sich auf verschiedene
+%                            Mengen; wo einer steht, ist die Bezugsmenge zu
+%                            nennen (03_STAND.md Abschnitt 2).
+%                            ACHTUNG: begruendet NICHT mehr die Negative
+%                            Binomial. Seit #45 ist die Stufe-2-Baseline das
+%                            unpenalisierte Poisson-GLM mit Offset. Die
+%                            Ueberdispersion beschaedigt dort nur die
+%                            Standardfehler, nicht die Konsistenz des
+%                            bedingten Mittelwerts -- und eine Baseline mit
+%                            reinen Punktvorhersagen verwendet keine
+%                            Standardfehler. Begruendung gehoert nach 5.4.
 %     einsaetze_je_1000_ew   Mittel 5,71, Median 3,54, Max 67,7
 %     dominante_einsatzart   4 Klassen: Fehlalarm 79,0 %, Techn. Hilfe 16,3 %,
 %                            Rettung/EMS 3,1 %, Brand 1,5 %
 %     anteil_brand u.a.      stetig in [0,1]; im Mittel 11,6 / 14,9 / 26,2 /
-%                            47,4 %
+%                            47,4 %. NUR Zwischengroesse: aus ihnen entsteht
+%                            per argmax die dominante_einsatzart. Sie werden
+%                            NICHT als eigene Zielgroessen modelliert oder
+%                            berichtet -- entsprechend entfallen ihre
+%                            Baselinewerte in 5.4.
 % - Begruendung der Klassifikationsebene (methodisch staerkster Abschnitt):
 %   Auf Einzeleinsatz-Ebene tragen alle Einsaetze eines Stadtteil-Monats
 %   identische Strukturmerkmale -- 350.481 Zeilen enthielten nur 4.619
@@ -1192,8 +1224,10 @@ spätere Modell messen lassen muss.
 %   steht als Spalten fold und ist_holdout IN DEN DATEIEN. Sie ist eine
 %   Eigenschaft des Datensatzes, nicht der Algorithmen -- damit ist die
 %   Fairness-Regel konstruktiv abgesichert statt behauptet.
-% - STADTTEIL-Split statt Zeitschnitt: 5 Folds a 6 Stadtteile, 6 Stadtteile
-%   Hold-out; jeder Stadtteil genau einmal Testfall, mit allen 132 Monaten.
+% - STADTTEIL-Split statt Zeitschnitt: 29 Entwicklungsstadtteile auf 5 Folds
+%   (6 | 6 | 6 | 6 | 5), dazu 6 Hold-out-Stadtteile; jeder Stadtteil genau
+%   einmal Testfall, mit allen 132 Monaten. Trainingszeilen je Fold 3.036 bis
+%   3.168, Testzeilen 660 bis 792.
 %   Begruendung (zentrale methodische Aussage der Arbeit): Ein Zeitschnitt
 %   prueft die Forschungsfrage NICHT, weil dort jeder Stadtteil in Training
 %   und Test steht und das Modell sein Niveau bereits kennt.
@@ -1207,12 +1241,40 @@ spätere Modell messen lassen muss.
 % - Modelltauglichkeit: alle Merkmale float64, keine fehlenden Werte. Die
 %   Int64-Falle erwaehnen (eine nullable Spalte macht X.to_numpy() zum
 %   object-Array; sklearn faengt das still ab, XGBoost lehnt es ab).
-% - Baselines (Auflage Schroeter 27.07.2026: gehoeren in die Data Preparation):
-%     anzahl_einsaetze       Negative Binomial   R2  0,472 +/- 0,368
-%     anzahl_einsaetze       Gesamtmittelwert    R2 -0,832
-%     einsaetze_je_1000_ew   Gesamtmittelwert    R2 -2,122
-%     anteil_*               Gesamtmittelwert    R2 -0,06 bis -0,11
-%     dominante_einsatzart   Mehrheitsklasse     Macro-F1 0,220 / Acc. 0,786
+% - Baselines (Auflage Schroeter 27.07.2026: gehoeren in die Data Preparation).
+%   ZWEI STUFEN, #32/#33, neu gefasst mit #45. Stand 03_STAND.md Abschnitt 4,
+%   ueber 50 Laeufe; Streuung ist std_wiederholungen ueber die 10
+%   Wiederholungsmittel, NICHT std_folds:
+%
+%     Zielgroesse            Stufe  Baseline               R2               RMSE
+%     anzahl_einsaetze         2    Poisson-GLM/Offset     0,542 +/- 0,082  33,98 +/- 3,11
+%     anzahl_einsaetze         1    Gesamtmittelwert      -0,744 +/- 0,325  69,93 +/- 1,92
+%     einsaetze_je_1000_ew     2    Poisson-GLM/Offset     0,367 +/- 0,261   4,08 +/- 0,62
+%     einsaetze_je_1000_ew     1    Gesamtmittelwert      -1,054 +/- 0,875   7,54 +/- 0,13
+%
+%     dominante_einsatzart     1    Mehrheitsklasse    Macro-F1 0,223 | Acc. 0,806
+%     dominante_einsatzart     2    Multinom. Logit    Macro-F1 0,297 +/- 0,014
+%                                                      | AUROC 0,705 | Acc. 0,584
+%
+%   DIE RATE ENTSTEHT AUS DERSELBEN ANPASSUNG, geteilt durch die Bevoelkerung.
+%   Ein zweites Modell waere eine zweite Spezifikation und damit unfair
+%   gegenueber den Vergleichsverfahren (#43).
+%
+%   AUF DER RATE IST R2 KEIN HAUPTMASS. In Fold 4 faellt es auf -0,920, obwohl
+%   das Poisson-GLM die Nullmarke bei RMSE in JEDEM Fold schlaegt. Ursache: R2
+%   misst gegen den Mittelwert der TESTdaten, und die Rate streut zwischen den
+%   Stadtteilen um Faktor 32 (Excelsior 1,04 gegen Financial District 33,80).
+%   Konsequenz fuer Kapitel 7: bei der Rate RMSE/MAE berichten, R2 nur
+%   nachrichtlich -- mit genau dieser Begruendung.
+%
+%   DER VERGLEICH DER BEIDEN KLASSIFIKATIONSZEILEN IST SELBST EIN ARGUMENT:
+%   Das Logit hat die deutlich SCHLECHTERE Trefferquote (0,584 gegen 0,806) und
+%   zugleich das deutlich BESSERE Macro-F1. Kein Widerspruch, sondern die
+%   Wirkung von class_weight="balanced" -- das Modell gibt Treffer bei der
+%   dominanten Klasse auf, um die drei seltenen ueberhaupt zu finden. Wer
+%   Accuracy als Hauptmass naehme, kaeme zum Schluss, das Modell sei
+%   schlechter geworden. Genau deshalb ist Macro-F1 massgeblich.
+%
 %   Zwei Punkte muessen in den Text:
 %     (a) Negative R2 sind korrekt und aussagekraeftig -- wer fuer einen
 %         unbekannten Stadtteil den Gesamtdurchschnitt vorhersagt, liegt
@@ -1227,22 +1289,76 @@ spätere Modell messen lassen muss.
 %   Gesamtmittelwert und saisonaler Durchschnitt benutzen KEIN EINZIGES
 %   MERKMAL und fielen nachgerechnet praktisch zusammen -- faktisch eine
 %   triviale Referenz, nicht zwei.
-%   Gewaehlt wurde deshalb die NEGATIVE BINOMIAL als alleinige Referenz der
-%   Regression (Decision Log #32). Sie ist kein Strohmann (dieselben zwoelf
-%   Merkmale, dieselben Folds), ueber den Log-Link auf der Originalskala
-%   nichtlinear und verteilungsgerecht fuer Zaehldaten. Entscheidend ist die
-%   Trennlinie, die sie zieht: Sie kann Kruemmung, aber KEINE Wechselwirkungen
-%   zwischen Merkmalen -- genau die finden RF und XGBoost konstruktionsbedingt.
-%   Damit wird der Vergleich zum Beleg statt zur Behauptung.
-%   Offen zu benennen: In der Klassifikation gibt es kein Pendant, dort bleibt
-%   die Mehrheitsklasse die einzige Referenz und die Latte liegt niedriger.
+%
+%   GEWAEHLT WURDE STATTDESSEN ein verallgemeinertes lineares Modell mit
+%   kanonischem Link als Stufe-2-Referenz: fuer die Menge ein POISSON-GLM MIT
+%   OFFSET, fuer die Struktur ein MULTINOMIALES LOGIT OHNE STRAFTERM
+%   (#32/#33, neu gefasst mit #45, freigegeben 08.08.2026). Fuenf Argumente,
+%   ausformuliert in 01_VORGABEN.md:
+%     1. Kein Strohmann -- dieselben zwoelf Merkmale, dieselben Zeilen,
+%        dieselben Folds wie die Vergleichsverfahren.
+%     2. Auf der Originalskala nichtlinear -- ueber den Log-Link multiplikativ,
+%        bildet also ueberproportionale Effekte ab. Damit ist die Auflage
+%        "keine lineare Baseline, wenn es keine Linearitaet gibt" beantwortet.
+%     3. Verteilungsgerecht fuer Zaehldaten mit Exposition -- die Bevoelkerung
+%        geht als Offset ein. Die Ueberdispersion (Dispersionsindex 62,8)
+%        beschaedigt beim Poisson-Schaetzer nur die Standardfehler, nicht die
+%        Konsistenz des bedingten Mittelwerts (Gourieroux, Monfort & Trognon
+%        1984) -- und Standardfehler verwendet eine Baseline mit reinen
+%        Punktvorhersagen nicht.
+%     4. Sie zieht genau die relevante Trennlinie: Kruemmung ja, WECHSEL-
+%        WIRKUNGEN nein -- und genau die finden RF und XGBoost konstruktions-
+%        bedingt. Schlagen sie die Latte, ist der Mehraufwand belegt; schlagen
+%        sie sie nicht, reicht die einfachere Struktur. Beides ist ein Ergebnis.
+%     5. Kein frei waehlbarer Parameter -- unpenalisierte Maximum-Likelihood.
+%
+%   WARUM POISSON UND NICHT NEGATIVE BINOMIAL (#45): Die Negative Binomial
+%   waere die Erweiterung fuer korrekte INFERENZ. Sie loest ein Problem, das
+%   diese Baseline nicht hat, und bringt mit dem Dispersionsparameter eine
+%   zusaetzliche Groesse mit -- sie ist damit nicht mehr "die einfachste Form,
+%   die zur Datenform passt". Gemessen ist das Poisson-GLM zudem die HAERTERE
+%   Latte: 33,98 gegen 37,27 RMSE.
+%   ZU BENENNEN: Schroeter hatte die Negative Binomial namentlich freigegeben;
+%   der Wechsel wurde ihm am 08.08.2026 mitgeteilt (R-14).
+%
+%   AUFLAGE D (Schroeter, 08.08.2026) -- WOERTLICH ZU DOKUMENTIEREN. Er hat
+%   die Begruendung selbst formuliert und angewiesen, sie "genau so" zu
+%   dokumentieren. Seine drei Argumente, in seiner Reihenfolge:
+%     1. Die Reduktion auf die einfacheren Varianten ist methodisch sauber.
+%     2. Sie vermeidet willkuerliche Parameter.
+%     3. Sie liefert zudem staerkere Vergleichswerte.
+%   Punkt 2 ist der tragende: Ein Strafterm auf dem Vorgabewert der Software
+%   waere ein willkuerlich gesetzter Parameter, ein getunter eine zu
+%   begruendende Wahl. Die unpenalisierte Anpassung hat nichts zu waehlen.
+%   DER VORBEHALT GEHOERT DAZU -- Punkt 3 trifft auf den Mengenstrang zu (die
+%   Latte STEIGT von 37,27 auf 33,98 RMSE), auf den Strukturstrang jedoch
+%   NICHT (dort SINKT sie von 0,314 auf 0,297 Macro-F1). Beide Zahlen standen
+%   in der Anfrage vom 08.08., die Freigabe erfolgte also in Kenntnis. Punkt 3
+%   nicht pauschal uebernehmen, sondern den Unterschied benennen (R-2).
+%   Das ist zugleich das Argument gegen Rosinenpicken: dieselbe Aenderung
+%   hilft im einen Strang und schadet im anderen.
+%
+%   DIE KLASSIFIKATION HAT SEIT #33 EIN PENDANT. Fruehere Fassungen dieses
+%   Abschnitts hielten fest, dort bleibe nur die Mehrheitsklasse -- das gilt
+%   NICHT mehr. Das multinomiale Logit ist das Gegenstueck zum Poisson-GLM:
+%   dieselbe Modellklasse, derselbe kanonische Link, derselbe Verzicht auf
+%   einen Strafterm. Zu benennen bleibt, dass die Latte dort trotzdem
+%   niedriger liegt als in der Regression (R-2) -- und dass ein flacher
+%   Entscheidungsbaum (Macro-F1 0,270) das Logit NICHT schlaegt, der
+%   Mehraufwand von RF und XGBoost im zweiten Strang vorab also nicht
+%   begruendet war.
+%
+%   AUFLAGE SCHROETER 04.08.2026 (R-17): Die Zielsetzung der Validierung ist
+%   hier WOERTLICH als "Generalisierung auf unbekannte Stadtteile" zu
+%   formulieren. Steht noch nicht im Text.
 % - Steckbrief des finalen Datensatzes als Tabelle:
 %     Analyseeinheit           Stadtteil x Monat, beide Datensaetze
 %     Zeitraum                 2015-01 bis 2025-12 (132 Monate)
 %     Beobachtungen Menge      4.620 (35 x 132)
 %     Beobachtungen Struktur   4.619 (ein Monat ohne Einsatz)
 %     Merkmale                 10 Struktur + 2 Saison = 12
-%     Aufteilung               5 Folds a 6 Stadtteile + 6 Hold-out-Stadtteile
+%     Aufteilung               5 Folds (6 | 6 | 6 | 6 | 5 Stadtteile),
+%                              29 Entwicklungsstadtteile + 6 Hold-out
 %     Ausschluesse             3 Parkgebiete, 3 ohne durchgaengige ACS-Abdeckung
 %     Absicherung              19 automatisierte Pruefungen an den Dateien
 
@@ -1272,11 +1388,41 @@ spätere Modell messen lassen muss.
 % ---- ÜBERNAHME AUS EXPOSÉ (Kap. 3, Abs. 2 letzter Satz + Abs. 4) -- 1:1, Tempus angepasst ----
 
 Alle Modelle erhalten denselben aufbereiteten Datensatz, um Performance-Unterschiede ausschließlich
-auf die Verfahren zurückführen zu können. Die Evaluation erfolgt zeitbewusst mittels
-Time-Series-Cross-Validation, die bei zeitlich strukturierten Daten Datenleckagen aus der Zukunft
-vermeidet.\footcite[192-193]{Bergmeir2012} Die technische Umsetzung erfolgt in Python.
+auf die Verfahren zurückführen zu können. Die technische Umsetzung erfolgt in Python.
 
-% ERGÄNZEN: konkrete Fold-Zahl, Fenstergröße, Split-Datum, Seeds, Bibliotheksversionen.
+% ENTFERNT AM 18.08.2026: Der Satz "Die Evaluation erfolgt zeitbewusst mittels
+% Time-Series-Cross-Validation, die bei zeitlich strukturierten Daten
+% Datenleckagen aus der Zukunft vermeidet.\footcite[192-193]{Bergmeir2012}"
+% stand hier aus dem Expose und ist seit #29 SACHLICH FALSCH -- der
+% Hauptvergleich laeuft ueber einen Stadtteil-Split. Bergmeir & Benitez bleibt
+% als Beleg brauchbar, aber an anderer Stelle: in 5.0 fuer den Grundsatz, dass
+% jeder Praediktor zum Prognosezeitpunkt verfuegbar sein muss (dort bereits
+% zitiert), und in 2.4.3 fuer die allgemeine Darstellung zeitbewusster
+% Validierung. Die ABWEICHUNG vom Expose gehoert nach 8.3.
+%
+% ERGAENZEN, konkret (Quellen: 03_STAND.md Abschnitte 3 und 5.0/5.4):
+%   - Validierungsrahmen wird aus 5.4 nur REFERENZIERT, nicht neu hergeleitet:
+%     Stadtteil-Split, 10 Wiederholungen x 5 Folds, Tuning einmal auf
+%     Wiederholung 0, Hold-out einmalig nach Abschluss von Modellwahl und Tuning.
+%   - Die eine Spezifikation fuer alle Modelle (#43): alle Verfahren
+%     modellieren die RATE, fuer die absolute Zahl wird mit der Einwohnerzahl
+%     zurueckmultipliziert. Verlustfunktionen: Ridge log(1+y) mit
+%     Ruecktransformation ueber expm1, Random Forest criterion="poisson",
+%     XGBoost reg:tweedie mit getuntem Varianzexponenten (#42).
+%   - Nebeneffekt, der hierher gehoert: KEINE negativen Vorhersagen in keinem
+%     der 300 Laeufe -- Tweedie und Poisson haben eine Log-Verknuepfung, die
+%     Zielgroesse wird strukturell respektiert statt nachtraeglich geprueft.
+%   - REPRODUZIERBARKEIT: RANDOM_STATE = 42 UND die KERNZAHL nennen. XGBoost
+%     ist nicht threaddeterministisch (B-24); alle berichteten Guetemasse
+%     stammen aus dem EINKERNIGEN Fit. Ohne die Kernzahl ist die Angabe
+%     unvollstaendig.
+%   - Messumgebung und Bibliotheksversionen: Intel Core i5-7300U @ 2,60 GHz,
+%     2 physische / 4 logische Kerne, 7,8 GB RAM, Windows 10 Pro, Python 3.14.0,
+%     Pakete in requirements_lauf.txt. Gehoert hierher, weil erst damit die
+%     Laufzeiten in 7.3 lesbar sind.
+%   - Begruendung fuer die einkernige Messung (#39/#40) -- der zwischen den
+%     Verfahren vergleichbare Wert; der Parallelisierungsgewinn wird getrennt
+%     ausgewiesen.
 % ---- ENDE ÜBERNAHME ----
 
 \subsection{Eignungsprüfung und Begründung der Verfahrenswahl}
@@ -1288,10 +1434,15 @@ vermeidet.\footcite[192-193]{Bergmeir2012} Die technische Umsetzung erfolgt in P
 % einfaches Regressionsmodell hinausgegangen wird. Die Begruendung entsteht
 % aus der Regression selbst, in vier Schritten:
 %
-% 1. Das einfache Modell funktioniert. Ridge auf log(1+y) erreicht R2 0,472
-%    und liegt gleichauf mit der Negative-Binomial-Baseline; ein
-%    L2-regularisiertes Poisson-GLM erreicht 0,588. Ein lineares Modell ist
-%    also ein ernstzunehmender Kandidat, kein Strohmann.
+% 1. Das einfache Modell funktioniert. Das unpenalisierte Poisson-GLM erreicht
+%    in der Kreuzvalidierung R2 0,542 bei RMSE 33,98, Ridge auf log(1+y)
+%    R2 0,514 bei 36,51. Ein lineares Modell ist also ein ernstzunehmender
+%    Kandidat, kein Strohmann -- und wie sich in Kapitel 7 zeigt, schlaegt
+%    KEIN Vergleichsverfahren das GLM.
+%    (Fruehere Fassung nannte hier R2 0,472 gegen die Negative Binomial und
+%    0,588 fuer ein L2-regularisiertes Poisson-GLM. Beide Zahlen stammen aus
+%    einer ueberholten Konfiguration und sind seit #45/#52 nicht mehr zu
+%    verwenden -- es wird genau ein Lauf berichtet.)
 % 2. Der formale Spezifikationstest verwirft es trotzdem. RESET-Test nach
 %    Ramsey (1969), H0 "die lineare Spezifikation ist adaequat":
 %      Potenzen bis 2: F = 215,23  p = 4e-47   -> H0 verworfen
@@ -1309,6 +1460,25 @@ vermeidet.\footcite[192-193]{Bergmeir2012} Die technische Umsetzung erfolgt in P
 %    Einzeleffekte seien praktisch linear und nur Wechselwirkungen fehlten.
 %    Das ist durch den Lauf vom 03.08.2026 widerlegt und NICHT mehr zu
 %    schreiben.
+%    UNBEDINGT DAZU -- SONST WIDERSPRICHT 6.2 DEM KAPITEL 7 (B-41):
+%    Die hier diagnostizierte Nichtlinearitaet ist IN-SAMPLE nachgewiesen. Der
+%    RESET-Test laeuft auf 3.828 Zeilen, die als unabhaengig behandelt werden --
+%    tatsaechlich liegen 29 unabhaengige Stadtteile vor. Die Gegenprobe
+%    (vorpruefung/v3_spezifikation.py, derselbe Split, dieselben 50 Laeufe)
+%    zeigt, dass sich die Struktur NICHT auf unbekannte Stadtteile uebertraegt:
+%      linear (12 Terme)        RMSE  33,98   R2   0,542
+%      + Quadrate (22)                101,11      -5,971
+%      + Interaktionen (57)           121,63      -6,247
+%      + beides (67)                  180,86     -16,454
+%    Alle 50 Laeufe konvergiert, also kein numerisches Artefakt.
+%    WIE ES ZU SCHREIBEN IST: Die Eignungspruefung begruendet, warum ueber ein
+%    einfaches lineares Modell HINAUSGEGANGEN wurde -- das ist eine Entscheidung
+%    VOR dem Ergebnis und bleibt richtig. Dass sie sich nicht ausgezahlt hat,
+%    ist der Befund von Kapitel 7 und gehoert dorthin, nicht hierher.
+%    Ein Vorwaertsverweis genuegt. Was NICHT passieren darf: dass 6.2 die
+%    Baumverfahren als zwingend darstellt und Kapitel 7 dann das Gegenteil
+%    berichtet, ohne dass die Bruecke gebaut ist.
+%
 % 4. Daraus folgt die Verfahrenswahl: Ein lineares Modell bildet Kruemmung
 %    nur ueber vorab gewaehlte Transformationen ab und Interaktionen nur,
 %    wenn man sie von Hand spezifiziert -- bei zehn Merkmalen 45 Terme,
@@ -1318,10 +1488,44 @@ vermeidet.\footcite[192-193]{Bergmeir2012} Die technische Umsetzung erfolgt in P
 %    auf die vorherigen.
 %
 % Ebenfalls hierher: die Linearitaetspruefung als Auflage Schroeter (R7,
-% Scatterplots und Residuenanalyse VOR dem Einsatz von Ridge), VIF, sowie die
-% Extrapolationspruefung -- unter dem Stadtteil-Split liegen 31 % der
-% Testzeilen ausserhalb des Trainings-Wertebereichs, was Baumverfahren und
-% Ridge unterschiedlich trifft.
+% Scatterplots und Residuenanalyse VOR dem Einsatz von Ridge), der VIF
+% (hoechster Wert 12,29 bei median_haushaltseinkommen -- daher die BLOCKWEISE
+% Auswertung in 7.4, einzelne Merkmalsbeitraege waeren Scheinpraezision),
+% sowie die Extrapolationspruefung.
+%
+% ZUR EXTRAPOLATION -- ZWEI KORREKTUREN GEGEN DIE FRUEHERE FASSUNG:
+%   (a) Die Zahl ist nicht 31 %. Sie lautet 33,7 % (Mittel der Wiederholung 0),
+%       34,6 % (ueber alle 50 Laeufe) und 7,6 % (Hold-out). Wo eine davon
+%       steht, ist die BEZUGSMENGE zu nennen. Je Fold: 40,9 / 33,3 / 57,4 /
+%       33,3 / 3,6 %.
+%   (b) Die Behauptung, sie treffe Baumverfahren und Ridge unterschiedlich,
+%       ist GEMESSEN UND WIDERLEGT (B-31). Der Zusammenhang zwischen
+%       Extrapolationsanteil und RMSE ist bei RIDGE am staerksten
+%       (Spearman +0,302) und beim Random Forest am schwaechsten (+0,108,
+%       p 0,456) -- waere Extrapolation der Hebel gegen die Baumverfahren,
+%       muesste es umgekehrt sein. Diese Erklaerung darf NICHT mehr auftauchen.
+%       Die Extrapolation bleibt eine Eigenschaft des Validierungsrahmens und
+%       begrenzt die Generalisierbarkeit (Limitation, 8.3) -- sie erklaert
+%       aber keinen Verfahrensunterschied.
+%   (c) Sie ist eine Eigenschaft von STADTTEILEN, nicht von Zeilen: 9 von 29
+%       Stadtteilen liegen mit 100 % ihrer Zeilen ausserhalb, 16 von 29 mit
+%       0 %. Weil die Strukturmerkmale innerhalb eines Stadtteils nahezu
+%       konstant sind, bricht ein Stadtteil ganz aus oder gar nicht.
+%
+% AUFLAGE SCHROETER 10.08.2026 -- ANFORDERUNGEN JE VERFAHREN. Hierher gehoert
+% die Tabelle aus 03_STAND.md Abschnitt 7: 15 gepruefte Anforderungen, davon 7
+% verletzt, 3 fuer das jeweilige Verfahren gar nicht bestehend. Mit
+% Teststatistik und p-Wert, wie verlangt:
+%     Cameron & Trivedi (1990), Hilfsregression   t  =  17,2   p < 0,001
+%     Breusch-Pagan auf log(1+y)                  LM = 722,7   p < 0,001
+%     Jarque-Bera auf log(1+y)                    JB =  98,2   p < 0,001
+%   Schiefe -0,21, Woelbung 3,78. Abbildung A10 (QQ-Plot der Residuen): Kern
+%   auf der Geraden, nur die Raender biegen ab -- schwere Raender, kein
+%   verbogener Kern.
+%   DIE ZEILEN "nicht erforderlich" SIND KEIN FUELLMATERIAL: Eine Tabelle, die
+%   nur verletzte Annahmen zeigt, liesse die Baumverfahren voraussetzungslos
+%   aussehen. Deren eigentliche Anforderung ist der Interpolationsbereich --
+%   und die ist verletzt.
 %
 % AUFLAGE SCHROETER (E-Mail 03.08.2026): Hierher gehoert ausserdem die
 % Begruendung, WARUM Regression und Klassifikation unterschiedlich viele
@@ -1707,13 +1911,54 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 % LEITFRAGE: Haengen Einsatzhaeufigkeit und Stadtteilmerkmale zusammen --
 % koennen die Modelle die ZAHL der Einsaetze vorhersagen?
 %
-% Zielgroessen: anzahl_einsaetze (Zaehldaten) und einsaetze_je_1000_ew (Rate).
-% Guetemasse RMSE / MAE / R2, je Zeile (Stadtteil x Monat), Mittelwert und
-% Streuung ueber alle Folds und Wiederholungen.
-% Referenz: die Baselines aus Abschnitt 5.4 -- Negative Binomial R2 0,472;
-% Gesamtmittelwert -0,832 (Anzahl) bzw. -2,122 (Rate).
-% Zu berichten: Ridge auf log(1+y), Random Forest, XGBoost. Wo sich die
-% Streuungsbereiche ueberlappen, ist das so zu schreiben (Gutachten R6).
+% BERICHTET WIRD anzahl_einsaetze (#B10). einsaetze_je_1000_ew laeuft als
+% Robustheitspruefung mit: ein Absatz plus Anhangstabelle, keine eigene
+% Ergebnisreihe. Abbildungen zeigen weiterhin BEIDE Zielgroessen.
+%
+% Guetemasse RMSE / MAE / R2, je Zeile (Stadtteil x Monat). MASSGEBLICHE
+% STREUUNG ist std_wiederholungen ueber die 10 Wiederholungsmittel, NICHT
+% std_folds ueber die 50 Laeufe -- die 50 sind nicht unabhaengig, es sind
+% dieselben 29 Stadtteile in anderer Gruppierung (R-5, Hurlbert 1984).
+%
+% REFERENZ ist die Stufe-2-Baseline aus 5.4, also das POISSON-GLM MIT OFFSET
+% (R2 0,542 +/- 0,082, RMSE 33,98 +/- 3,11), nicht die Negative Binomial und
+% nicht der Gesamtmittelwert. Der Gesamtmittelwert (Stufe 1, R2 -0,744) ist
+% die Nullmarke und wird nur einmal genannt.
+%
+% ERGEBNIS, anzahl_einsaetze, Kreuzvalidierung (03_STAND.md 5.1):
+%     Poisson-GLM    RMSE 33,98 +/- 3,11   MAE 22,94   R2 0,542
+%     Random Forest       35,61 +/- 3,74       25,50      0,412
+%     Ridge               36,51 +/- 2,77       24,39      0,514
+%     XGBoost             37,77 +/- 3,26       25,81      0,510
+%
+% PRIMAERAUSSAGE (#34), gepaarter Wilcoxon auf den 10 Wiederholungsmitteln:
+%     Random Forest gegen Baseline  -1,63  [-4,22; +0,96]   3/10  p 0,232
+%                                          nicht unterscheidbar
+%     Ridge   gegen Baseline        -2,53  [-4,27; -0,79]   2/10  p 0,010
+%                                          signifikant schlechter
+%     XGBoost gegen Baseline        -3,79  [-6,71; -0,88]   2/10  p 0,020
+%                                          signifikant schlechter
+%   KEIN VERFAHREN SCHLAEGT DIE BASELINE. Nur Random Forest erreicht ihr
+%   Niveau, ohne es zu uebertreffen. Das ist die zentrale Aussage von 7.1 und
+%   darf nicht relativiert werden.
+%
+% SEKUNDAER, Holm ueber 6 Tests: KEINE EINZIGE PAARUNG IST TRENNBAR
+%   (p_holm 0,117 bis 0,967). R-1 ist vollstaendig eingetreten -- eine
+%   Rangfolge zwischen den drei Verfahren ist nicht zulaessig. Berichtbar
+%   bleibt ausschliesslich der Abstand zur Baseline.
+%   FORMULIERUNGSAUFLAGE (B7): "Die Verfahren unterscheiden sich nicht" ist
+%   NICHT GEZEIGT, sondern NICHT GEMESSEN. Effektstaerken d = 0,21 bis 0,87,
+%   Trennschaerfe des gepaarten Wilcoxon bei n = 10 damit 10 bis 68 %. Der
+%   Unterschied gehoert in den Text, sonst ist es die Ueberinterpretation
+%   eines Nullbefunds.
+%
+% ROBUSTHEITSABSATZ zur Rate -- Richtung und Signifikanzmuster stimmen mit
+%   anzahl_einsaetze ueberein, kein sekundaerer Vergleich wird signifikant
+%   (Holm p >= 0,117). Begruendung fuer die Verdichtung: die Exposition steckt
+%   seit #43 im Modell, und die R2-Werte der Rate streuen ueber die Folds
+%   staerker als ihr Mittelwert (Random Forest 0,241 +/- 1,247), eine
+%   Rangfolge waere dort nicht belastbar. Bei der Rate RMSE/MAE berichten,
+%   R2 nur nachrichtlich (Begruendung in 5.4).
 %                                                          -> UF2
 
 \subsection{Ergebnisse Einsatzart (Klassifikation)}
@@ -1726,10 +1971,63 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 % Monats; kein gesetzter Schwellwert und keine kuenstliche Einteilung einer
 % stetigen Groesse.
 %
-% Guetemasse: Macro-F1 (Hauptmass) und Macro-AUROC gegen die
-% Mehrheitsklassen-Baseline aus 5.4 (Macro-F1 0,220 / Accuracy 0,786).
+% Guetemasse: Macro-F1 (Hauptmass) und Macro-AUROC. DIE MESSLATTE IST STUFE 2,
+% also das MULTINOMIALE LOGIT (Macro-F1 0,297 +/- 0,014 | AUROC 0,705 |
+% Accuracy 0,584) -- nicht die Mehrheitsklasse. Die Mehrheitsklasse (Stufe 1,
+% Macro-F1 0,223 | Accuracy 0,806) ist nur die Nullmarke.
 % ACCURACY IST HIER KEIN HAUPTMASS -- 79 % der Stadtteil-Monate werden von
-% Fehlalarm dominiert, ein Modell das immer "Fehlalarm" sagt erreicht 0,786.
+% Fehlalarm dominiert, ein Modell das immer "Fehlalarm" sagt erreicht 0,806.
+%
+% ERGEBNIS, Kreuzvalidierung (03_STAND.md 5.2):
+%     Mehrheitsklasse (Stufe 1)   Macro-F1 0,223    -     Acc. 0,806
+%     Multinom. Logit (Stufe 2)            0,297  0,705        0,584
+%     Random Forest                        0,3278 0,739        0,762
+%     XGBoost                              0,3322 0,735        0,744
+%   Random Forest +0,0306 und XGBoost +0,0350 gegen Stufe 2, beide 10/10
+%   Wiederholungen gewonnen, p = 0,002 -- der kleinste bei n = 10 ueberhaupt
+%   erreichbare Wilcoxon-p. Die Richtung ist eindeutig, nicht knapp.
+%   Random Forest gegen XGBoost: nicht unterscheidbar (p 0,625).
+%
+% HOLD-OUT -- DIE RANGFOLGE DREHT SICH, und genau das ist der Befund:
+%     Mehrheitsklasse  0,208    -     Acc. 0,711
+%     Multinom. Logit  0,327  0,756        0,472
+%     XGBoost          0,260  0,611        0,553
+%     Random Forest    0,257  0,521        0,570
+%   Random-Forest-Macro-AUROC faellt von 0,739 auf 0,521, also praktisch
+%   Zufall. EINE RANGFOLGE ZWISCHEN LOGIT UND BAUMVERFAHREN IST IM
+%   STRUKTURSTRANG NICHT ZULAESSIG.
+%   Kein Widerspruch: Der Hold-out-Wert liegt innerhalb der Spannweite der 50
+%   Einzellaeufe (RF 0,229-0,404, XGB 0,230-0,421); 14 bzw. 16 % der Folds
+%   lagen darunter. Eine Ziehung aus einer breiten Verteilung, keine Anomalie.
+%   WAS DER HOLD-OUT SICHTBAR MACHT (B-40): Beide Baumverfahren sagen die
+%   seltenste Klasse dort KEIN EINZIGES MAL vorher -- F1 fuer brand ist 0,000,
+%   bei Random Forest liegt die AUROC mit 0,173 unter dem Zufall. Das Logit
+%   erkennt dieselbe Klasse mit AUROC 0,895 und klassifiziert lediglich
+%   zurueckhaltend. Der CV-Mittelwert verdeckt diese Instabilitaet.
+%
+% KEIN VERFAHREN ERREICHT DIE ACCURACY DER MEHRHEITSKLASSE (0,806 CV / 0,711
+% Hold-out). Das ist Folge der Metrikwahl, kein Fehler -- muss aber offen
+% dastehen, sonst wirkt es verschwiegen.
+%
+% DIE DECKEN GEHOEREN VOR DIE ERGEBNISTABELLE (B9), nicht in die Limitationen
+% -- sonst liest es sich als nachtraegliche Entschuldigung statt als Massstab.
+% Beide entstehen VOR jeder Modellwahl (vorpruefung/v4_decke.py):
+%     Mehrheitsklasse (Stufe 1)        0,2233
+%     Decke B, Stadtteilwissen         0,4572   Modalklasse je Stadtteil bekannt
+%     Decke A, Label-Rauschen          0,6404   Klassenwahrsch. exakt bekannt
+%     fehlerfreie Vorhersage           1,0000   nicht erreichbar
+%   Decke A: dominante_einsatzart ist der argmax ueber vier Anteile desselben
+%   Monats; zieht man jeden Stadtteil-Monat aus Multinomial(N, p) neu, kippt
+%   der argmax in 12,5 % der Faelle. Bei 41,6 % der Zeilen liegt der Abstand
+%   zwischen Platz eins und zwei unter 0,20.
+%   Decke B ist die BINDENDE: 84,6 % der Zeilen tragen die Modalklasse ihres
+%   eigenen Stadtteils, aber von den 29 Entwicklungsstadtteilen haben 25
+%   dieselbe Modalklasse (fehlalarm). Stadtteilwissen ist damit arm.
+%   AUSSCHOEPFUNG, baselinekorrigiert -- xgboost 46,6 % von Decke B,
+%   random_forest 44,7 %. Der Abstand zwischen dem besten Verfahren (0,3322)
+%   und Decke B (0,4572) ist ALLES, was Verfahrenswahl und Hyperparametersuche
+%   ueberhaupt noch holen koennten: 0,125 Macro-F1. Das macht aus dem
+%   schwaechsten Kapitel einen methodischen Befund.
 %
 % Verfahren: NUR Random Forest und XGBoost -- zwei statt drei. Ridge hat auf
 % einer nominalen Zielgroesse keine Entsprechung, die logistische Regression
@@ -1902,16 +2200,51 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 % Umfang: ca. 5 Seiten
 \subsection{Vergleichende Bewertung der Algorithmen}
 % Erwartung (2.7) gegen Befund.
-% Zwei Punkte gehoeren zwingend hierher:
-% - Spezifikationsasymmetrie: Die NegBin-Baseline erhaelt log(Bevoelkerung)
-%   als OFFSET und modelliert damit direkt Einsaetze je Einwohner; Ridge, RF
-%   und XGBoost bekommen dieselbe Groesse nur als gewoehnliches Merkmal.
-%   Entweder wird der Vorteil ausgeglichen oder offen benannt -- sonst
-%   vergleicht die Arbeit nicht drei Algorithmen, sondern drei
-%   Spezifikationen.
-% - Unterscheidbarkeit: Bei 35 Analyseeinheiten streuen die Fold-Ergebnisse
-%   stark. Wo sich die Streuungsbereiche ueberlappen, ist das so zu
-%   berichten und nicht als Rangfolge zu kaschieren (Gutachten R6).
+% Drei Punkte gehoeren zwingend hierher:
+%
+% - DIE ERWARTUNG AUS 2.7 IST WIDERLEGT. Dort steht, methodisch sei zu
+%   erwarten, dass die baumbasierten Verfahren am staerksten abschneiden
+%   (Grinsztajn et al. 2022). Gemessen schlaegt im Mengenstrang KEIN
+%   Verfahren die Stufe-2-Baseline, und im Strukturstrang kehrt sich das
+%   CV-Ergebnis auf dem Hold-out um. Das ist der interessanteste Befund der
+%   Arbeit und gehoert an den Anfang von 8.1, nicht ans Ende.
+%
+% - SPEZIFIKATION SCHLAEGT VERFAHRENSWAHL -- die Antwort auf UF4.
+%   ACHTUNG, DIE FRUEHERE FASSUNG DIESES BLOCKS IST UEBERHOLT. Sie sprach von
+%   einer "Spezifikationsasymmetrie", weil nur die Baseline log(Bevoelkerung)
+%   als Offset bekomme. Seit #43 modellieren ALLE Verfahren die Rate und
+%   multiplizieren mit der Einwohnerzahl zurueck; die Asymmetrie ist
+%   konstruktiv beseitigt, nicht nur benannt. Verblieben ist ein SCHWAECHERER
+%   Rest: Das GLM traegt log(Bevoelkerung) als Offset mit Koeffizient 1, die
+%   uebrigen Verfahren muessen die Groessenbeziehung ueber die
+%   Ruecktransformation abbilden. Das ist zu benennen, aber es ist kein
+%   ungleicher Vergleich mehr.
+%   DIE ZAHLEN, die daraus das Hauptargument machen (03_STAND.md 5.5):
+%     zwischen den drei VERFAHREN liegen           2,2 RMSE
+%     zwischen den SPEZIFIKATIONEN eines Verfahrens 19 bis 29 RMSE
+%     Random Forest ohne Expositionsbehandlung   64,81 statt 35,61
+%     XGBoost      ohne Expositionsbehandlung    56,90 statt 37,77
+%   Ueber die Spezifikationsgegenprobe hinaus: Verfahrenswahl bewegt bis 2,5
+%   RMSE, Spezifikationswahl bis 146,9 (Abbildung A3).
+%   Der Grund ist die multiplikative Groessenstruktur: Baumverfahren geben je
+%   Blatt einen festen Wert aus und koennen "Einsaetze = Bevoelkerung x
+%   Risiko" nicht abbilden; Verfahren mit Log-Verknuepfung bekommen die
+%   Multiplikation geschenkt.
+%
+% - UNTERSCHEIDBARKEIT. Bei 29 Entwicklungsstadtteilen streuen die
+%   Fold-Ergebnisse stark; keine einzige Verfahrenspaarung ist trennbar
+%   (R-1 vollstaendig eingetreten). Wo sich die Streuungsbereiche
+%   ueberlappen, ist das so zu berichten und nicht als Rangfolge zu
+%   kaschieren (Gutachten R6). Zugleich die Formulierungsauflage aus B7
+%   beachten: nicht gezeigt, sondern nicht gemessen.
+%
+% - UEBERANPASSUNG als eigenes Argument (B6, gehoert teils nach 7.3):
+%   R2 Training gegen R2 Kreuzvalidierung bei anzahl_einsaetze --
+%   ridge 0,826/0,514 (Differenz 0,313), xgboost 0,983/0,510 (0,473),
+%   random_forest 0,984/0,412 (0,572). Random Forest braucht 861-mal laenger
+%   als Ridge und generalisiert dabei am schlechtesten. Das ist ein sauberes
+%   Effizienzargument und die belastbarste Aussage der Arbeit, weil hier
+%   Groessenordnungen liegen und nicht Prozentpunkte.
 
 \subsection{Erklärungsbeitrag der untersuchten Faktoren}
 % Sozioökonomisch / baulich / kriminalitätsbezogen.       -> UF1
@@ -1930,12 +2263,26 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 %   innerhalb eines Jahres nahezu konstant sind.
 %   Das nimmt der naheliegenden Pruefungsfrage "warum nicht mehr Daten?" die
 %   Spitze und zeigt, dass das Limit verstanden ist.
-% Aufzunehmen: effektive Stichprobe von 35 Querschnittseinheiten;
-% Extrapolation bei unbekannten Stadtteilen (31 % der Testzeilen);
-% Hold-out aus nur 6 Stadtteilen; jaehrliche ACS-Merkmale und Land-Use-
-% Snapshot 2020; ACS-Trefferquote 2009 von 63,1 %; sowie die Abweichungen
+% Aufzunehmen: 35 Stadtteile, davon 29 in der Entwicklung -- die effektive
+% Stichprobe liegt bei rund 38 Einheiten bei 4.620 Zeilen (ICC 0,926,
+% Designeffekt 122); Extrapolation bei unbekannten Stadtteilen (33,7 % der
+% Testzeilen in Wiederholung 0, 34,6 % ueber alle 50 Laeufe, 7,6 % im
+% Hold-out -- die Bezugsmenge ist jeweils zu nennen), und zwar als
+% Eigenschaft von STADTTEILEN: 9 von 29 liegen mit 100 % ihrer Zeilen
+% ausserhalb, 16 von 29 mit 0 %; Hold-out aus nur 6 Stadtteilen, einmalig
+% und ohne Streuung ausgewertet, deshalb dort KEINE Rangfolge (R-4);
+% jaehrliche ACS-Merkmale und Land-Use-Snapshot 2020 (die drei baulichen
+% Merkmale sind je Stadtteil KONSTANT -- 1 eindeutiger Wert ueber 132 Monate,
+% gegen 128,6 beim Kriminalitaetsindex); ACS-Trefferquote 2009 von 63,1 %
+% gegen 79,7 % (2014/2019) und 99,2 % (2021/2023); sowie die Abweichungen
 % vom Expose (Stadtteil-Split statt Zeitreihen-CV, Klassifikation mit nur
 % zwei statt drei Verfahren, Einsatzart auf Stadtteilebene).
+%
+% DER HOLD-OUT IST LEICHTER ALS DIE KREUZVALIDIERUNG -- BENENNEN (B8).
+% Extrapolationsanteil 7,6 % gegen 34,6 %, und trainiert wird auf 29 statt 23
+% Stadtteilen. Alle Hold-out-Werte liegen deshalb ueber den CV-Werten. Ohne
+% diesen Hinweis wirkt die Schlussbewertung geschoent. Die beiden Zahlenreihen
+% duerfen NICHT direkt verglichen werden.
 % Zur Verfahrenszahl gehoert hierher der ehrliche Preis der Entscheidung
 % (#31): In der Klassifikation fehlt ein lineares Referenzverfahren, die
 % Symmetrie linear/Bagging/Boosting besteht also nur im Regressionsstrang.
@@ -2023,7 +2370,22 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 % LITERATURVERZEICHNIS
 % ---------------------------------------------------
 \newpage
-\nocite{*}  % TODO: entfernen, sobald echte \footcite-Aufrufe im Text stehen
+\nocite{*}  % TODO: entfernen, sobald echte \footcite-Aufrufe im Text stehen.
+% STAND 18.08.2026: 21 Eintraege in der Datenbank, 30 \footcite-Aufrufe im
+% Text. Vorgabe Schroeter: 30 bis 100 Quellen, Paper fuer den Forschungsstand,
+% Lehrbuecher nur fuer die Grundlagen.
+% IN KOMMENTAREN BEREITS ANGEKUENDIGT, ABER NOCH NICHT IN DER DATENBANK --
+% ohne diese Eintraege bricht der Build, sobald die betreffenden Passagen
+% geschrieben sind:
+%     Altman2006       (5.3, Dichotomisierung stetiger Groessen)
+%     Hurlbert1984     (7.1 / 8.3, Pseudoreplikation -- warum n = 10, nicht 50)
+%     Roberts2017      (8.3, Block-/Leave-Group-Out-CV als empfohlene Praxis)
+%     Gourieroux1984   (5.4, Konsistenz des Poisson-Schaetzers unter Ueberdispersion)
+%     Ramsey1969       (6.2, RESET-Test)
+%     Hsu2025          (2.2, XGBoost auf Feuerwehr-Einsatzdaten)
+% QUELLENPRUEFUNG (03_STAND.md Abschnitt 6): verifiziert sind Grinsztajn2022
+% und Bergstra2012. Ausstehend: Hoerl1970, Breiman2001, Chen2016, Probst2019,
+% Cameron2013 -- sowie alle sechs oben.
 \printbibliography[heading=bibintoc,title={Literaturverzeichnis}]
 
 % ---------------------------------------------------
@@ -2034,9 +2396,22 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 \section*{Anhang}
 \addcontentsline{toc}{section}{Anhang}
 
-% A1  Vollständige Attributtabelle
-% A2  Code-Auszüge (Datenaufbereitung, Tuning, Evaluation)
-% A3  Ergänzende Abbildungen (EDA, SHAP)
+% A1  Vollstaendige Attributtabelle -- Quelle results/codebook/merkmale.md,
+%     erzeugt von tools/codebook.py (Auflage Schroeter 10.08.: eine grosse
+%     Tabelle mit Skalenniveau, Was/Wie/Wofuer). 34 Spalten.
+% A2  Code-Auszuege. ACHTUNG ZUM SEITENBUDGET: Codeausschnitte ZAEHLEN zu den
+%     40-60 Inhaltsseiten, Abbildungen NICHT (Schroeter 10.08.). Die rund 20
+%     geforderten Ausschnitte sind damit der teuerste Posten der Arbeit --
+%     ausdruecklich verlangt sind Serialisierung und Multithreading.
+% A3  Ergaenzende Abbildungen. Zehn liegen erzeugt vor in
+%     results/abbildungen/ (a0_pipeline, a1_gegen_baseline, a2_foldstruktur,
+%     a3_spezifikation, a4_laufzeit_guete, a5_holdout, a6_faktorgruppen,
+%     a7_extrapolation, a8_hyperparameter, a9_parallelisierung,
+%     a10_qq_residuen). Alle als PDF, also vektoriell -- Auflage
+%     "Vektorformat" erfuellt. Sie sind BISLANG NICHT EINGEBUNDEN: main.tex
+%     enthaelt genau ein \includegraphics, das FOM-Logo.
+% A4  Anhangstabelle einsaetze_je_1000_ew (Robustheitspruefung, #B10).
+% A5  Ergebnisse der 15 bzw. 9 Signifikanztests im Ueberblick.
 
 % ---------------------------------------------------
 % KI-VERZEICHNIS
