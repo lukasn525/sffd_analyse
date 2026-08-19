@@ -1,0 +1,392 @@
+==============================================================================
+  QUELLENREGISTER
+  erzeugt von tools/quellen.py aus literatur.bib - NICHT von Hand aendern
+==============================================================================
+
+  freigegeben  20      Vorgabe Schroeter: mindestens 30
+  in Pruefung  11
+  abgelehnt     1
+
+  Zitierstellen in main.tex   25
+  davon Seite offen (??)      7
+  Fehler                      12
+
+
+------------------------------------------------------------------------------
+  FREIGEGEBEN
+------------------------------------------------------------------------------
+
+Bergmeir2012                                              [frei]
+  Autor      Bergmeir, Christoph · Benitez, Jose Manuel
+  Titel      On the Use of Cross-Validation for Time Series Predictor Evalu
+  Link       https://doi.org/10.1016/j.ins.2011.12.028
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  2.6.3; 5.0
+  zitiert    1x in main.tex
+  Hinweis    in main.tex 192-193, ungeprueft
+
+Bergstra2012                                              [frei]
+  Autor      Bergstra, James · Bengio, Yoshua
+  Titel      Random Search for Hyper-Parameter Optimization
+  Link       https://jmlr.org/papers/v13/bergstra12a.html
+  Zugang     offen
+  Seiten frei  -
+  Abschnitt  2.6.1; 6.4
+  zitiert    0x in main.tex
+  Hinweis    S. 296 traegt die Budget-Herleitung (#50)
+
+Breiman2001                                               [frei]
+  Autor      Breiman, Leo
+  Titel      Random Forests
+  Link       https://doi.org/10.1023/A:1010933404324
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  2.5.2
+  zitiert    0x in main.tex
+
+Cameron2013                                               [frei]
+  Autor      Cameron, A. Colin · Trivedi, Pravin K.
+  Titel      Regression Analysis of Count Data
+  Link       https://doi.org/10.1017/CBO9781139013567
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  2.4.1
+  zitiert    0x in main.tex
+  Hinweis    einzige Quelle fuer den Offset der Exposition
+
+Chen2016                                                  [frei]
+  Autor      Chen, Tianqi · Guestrin, Carlos
+  Titel      XGBoost: A Scalable Tree Boosting System
+  Link       https://doi.org/10.1145/2939672.2939785
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  2.5.3
+  zitiert    0x in main.tex
+
+FernandezDelgado2014                                      [frei]
+  Autor      Fernandez-Delgado, Manuel · Cernadas, Eva · Barro, Senen · Amo
+  Titel      Do we Need Hundreds of Classifiers to Solve Real World Classif
+  Link       https://jmlr.org/papers/v15/delgado14a.html
+  Zugang     offen
+  Seiten frei  -
+  Abschnitt  1.1; 2.2
+  zitiert    2x in main.tex
+  Hinweis    in main.tex 3133, 3175, ungeprueft
+
+Grinsztajn2022                                            [frei]
+  Autor      Grinsztajn, Leo · Oyallon, Edouard · Varoquaux, Ga\"el
+  Titel      Why do Tree-Based Models Still Outperform Deep Learning on Typ
+  Link       https://doi.org/10.48550/arXiv.2207.08815
+  Zugang     offen
+  Seiten frei  -
+  Abschnitt  2.2; 2.9
+  zitiert    3x in main.tex
+  Hinweis    in main.tex 9, ungeprueft
+
+Hastie2009                                                [frei]
+  Autor      Hastie, Trevor · Tibshirani, Robert · Friedman, Jerome
+  Titel      The Elements of Statistical Learning: Data Mining, Inference, 
+  Link       https://hastie.su.domains/ElemStatLearn/
+  Zugang     offen
+  Seiten frei  -
+  Abschnitt  2.3; 2.4; 2.5
+  zitiert    0x in main.tex
+  Hinweis    Volltext auf hastie.su.domains
+
+Hoerl1970                                                 [frei]
+  Autor      Hoerl, Arthur E. · Kennard, Robert W.
+  Titel      Ridge Regression: Biased Estimation for Nonorthogonal Problems
+  Link       https://doi.org/10.1080/00401706.1970.10488634
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  2.5.1
+  zitiert    0x in main.tex
+
+Jennings1999                                              [frei]
+  Autor      Jennings, Charles R.
+  Titel      Socioeconomic Characteristics · Their Relationship to Fire Inc
+  Link       https://doi.org/10.1023/A:1015330931387
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  2.1; 2.9
+  zitiert    2x in main.tex
+  Hinweis    in main.tex 7-9 und 27-28, ungeprueft
+
+Jennings2013                                              [frei]
+  Autor      Jennings, Charles R.
+  Titel      Social · Economic Characteristics as Determinants of Residenti
+  Link       https://doi.org/10.1016/j.firesaf.2013.03.001
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  2.1
+  zitiert    0x in main.tex
+
+Lundberg2017                                              [frei]
+  Autor      Lundberg, Scott M. · Lee, Su-In
+  Titel      A Unified Approach to Interpreting Model Predictions
+  Link       https://papers.nips.cc/paper/7062
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  2.7; 7.4
+  zitiert    0x in main.tex
+
+Madaio2016                                                [frei]
+  Autor      Madaio, Michael · Chen, Shang-Tse · Haimson, Oliver L. · Zhang
+  Titel      Firebird: Predicting Fire Risk · Prioritizing Fire Inspections
+  Link       https://doi.org/10.1145/2939672.2939682
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  2.2
+  zitiert    1x in main.tex
+  Hinweis    in main.tex 1-2, ungeprueft
+
+Molnar2022                                                [frei]
+  Autor      Molnar, Christoph
+  Titel      Interpretable Machine Learning: A Guide for Making Black Box M
+  Link       https://christophm.github.io/interpretable-ml-book/
+  Zugang     offen
+  Seiten frei  -
+  Abschnitt  2.7
+  zitiert    0x in main.tex
+
+Probst2019                                                [frei]
+  Autor      Probst, Philipp · Wright, Marvin N. · Boulesteix, Anne-Laure
+  Titel      Hyperparameters · Tuning Strategies for Random Forest
+  Link       https://doi.org/10.1002/widm.1301
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  2.6.1; 6.3
+  zitiert    1x in main.tex
+  Hinweis    in main.tex 166, ungeprueft
+
+Rudin2019                                                 [frei]
+  Autor      Rudin, Cynthia
+  Titel      Stop Explaining Black Box Machine Learning Models for High Sta
+  Link       https://doi.org/10.1038/s42256-019-0048-x
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  2.7
+  zitiert    1x in main.tex
+
+Schroeer2021                                              [frei]
+  Autor      Schroeer, Christoph · Kruse, Felix · Gomez, Jorge Marx
+  Titel      A Systematic Literature Review on Applying CRISP-DM Process Mo
+  Link       https://doi.org/10.1016/j.procs.2021.01.199
+  Zugang     offen
+  Seiten frei  -
+  Abschnitt  1.3; 2.8
+  zitiert    3x in main.tex
+  Hinweis    in main.tex 526-532 und 531-532, ungeprueft
+
+Shmueli2010                                               [frei]
+  Autor      Shmueli, Galit
+  Titel      To Explain or to Predict?
+  Link       https://doi.org/10.1214/10-STS330
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  2.7; 3.2
+  zitiert    1x in main.tex
+
+ShwartzZiv2022                                            [frei]
+  Autor      Shwartz-Ziv, Ravid · Armon, Amitai
+  Titel      Tabular Data: Deep Learning is Not All You Need
+  Link       https://doi.org/10.1016/j.inffus.2021.11.011
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  2.2
+  zitiert    1x in main.tex
+  Hinweis    in main.tex 84-90, ungeprueft
+
+Wirth2000                                                 [frei]
+  Autor      Wirth, Ruediger · Hipp, Jochen
+  Titel      CRISP-DM: Towards a Standard Process Model for Data Mining
+  Link       https://cs.unibo.it/~danilo.montesi/CBD/Beatriz/10.1.1.198.5133.pdf
+  Zugang     offen
+  Seiten frei  -
+  Abschnitt  1.3; 2.8
+  zitiert    9x in main.tex
+  Hinweis    Paginierungsfalle: Tagungsband 29-39, SCIRP 29-40, freie Kopie
+             ab 1. Nicht mischen.
+
+------------------------------------------------------------------------------
+  IN PRUEFUNG - nicht zitierfaehig
+------------------------------------------------------------------------------
+
+Agresti2013                                               [pruef]
+  Autor      Agresti, Alan
+  Titel      Categorical Data Analysis
+  Link       https://www.wiley.com/en-us/9781118710944
+  Zugang     zu
+  Seiten frei  -
+  Abschnitt  2.4.2
+  zitiert    0x in main.tex
+  Hinweis    nur bei FOM-Zugang
+
+Altman2006                                                [pruef]
+  Autor      Altman, Douglas G. · Royston, Patrick
+  Titel      The Cost of Dichotomising Continuous Variables
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  5.3
+  zitiert    0x in main.tex
+  ACHTUNG    bibliografische Angaben ungeprueft
+  Hinweis    Dichotomisierung stetiger Groessen. Angaben NICHT verifiziert
+             -- vor der Freigabe pruefen
+
+Gourieroux1984                                            [pruef]
+  Autor      Gourieroux, Christian · Monfort, Alain · Trognon, Alain
+  Titel      Pseudo Maximum Likelihood Methods: Applications to Poisson Mod
+  Link       https://doi.org/10.2307/1913472
+  Zugang     zu
+  Seiten frei  -
+  Abschnitt  2.4.1
+  zitiert    0x in main.tex
+  Hinweis    ablehnen -- Aussage traegt SantosSilva2010
+
+Hsu2025                                                   [pruef]
+  Autor      Hsu, o.A.
+  Titel      Forecasting Urban Fire Severity · Resource Needs Using Machine
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  2.2
+  zitiert    0x in main.tex
+  ACHTUNG    bibliografische Angaben ungeprueft
+  Hinweis    steht im Expose, Angaben unvollstaendig -- nur Autor, Titel,
+             Jahr bekannt
+
+Hurlbert1984                                              [pruef]
+  Autor      Hurlbert, Stuart H.
+  Titel      Pseudoreplication · the Design of Ecological Field Experiments
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  7.1; 8.3
+  zitiert    0x in main.tex
+  ACHTUNG    bibliografische Angaben ungeprueft
+  Hinweis    Angaben aus einem main.tex-Kommentar uebernommen, nicht an der
+             Quelle geprueft
+
+James2021                                                 [pruef]
+  Autor      James, Gareth · Witten, Daniela · Hastie, Trevor · Tibshirani,
+  Titel      An Introduction to Statistical Learning: With Applications in 
+  Link       https://www.statlearning.com/
+  Zugang     offen
+  Seiten frei  -
+  Abschnitt  2.4.1; 2.4.2
+  zitiert    0x in main.tex
+  Hinweis    annehmen -- frei zugaenglich. 4.3.5 multinom. Logistik S.140,
+             4.6.2 Poisson S.167, 4.6.3 GLM S.170
+
+McCullagh1989                                             [pruef]
+  Autor      McCullagh, Peter · Nelder, John A.
+  Titel      Generalized Linear Models
+  Link       https://www.routledge.com/p/book/9780412317606
+  Zugang     zu
+  Seiten frei  -
+  Abschnitt  2.4.1
+  zitiert    0x in main.tex
+  Hinweis    nur bei FOM-Zugang -- bringt Tiefe fuer den Rubrikpunkt
+             Mathematische Komplexitaet
+
+Nelder1972                                                [pruef]
+  Autor      Nelder, John A. · Wedderburn, Robert W. M.
+  Titel      Generalized Linear Models
+  Link       https://rss.onlinelibrary.wiley.com/doi/10.2307/2344614
+  Zugang     zu
+  Seiten frei  -
+  Abschnitt  2.4.1
+  zitiert    0x in main.tex
+  Hinweis    ablehnen -- Aussage traegt James2021. Prestige, keine
+             Notwendigkeit.
+
+Ramsey1969                                                [pruef]
+  Autor      Ramsey, James B.
+  Titel      Tests for Specification Errors in Classical Linear Least-Squar
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  6.2
+  zitiert    0x in main.tex
+  ACHTUNG    bibliografische Angaben ungeprueft
+  Hinweis    RESET-Test. Angaben NICHT verifiziert -- vor der Freigabe
+             pruefen
+
+Roberts2017                                               [pruef]
+  Autor      Roberts, David R. et al.
+  Titel      Cross-validation Strategies for Data with Temporal, Spatial, H
+  Zugang     ?
+  Seiten frei  -
+  Abschnitt  8.3
+  zitiert    0x in main.tex
+  ACHTUNG    bibliografische Angaben ungeprueft
+  Hinweis    Angaben aus einem main.tex-Kommentar uebernommen, nicht an der
+             Quelle geprueft
+
+SantosSilva2010                                           [pruef]
+  Autor      Santos Silva, J. M. C. · Tenreyro, Silvana
+  Titel      On the Existence of the Maximum Likelihood Estimates in Poisso
+  Link       https://personal.lse.ac.uk/TENREYRO/poissonpml.pdf
+  Zugang     offen
+  Seiten frei  -
+  Abschnitt  2.4.1
+  zitiert    0x in main.tex
+  Hinweis    annehmen -- formuliert das Konsistenzergebnis selbst und nennt
+             Gourieroux (1984) als Ursprung
+
+------------------------------------------------------------------------------
+  ABGELEHNT
+------------------------------------------------------------------------------
+
+Marban2009                                                [weg]
+  Autor      Marban, Oscar · Mariscal, Gonzalo · Segovia, Javier
+  Titel      A Data Mining & Knowledge Discovery Process Model
+  Link       https://doi.org/10.5772/6438
+  Zugang     offen
+  Seiten frei  -
+  Abschnitt  --
+  zitiert    0x in main.tex
+  Hinweis    FEHLZUSCHREIBUNG: trug sieben Fussnoten mit den CRISP-DM-
+             Phasendefinitionen, die woertlich bei Wirth2000 Abschnitt 3.2
+             stehen. Nicht im Expose. Verlagsreputation umstritten. Ersetzt
+             durch Wirth2000 und Schroeer2021, entfernt 18.08.2026.
+
+------------------------------------------------------------------------------
+  FEHLER
+------------------------------------------------------------------------------
+
+  Z.414   FernandezDelgado2014: Seite "3133, 3175" zitiert, aber KEINE Seite freigegeben (R2)
+  Z.566   Schroeer2021: Seite "531--532" zitiert, aber KEINE Seite freigegeben (R2)
+  Z.593   Jennings1999: Seite "7-9" zitiert, aber KEINE Seite freigegeben (R2)
+  Z.612   FernandezDelgado2014: Seite "3133, 3175" zitiert, aber KEINE Seite freigegeben (R2)
+  Z.622   ShwartzZiv2022: Seite "84-90" zitiert, aber KEINE Seite freigegeben (R2)
+  Z.632   Madaio2016: Seite "1-2" zitiert, aber KEINE Seite freigegeben (R2)
+  Z.835   Wirth2000: Seite "1-2" zitiert, aber KEINE Seite freigegeben (R2)
+  Z.839   Schroeer2021: Seite "526-532" zitiert, aber KEINE Seite freigegeben (R2)
+  Z.853   Grinsztajn2022: Seite "9" zitiert, aber KEINE Seite freigegeben (R2)
+  Z.858   Jennings1999: Seite "27-28" zitiert, aber KEINE Seite freigegeben (R2)
+  Z.1099  Bergmeir2012: Seite "192-193" zitiert, aber KEINE Seite freigegeben (R2)
+  Z.1592  Probst2019: Seite "166" zitiert, aber KEINE Seite freigegeben (R2)
+
+------------------------------------------------------------------------------
+  WARNUNGEN
+------------------------------------------------------------------------------
+
+  Z.502   Wirth2000: ohne Seitenangabe zitiert
+  Z.516   Wirth2000: ohne Seitenangabe zitiert
+  Z.619   Grinsztajn2022: ohne Seitenangabe zitiert
+  Z.627   Grinsztajn2022: ohne Seitenangabe zitiert
+  Z.817   Rudin2019: ohne Seitenangabe zitiert
+  Z.821   Shmueli2010: ohne Seitenangabe zitiert
+
+------------------------------------------------------------------------------
+  OFFENE SEITEN
+------------------------------------------------------------------------------
+
+  Z.504   Schroeer2021: Seite noch nachzuschlagen
+  Z.531   Wirth2000: Seite noch nachzuschlagen
+  Z.535   Wirth2000: Seite noch nachzuschlagen
+  Z.541   Wirth2000: Seite noch nachzuschlagen
+  Z.549   Wirth2000: Seite noch nachzuschlagen
+  Z.555   Wirth2000: Seite noch nachzuschlagen
+  Z.563   Wirth2000: Seite noch nachzuschlagen
+
+==============================================================================

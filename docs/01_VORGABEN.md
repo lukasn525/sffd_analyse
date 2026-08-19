@@ -20,7 +20,7 @@ wird, ob sie methodisch *gelöst* wurden.
 |---|---|---|
 | Baseline gehört in die Data Preparation | 27.07. | `vorpruefung/v1_baselines.py`, Kapitel 5.4 |
 | Die Baseline muss zum Anwendungsfall passen — bei nichtlinearen Zusammenhängen braucht es eine nichtlineare Baseline | 27.07. | siehe unten |
-| Keine Blindabsätze zwischen Gliederungsebenen | 27.07. | jede Ebene trägt Inhalt |
+| **Blindabsätze nutzen** — zwischen einer Überschrift und ihrer ersten Unterüberschrift steht kein Text | 27.07., bekräftigt 10.08. | offen — beim Schreiben umzusetzen; ein Verstoß in Kapitel 5, in `main.tex` markiert |
 | Zitate einheitlich, mehrere Quellen pro Seite | 27.07. | biblatex/Chicago-notes |
 | Jede methodische Entscheidung mit dem Stand der Forschung belegen | 27.07. | — |
 | KI-Verzeichnis: Kennung, Engine, Jahr, Modell, Prompt, URL | 27.07. | ✅ Form geklärt, Verzeichnis in `CLAUDE.md` |
@@ -51,7 +51,7 @@ wird, ob sie methodisch *gelöst* wurden.
 
 | Punkt | Klärung |
 |---|---|
-| „Keine Zwischenfazits = **Blindabsätze nutzen**" gegen die Auflage vom 27.07. („keine Blindabsätze zwischen Gliederungsebenen") | **Blindabsätze nutzen.** Gemeint sind verbindende statt zusammenfassende Absätze; die Auflage vom 27.07. betraf leere Überleitungen zwischen zwei Überschriften |
+| ~~„Keine Zwischenfazits = Blindabsätze nutzen" gegen die Auflage vom 27.07.~~ | **Es gab nie einen Widerspruch — korrigiert am 18.08.2026 gegen die Mitschriften.** Der 27.07. lautet wörtlich: „Blindabsätze: Zwischen 1 und 1.1 steht kein Inhalt -> redundanz vermeiden". Das ist eine Definition, keine Auflage dagegen. Der 10.08. lautet: „Keine zwischenfazits (keine reudundanz) = Blindabsätze nutzen!" Beide sagen dasselbe: **die Stelle zwischen einer Überschrift und ihrer ersten Unterüberschrift bleibt leer.** Die frühere Fassung dieser Zeile gab die Auflage als „keine Blindabsätze zwischen Gliederungsebenen" wieder und löste sie als „verbindende statt zusammenfassende Absätze" auf — beides steht in keiner Mitschrift und war die Umkehrung der Regel |
 | „RAG-Pipeline zeigen" | Diese Arbeit hat keine RAG-Komponente. Wird im Kolloquium **nicht gezeigt** |
 | „Hyperparameteroptimierung bei jedem Algorithmus — keine Ausrede" | Bezieht sich auf die drei Vergleichsverfahren; die sind alle mit `RandomizedSearchCV`, **Budget 100** (#50, hergeleitet aus Bergstra & Bengio 2012), `GroupKFold(4)` getunt. Die **Stufe-2-Baselines haben keinen freien Hyperparameter** — das ist Auflage D vom 08.08., in Schröters eigenen Worten. Der Verzicht ist dort wörtlich zu belegen, sonst liest er sich wie die Ausrede, die diese Auflage ausschließt |
 

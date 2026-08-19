@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quellenregister</title>
+<style>
+:root{color-scheme:light dark;
+ --surface:#fcfcfb; --plane:#f9f9f7; --ink:#0b0b0b; --ink2:#52514e;
+ --mut:#898781; --line:#e1e0d9; --ring:rgba(11,11,11,.10);}
+@media (prefers-color-scheme:dark){:root{
+ --surface:#1a1a19; --plane:#0d0d0d; --ink:#fff; --ink2:#c3c2b7;
+ --mut:#898781; --line:#2c2c2a; --ring:rgba(255,255,255,.10);}}
+*{box-sizing:border-box}
+body{margin:0;padding:32px 24px 64px;background:var(--plane);color:var(--ink);
+ font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;}
+.wrap{max-width:1180px;margin:0 auto}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--ink2);margin:0 0 28px;font-size:14px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+ gap:12px;margin-bottom:14px}
+.tile{background:var(--surface);border:1px solid var(--ring);border-radius:10px;
+ padding:14px 16px}
+.tile .v{font-size:28px;font-weight:600;letter-spacing:-.02em}
+.tile .l{color:var(--ink2);font-size:13px;margin-top:2px}
+.prog{background:var(--surface);border:1px solid var(--ring);border-radius:10px;
+ padding:14px 16px;margin-bottom:32px}
+.track{height:8px;border-radius:4px;background:var(--line);overflow:hidden;
+ margin-top:10px}
+.fill{height:100%;border-radius:4px;background:#0ca30c}
+h2{font-size:15px;margin:34px 0 12px;display:flex;align-items:center;gap:9px;
+ font-weight:600}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+h2 .n{color:var(--mut);font-weight:400}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));
+ gap:12px}
+.q{display:flex;background:var(--surface);border:1px solid var(--ring);
+ border-radius:10px;overflow:hidden}
+.bar{width:3px;flex:none}
+.body{padding:13px 15px;min-width:0;flex:1}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;
+ margin-bottom:7px}
+code{font:600 13px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.tag{font-size:11px;border:1px solid;border-radius:99px;padding:2px 8px;
+ white-space:nowrap}
+.au{font-size:13px;color:var(--ink2)}
+.ti{font-size:13px;margin:2px 0 10px}
+dl{display:grid;grid-template-columns:88px 1fr;gap:3px 10px;margin:0;
+ font-size:12px}
+dt{color:var(--mut)}
+dd{margin:0;overflow-wrap:break-word;word-break:normal}
+a{color:inherit}
+.mut{color:var(--mut)}
+.warn{margin-top:9px;font-size:12px;color:#d03b3b}
+.hin{margin-top:7px;font-size:12px;color:var(--ink2);border-top:1px solid
+ var(--line);padding-top:7px}
+.log{background:var(--surface);border:1px solid var(--ring);border-radius:10px;
+ margin:0;padding:12px 16px 12px 32px;font:12px/1.7 ui-monospace,Menlo,monospace}
+</style></head><body><div class="wrap">
+<h1>Quellenregister</h1>
+<p class="sub">Erzeugt aus <code>literatur.bib</code> von
+<code>tools/quellen.py</code>. Nicht von Hand &auml;ndern &ndash; die Datenquelle
+ist die <code>.bib</code>.</p>
+
+<div class="tiles">
+  <div class="tile"><div class="v" style="color:#0ca30c">20</div>
+    <div class="l">freigegeben</div></div>
+  <div class="tile"><div class="v" style="color:#fab219">11</div>
+    <div class="l">in Pr&uuml;fung</div></div>
+  <div class="tile"><div class="v">0</div>
+    <div class="l">davon mit Seitenfreigabe</div></div>
+  <div class="tile"><div class="v">7</div>
+    <div class="l">Zitate mit offener Seite</div></div>
+  <div class="tile"><div class="v"
+    style="color:#d03b3b">12</div>
+    <div class="l">Regelverst&ouml;&szlig;e</div></div>
+</div>
+
+<div class="prog">
+  <b>20 von mindestens 30 Quellen</b>
+  <span class="mut">&nbsp;&ndash; Vorgabe Schr&ouml;ter, laut Sprechstunde eher bis 100</span>
+  <div class="track"><div class="fill" style="width:67%"></div></div>
+</div>
+
+<h2><span class="dot" style="background:#d03b3b"></span>Regelverst&ouml;&szlig;e <span class="n">12</span></h2><ul class="log"><li>Z.414   FernandezDelgado2014: Seite &quot;3133, 3175&quot; zitiert, aber KEINE Seite freigegeben (R2)</li><li>Z.566   Schroeer2021: Seite &quot;531--532&quot; zitiert, aber KEINE Seite freigegeben (R2)</li><li>Z.593   Jennings1999: Seite &quot;7-9&quot; zitiert, aber KEINE Seite freigegeben (R2)</li><li>Z.612   FernandezDelgado2014: Seite &quot;3133, 3175&quot; zitiert, aber KEINE Seite freigegeben (R2)</li><li>Z.622   ShwartzZiv2022: Seite &quot;84-90&quot; zitiert, aber KEINE Seite freigegeben (R2)</li><li>Z.632   Madaio2016: Seite &quot;1-2&quot; zitiert, aber KEINE Seite freigegeben (R2)</li><li>Z.835   Wirth2000: Seite &quot;1-2&quot; zitiert, aber KEINE Seite freigegeben (R2)</li><li>Z.839   Schroeer2021: Seite &quot;526-532&quot; zitiert, aber KEINE Seite freigegeben (R2)</li><li>Z.853   Grinsztajn2022: Seite &quot;9&quot; zitiert, aber KEINE Seite freigegeben (R2)</li><li>Z.858   Jennings1999: Seite &quot;27-28&quot; zitiert, aber KEINE Seite freigegeben (R2)</li><li>Z.1099  Bergmeir2012: Seite &quot;192-193&quot; zitiert, aber KEINE Seite freigegeben (R2)</li><li>Z.1592  Probst2019: Seite &quot;166&quot; zitiert, aber KEINE Seite freigegeben (R2)</li></ul>
+<h2><span class="dot" style="background:#fab219"></span>Warnungen <span class="n">6</span></h2><ul class="log"><li>Z.502   Wirth2000: ohne Seitenangabe zitiert</li><li>Z.516   Wirth2000: ohne Seitenangabe zitiert</li><li>Z.619   Grinsztajn2022: ohne Seitenangabe zitiert</li><li>Z.627   Grinsztajn2022: ohne Seitenangabe zitiert</li><li>Z.817   Rudin2019: ohne Seitenangabe zitiert</li><li>Z.821   Shmueli2010: ohne Seitenangabe zitiert</li></ul>
+<h2><span class="dot" style="background:#ec835a"></span>Offene Seitenzahlen <span class="n">7</span></h2><ul class="log"><li>Z.504   Schroeer2021: Seite noch nachzuschlagen</li><li>Z.531   Wirth2000: Seite noch nachzuschlagen</li><li>Z.535   Wirth2000: Seite noch nachzuschlagen</li><li>Z.541   Wirth2000: Seite noch nachzuschlagen</li><li>Z.549   Wirth2000: Seite noch nachzuschlagen</li><li>Z.555   Wirth2000: Seite noch nachzuschlagen</li><li>Z.563   Wirth2000: Seite noch nachzuschlagen</li></ul>
+<h2><span class="dot" style="background:#0ca30c"></span>freigegeben <span class="n">20</span></h2><div class="grid">
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Bergmeir2012</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Bergmeir, Christoph · Benitez, Jose Manuel (2012)</div>
+          <div class="ti">On the Use of Cross-Validation for Time Series Predictor Evaluation</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://doi.org/10.1016/j.ins.2011.12.028">doi.org/10.1016/j.ins.2011.12.028</a></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.6.3; 5.0</dd>
+            <dt>zitiert</dt><dd>1&times; in main.tex</dd>
+          </dl>
+          <div class="hin">in main.tex 192-193, ungeprueft</div>
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Bergstra2012</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Bergstra, James · Bengio, Yoshua (2012)</div>
+          <div class="ti">Random Search for Hyper-Parameter Optimization</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://jmlr.org/papers/v13/bergstra12a.html">jmlr.org/papers/v13/bergstra12a.html</a></dd>
+            <dt>Zugang</dt><dd>offen</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.6.1; 6.4</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          <div class="hin">S. 296 traegt die Budget-Herleitung (#50)</div>
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Breiman2001</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Breiman, Leo (2001)</div>
+          <div class="ti">Random Forests</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://doi.org/10.1023/A:1010933404324">doi.org/10.1023/A:1010933404324</a></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.5.2</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Cameron2013</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Cameron, A. Colin · Trivedi, Pravin K. (2013)</div>
+          <div class="ti">Regression Analysis of Count Data</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://doi.org/10.1017/CBO9781139013567">doi.org/10.1017/CBO9781139013567</a></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.4.1</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          <div class="hin">einzige Quelle fuer den Offset der Exposition</div>
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Chen2016</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Chen, Tianqi · Guestrin, Carlos (2016)</div>
+          <div class="ti">XGBoost: A Scalable Tree Boosting System</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://doi.org/10.1145/2939672.2939785">doi.org/10.1145/2939672.2939785</a></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.5.3</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>FernandezDelgado2014</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Fernandez-Delgado, Manuel · Cernadas, Eva · Barro, Senen · Amorim, Dinani (2014)</div>
+          <div class="ti">Do we Need Hundreds of Classifiers to Solve Real World Classification Problems?</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://jmlr.org/papers/v15/delgado14a.html">jmlr.org/papers/v15/delgado14a.html</a></dd>
+            <dt>Zugang</dt><dd>offen</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>1.1; 2.2</dd>
+            <dt>zitiert</dt><dd>2&times; in main.tex</dd>
+          </dl>
+          <div class="hin">in main.tex 3133, 3175, ungeprueft</div>
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Grinsztajn2022</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Grinsztajn, Leo · Oyallon, Edouard · Varoquaux, Ga\&quot;el (2022)</div>
+          <div class="ti">Why do Tree-Based Models Still Outperform Deep Learning on Typical Tabular Data?</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://doi.org/10.48550/arXiv.2207.08815">doi.org/10.48550/arXiv.2207.08815</a></dd>
+            <dt>Zugang</dt><dd>offen</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.2; 2.9</dd>
+            <dt>zitiert</dt><dd>3&times; in main.tex</dd>
+          </dl>
+          <div class="hin">in main.tex 9, ungeprueft</div>
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Hastie2009</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Hastie, Trevor · Tibshirani, Robert · Friedman, Jerome (2009)</div>
+          <div class="ti">The Elements of Statistical Learning: Data Mining, Inference, · Prediction</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://hastie.su.domains/ElemStatLearn/">hastie.su.domains/ElemStatLearn/</a></dd>
+            <dt>Zugang</dt><dd>offen</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.3; 2.4; 2.5</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          <div class="hin">Volltext auf hastie.su.domains</div>
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Hoerl1970</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Hoerl, Arthur E. · Kennard, Robert W. (1970)</div>
+          <div class="ti">Ridge Regression: Biased Estimation for Nonorthogonal Problems</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://doi.org/10.1080/00401706.1970.10488634">doi.org/10.1080/00401706.1970.10488634</a></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.5.1</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Jennings1999</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Jennings, Charles R. (1999)</div>
+          <div class="ti">Socioeconomic Characteristics · Their Relationship to Fire Incidence: A Review of the Literature</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://doi.org/10.1023/A:1015330931387">doi.org/10.1023/A:1015330931387</a></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.1; 2.9</dd>
+            <dt>zitiert</dt><dd>2&times; in main.tex</dd>
+          </dl>
+          <div class="hin">in main.tex 7-9 und 27-28, ungeprueft</div>
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Jennings2013</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Jennings, Charles R. (2013)</div>
+          <div class="ti">Social · Economic Characteristics as Determinants of Residential Fire Risk in Urban Neighborhoods: A Review of the Literature</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://doi.org/10.1016/j.firesaf.2013.03.001">doi.org/10.1016/j.firesaf.2013.03.001</a></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.1</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Lundberg2017</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Lundberg, Scott M. · Lee, Su-In (2017)</div>
+          <div class="ti">A Unified Approach to Interpreting Model Predictions</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://papers.nips.cc/paper/7062">papers.nips.cc/paper/7062</a></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.7; 7.4</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Madaio2016</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Madaio, Michael · Chen, Shang-Tse · Haimson, Oliver L. · Zhang, Wenwen · Cheng, Xiang · Hinds-Aldrich, Matthew · Chau, Duen Horng · Dilkina, Bistra (2016)</div>
+          <div class="ti">Firebird: Predicting Fire Risk · Prioritizing Fire Inspections in Atlanta</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://doi.org/10.1145/2939672.2939682">doi.org/10.1145/2939672.2939682</a></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.2</dd>
+            <dt>zitiert</dt><dd>1&times; in main.tex</dd>
+          </dl>
+          <div class="hin">in main.tex 1-2, ungeprueft</div>
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Molnar2022</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Molnar, Christoph (2022)</div>
+          <div class="ti">Interpretable Machine Learning: A Guide for Making Black Box Models Explainable</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://christophm.github.io/interpretable-ml-book/">christophm.github.io/interpretable-ml-book/</a></dd>
+            <dt>Zugang</dt><dd>offen</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.7</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Probst2019</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Probst, Philipp · Wright, Marvin N. · Boulesteix, Anne-Laure (2019)</div>
+          <div class="ti">Hyperparameters · Tuning Strategies for Random Forest</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://doi.org/10.1002/widm.1301">doi.org/10.1002/widm.1301</a></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.6.1; 6.3</dd>
+            <dt>zitiert</dt><dd>1&times; in main.tex</dd>
+          </dl>
+          <div class="hin">in main.tex 166, ungeprueft</div>
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Rudin2019</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Rudin, Cynthia (2019)</div>
+          <div class="ti">Stop Explaining Black Box Machine Learning Models for High Stakes Decisions · Use Interpretable Models Instead</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://doi.org/10.1038/s42256-019-0048-x">doi.org/10.1038/s42256-019-0048-x</a></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.7</dd>
+            <dt>zitiert</dt><dd>1&times; in main.tex</dd>
+          </dl>
+          
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Schroeer2021</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Schroeer, Christoph · Kruse, Felix · Gomez, Jorge Marx (2021)</div>
+          <div class="ti">A Systematic Literature Review on Applying CRISP-DM Process Model</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://doi.org/10.1016/j.procs.2021.01.199">doi.org/10.1016/j.procs.2021.01.199</a></dd>
+            <dt>Zugang</dt><dd>offen</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>1.3; 2.8</dd>
+            <dt>zitiert</dt><dd>3&times; in main.tex</dd>
+          </dl>
+          <div class="hin">in main.tex 526-532 und 531-532, ungeprueft</div>
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Shmueli2010</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Shmueli, Galit (2010)</div>
+          <div class="ti">To Explain or to Predict?</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://doi.org/10.1214/10-STS330">doi.org/10.1214/10-STS330</a></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.7; 3.2</dd>
+            <dt>zitiert</dt><dd>1&times; in main.tex</dd>
+          </dl>
+          
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>ShwartzZiv2022</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Shwartz-Ziv, Ravid · Armon, Amitai (2022)</div>
+          <div class="ti">Tabular Data: Deep Learning is Not All You Need</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://doi.org/10.1016/j.inffus.2021.11.011">doi.org/10.1016/j.inffus.2021.11.011</a></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.2</dd>
+            <dt>zitiert</dt><dd>1&times; in main.tex</dd>
+          </dl>
+          <div class="hin">in main.tex 84-90, ungeprueft</div>
+        </div>
+      </article>
+      <article class="q" data-status="frei">
+        <div class="bar" style="background:#0ca30c"></div>
+        <div class="body">
+          <div class="top">
+            <code>Wirth2000</code>
+            <span class="tag" style="color:#0ca30c;border-color:#0ca30c">
+              freigegeben</span>
+          </div>
+          <div class="au">Wirth, Ruediger · Hipp, Jochen (2000)</div>
+          <div class="ti">CRISP-DM: Towards a Standard Process Model for Data Mining</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://cs.unibo.it/~danilo.montesi/CBD/Beatriz/10.1.1.198.5133.pdf">cs.unibo.it/~danilo.montesi/CBD/Beatriz/10.1.1.198.…</a></dd>
+            <dt>Zugang</dt><dd>offen</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>1.3; 2.8</dd>
+            <dt>zitiert</dt><dd>9&times; in main.tex</dd>
+          </dl>
+          <div class="hin">Paginierungsfalle: Tagungsband 29-39, SCIRP 29-40, freie Kopie ab 1. Nicht mischen.</div>
+        </div>
+      </article></div><h2><span class="dot" style="background:#fab219"></span>in Pruefung <span class="n">11</span></h2><div class="grid">
+      <article class="q" data-status="pruef">
+        <div class="bar" style="background:#fab219"></div>
+        <div class="body">
+          <div class="top">
+            <code>Agresti2013</code>
+            <span class="tag" style="color:#fab219;border-color:#fab219">
+              in Pruefung</span>
+          </div>
+          <div class="au">Agresti, Alan (2013)</div>
+          <div class="ti">Categorical Data Analysis</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://www.wiley.com/en-us/9781118710944">www.wiley.com/en-us/9781118710944</a></dd>
+            <dt>Zugang</dt><dd>zu</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.4.2</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          <div class="hin">nur bei FOM-Zugang</div>
+        </div>
+      </article>
+      <article class="q" data-status="pruef">
+        <div class="bar" style="background:#fab219"></div>
+        <div class="body">
+          <div class="top">
+            <code>Altman2006</code>
+            <span class="tag" style="color:#fab219;border-color:#fab219">
+              in Pruefung</span>
+          </div>
+          <div class="au">Altman, Douglas G. · Royston, Patrick (2006)</div>
+          <div class="ti">The Cost of Dichotomising Continuous Variables</div>
+          <dl>
+            <dt>Link</dt><dd><span class="mut">kein Link hinterlegt</span></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>5.3</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          <div class="warn">bibliografische Angaben ungeprueft</div><div class="hin">Dichotomisierung stetiger Groessen. Angaben NICHT verifiziert -- vor der Freigabe pruefen</div>
+        </div>
+      </article>
+      <article class="q" data-status="pruef">
+        <div class="bar" style="background:#fab219"></div>
+        <div class="body">
+          <div class="top">
+            <code>Gourieroux1984</code>
+            <span class="tag" style="color:#fab219;border-color:#fab219">
+              in Pruefung</span>
+          </div>
+          <div class="au">Gourieroux, Christian · Monfort, Alain · Trognon, Alain (1984)</div>
+          <div class="ti">Pseudo Maximum Likelihood Methods: Applications to Poisson Models</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://doi.org/10.2307/1913472">doi.org/10.2307/1913472</a></dd>
+            <dt>Zugang</dt><dd>zu</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.4.1</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          <div class="hin">ablehnen -- Aussage traegt SantosSilva2010</div>
+        </div>
+      </article>
+      <article class="q" data-status="pruef">
+        <div class="bar" style="background:#fab219"></div>
+        <div class="body">
+          <div class="top">
+            <code>Hsu2025</code>
+            <span class="tag" style="color:#fab219;border-color:#fab219">
+              in Pruefung</span>
+          </div>
+          <div class="au">Hsu, o.A. (2025)</div>
+          <div class="ti">Forecasting Urban Fire Severity · Resource Needs Using Machine Learning on Emergency Response Data</div>
+          <dl>
+            <dt>Link</dt><dd><span class="mut">kein Link hinterlegt</span></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.2</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          <div class="warn">bibliografische Angaben ungeprueft</div><div class="hin">steht im Expose, Angaben unvollstaendig -- nur Autor, Titel, Jahr bekannt</div>
+        </div>
+      </article>
+      <article class="q" data-status="pruef">
+        <div class="bar" style="background:#fab219"></div>
+        <div class="body">
+          <div class="top">
+            <code>Hurlbert1984</code>
+            <span class="tag" style="color:#fab219;border-color:#fab219">
+              in Pruefung</span>
+          </div>
+          <div class="au">Hurlbert, Stuart H. (1984)</div>
+          <div class="ti">Pseudoreplication · the Design of Ecological Field Experiments</div>
+          <dl>
+            <dt>Link</dt><dd><span class="mut">kein Link hinterlegt</span></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>7.1; 8.3</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          <div class="warn">bibliografische Angaben ungeprueft</div><div class="hin">Angaben aus einem main.tex-Kommentar uebernommen, nicht an der Quelle geprueft</div>
+        </div>
+      </article>
+      <article class="q" data-status="pruef">
+        <div class="bar" style="background:#fab219"></div>
+        <div class="body">
+          <div class="top">
+            <code>James2021</code>
+            <span class="tag" style="color:#fab219;border-color:#fab219">
+              in Pruefung</span>
+          </div>
+          <div class="au">James, Gareth · Witten, Daniela · Hastie, Trevor · Tibshirani, Robert (2021)</div>
+          <div class="ti">An Introduction to Statistical Learning: With Applications in R</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://www.statlearning.com/">www.statlearning.com/</a></dd>
+            <dt>Zugang</dt><dd>offen</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.4.1; 2.4.2</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          <div class="hin">annehmen -- frei zugaenglich. 4.3.5 multinom. Logistik S.140, 4.6.2 Poisson S.167, 4.6.3 GLM S.170</div>
+        </div>
+      </article>
+      <article class="q" data-status="pruef">
+        <div class="bar" style="background:#fab219"></div>
+        <div class="body">
+          <div class="top">
+            <code>McCullagh1989</code>
+            <span class="tag" style="color:#fab219;border-color:#fab219">
+              in Pruefung</span>
+          </div>
+          <div class="au">McCullagh, Peter · Nelder, John A. (1989)</div>
+          <div class="ti">Generalized Linear Models</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://www.routledge.com/p/book/9780412317606">www.routledge.com/p/book/9780412317606</a></dd>
+            <dt>Zugang</dt><dd>zu</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.4.1</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          <div class="hin">nur bei FOM-Zugang -- bringt Tiefe fuer den Rubrikpunkt Mathematische Komplexitaet</div>
+        </div>
+      </article>
+      <article class="q" data-status="pruef">
+        <div class="bar" style="background:#fab219"></div>
+        <div class="body">
+          <div class="top">
+            <code>Nelder1972</code>
+            <span class="tag" style="color:#fab219;border-color:#fab219">
+              in Pruefung</span>
+          </div>
+          <div class="au">Nelder, John A. · Wedderburn, Robert W. M. (1972)</div>
+          <div class="ti">Generalized Linear Models</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://rss.onlinelibrary.wiley.com/doi/10.2307/2344614">rss.onlinelibrary.wiley.com/doi/10.2307/2344614</a></dd>
+            <dt>Zugang</dt><dd>zu</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.4.1</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          <div class="hin">ablehnen -- Aussage traegt James2021. Prestige, keine Notwendigkeit.</div>
+        </div>
+      </article>
+      <article class="q" data-status="pruef">
+        <div class="bar" style="background:#fab219"></div>
+        <div class="body">
+          <div class="top">
+            <code>Ramsey1969</code>
+            <span class="tag" style="color:#fab219;border-color:#fab219">
+              in Pruefung</span>
+          </div>
+          <div class="au">Ramsey, James B. (1969)</div>
+          <div class="ti">Tests for Specification Errors in Classical Linear Least-Squares Regression Analysis</div>
+          <dl>
+            <dt>Link</dt><dd><span class="mut">kein Link hinterlegt</span></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>6.2</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          <div class="warn">bibliografische Angaben ungeprueft</div><div class="hin">RESET-Test. Angaben NICHT verifiziert -- vor der Freigabe pruefen</div>
+        </div>
+      </article>
+      <article class="q" data-status="pruef">
+        <div class="bar" style="background:#fab219"></div>
+        <div class="body">
+          <div class="top">
+            <code>Roberts2017</code>
+            <span class="tag" style="color:#fab219;border-color:#fab219">
+              in Pruefung</span>
+          </div>
+          <div class="au">Roberts, David R. et al. (2017)</div>
+          <div class="ti">Cross-validation Strategies for Data with Temporal, Spatial, Hierarchical, or Phylogenetic Structure</div>
+          <dl>
+            <dt>Link</dt><dd><span class="mut">kein Link hinterlegt</span></dd>
+            <dt>Zugang</dt><dd>?</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>8.3</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          <div class="warn">bibliografische Angaben ungeprueft</div><div class="hin">Angaben aus einem main.tex-Kommentar uebernommen, nicht an der Quelle geprueft</div>
+        </div>
+      </article>
+      <article class="q" data-status="pruef">
+        <div class="bar" style="background:#fab219"></div>
+        <div class="body">
+          <div class="top">
+            <code>SantosSilva2010</code>
+            <span class="tag" style="color:#fab219;border-color:#fab219">
+              in Pruefung</span>
+          </div>
+          <div class="au">Santos Silva, J. M. C. · Tenreyro, Silvana (2010)</div>
+          <div class="ti">On the Existence of the Maximum Likelihood Estimates in Poisson Regression</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://personal.lse.ac.uk/TENREYRO/poissonpml.pdf">personal.lse.ac.uk/TENREYRO/poissonpml.pdf</a></dd>
+            <dt>Zugang</dt><dd>offen</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>2.4.1</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          <div class="hin">annehmen -- formuliert das Konsistenzergebnis selbst und nennt Gourieroux (1984) als Ursprung</div>
+        </div>
+      </article></div><h2><span class="dot" style="background:#d03b3b"></span>abgelehnt <span class="n">1</span></h2><div class="grid">
+      <article class="q" data-status="weg">
+        <div class="bar" style="background:#d03b3b"></div>
+        <div class="body">
+          <div class="top">
+            <code>Marban2009</code>
+            <span class="tag" style="color:#d03b3b;border-color:#d03b3b">
+              abgelehnt</span>
+          </div>
+          <div class="au">Marban, Oscar · Mariscal, Gonzalo · Segovia, Javier (2009)</div>
+          <div class="ti">A Data Mining &amp; Knowledge Discovery Process Model</div>
+          <dl>
+            <dt>Link</dt><dd><a href="https://doi.org/10.5772/6438">doi.org/10.5772/6438</a></dd>
+            <dt>Zugang</dt><dd>offen</dd>
+            <dt>Seiten frei</dt><dd><span class="mut">keine Seite freigegeben</span></dd>
+            <dt>Abschnitt</dt><dd>--</dd>
+            <dt>zitiert</dt><dd>0&times; in main.tex</dd>
+          </dl>
+          <div class="hin">FEHLZUSCHREIBUNG: trug sieben Fussnoten mit den CRISP-DM-Phasendefinitionen, die woertlich bei Wirth2000 Abschnitt 3.2 stehen. Nicht im Expose. Verlagsreputation umstritten. Ersetzt durch Wirth2000 und Schroeer2021, entfernt 18.08.2026.</div>
+        </div>
+      </article></div>
+</div></body></html>

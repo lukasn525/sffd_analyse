@@ -68,6 +68,11 @@
 % ---------------------------------------------------
 % GRAFIKEN, TABELLEN, VERZEICHNISSE
 % ---------------------------------------------------
+% amsmath/amssymb: Voraussetzung fuer equation, align, \text, \operatorname.
+% Das Formelverzeichnis (\formeleintrag) war eingerichtet, das Paket zum
+% Formelschreiben fehlte -- ergaenzt am 18.08.2026.
+\usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{listings}
@@ -193,222 +198,40 @@
 % ---------------------------------------------------
 % LITERATURDATENBANK
 % ---------------------------------------------------
-\begin{filecontents}{literatur.bib}
-@article{Bergmeir2012,
-  author  = {Bergmeir, Christoph and Ben{\'i}tez, Jos{\'e} Manuel},
-  title   = {On the Use of Cross-Validation for Time Series Predictor Evaluation},
-  journal = {Information Sciences},
-  year    = {2012},
-  volume  = {191},
-  pages   = {192--213},
-  doi     = {10.1016/j.ins.2011.12.028}
-}
+% ---------------------------------------------------
+% LITERATURDATENBANK
+% ---------------------------------------------------
+% Die Datenbank liegt seit dem 18.08.2026 als EIGENE DATEI literatur.bib.
+% Sie ist zugleich das Quellenregister: Ueber jedem Eintrag stehen
+% %%-Zeilen mit Status, Zugang und den FREIGEGEBENEN SEITEN. Biber
+% ignoriert alles ausserhalb der @-Eintraege, die Angaben stoeren also nicht.
+%
+% ES WIRD NICHTS VON HAND IN literatur.bib GEAENDERT, was nicht vorher
+% freigegeben ist. Geprueft wird das maschinell:
+%
+%     python tools/quellen.py
+%
+% Der Quellenwaechter bricht mit Exit-Code 1 ab, wenn
+%   - eine Quelle zitiert wird, die nicht auf status=frei steht
+%   - eine SEITE zitiert wird, die nicht in seiten= freigegeben ist
+% Er erzeugt ausserdem docs/10_QUELLEN.txt und docs/quellen.html.
+%
+% Frueher stand die Datenbank hier als filecontents-Block. Das hatte zwei
+% Nachteile: jede Quellenaenderung zwang zum Hochladen der kompletten
+% main.tex, und die Registerdaten lagen in einer zweiten Datei -- genau die
+% Doppelung, gegen die docs/03_STAND.md und tools/pruefe_zahlen.py sonst
+% schuetzen.
 
-@article{Breiman2001,
-  author  = {Breiman, Leo},
-  title   = {Random Forests},
-  journal = {Machine Learning},
-  year    = {2001},
-  volume  = {45},
-  number  = {1},
-  pages   = {5--32},
-  doi     = {10.1023/A:1010933404324}
-}
-
-@inproceedings{Bergstra2012,
-  author  = {Bergstra, James and Bengio, Yoshua},
-  title   = {Random Search for Hyper-Parameter Optimization},
-  journal = {Journal of Machine Learning Research},
-  year    = {2012},
-  volume  = {13},
-  pages   = {281--305}
-}
-
-@book{Cameron2013,
-  author    = {Cameron, A. Colin and Trivedi, Pravin K.},
-  title     = {Regression Analysis of Count Data},
-  edition   = {2},
-  series    = {Econometric Society Monographs},
-  number    = {53},
-  year      = {2013},
-  publisher = {Cambridge University Press},
-  address   = {Cambridge},
-  doi       = {10.1017/CBO9781139013567}
-}
-
-@inproceedings{Chen2016,
-  author    = {Chen, Tianqi and Guestrin, Carlos},
-  title     = {{XGBoost}: A Scalable Tree Boosting System},
-  booktitle = {Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
-  year      = {2016},
-  pages     = {785--794},
-  publisher = {ACM},
-  address   = {New York},
-  doi       = {10.1145/2939672.2939785}
-}
-
-@article{FernandezDelgado2014,
-  author  = {Fern{\'a}ndez-Delgado, Manuel and Cernadas, Eva and Barro, Sen{\'e}n and Amorim, Dinani},
-  title   = {Do we Need Hundreds of Classifiers to Solve Real World Classification Problems?},
-  journal = {Journal of Machine Learning Research},
-  year    = {2014},
-  volume  = {15},
-  pages   = {3133--3181},
-  url     = {https://jmlr.org/papers/v15/delgado14a.html}
-}
-
-@inproceedings{Grinsztajn2022,
-  author    = {Grinsztajn, L{\'e}o and Oyallon, Edouard and Varoquaux, Ga{\"e}l},
-  title     = {Why do Tree-Based Models Still Outperform Deep Learning on Typical Tabular Data?},
-  booktitle = {Advances in Neural Information Processing Systems (NeurIPS 2022) -- Datasets and Benchmarks Track},
-  year      = {2022},
-  url       = {https://proceedings.neurips.cc/paper_files/paper/2022/hash/0378c7692da36807bdec87ab043cdadc-Abstract-Datasets_and_Benchmarks.html}
-}
-
-@book{Hastie2009,
-  author    = {Hastie, Trevor and Tibshirani, Robert and Friedman, Jerome},
-  title     = {The Elements of Statistical Learning: Data Mining, Inference, and Prediction},
-  edition   = {2},
-  year      = {2009},
-  publisher = {Springer},
-  address   = {New York}
-}
-
-@article{Hoerl1970,
-  author  = {Hoerl, Arthur E. and Kennard, Robert W.},
-  title   = {Ridge Regression: Biased Estimation for Nonorthogonal Problems},
-  journal = {Technometrics},
-  year    = {1970},
-  volume  = {12},
-  number  = {1},
-  pages   = {55--67},
-  doi     = {10.1080/00401706.1970.10488634}
-}
-
-@article{Jennings1999,
-  author  = {Jennings, Charles R.},
-  title   = {Socioeconomic Characteristics and Their Relationship to Fire Incidence: A Review of the Literature},
-  journal = {Fire Technology},
-  year    = {1999},
-  volume  = {35},
-  number  = {1},
-  pages   = {7--34},
-  doi     = {10.1023/A:1015330931387}
-}
-
-@article{Jennings2013,
-  author  = {Jennings, Charles R.},
-  title   = {Social and Economic Characteristics as Determinants of Residential Fire Risk in Urban Neighborhoods: A Review of the Literature},
-  journal = {Fire Safety Journal},
-  year    = {2013},
-  volume  = {62},
-  pages   = {13--19},
-  doi     = {10.1016/j.firesaf.2013.07.002}
-}
-
-@inproceedings{Lundberg2017,
-  author    = {Lundberg, Scott M. and Lee, Su-In},
-  title     = {A Unified Approach to Interpreting Model Predictions},
-  booktitle = {Advances in Neural Information Processing Systems},
-  year      = {2017},
-  volume    = {30},
-  url       = {https://proceedings.neurips.cc/paper_files/paper/2017/hash/8a20a8621978632d76c43dfd28b67767-Abstract.html}
-}
-
-@inproceedings{Madaio2016,
-  author    = {Madaio, Michael and Chen, Shang-Tse and Haimson, Oliver L. and Zhang, Wenwen and Cheng, Xiang and Hinds-Aldrich, Matthew and Chau, Duen Horng and Dilkina, Bistra},
-  title     = {Firebird: Predicting Fire Risk and Prioritizing Fire Inspections in Atlanta},
-  booktitle = {Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
-  year      = {2016},
-  pages     = {185--194},
-  publisher = {ACM},
-  address   = {New York},
-  doi       = {10.1145/2939672.2939682}
-}
-
-@book{Molnar2022,
-  author    = {Molnar, Christoph},
-  title     = {Interpretable Machine Learning: A Guide for Making Black Box Models Explainable},
-  edition   = {2},
-  year      = {2022},
-  publisher = {Independently published}
-}
-
-@article{Probst2019,
-  author  = {Probst, Philipp and Wright, Marvin N. and Boulesteix, Anne-Laure},
-  title   = {Hyperparameters and Tuning Strategies for Random Forest},
-  journal = {WIREs Data Mining and Knowledge Discovery},
-  year    = {2019},
-  volume  = {9},
-  number  = {3},
-  pages   = {e1301},
-  doi     = {10.1002/widm.1301}
-}
-
-@article{Rudin2019,
-  author  = {Rudin, Cynthia},
-  title   = {Stop Explaining Black Box Machine Learning Models for High Stakes Decisions and Use Interpretable Models Instead},
-  journal = {Nature Machine Intelligence},
-  year    = {2019},
-  volume  = {1},
-  number  = {5},
-  pages   = {206--215},
-  doi     = {10.1038/s42256-019-0048-x}
-}
-
-@article{Schroeer2021,
-  author  = {Schr{\"o}er, Christoph and Kruse, Felix and G{\'o}mez, Jorge Marx},
-  title   = {A Systematic Literature Review on Applying CRISP-DM Process Model},
-  journal = {Procedia Computer Science},
-  year    = {2021},
-  volume  = {181},
-  pages   = {526--534},
-  doi     = {10.1016/j.procs.2021.01.199}
-}
-
-@article{Shmueli2010,
-  author  = {Shmueli, Galit},
-  title   = {To Explain or to Predict?},
-  journal = {Statistical Science},
-  year    = {2010},
-  volume  = {25},
-  number  = {3},
-  pages   = {289--310},
-  doi     = {10.1214/10-STS330}
-}
-
-@article{ShwartzZiv2022,
-  author  = {Shwartz-Ziv, Ravid and Armon, Amitai},
-  title   = {Tabular Data: Deep Learning is Not All You Need},
-  journal = {Information Fusion},
-  year    = {2022},
-  volume  = {81},
-  pages   = {84--90},
-  doi     = {10.1016/j.inffus.2021.11.011}
-}
-
-@inproceedings{Wirth2000,
-  author    = {Wirth, R{\"u}diger and Hipp, Jochen},
-  title     = {{CRISP-DM}: Towards a Standard Process Model for Data Mining},
-  booktitle = {Proceedings of the 4th International Conference on the Practical Applications of Knowledge Discovery and Data Mining},
-  year      = {2000},
-  pages     = {29--39},
-  address   = {Manchester}
-}
-
-@incollection{Marban2009,
-  author    = {Marb{\'a}n, {\'O}scar and Mariscal, Gonzalo and Segovia, Javier},
-  title     = {A Data Mining \& Knowledge Discovery Process Model},
-  booktitle = {Data Mining and Knowledge Discovery in Real Life Applications},
-  editor    = {Ponce, Julio and Karahoca, Adem},
-  publisher = {I-Tech Education and Publishing},
-  address   = {Vienna},
-  year      = {2009},
-  pages     = {1--16},
-  doi       = {10.5772/6438}
-}
-\end{filecontents}
-
+% =========================================================================
+% REGEL FUER DIESE DATENBANK -- ab 18.08.2026
+% Es kommt NICHTS hier hinein, was nicht in docs/10_QUELLEN.md freigegeben
+% ist. Die Datei ist das Register; diese Datenbank ist ihr Spiegel.
+% Auch die SEITENZAHL ist freizugeben: zitiert werden darf nur eine Seite,
+% die im Register unter "freigegebene Seiten" steht. Damit kann keine
+% Seitenangabe mehr geraten werden.
+% Am 18.08.2026 wurden sechs Eintraege wieder entfernt, die ohne Freigabe
+% ergaenzt worden waren -- sie stehen jetzt im Register unter "in Pruefung".
+% =========================================================================
 % ---------------------------------------------------
 % BIBLATEX-KONFIGURATION (Chicago, einheitlich)
 % ---------------------------------------------------
@@ -652,12 +475,36 @@ Daraus leiten sich folgende Unterfragen ab:
 
 \subsection{Aufbau der Arbeit}
 % Gliederung in Fließtext, inkl. Verweis auf CRISP-DM als Rückgrat von Kap. 3--7.
+%
+% ============ OFFENE SEITENZAHLEN -- SIEBEN MAL "??" IN DIESEM ABSCHNITT ==
+% Bewusst als ?? gesetzt statt geraten. Im PDF sichtbar, damit sie nicht
+% untergehen. Nachzutragen sind GENAU ZWEI Werte:
+%
+%   a) Wirth & Hipp (2000), Abschnitt 3.2 "The Generic CRISP-DM Reference
+%      Model" -- dort stehen alle sechs Phasendefinitionen auf derselben
+%      Seite. Eine Zahl, sechsmal einzusetzen.
+%   b) Schroeer et al. (2021) -- die Seite, auf der der Fortbestand von
+%      CRISP-DM als Standard festgestellt wird.
+%
+% ACHTUNG, PAGINIERUNGSFALLE bei Wirth & Hipp: Der Eintrag in der Datenbank
+% nennt die Tagungsband-Paginierung 29--39 (SCIRP fuehrt sogar 29--40, auch
+% das ist zu klaeren). Die frei zugaenglichen Kopien sind dagegen ab 1
+% paginiert. Eine Seitenangabe "3" waere in einem Beitrag, der auf Seite 29
+% beginnt, unauffindbar. Entweder durchgehend nach Tagungsband zitieren --
+% dann Vorspann addieren -- oder die Datenbank auf die tatsaechlich benutzte
+% Fassung umstellen. NICHT mischen.
+% Betrifft auch die bereits vorhandenen Angaben [1-2] und [526--532] bzw.
+% [531--532] im Dokument: beide sind ungeprueft uebernommen.
+% =========================================================================
 Bei der vorliegenden Arbeit handelt es sich um eine quantitativ-empirische Untersuchung auf Basis
 vorhandener Sekundärdaten. Ihr Aufbau orientiert sich am Cross-Industry Standard Process for Data
 Mining (CRISP-DM), einem vom Branchensektor und von der eingesetzten Technologie unabhängigen
 Vorgehensmodell für Data-Mining-Projekte.\footcite{Wirth2000} Aufgrund seiner Herstellerneutralität
 und seiner breiten Anwendung in der Praxis gilt CRISP-DM bis heute als De-facto-Standard für die
-Entwicklung von Data-Mining-Projekten.\footcite[5]{Marban2009}
+Entwicklung von Data-Mining-Projekten.\footcite[??]{Schroeer2021}
+% SEITENZAHL NACHTRAGEN. Wirth & Hipp (2000) kann "bis heute" nicht belegen --
+% das Papier ist von 2000. Schroeer et al. (2021) ist die systematische
+% Uebersicht, die den Fortbestand als Standard nachweist, und steht im Expose.
 
 Das Modell gliedert den Lebenszyklus eines Data-Mining-Projekts in sechs aufeinander aufbauende
 Phasen: Business Understanding, Data Understanding, Data Preparation, Modeling, Evaluation und
@@ -672,38 +519,40 @@ Kapitel 2 steht außerhalb des Prozessmodells und legt die theoretischen und met
 Grundlagen der Arbeit. Es ordnet Feuerwehreinsätze als Prognosegegenstand ein, stellt die
 Forschungstradition zu sozioökonomischen und baulichen Einflussfaktoren auf das Brandrisiko dar
 und arbeitet den Stand der Forschung zum Modellvergleich auf tabellarischen Daten sowie zu
-datengetriebenen Modellen im öffentlichen Sektor auf. Darauf folgt die Darstellung der
-untersuchten Verfahren, Ridge Regression, Random Forest und XGBoost, sowie der
-Zähldatenmodelle, die als interpretierbare Baseline dienen. Das Kapitel schließt mit der
+datengetriebenen Modellen im öffentlichen Sektor auf. Es stellt anschließend die
+Referenzmodelle vor, an denen sich jedes weitere Verfahren messen lassen muss, und
+darauf aufbauend die untersuchten Verfahren Ridge Regression, Random Forest und XGBoost.
+Das Kapitel schließt mit der
 Herleitung der Forschungslücke und der daraus abgeleiteten Erwartungen, die in Kapitel 8 den
 empirischen Befunden gegenübergestellt werden.
 
 Kapitel 3 behandelt die Phase \enquote{Business Understanding}, in der die Projektziele und
 Anforderungen aus fachlicher Perspektive in eine Data-Mining-Problemstellung überführt
-werden.\footcite[5]{Marban2009} Es beschreibt den Anwendungsfall und die fachliche Zielsetzung,
+werden.\footcite[??]{Wirth2000} Es beschreibt den Anwendungsfall und die fachliche Zielsetzung,
 operationalisiert die beiden Zielgrößen, Einsatzhäufigkeit und Einsatzart, und grenzt den
 prognoseorientierten Charakter der Arbeit gegenüber einem kausalen Erklärungsanspruch ab.
 
-Kapitel 4 deckt die Phase \enquote{Data Understanding} ab.\footcite[5]{Marban2009} Das Kapitel
+Kapitel 4 deckt die Phase \enquote{Data Understanding} ab.\footcite[??]{Wirth2000} Das Kapitel
 stellt zunächst die Datenquellen und die verwendeten Attribute vor. Es folgt eine explorative
 Datenanalyse, welche Verteilungen, räumliche und zeitliche Muster sowie die Klassenverteilung der
 Einsatzart untersucht und die daraus resultierenden Qualitätsbefunde dokumentiert.
 
 Kapitel 5 bildet die Phase \enquote{Data Preparation} ab, die sämtliche Aktivitäten umfasst, mit
-denen aus den Rohdaten der finale Analysedatensatz konstruiert wird.\footcite[6]{Marban2009} Neben
+denen aus den Rohdaten der finale Analysedatensatz konstruiert wird.\footcite[??]{Wirth2000} Neben
 der Bereinigung und der Behandlung fehlender Werte wird insbesondere die zentrale
-Entwurfsentscheidung zur räumlich-zeitlichen Aggregation begründet. Das Kapitel schließt mit dem
-Feature-Engineering und der Beschreibung des finalen Analysedatensatzes.
+Entwurfsentscheidung zur räumlich-zeitlichen Aggregation begründet. Es folgen das
+Feature-Engineering sowie der Analyserahmen mit der Aufteilung in Trainings- und Testmengen und
+den Referenzwerten, an denen sich jedes spätere Modell messen lassen muss.
 
 Kapitel 6 konzentriert sich auf die Phase \enquote{Modeling}, in der verschiedene
 Modellierungsverfahren ausgewählt, angewendet und ihre Parameter auf optimale Werte kalibriert
-werden.\footcite[6]{Marban2009} Es beschreibt den Versuchsaufbau einschließlich der
-Validierungsstrategie und der technischen Umsetzung, führt die verwendeten Baselines ein und
-dokumentiert die Modellkonfiguration sowie die Hyperparameter-Suchräume. Abschließend werden die
-verfahrensspezifischen Konfigurationsentscheidungen und Tuning-Befunde für jeden der drei
-Algorithmen dargestellt.
+werden.\footcite[??]{Wirth2000} Es beschreibt den Versuchsaufbau einschließlich der
+Validierungsstrategie und der technischen Umsetzung, begründet die Eignung der eingesetzten
+Verfahren und dokumentiert die Modellkonfiguration sowie die Hyperparameter-Suchräume.
+Abschließend werden die verfahrensspezifischen Konfigurationsentscheidungen und Tuning-Befunde
+dargestellt.
 
-Kapitel 7 ist der Phase \enquote{Evaluation} gewidmet.\footcite[6]{Marban2009} Es stellt die
+Kapitel 7 ist der Phase \enquote{Evaluation} gewidmet.\footcite[??]{Wirth2000} Es stellt die
 Prognosegüte für beide Zielgrößen anhand der zuvor festgelegten Gütemaße dar, vergleicht die
 Verfahren hinsichtlich ihres Trainings- und Inferenzaufwands und ordnet die Modelle mittels
 SHAP-Analyse inhaltlich ein. Das Kapitel schließt mit einem Rückblick auf den durchlaufenen
@@ -711,7 +560,7 @@ Analyseprozess.
 
 Die sechste Phase, \enquote{Deployment}, ist nicht Gegenstand dieser Arbeit, da sie einen
 konkreten organisatorischen Adressaten voraussetzt, der im Rahmen einer Untersuchung auf
-öffentlich verfügbaren Sekundärdaten nicht gegeben ist.\footcite[6]{Marban2009} Die Auslassung
+öffentlich verfügbaren Sekundärdaten nicht gegeben ist.\footcite[??]{Wirth2000} Die Auslassung
 steht im Einklang mit dem dokumentierten Forschungsstand, der die Deployment-Phase als denjenigen
 Prozessschritt identifiziert, der in der Anwendung von CRISP-DM am seltensten adressiert
 wird.\footcite[531--532]{Schroeer2021}
@@ -723,7 +572,11 @@ Ausblick auf weiterführenden Forschungsbedarf.
 
 % ===================================================
 \section{Theoretische Grundlagen und Forschungsstand}
-% Umfang: ca. 16 Seiten
+% Umfang: ca. 12 bis 16 Seiten -- siehe Seitenbudget in docs/09_SCHREIBPLAN.md
+% ZWISCHEN 2 UND 2.1 STEHT KEIN TEXT (Blindabsatz, Auflage 27.07.). Was das
+% Kapitel leistet und warum es ausserhalb des CRISP-DM-Zyklus steht, ist in
+% 1.3 bereits gesagt und wird hier NICHT wiederholt -- genau die Redundanz,
+% die die Auflage verhindern soll. Der aktuelle Zustand ist richtig.
 \subsection{Feuerwehreinsätze als Prognosegegenstand}
 % Domäne: Einsatzarten, Einsatzlast, sozioökonomische und bauliche
 % Einflussfaktoren (Jennings 1999/2013).
@@ -782,24 +635,148 @@ True-Positive-Raten von bis zu 71\,\%.\footcite[1-2]{Madaio2016}
 % Literaturübersicht des Exposés, aber ohne Textbeleg. Fehlt bislang in literatur.bib.
 % ---- ENDE ÜBERNAHME ----
 
-\subsection{Untersuchte Verfahren}
+% #########################################################################
+% UMBAU 18.08.2026 -- WARUM DIE REFERENZMODELLE EIN EIGENES UNTERKAPITEL SIND
+% #########################################################################
+% Vorher stand hier ein einziger Unterabschnitt "Zaehldatenmodelle als
+% Baseline" als fuenfter Punkt hinter Ridge, RF und XGBoost. Drei Probleme:
+%
+%  1  Die MULTINOMIALE LOGISTISCHE REGRESSION kam ueberhaupt nicht vor --
+%     obwohl sie die Stufe-2-Baseline des gesamten Klassifikationsstrangs ist
+%     und auf dem Hold-out beide Baumverfahren schlaegt (03_STAND.md 5.7).
+%  2  Der Abschnitt nannte die NEGATIVE BINOMIAL als Baseline. Seit #45 ist
+%     es das unpenalisierte Poisson-GLM. Die Negative Binomial gehoert
+%     weiterhin hierher -- aber als ABGEGRENZTE ERWEITERUNG, nicht als
+%     gewaehltes Modell.
+%  3  Die tragende Behauptung der Arbeit -- ein GLM kann Kruemmung, aber
+%     KEINE Wechselwirkungen -- wird in 5.4 und 6.2 verwendet, ohne in den
+%     Grundlagen hergeleitet zu sein. Genau das ruegt das Gutachten unter R9.
+%
+% REIHENFOLGE: Referenzmodelle VOR den untersuchten Verfahren. Erst die
+% Messlatte, dann die Kandidaten, die sie schlagen muessen. Ein
+% Referenzmodell als fuenfter Punkt hinter den drei ML-Verfahren liest sich
+% als Mitlaeufer -- und das Ergebnis der Arbeit ist, dass es gewinnt.
+% Ausserdem ist das GLM das elementarere Objekt: Ridge ist ein
+% penalisiertes lineares Modell, 2.5 wird dadurch kuerzer, nicht laenger.
+%
+% ABGRENZUNG NACH 5.4 -- die Regel aus dem Block vor Kapitel 4 gilt hier
+% genauso: Kapitel 2 erklaert, WIE ein Verfahren funktioniert, allgemein und
+% lehrbuchhaft, OHNE diesen Datensatz. Was NICHT hierher darf:
+%     die konkrete Wahl, die Baselinewerte, Auflage D, der zweistufige
+%     Aufbau mit den tatsaechlichen Baselines, der Dispersionsindex 62,8
+% Das alles steht in 5.4. Wer es hier vorwegnimmt, schreibt 5.4 doppelt.
+%
+% UMFANG: rund zwei Seiten. Schroeter will den Grundlagenteil High-Level.
+% #########################################################################
 
-\subsubsection{Grundlagen des überwachten Lernens}
-% Regression vs. Klassifikation, Bias-Varianz-Zerlegung.
+\subsection{Grundlagen des überwachten Lernens}
+% War 2.3.1. Jetzt eigenes Unterkapitel, weil es BEIDE nachfolgenden
+% Modellklassen traegt -- die Referenzmodelle wie die Vergleichsverfahren --
+% und deshalb in keine von beiden hineingehoert.
+% Inhalt: Regression gegen Klassifikation, Verlustfunktion, Bias-Varianz-
+% Zerlegung, Generalisierung. Kurz halten, eine halbe bis eine Seite.
+% Beleg: Hastie et al. (2009), Kapitel 2 und 7.
+
+\subsection{Referenzmodelle}
+\label{sec:referenzmodelle}
+% Rund anderthalb Seiten. Hier entstehen drei der Formeln, die das
+% Formelverzeichnis bislang leer lassen.
+%
+% GLIEDERUNGSTIEFE -- bewusst flach (geaendert 18.08.2026):
+% Zwei Referenzmodelle, zwei Unterabschnitte. Genauso wie 2.5 je einen
+% Unterabschnitt fuer Ridge, Random Forest und XGBoost vorsieht. Eine
+% fruehere Fassung hatte VIER Unterabschnitte fuer zwei Modelle -- das
+% haette den Referenzmodellen mehr Gliederungsgewicht gegeben als jedem
+% einzelnen Vergleichsverfahren und waere unverhaeltnismaessig gewesen.
+%
+% ZWISCHEN 2.4 UND 2.4.1 STEHT KEIN TEXT -- Blindabsatz, Auflage 27.07.
+% Der gemeinsame Rahmen (warum eine Referenz noetig ist, die drei
+% Bestandteile eines GLM nach Nelder & Wedderburn 1972, der kanonische Link,
+% die Eigenschaft KEINEN freien Parameter zu haben -- darauf beruht spaeter
+% Auflage D) eroeffnet deshalb 2.4.1 und wird dort am konkreten Modell
+% entwickelt statt vorab abstrakt.  -> FORMEL 1: g(E[y|x]) = x'beta
+% Das ist kein Notbehelf: konkret vor abstrakt liest sich besser, und die
+% allgemeine Form steht damit unmittelbar neben ihrer ersten Anwendung.
+%
+% BELEGE -- ALLE NOCH NICHT FREIGEGEBEN.
+% Die Kandidaten stehen in docs/10_QUELLEN.md unter "in Pruefung": Nelder &
+% Wedderburn 1972, McCullagh & Nelder 1989, Gourieroux et al. 1984,
+% Agresti 2013, James et al. 2021, Santos Silva & Tenreyro 2010.
+% Sie waren am 18.08.2026 kurzzeitig in der Datenbank und sind wieder
+% entfernt worden -- ohne Freigabe kommt nichts hier hinein.
+% AUS DEM EXPOSE VERFUEGBAR und damit sofort einsetzbar: Hastie2009 und
+% Cameron2013. Beide decken den Abschnitt weitgehend ab.
+% Lehrbuecher sind hier RICHTIG -- Schroeters Regel lautet Lehrbuecher fuer
+% Grundlagen, Paper fuer den Forschungsstand.
+% OFFEN: Der OFFSET fuer die Exposition ist in ISL nicht behandelt. Dafuer
+% wird Cameron2013 gebraucht -- Zugang ueber die FOM pruefen.
+%
+% DIE GRENZE DER MODELLKLASSE steht als SCHLUSSABSATZ am ENDE von 2.4.2.
+% Das ist KEIN Blindabsatz -- die Regel betrifft nur die Stelle zwischen
+% einer Ueberschrift und ihrer ersten Unterueberschrift. Text am Ende eines
+% Unterabschnitts ist unbedenklich. Sie ist kein Modell und bekaeme sonst dieselbe
+% Gliederungsebene wie eines -- inhaltlich ist sie aber der Grund, warum
+% dieses Unterkapitel ueberhaupt existiert: Ein GLM kann Kruemmung, aber
+% keine Wechselwirkungen ohne explizite Spezifikation; genau die finden RF
+% und XGBoost konstruktionsbedingt. In 5.4 und 6.2 wird das nur noch
+% zitiert. Ohne diesen Absatz steht die tragende Aussage der Arbeit
+% unbelegt im empirischen Teil (Gutachten R9).
+% Der Absatz ist ein BLINDABSATZ im Sinne der Klaerung vom 11.08.: Er fuehrt
+% ein neues Argument ein, er fasst nichts zusammen.
+% RUECKFALL, falls er sich beim Lesen verliert: als 2.4.3 mit eigener
+% Ueberschrift fuehren.
+% Belege: Hastie2009 (Kapitel 4.4 und 9.2), McCullagh1989.
+
+\subsubsection{Poisson-Regression für Zähldaten mit Exposition}
+% Log-Link, Erwartungswert gleich Varianz, Offset fuer die Exposition.
+%                       -> FORMEL 2: log(mu) = log(E) + x'beta
+% UEBERDISPERSION: was sie beschaedigt und was nicht. Der Poisson-Schaetzer
+% bleibt bei richtig spezifiziertem bedingtem Mittelwert auch dann
+% konsistent, wenn die Verteilungsannahme verletzt ist -- beschaedigt werden
+% die Standardfehler (Gourieroux, Monfort & Trognon 1984, S. 701--720).
+% DIE NEGATIVE BINOMIAL GEHOERT HIERHER, aber als abgegrenzte Erweiterung:
+% Sie loest ein INFERENZproblem und bringt mit dem Dispersionsparameter eine
+% zusaetzliche Groesse mit. Ein Modell mit reinen Punktvorhersagen braucht
+% beides nicht. Damit ist der Wechsel von #45 theoretisch vorbereitet und
+% wirkt in 5.4 nicht wie eine nachtraegliche Rechtfertigung.
+% KEINE Zahlen aus dem Datensatz hier -- der Dispersionsindex steht in 4.2.
+% Belege: Cameron2013, Gourieroux1984, McCullagh1989.
+
+\subsubsection{Multinomiale logistische Regression}
+% Das Gegenstueck zum Poisson-GLM fuer eine nominale Zielgroesse mit K
+% ungeordneten Klassen: K-1 Log-Odds gegen eine Referenzkategorie,
+% Softmax-Rueckrechnung, unpenalisierte Maximum-Likelihood.
+%                       -> FORMEL 3: log(P(y=k)/P(y=K)) = x'beta_k
+% Dazu die Klassengewichtung als Mittel gegen unbalancierte Klassen -- hier
+% nur das PRINZIP, die konkrete Wirkung auf Accuracy gegen Macro-F1 steht
+% in 5.4 und 7.2.
+% Belege: Agresti2013 (Kapitel 8, baseline-category logits), Hastie2009
+%         (Kapitel 4.4).
+
+% <- HIER der Schlussabsatz "Die Grenze der Modellklasse", ohne Ueberschrift.
+%    Begruendung und Inhalt siehe Kopf von 2.4.
+
+\subsection{Untersuchte Verfahren}
+% ZWISCHEN 2.5 UND 2.5.1 STEHT KEIN TEXT (Blindabsatz). Die Einordnung --
+% die Verfahren, die die Referenz aus 2.4 schlagen muessen, in der Ordnung
+% linear, Bagging, Boosting -- eroeffnet 2.5.1.
+% Keine Wiederholung der Grundlagen aus 2.3.
 
 \subsubsection{Ridge Regression}
 % Zielfunktion, L2-Regularisierung, Multikollinearität (Hoerl & Kennard 1970).
+% Anknuepfen an 2.4: Ridge ist ein PENALISIERTES lineares Modell -- der
+% Strafterm ist genau der freie Hyperparameter, den die Referenzmodelle
+% nicht haben.                          -> FORMEL 4: Ridge-Zielfunktion
 
 \subsubsection{Random Forest}
 % Bagging, Feature-Subsampling, OOB-Fehler (Breiman 2001).
 
 \subsubsection{XGBoost}
 % Gradient Boosting, Objective mit Regularisierung (Chen & Guestrin 2016).
-
-\subsubsection{Zähldatenmodelle als Baseline}
-% Poisson / Negativ-Binomial, Überdispersion (Cameron & Trivedi 2013).
+%                                       -> FORMEL 5: regularisiertes Objective
 
 \subsection{Modelloptimierung und Modellbewertung}
+% ZWISCHEN 2.6 UND 2.6.1 STEHT KEIN TEXT (Blindabsatz).
 
 \subsubsection{Hyperparameter-Tuning, Overfitting und Underfitting}
 % Random Search (Bergstra & Bengio 2012), RF-Sensitivität (Probst et al. 2019).
@@ -994,6 +971,39 @@ dabei nicht beansprucht.
 %      wer in 6 erklaeren muss, wie Boosting arbeitet, hat es in 2.3
 %      versaeumt.
 %
+% BLINDABSAETZE -- GILT FUER JEDE GLIEDERUNGSEBENE DER ARBEIT
+%
+% DIE REGEL, woertlich aus der Mitschrift vom 27.07.2026:
+%   "Blindabsaetze: Zwischen 1 und 1.1 steht kein Inhalt -> redundanz
+%    vermeiden"
+% und aus der Mitschrift vom 10.08.2026:
+%   "Keine zwischenfazits (keine reudundanz) = Blindabsaetze nutzen!"
+%
+% Ein BLINDABSATZ ist also die BEWUSST LEERE Stelle zwischen einer
+% Ueberschrift und ihrer ersten Unterueberschrift. "Blindabsaetze nutzen"
+% heisst: diese Stelle LEER LASSEN. Also gilt:
+%
+%   Zwischen \section und dem ersten \subsection steht KEIN Text.
+%   Zwischen \subsection und dem ersten \subsubsection steht KEIN Text.
+%
+% BEGRUENDUNG (Schroeter): Redundanz vermeiden. Ein Absatz an dieser Stelle
+% kuendigt an, was gleich ohnehin kommt -- er ist ein vorweggenommenes
+% Zwischenfazit. Der Inhalt gehoert in den ersten Unterabschnitt, wo er
+% ohne Doppelung steht.
+%
+% ACHTUNG, DIESE STELLE WAR IN 01_VORGABEN.md FALSCH VERZEICHNET. Dort
+% stand die Auflage vom 27.07. als "keine Blindabsaetze zwischen
+% Gliederungsebenen" mit der Aufloesung "verbindende statt
+% zusammenfassende Absaetze". Beides steht in keiner Mitschrift und ist am
+% 18.08.2026 gegen die Primaerquellen korrigiert worden. Es gab nie einen
+% Widerspruch zwischen dem 27.07. und dem 10.08.
+%
+% OFFENER VERSTOSS, Stand 18.08.2026: Kapitel 5 hat 13 Zeilen Fliesstext
+% zwischen \section{Data Preparation} und \subsection{Datenauswahl und
+% Bereinigung}. Der Text ist gut und inhaltlich noetig -- er muss nach 5.1
+% wandern oder einen eigenen nummerierten Abschnitt bekommen.
+% Alle uebrigen Kapitel sind regelkonform.
+%
 % MERKSATZ: Ein Befund gehoert einmal genannt und danach nur noch zitiert.
 % Wer ihn beim zweiten Mal erneut herleitet, schreibt das Kapitel doppelt.
 % #########################################################################
@@ -1062,6 +1072,19 @@ Im Data Understanding wurde zudem die Klassenverteilung der Einsatzart geprüft.
 % -> s3_baselines.py
 % =========================================================================
 
+% ============================ BLINDABSATZ-VERSTOSS ======================
+% Die folgenden zwei Absaetze stehen zwischen \section{Data Preparation} und
+% \subsection{Datenauswahl und Bereinigung}. Nach der Auflage vom 27.07.
+% ("Zwischen 1 und 1.1 steht kein Inhalt") gehoeren sie dort nicht hin.
+% Inhaltlich sind sie richtig und noetig -- sie tragen die zentrale
+% Entwurfsentscheidung (Analyseeinheit) und den Verfuegbarkeitsgrundsatz.
+% ZWEI LOESUNGEN, beim Schreiben zu waehlen:
+%   a) an den Anfang von 5.1 ziehen -- billig, aber 5.1 heisst "Datenauswahl
+%      und Bereinigung" und die Analyseeinheit ist keine Bereinigung
+%   b) einen eigenen Abschnitt 5.1 "Analyseeinheit und Grundsatz" davor
+%      setzen, die uebrigen um eins verschieben -- sauberer
+% EMPFEHLUNG: b).
+% ========================================================================
 Die Data-Preparation-Phase überführt den in Kapitel~4 beschriebenen
 Rohdatenbestand in zwei modellfertige Analysedatensätze. Beide liegen auf
 derselben Analyseeinheit -- \emph{Stadtteil~$\times$~Monat} --; der eine misst
@@ -1397,7 +1420,7 @@ auf die Verfahren zurückführen zu können. Die technische Umsetzung erfolgt in
 % Hauptvergleich laeuft ueber einen Stadtteil-Split. Bergmeir & Benitez bleibt
 % als Beleg brauchbar, aber an anderer Stelle: in 5.0 fuer den Grundsatz, dass
 % jeder Praediktor zum Prognosezeitpunkt verfuegbar sein muss (dort bereits
-% zitiert), und in 2.4.3 fuer die allgemeine Darstellung zeitbewusster
+% zitiert), und in 2.6.3 fuer die allgemeine Darstellung zeitbewusster
 % Validierung. Die ABWEICHUNG vom Expose gehoert nach 8.3.
 %
 % ERGAENZEN, konkret (Quellen: 03_STAND.md Abschnitte 3 und 5.0/5.4):
@@ -2370,22 +2393,9 @@ gegenüber Hyperparameter-Einstellungen ist dabei gut dokumentiert.\footcite[166
 % LITERATURVERZEICHNIS
 % ---------------------------------------------------
 \newpage
-\nocite{*}  % TODO: entfernen, sobald echte \footcite-Aufrufe im Text stehen.
-% STAND 18.08.2026: 21 Eintraege in der Datenbank, 30 \footcite-Aufrufe im
-% Text. Vorgabe Schroeter: 30 bis 100 Quellen, Paper fuer den Forschungsstand,
-% Lehrbuecher nur fuer die Grundlagen.
-% IN KOMMENTAREN BEREITS ANGEKUENDIGT, ABER NOCH NICHT IN DER DATENBANK --
-% ohne diese Eintraege bricht der Build, sobald die betreffenden Passagen
-% geschrieben sind:
-%     Altman2006       (5.3, Dichotomisierung stetiger Groessen)
-%     Hurlbert1984     (7.1 / 8.3, Pseudoreplikation -- warum n = 10, nicht 50)
-%     Roberts2017      (8.3, Block-/Leave-Group-Out-CV als empfohlene Praxis)
-%     Gourieroux1984   (5.4, Konsistenz des Poisson-Schaetzers unter Ueberdispersion)
-%     Ramsey1969       (6.2, RESET-Test)
-%     Hsu2025          (2.2, XGBoost auf Feuerwehr-Einsatzdaten)
-% QUELLENPRUEFUNG (03_STAND.md Abschnitt 6): verifiziert sind Grinsztajn2022
-% und Bergstra2012. Ausstehend: Hoerl1970, Breiman2001, Chen2016, Probst2019,
-% Cameron2013 -- sowie alle sechs oben.
+% \nocite{*} ENTFERNT am 18.08.2026. Es zog jeden Datenbankeintrag ins
+% Literaturverzeichnis, auch ungenutzte und solche, die nur zur Pruefung
+% vorgemerkt sind. Gedruckt wird jetzt ausschliesslich, was zitiert wird.
 \printbibliography[heading=bibintoc,title={Literaturverzeichnis}]
 
 % ---------------------------------------------------

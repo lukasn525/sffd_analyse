@@ -7,10 +7,14 @@ Eingang: results/regression/*.csv, results/klassifikation/*.csv,
          results/spezifikation/*.csv, results/eignungspruefung/qq_residuen.csv,
          results/shap/{ablation_exposition,gruppen,faktorgruppen_menge,
          extrapolation_zusammenhang}.csv
-Ausgang: results/abbildungen/a1..a10.pdf
+Ausgang: results/abbildungen/a1..a15.pdf
 
   - Dieses Skript RECHNET NICHTS, es liest nur. Dadurch laesst sich eine
     Darstellung aendern, ohne die Modelle neu zu rechnen
+  - A11 bis A15 sind am 19.08.2026 fuer Kapitel 7 ergaenzt worden: A11
+    Forest-Plot der gepaarten Differenzen (ersetzt A1), A12 Deckenleiter
+    des Strukturstrangs, A13 Kreuzvalidierung gegen Hold-out (ersetzt A5),
+    A14 Ueberanpassung, A15 Attribution gegen Ablation (ersetzt A6)
   - A1 gegen Baseline (Primaeraussage nach #34), A2 Foldstruktur (warum
     gepaart wird), A3 Spezifikation gegen Verfahren (UF4, B-41), A4 Laufzeit
     gegen Guete (UF3), A5 Hold-out, A6 Faktorgruppen (UF1), A7 Extrapolation
@@ -1055,14 +1059,481 @@ def a10_qq_residuen(plt, FuncFormatter) -> list:
 
 
 # ===========================================================================
+# A11 bis A15 -- Kapitel 7, ergaenzt am 19.08.2026
+# ---------------------------------------------------------------------------
+# Alle fuenf lesen ausschliesslich CSV und rechnen nichts. Sie ersetzen bzw.
+# ergaenzen A1, A5 und A6, ohne sie zu loeschen - welche Fassung in die Arbeit
+# geht, entscheidet der Text, nicht dieses Skript.
+#   A11 Forest-Plot der gepaarten Differenzen   ersetzt A1   -> 7.1
+#   A12 Deckenleiter des Strukturstrangs        neu          -> 7.2, vor T2
+#   A13 Kreuzvalidierung gegen Hold-out         ersetzt A5   -> 7.2
+#   A14 Ueberanpassung Training gegen CV        neu          -> 7.3
+#   A15 Attribution gegen Ablation              ersetzt A6   -> 7.4
+# ===========================================================================
+def _dez(wert: float, stellen: int = 3) -> str:
+    """Deutsches Dezimalkomma fuer Beschriftungen im Bild.
+
+    Ein:  Zahl, Nachkommastellen
+    Aus:  Zeichenkette
+
+    - die Achsen benutzen _komma ueber den FuncFormatter; fuer Text IM Bild
+      braucht es dieselbe Schreibweise ohne Formatter
+    """
+    return f"{wert:.{stellen}f}".replace(".", ",")
+
+
+def a11_differenzen(plt, FuncFormatter) -> list:
+    """Gepaarte Differenzen mit Konfidenzintervall, beide Straenge.
+
+    Ein:  results/regression/vergleich.csv, results/klassifikation/vergleich.csv
+    Aus:  results/abbildungen/a11_differenzen.pdf
+
+    - A1 zeigt dieselbe Groesse als Boxplot ueber die zehn Wiederholungsmittel.
+      Der Boxplot traegt aber weder das Intervall noch die Testentscheidung -
+      der Leser sieht nicht, welche Differenz gedeckt ist. Hier steht beides
+    - berichtet wird nur anzahl_einsaetze (#B10); die Rate laeuft als
+      Anhangstabelle mit
+    - die Testkennzahlen stehen als eigene Spalte auf einer zweiten y-Achse.
+      Innerhalb der Achse ueberdeckten sie im Strukturstrang die Whisker
+    - gefuellter Marker heisst signifikant. Die Fuellung, nicht die Farbe,
+      traegt die Aussage - im Graustufendruck bleibt sie erhalten
+    """
+    dateien = [REG / "vergleich.csv", KLA / "vergleich.csv"]
+    if not all(p.exists() for p in dateien):
+        return []
+    vr = pd.read_csv(dateien[0])
+    vk = pd.read_csv(dateien[1])
+    vr = vr[(vr.teststufe == "wiederholung")
+            & (vr.zielgroesse == "anzahl_einsaetze")]
+    vk = vk[vk.teststufe == "wiederholung"]
+
+    def _zeilen(df: pd.DataFrame, ersatz: str) -> list[dict]:
+        out = []
+        for rolle in ("primaer", "sekundaer"):
+            for _, r in df[df.rolle == rolle].iterrows():
+                a, b = [t.strip() for t in r.paarung.split(" vs ")]
+                holm = rolle == "sekundaer" and pd.notna(r.p_holm)
+                out.append(dict(
+                    name=f"{LABEL.get(a, a)} gegen {LABEL.get(b, ersatz)}",
+                    rolle=rolle, d=r.differenz_mittel, lo=r.ci_unten,
+                    hi=r.ci_oben, gew=int(r.gewonnene),
+                    p=r.p_holm if holm else r.wilcoxon_p,
+                    marke="Holm" if holm else "p",
+                    sig=bool(r.signifikant), verf=a))
+        return out
+
+    fig, axes = plt.subplots(2, 1, figsize=(BREITE, 4.6),
+                             gridspec_kw={"height_ratios": [6, 3]})
+    for ax, daten, titel, stellen in (
+            (axes[0], _zeilen(vr, POISSON),
+             "Menge: Anzahl Einsätze — Δ RMSE", 2),
+            (axes[1], _zeilen(vk, "Logit"),
+             "Struktur: dominante Einsatzart — Δ Macro-F1", 3)):
+        n = len(daten)
+        ypos = list(range(n))[::-1]
+        for y, d in zip(ypos, daten):
+            marker = STIL.get(d["verf"], {}).get("marker", "D")
+            ax.plot([d["lo"], d["hi"]], [y, y], color="0.25", lw=1.1, zorder=2)
+            for x in (d["lo"], d["hi"]):
+                ax.plot([x, x], [y - 0.13, y + 0.13], color="0.25", lw=1.1,
+                        zorder=2)
+            ax.plot(d["d"], y, marker=marker, ms=6, ls="none", mew=1.0,
+                    mfc="black" if d["sig"] else "white", mec="black", zorder=3)
+        ax.axvline(0, color="0.25", ls="--", lw=0.9, zorder=1)
+        primaer = sum(1 for d in daten if d["rolle"] == "primaer")
+        ax.axhline(n - primaer - 0.5, color="0.75", lw=0.8)
+        ax.set_yticks(ypos)
+        ax.set_yticklabels([d["name"] for d in daten])
+        ax.set_ylim(-0.7, n - 0.3)
+        ax.set_title(titel, fontsize=SCHRIFT)
+        ax.set_xlabel("← schlechter          besser →")
+        ax.xaxis.set_major_formatter(_komma(FuncFormatter, stellen, True))
+        lo = min(d["lo"] for d in daten)
+        hi = max(d["hi"] for d in daten)
+        ax.set_xlim(lo - 0.10 * (hi - lo), hi + 0.10 * (hi - lo))
+        rechts = ax.twinx()
+        rechts.set_ylim(ax.get_ylim())
+        rechts.set_yticks(ypos)
+        rechts.set_yticklabels(
+            [f"{d['gew']}/10 · {d['marke']} {_dez(d['p'])}" for d in daten],
+            fontsize=SCHRIFT - 2.5, color="0.30")
+        rechts.tick_params(axis="y", length=0, pad=3)
+        for rand in ("top", "right", "left", "bottom"):
+            rechts.spines[rand].set_visible(False)
+
+    fig.supxlabel("Gepaarter Wilcoxon-Test auf den zehn Wiederholungsmitteln, "
+                  "95-%-Intervall. Oberer Block: gegen die Stufe-2-Baseline, "
+                  "unkorrigiert (Decision Log #37).\nUnterer Block: paarweise "
+                  "Verfahrensvergleiche, p nach Holm über die Familie. "
+                  "Gefüllter Marker bedeutet signifikant, x/10 die Zahl der "
+                  "gewonnenen Wiederholungen.", fontsize=SCHRIFT - 2)
+    pfad = OUT / "a11_differenzen.pdf"
+    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
+    return [pfad]
+
+
+def a12_decken(plt, FuncFormatter) -> list:
+    """Die beiden Obergrenzen des Strukturstrangs mit den erreichten Werten.
+
+    Ein:  results/klassifikation/decke.csv, decke_ausschoepfung.csv,
+          baselines_klasse_mittel.csv, struktur_mittel.csv
+    Aus:  results/abbildungen/a12_decken.pdf
+
+    - Macro-F1 0,33 gegen die 1,0 einer fehlerfreien Vorhersage zu halten ist
+      der falsche Massstab. Die Abbildung setzt den richtigen: beide Decken
+      entstehen VOR jeder Modellwahl (v4_decke.py)
+    - der bemasste Pfeil zwischen dem besten Verfahren und Decke B ist die
+      eigentliche Aussage - mehr als diesen Abstand koennen Verfahrenswahl und
+      Hyperparametersuche zusammen nicht mehr holen
+    - der schraffierte Bereich rechts von Decke A ist bei dieser Zielgroesse
+      nicht erreichbar; ohne ihn liest sich die Skala als offen
+    """
+    noetig = [KLA / "decke.csv", KLA / "decke_ausschoepfung.csv",
+              KLA / "baselines_klasse_mittel.csv", KLA / "struktur_mittel.csv"]
+    if not all(p.exists() for p in noetig):
+        return []
+    dk = pd.read_csv(noetig[0]).set_index("grenze").macro_f1
+    aus = pd.read_csv(noetig[1]).set_index("verfahren")
+    bl = pd.read_csv(noetig[2])
+    st = pd.read_csv(noetig[3])
+
+    reihen = [
+        ("Mehrheitsklasse (Stufe 1)",
+         float(bl.loc[bl.stufe == 1, "Macro-F1_mean"].iloc[0]), "0.92", ""),
+        ("Multinomiales Logit (Stufe 2)",
+         float(bl.loc[bl.stufe == 2, "Macro-F1_mean"].iloc[0]), "0.72", ".."),
+        ("Random Forest",
+         float(st.loc[st.verfahren == "random_forest", "macro_f1_mean"].iloc[0]),
+         STIL["random_forest"]["grau"], STIL["random_forest"]["schraffur"]),
+        ("XGBoost",
+         float(st.loc[st.verfahren == "xgboost", "macro_f1_mean"].iloc[0]),
+         STIL["xgboost"]["grau"], STIL["xgboost"]["schraffur"]),
+    ]
+    bester = max(r[1] for r in reihen)
+    decke_b = float(dk["Decke B - Stadtteilwissen"])
+    decke_a = float(dk["Decke A - Label-Rauschen"])
+
+    fig, ax = plt.subplots(figsize=(BREITE, 2.9))
+    ypos = list(range(len(reihen)))[::-1]
+    ax.axvspan(decke_a, 1.0, facecolor="0.94", edgecolor="0.80",
+               hatch="///", lw=0, zorder=0)
+    for y, (name, wert, grau, hatch) in zip(ypos, reihen):
+        ax.barh(y, wert, height=0.55, color=grau, edgecolor="black",
+                hatch=hatch, lw=0.7, zorder=2)
+        ax.annotate(_dez(wert), xy=(wert, y), xytext=(3, 0),
+                    textcoords="offset points", va="center",
+                    fontsize=SCHRIFT - 1)
+    for x, txt in ((decke_b, "Decke B\nStadtteilwissen"),
+                   (decke_a, "Decke A\nLabel-Rauschen")):
+        ax.axvline(x, color="black", ls="--", lw=1.0, zorder=3)
+        ax.annotate(f"{txt}\n{_dez(x)}", xy=(x, len(reihen) - 0.35),
+                    xytext=(3, 0), textcoords="offset points",
+                    fontsize=SCHRIFT - 2, va="top", ha="left")
+    ax.annotate("", xy=(decke_b, -0.72), xytext=(bester, -0.72),
+                arrowprops=dict(arrowstyle="<->", lw=0.9, color="black"))
+    ax.annotate(f"Restpotenzial {_dez(decke_b - bester)}",
+                xy=((bester + decke_b) / 2, -0.72), xytext=(0, 4),
+                textcoords="offset points", ha="center", fontsize=SCHRIFT - 2)
+    ax.annotate("nicht erreichbar", xy=((decke_a + 1) / 2, 0.6), ha="center",
+                va="center", fontsize=SCHRIFT - 2, color="0.35")
+    ax.set_yticks(ypos)
+    ax.set_yticklabels([r[0] for r in reihen])
+    ax.set_ylim(-1.15, len(reihen) - 0.25)
+    ax.set_xlim(0, 1.0)
+    ax.set_xlabel("Macro-F1 — 1,0 wäre die fehlerfreie Vorhersage")
+    ax.xaxis.set_major_formatter(_komma(FuncFormatter, 1))
+    ax.spines["left"].set_visible(False)
+    ax.tick_params(axis="y", length=0)
+
+    quote_x = float(aus.loc["xgboost", "quote_decke_b"]) * 100
+    quote_r = float(aus.loc["random_forest", "quote_decke_b"]) * 100
+    fig.supxlabel("Kreuzvalidierung, Entwicklungspanel. Beide Decken entstehen "
+                  "vor jeder Modellwahl (vorpruefung/v4_decke.py). "
+                  "Ausschöpfung, baselinekorrigiert:\n"
+                  f"XGBoost {_dez(quote_x, 1)} %, Random Forest "
+                  f"{_dez(quote_r, 1)} % von Decke B. Auf dem Hold-out liegen "
+                  "die Decken bei 0,422 (B) und 0,679 (A).",
+                  fontsize=SCHRIFT - 2)
+    pfad = OUT / "a12_decken.pdf"
+    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
+    return [pfad]
+
+
+def a13_umschlag(plt, FuncFormatter) -> list:
+    """Kreuzvalidierung gegen Hold-out im Strukturstrang.
+
+    Ein:  results/klassifikation/struktur_folds.csv, baselines_klasse.csv,
+          holdout.csv
+    Aus:  results/abbildungen/a13_umschlag.pdf
+
+    - A5 zeigt die Hold-out-Werte als Balken. Der Befund ist aber nicht ihre
+      Hoehe, sondern die UMKEHR der Rangfolge gegenueber der Kreuzvalidierung.
+      Die sieht man nur, wenn beide Seiten in einem Bild stehen
+    - die 50 Einzellaeufe stehen als Punktwolke daneben. Sie belegen, dass der
+      Hold-out-Wert innerhalb der eigenen CV-Spannweite liegt - die Umkehr ist
+      eine Ziehung aus einer breiten Verteilung, keine Anomalie
+    - der Zufallsversatz der Punkte ist mit RANDOM_STATE gezogen; die Abbildung
+      sieht bei jedem Lauf gleich aus
+    """
+    noetig = [KLA / "struktur_folds.csv", KLA / "baselines_klasse.csv",
+              KLA / "holdout.csv"]
+    if not all(p.exists() for p in noetig):
+        return []
+    fo = pd.read_csv(noetig[0])
+    bl = pd.read_csv(noetig[1])
+    ho = pd.read_csv(noetig[2])
+
+    serien = [
+        ("Multinomiales Logit", bl.loc[bl.stufe == 2, "Macro-F1"].to_numpy(),
+         float(ho.loc[ho.stufe == 2, "macro_f1"].iloc[0]), "0.72", "D"),
+        ("Random Forest",
+         fo.loc[fo.verfahren == "random_forest", "macro_f1"].to_numpy(),
+         float(ho.loc[ho.verfahren == "random_forest", "macro_f1"].iloc[0]),
+         STIL["random_forest"]["grau"], STIL["random_forest"]["marker"]),
+        ("XGBoost", fo.loc[fo.verfahren == "xgboost", "macro_f1"].to_numpy(),
+         float(ho.loc[ho.verfahren == "xgboost", "macro_f1"].iloc[0]),
+         STIL["xgboost"]["grau"], STIL["xgboost"]["marker"]),
+    ]
+    zufall = np.random.default_rng(42)
+    fig, ax = plt.subplots(figsize=(BREITE, 3.4))
+    for i, (name, cv, hold, grau, marker) in enumerate(serien):
+        x0 = (i - 1) * 0.19
+        ax.scatter(x0 + zufall.uniform(-0.055, 0.055, cv.size), cv, s=7,
+                   facecolor=grau, edgecolor="none", alpha=0.55, zorder=1)
+        ax.plot([x0 - 0.085, x0 + 0.085], [cv.mean()] * 2, color="black",
+                lw=1.4, zorder=3)
+        ax.plot([x0, 1.0], [cv.mean(), hold], color="black", lw=1.0,
+                ls="-" if hold > 0.3 else "--", zorder=2)
+        ax.plot(1.0, hold, marker=marker, ms=7, mfc=grau, mec="black",
+                mew=0.9, zorder=4)
+        ax.annotate(f"{name}  {_dez(hold)}", xy=(1.0, hold),
+                    xytext=(8, {0: 0, 1: -9, 2: 9}[i]),
+                    textcoords="offset points", va="center",
+                    fontsize=SCHRIFT - 1)
+        ax.annotate(_dez(cv.mean()), xy=(x0, cv.mean()), xytext=(0, 5),
+                    textcoords="offset points", va="bottom", ha="center",
+                    fontsize=SCHRIFT - 2)
+    ax.set_xticks([0.0, 1.0])
+    ax.set_xticklabels(["Kreuzvalidierung\n50 Läufe, 29 Stadtteile",
+                        "Hold-out\neine Messung, 6 Stadtteile"])
+    ax.set_xlim(-0.40, 1.72)
+    ax.set_ylabel("Macro-F1")
+    ax.yaxis.set_major_formatter(_komma(FuncFormatter, 2))
+    fig.supxlabel("Linke Seite: jeder Punkt ein Fold-Lauf, der waagerechte "
+                  "Strich das Mittel über die 50 Läufe. Rechte Seite: die "
+                  "einmalige Hold-out-Messung.\nDie Hold-out-Werte der "
+                  "Baumverfahren liegen innerhalb der Spannweite ihrer eigenen "
+                  "Kreuzvalidierung — die Umkehr ist keine Anomalie.",
+                  fontsize=SCHRIFT - 2)
+    pfad = OUT / "a13_umschlag.pdf"
+    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
+    return [pfad]
+
+
+def a14_ueberanpassung(plt, FuncFormatter) -> list:
+    """Trainingsguete gegen Kreuzvalidierungsguete je Verfahren.
+
+    Ein:  results/regression/menge_mittel.csv, baselines_mittel.csv,
+          results/klassifikation/struktur_mittel.csv,
+          baselines_klasse_mittel.csv
+    Aus:  results/abbildungen/a14_ueberanpassung.pdf
+
+    - B6: Random Forest braucht Faktor 861 mehr Trainingszeit als Ridge und
+      generalisiert dabei am schlechtesten. Die Zeit steht in A4, der Abstand
+      Training-CV bisher nirgends
+    - die Stufe-2-Baselines haben keinen gespeicherten Trainingswert; sie
+      stehen als waagerechte Referenz der Kreuzvalidierungsguete. Ein Punkt
+      waere dort eine erfundene Zahl
+    - beide Straenge haben eigene Achsen: R2 und Macro-F1 sind nicht dieselbe
+      Groesse und duerfen nicht auf eine Skala
+    """
+    noetig = [REG / "menge_mittel.csv", REG / "baselines_mittel.csv",
+              KLA / "struktur_mittel.csv", KLA / "baselines_klasse_mittel.csv"]
+    if not all(p.exists() for p in noetig):
+        return []
+    me = pd.read_csv(noetig[0])
+    me = me[me.zielgroesse == "anzahl_einsaetze"].set_index("verfahren")
+    br = pd.read_csv(noetig[1])
+    st = pd.read_csv(noetig[2]).set_index("verfahren")
+    bk = pd.read_csv(noetig[3])
+    glm = float(br[(br.stufe == 2)
+                   & (br.zielgroesse == "anzahl_einsaetze")].R2_mean.iloc[0])
+    logit = float(bk.loc[bk.stufe == 2, "Macro-F1_mean"].iloc[0])
+
+    fig, axes = plt.subplots(1, 2, figsize=(BREITE, 3.1))
+    for ax, tab, sp_tr, sp_cv, verf, titel, ylab, ref, refname in (
+            (axes[0], me, "R2_train", "R2_mean",
+             ["ridge", "random_forest", "xgboost"], "Menge: Anzahl Einsätze",
+             "R²", glm, POISSON),
+            (axes[1], st, "macro_f1_train", "macro_f1_mean",
+             ["random_forest", "xgboost"], "Struktur: dominante Einsatzart",
+             "Macro-F1", logit, "Logit")):
+        for i, v in enumerate(verf):
+            tr, cv = float(tab.loc[v, sp_tr]), float(tab.loc[v, sp_cv])
+            ax.plot([i, i], [tr, cv], color="0.35", lw=1.2, zorder=1)
+            ax.plot(i, tr, marker="o", ms=6, mfc="white", mec="black",
+                    mew=1.1, zorder=3)
+            ax.plot(i, cv, marker=STIL[v]["marker"], ms=6, mfc="black",
+                    mec="black", zorder=3)
+            ax.annotate(f"−{_dez(tr - cv)}", xy=(i, (tr + cv) / 2),
+                        xytext=(6, 0), textcoords="offset points",
+                        va="center", fontsize=SCHRIFT - 2)
+            ax.annotate(_dez(tr), xy=(i, tr), xytext=(0, 6),
+                        textcoords="offset points", ha="center",
+                        fontsize=SCHRIFT - 2)
+            ax.annotate(_dez(cv), xy=(i, cv), xytext=(0, -13),
+                        textcoords="offset points", ha="center",
+                        fontsize=SCHRIFT - 2)
+        ax.axhline(ref, color="black", ls="--", lw=0.9)
+        ax.annotate(refname, xy=(len(verf) - 0.47, ref), xytext=(-2, 3),
+                    textcoords="offset points", ha="right", va="bottom",
+                    fontsize=SCHRIFT - 2.5)
+        ax.set_xticks(range(len(verf)))
+        ax.set_xticklabels([LABEL[v] for v in verf])
+        ax.set_xlim(-0.55, len(verf) - 0.45)
+        ax.set_title(titel, fontsize=SCHRIFT)
+        ax.set_ylabel(ylab)
+        ax.yaxis.set_major_formatter(_komma(FuncFormatter, 1))
+        ax.set_ylim(min(0.2, ax.get_ylim()[0]), 1.12)
+    trainmarke, = axes[0].plot([], [], marker="o", ms=6, mfc="white",
+                               mec="black", ls="none", label="Training")
+    cvmarke, = axes[0].plot([], [], marker="s", ms=6, mfc="black",
+                            mec="black", ls="none", label="Kreuzvalidierung")
+    axes[0].legend(handles=[trainmarke, cvmarke], loc="upper left",
+                   frameon=False, handletextpad=0.3, borderaxespad=0.1)
+    fig.supxlabel("Mittel über die zehn Wiederholungen. Die Zahl an der "
+                  "Verbindungslinie ist der Abstand zwischen Trainings- und "
+                  "Kreuzvalidierungsgüte.\nFür die Stufe-2-Baselines liegt "
+                  "kein Trainingswert vor; sie stehen als waagerechte Referenz "
+                  "der Kreuzvalidierungsgüte.", fontsize=SCHRIFT - 2)
+    pfad = OUT / "a14_ueberanpassung.pdf"
+    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
+    return [pfad]
+
+
+def a15_attribution_ablation(plt, FuncFormatter) -> list:
+    """Attribution und Ablation je Faktorgruppe, nebeneinander.
+
+    Ein:  results/shap/gruppen.csv, faktorgruppen_menge.csv,
+          ablation_faktorgruppen_mittel.csv
+    Aus:  results/abbildungen/a15_attribution_ablation.pdf
+
+    - A6 zeigt nur die linke Haelfte. Der Befund von B-47 ist aber der
+      UNTERSCHIED zwischen beiden Spalten: Attribution sagt, wie ein Modell
+      schaut, Ablation sagt, was fehlt, wenn man die Gruppe wegnimmt
+    - gleiche y-Ordnung in allen vier Feldern - nur dann vergleicht das Auge
+      Zeile gegen Zeile statt Bild gegen Bild
+    - Menge und Struktur haben eigene x-Achsen: RMSE und Macro-F1 sind nicht
+      dieselbe Groesse. Die linke Spalte ist zudem in der Menge ein
+      standardisierter Koeffizient und in der Struktur ein SHAP-Wert; das steht
+      in der Fusszeile, sonst behauptet die Abbildung eine Vergleichbarkeit,
+      die nicht besteht
+    """
+    noetig = [SHAP / "gruppen.csv", SHAP / "faktorgruppen_menge.csv",
+              SHAP / "ablation_faktorgruppen_mittel.csv"]
+    if not all(p.exists() for p in noetig):
+        return []
+    gr = pd.read_csv(noetig[0])
+    menge_attr = pd.read_csv(noetig[1]).groupby("gruppe").anteil.sum()
+    ab = pd.read_csv(noetig[2])
+
+    y = np.arange(len(GRUPPEN_ORDNUNG))[::-1]
+    fig, axes = plt.subplots(2, 2, figsize=(BREITE, 4.6),
+                             gridspec_kw={"width_ratios": [1, 1.15]})
+
+    ax = axes[0][0]
+    ax.barh(y, [menge_attr.get(g, 0) for g in GRUPPEN_ORDNUNG], height=0.6,
+            color="0.72", edgecolor="black", hatch="//", lw=0.7)
+    for yy, g in zip(y, GRUPPEN_ORDNUNG):
+        ax.annotate(f"{_dez(menge_attr.get(g, 0) * 100, 1)} %",
+                    xy=(menge_attr.get(g, 0), yy), xytext=(3, 0),
+                    textcoords="offset points", va="center",
+                    fontsize=SCHRIFT - 2)
+    ax.set_xlim(0, 0.52)
+    ax.set_title("Attribution", fontsize=SCHRIFT)
+    ax.xaxis.set_major_formatter(_prozent(FuncFormatter, 0))
+    ax.set_ylabel(f"Menge\n{POISSON}", fontsize=SCHRIFT)
+
+    ax = axes[0][1]
+    am = ab[ab.strang == "menge"].set_index("weggelassen")
+    werte = [float(am.loc[g, "verschlechterung_mittel"]) for g in GRUPPEN_ORDNUNG]
+    wdh = [int(am.loc[g, "wdh_mit_verschlechterung"]) for g in GRUPPEN_ORDNUNG]
+    ax.barh(y, werte, height=0.6, color="0.72", edgecolor="black",
+            hatch="//", lw=0.7)
+    ax.axvline(0, color="0.25", ls="--", lw=0.9)
+    for yy, v, w in zip(y, werte, wdh):
+        ax.annotate(f"{_dez(v, 2)}  ({w}/10)", xy=(v, yy),
+                    xytext=(4 if v >= 0 else -4, 0),
+                    textcoords="offset points", va="center",
+                    ha="left" if v >= 0 else "right", fontsize=SCHRIFT - 2)
+    ax.set_xlim(-16, 38)
+    ax.set_title("Ablation", fontsize=SCHRIFT)
+    ax.set_xlabel("Δ RMSE ohne die Gruppe", fontsize=SCHRIFT - 1)
+    ax.xaxis.set_major_formatter(_komma(FuncFormatter, 0, True))
+
+    ax = axes[1][0]
+    hoehe = 0.34
+    for k, v in enumerate(["random_forest", "xgboost"]):
+        teil = gr[gr.verfahren == v].set_index("gruppe").anteil
+        ax.barh(y + (0.5 - k) * hoehe,
+                [teil.get(g, 0) for g in GRUPPEN_ORDNUNG], height=hoehe,
+                color=STIL[v]["grau"], edgecolor="black",
+                hatch=STIL[v]["schraffur"], lw=0.6, label=LABEL[v])
+    ax.set_xlim(0, 0.62)
+    ax.xaxis.set_major_formatter(_prozent(FuncFormatter, 0))
+    ax.set_ylabel("Struktur\nSHAP-Beiträge", fontsize=SCHRIFT)
+    ax.set_xlabel("Anteil am erklärten Beitrag", fontsize=SCHRIFT - 1)
+    ax.legend(loc="lower right", frameon=False, fontsize=SCHRIFT - 2.5,
+              handletextpad=0.3, borderpad=0.1)
+
+    ax = axes[1][1]
+    hoehe = 0.24
+    for k, (v, beschriftung) in enumerate([("Logit", "Logit"),
+                                           ("random_forest", "Random Forest"),
+                                           ("xgboost", "XGBoost")]):
+        teil = ab[(ab.strang == "struktur")
+                  & (ab.verfahren == v)].set_index("weggelassen")
+        stil = STIL.get(v, {"grau": "0.85", "schraffur": ".."})
+        ax.barh(y + (1 - k) * hoehe,
+                [float(teil.loc[g, "verschlechterung_mittel"])
+                 for g in GRUPPEN_ORDNUNG], height=hoehe, color=stil["grau"],
+                edgecolor="black", hatch=stil["schraffur"], lw=0.5,
+                label=beschriftung)
+    ax.axvline(0, color="0.25", ls="--", lw=0.9)
+    ax.set_xlim(-0.031, 0.032)
+    ax.set_xlabel("Δ Macro-F1 ohne die Gruppe", fontsize=SCHRIFT - 1)
+    ax.xaxis.set_major_formatter(_komma(FuncFormatter, 2, True))
+    ax.legend(loc="center right", frameon=False, fontsize=SCHRIFT - 2.5,
+              handletextpad=0.3, borderpad=0.1)
+
+    for zeile in axes:
+        for feld in zeile:
+            feld.set_yticks(y)
+            feld.set_ylim(-0.7, len(GRUPPEN_ORDNUNG) - 0.3)
+            feld.spines["left"].set_visible(False)
+            feld.tick_params(axis="y", length=0)
+        zeile[0].set_yticklabels([LABEL_GRUPPE[g] for g in GRUPPEN_ORDNUNG])
+        zeile[1].set_yticklabels([])
+    fig.supxlabel("Links: Anteil am erklärten Beitrag — Menge über "
+                  "standardisierte Koeffizienten, Struktur über SHAP-Werte. "
+                  "Zwei verschiedene Größen, beide auf 100 % normiert.\n"
+                  "Rechts: Güteänderung, wenn die Gruppe weggelassen wird; "
+                  "positiv heißt schlechter ohne sie. In Klammern die Zahl der "
+                  "Wiederholungen mit Verschlechterung.", fontsize=SCHRIFT - 2)
+    pfad = OUT / "a15_attribution_ablation.pdf"
+    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
+    return [pfad]
+
+
+# ===========================================================================
 def main() -> int:
-    """Erzeugt alle zehn Abbildungen nacheinander.
+    """Erzeugt alle fuenfzehn Abbildungen nacheinander.
 
     Ein:  die CSV-Dateien aus m02, m03, m04, v1, v2 und v3
-    Aus:  results/abbildungen/a1..a10.pdf; Exitcode
+    Aus:  results/abbildungen/a1..a15.pdf; Exitcode
 
     - fehlt eine Eingangsdatei, wird die betroffene Abbildung uebersprungen und
-      gemeldet; ein fehlender Lauf soll die uebrigen neun nicht verhindern
+      gemeldet; ein fehlender Lauf soll die uebrigen nicht verhindern
     """
     if not (REG / "menge_mittel.csv").exists() and \
        not (KLA / "struktur_mittel.csv").exists():
@@ -1086,7 +1557,12 @@ def main() -> int:
                + a7_extrapolation(plt, FuncFormatter)
                + a8_hyperparameter(plt, FuncFormatter)
                + a9_parallelisierung(plt, FuncFormatter)
-               + a10_qq_residuen(plt, FuncFormatter))
+               + a10_qq_residuen(plt, FuncFormatter)
+               + a11_differenzen(plt, FuncFormatter)
+               + a12_decken(plt, FuncFormatter)
+               + a13_umschlag(plt, FuncFormatter)
+               + a14_ueberanpassung(plt, FuncFormatter)
+               + a15_attribution_ablation(plt, FuncFormatter))
     for pfad in erzeugt:
         try:
             zeigen = pfad.relative_to(ROOT)
