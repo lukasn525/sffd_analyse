@@ -304,18 +304,38 @@ def baue_pruefungen() -> list[Pruefung]:
             S, "5.2", 4, vk, anker=A[v])
 
     # ---- Hold-out (§5.7) -------------------------------------------------
+    # GESCHLOSSENE LUECKE, 20.08.2026: Bis hierher deckte dieser Block nur
+    # einen Teil der beiden Tabellen in 5.7 ab - in der Menge nur
+    # `anzahl_einsaetze`, in der Struktur nur Macro-F1. Die uebrigen Spalten
+    # standen ungeprueft in der Dokumentation. Aufgefallen ist es an der
+    # Accuracy von Random Forest und XGBoost: Sie stand nach dem Lauf vom
+    # 16.08.2026 mit 0,570 und 0,553 in 5.7, waehrend holdout.csv 0,561 und
+    # 0,532 auswies - und keine Pruefung schlug an. Regel dieses Skripts ist,
+    # dass jede BERICHTETE Zahl eine Pruefung hat; eine Tabellenspalte ohne
+    # Pruefung ist eine Zahl, die still veraltet.
     hr = "regression/holdout.csv"
     for v in ("Poisson-GLM", "Gesamtmittelwert", "ridge", "random_forest",
               "xgboost"):
-        for sp, st in (("RMSE", 2), ("R2", 3)):
-            add(f"Hold-out Menge {v} {sp}",
-                wert(hr, sp, verfahren=v, zielgroesse="anzahl_einsaetze"),
-                S, "5.7", st, hr, anker=A[v])
+        # Beide Zielgroessen: die Tabelle in 5.7 fuehrt sie in einer Zeile,
+        # der Anker trifft also dieselbe Zeile fuer beide.
+        for ziel in ("anzahl_einsaetze", "einsaetze_je_1000_ew"):
+            for sp, st in (("RMSE", 2), ("R2", 3)):
+                add(f"Hold-out Menge {v} {sp} ({ziel})",
+                    wert(hr, sp, verfahren=v, zielgroesse=ziel),
+                    S, "5.7", st, hr, anker=A[v])
     hk = "klassifikation/holdout.csv"
     for v in ("Multinomiale logistische Regression", "random_forest",
               "xgboost", "Mehrheitsklasse (fehlalarm)"):
         add(f"Hold-out Struktur {v} Macro-F1",
             wert(hk, "macro_f1", verfahren=v), S, "5.7", 3, hk, anker=A[v])
+        add(f"Hold-out Struktur {v} Accuracy",
+            wert(hk, "accuracy", verfahren=v), S, "5.7", 3, hk, anker=A[v])
+        if v != "Mehrheitsklasse (fehlalarm)":
+            # Fuer die Mehrheitsklasse ist die AUROC nicht definiert; in der
+            # Tabelle steht dort ein Strich.
+            add(f"Hold-out Struktur {v} Macro-AUROC",
+                wert(hk, "macro_auroc", verfahren=v), S, "5.7", 3, hk,
+                anker=A[v])
 
     # ---- Ablation und Spezifikation (§5.5) -------------------------------
     ab = "shap/ablation_exposition.csv"

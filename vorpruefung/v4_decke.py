@@ -5,7 +5,10 @@ Wie gut KANN die Einsatzart mit diesen Merkmalen ueberhaupt vorhergesagt werden?
     python vorpruefung/v4_decke.py holdout    zusaetzlich die 6 gesperrten
 
 Eingang: data/processed/klassifikation.parquet
-         results/klassifikation/struktur_mittel.csv (optional, fuer die Quoten)
+         results/klassifikation/struktur_mittel.csv (optional, fuer die Quoten
+         des Entwicklungspanels)
+         results/klassifikation/holdout.csv (optional, fuer die Quoten des
+         Hold-out-Laufs)
 Ausgang: results/klassifikation/decke.csv, decke_marge.csv,
          decke_ausschoepfung.csv, decke.md - mit Argument "holdout" dieselben
          Dateien mit Endung _holdout
@@ -43,6 +46,13 @@ FALLSTRICKE
      schwankt Decke A zwischen zwei Laeufen und die Zahl in der Arbeit passt
      nicht mehr zur Zahl in der CSV
   4  Decke A ist eine Obergrenze, kein Zielwert. Bindend ist Decke B
+  5  Modellwerte und Decken muessen aus DERSELBEN Bewertung stammen. Bis zum
+     20.08.2026 las auch der Hold-out-Lauf die Quoten aus
+     struktur_mittel.csv - also Kreuzvalidierungsmittel gegen
+     Hold-out-Decken. Die Zahlen in decke_ausschoepfung_holdout.csv waren
+     dadurch nicht interpretierbar und wichen weit von den richtigen ab
+     (Random Forest 44,7 % statt 18,1 %). Seither waehlt _modellwerte() die
+     Quelle anhand des Laufs und decke.md nennt sie
 
 Ausfuehrliche Fassung: docs/08_FUNKTIONSDOKUMENTATION.md
 """
@@ -150,17 +160,50 @@ def marge(panel: pd.DataFrame) -> pd.DataFrame:
     ])
 
 
+def _modellwerte(mit_holdout: bool) -> tuple[dict[str, float], str]:
+    """Macro-F1 je Verfahren aus derselben Bewertung, aus der die Decken stammen.
+
+    Ein:  Schalter, ob der Hold-out-Lauf gefahren wird
+    Aus:  Zuordnung Verfahren -> Macro-F1 und der Dateiname als Herkunftsnachweis
+
+    - ohne "holdout": struktur_mittel.csv, also die Mittel ueber die 50 Laeufe
+      auf den 29 Entwicklungsstadtteilen. Dazu passen die Decken aus
+      demselben Panel
+    - mit "holdout": holdout.csv, die einmalige Schlussbewertung auf den sechs
+      gesperrten Stadtteilen. Dazu passen die Decken aus dem vollen Panel
+    - die Stufe-1-Zeile bleibt draussen: die Mehrheitsklasse IST die Basis,
+      gegen die korrigiert wird, ihre Quote waere per Konstruktion 0
+    - fehlt die Datei, bleibt die Zuordnung leer und die Ausschoepfung
+      entfaellt; die beiden Decken haengen nicht von Modellergebnissen ab
+    """
+    if mit_holdout:
+        pfad = OUT / "holdout.csv"
+        if not pfad.exists():
+            return {}, pfad.name
+        h = pd.read_csv(pfad)
+        h = h[h["stufe"] >= 2]
+        return dict(zip(h["verfahren"], h["macro_f1"])), pfad.name
+
+    pfad = OUT / "struktur_mittel.csv"
+    if not pfad.exists():
+        return {}, pfad.name
+    m = pd.read_csv(pfad)
+    return dict(zip(m["verfahren"], m["macro_f1_mean"])), pfad.name
+
+
 def ausschoepfung(modelle: dict[str, float], basis: float,
                   a: float, b: float) -> pd.DataFrame:
     """Baselinekorrigierte Quote je Verfahren gegen beide Decken.
 
-    Ein:  Modellwerte aus struktur_mittel.csv, Mehrheitsklassen-Basis, Decke A,
+    Ein:  Modellwerte aus _modellwerte(), Mehrheitsklassen-Basis, Decke A,
           Decke B
     Aus:  Datenrahmen mit einer Quote je Verfahren und Decke
 
     - Formel: (Modell - Mehrheitsklasse) / (Decke - Mehrheitsklasse)
     - der Rohquotient Modell/Decke waere geschoent: der Sockel der
       Mehrheitsklasse ist keine Leistung des Modells
+    - die Funktion prueft NICHT, ob Modellwerte und Decken zueinander passen -
+      das entscheidet _modellwerte() (Fallstrick 5)
     """
     zeilen = []
     for name, wert in modelle.items():
@@ -174,12 +217,37 @@ def ausschoepfung(modelle: dict[str, float], basis: float,
     return pd.DataFrame(zeilen)
 
 
+def _md(df: pd.DataFrame) -> str:
+    """Markdown-Tabelle von Hand.
+
+    NICHT `DataFrame.to_markdown()`: Das braucht `tabulate`, und das steht
+    weder in `requirements.txt` noch im gemessenen `requirements_lauf.txt`.
+    Hier war der Aufruf besonders tueckisch, weil er ganz am Ende steht - die
+    CSV-Dateien sind dann schon geschrieben, nur decke.md fehlt, und der Lauf
+    endet mit einem Traceback statt mit einem Ergebnis. Gleiche Loesung wie in
+    `tools/suchdiagnose.py`, mit einem Zusatz: Gleitkommazahlen werden auf vier
+    Nachkommastellen ausgeschrieben. `str(0.26)` ergaebe "0.26", und diese
+    Tabelle wird abgeschrieben - eine verschluckte Null ist genau die Sorte
+    Fehler, gegen die `tools/pruefe_zahlen.py` antritt.
+    """
+    def zelle(x) -> str:
+        return f"{x:.4f}" if isinstance(x, float) else str(x)
+
+    kopf = list(df.columns)
+    zeilen = ["| " + " | ".join(kopf) + " |", "|" + "---|" * len(kopf)]
+    for _, z in df.iterrows():
+        zeilen.append("| " + " | ".join(zelle(z[s]) for s in kopf) + " |")
+    return "\n".join(zeilen)
+
+
 def bericht(tab: pd.DataFrame, aus: pd.DataFrame, mrg: pd.DataFrame,
-            kipp: float, treffer: float, modal: pd.Series, n_stadtteile: int) -> str:
+            kipp: float, treffer: float, modal: pd.Series, n_stadtteile: int,
+            quelle: str = "") -> str:
     """Setzt die Ergebnistabellen zu decke.md zusammen.
 
     Ein:  Deckentabelle, Ausschoepfung, Margenverteilung, Kipp- und
-          Trefferanteil, Modalklassen, Zahl der Stadtteile
+          Trefferanteil, Modalklassen, Zahl der Stadtteile, Herkunft der
+          Modellwerte
     Aus:  Markdown-Text
 
     - reine Formatierung, hier wird nichts gerechnet
@@ -193,15 +261,19 @@ def bericht(tab: pd.DataFrame, aus: pd.DataFrame, mrg: pd.DataFrame,
         "",
         "## Die beiden Decken",
         "",
-        tab.to_markdown(index=False),
+        _md(tab),
         "",
         "## Ausschoepfung",
         "",
-        aus.to_markdown(index=False),
+        # Die Herkunft gehoert in die Datei: Nur so ist ohne den Code zu
+        # sehen, aus welcher Bewertung die Modellwerte stammen - und dass sie
+        # zu den Decken darueber passen.
+        f"Modellwerte aus `{quelle}`.\n" if quelle else "",
+        _md(aus),
         "",
         "## Wie knapp faellt der argmax aus?",
         "",
-        mrg.to_markdown(index=False),
+        _md(mrg),
         "",
         "## Zu lesen",
         "",
@@ -228,13 +300,15 @@ def main(argv: list[str]) -> int:
     """Rechnet beide Decken, Marge und Ausschoepfung; schreibt vier Dateien.
 
     Ein:  klassifikation.parquet; Argument "holdout" oeffnet die 6 gesperrten
-          Stadtteile; struktur_mittel.csv optional fuer die Quoten
+          Stadtteile; struktur_mittel.csv bzw. holdout.csv optional fuer die
+          Quoten
     Aus:  decke.csv, decke_marge.csv, decke_ausschoepfung.csv, decke.md
           (mit Endung _holdout, wenn das Argument gesetzt ist); Exitcode
 
     - ohne das Argument wird auf ist_holdout == 0 gefiltert (Fallstrick 1)
-    - fehlt struktur_mittel.csv, entfaellt nur die Ausschoepfungstabelle; die
-      beiden Decken haengen nicht von Modellergebnissen ab
+    - die Quelle der Modellwerte richtet sich nach dem Lauf (Fallstrick 5);
+      fehlt sie, entfaellt nur die Ausschoepfungstabelle, die beiden Decken
+      haengen nicht von Modellergebnissen ab
     """
     if not PFAD.exists():
         raise SystemExit(f"{PFAD.relative_to(ROOT)} fehlt - erst 'python prep/build.py'.")
@@ -265,17 +339,18 @@ def main(argv: list[str]) -> int:
     ])
     print(tab.to_string(index=False), "\n")
 
-    pfad_mittel = OUT / "struktur_mittel.csv"
-    modelle = {}
-    if pfad_mittel.exists():
-        m = pd.read_csv(pfad_mittel)
-        modelle = dict(zip(m["verfahren"], m["macro_f1_mean"]))
-    else:
-        print("  HINWEIS: struktur_mittel.csv fehlt - Ausschoepfung wird "
-              "uebersprungen. Erst 'python modelle/m03_struktur.py'.\n")
+    # FALLSTRICK 5: Die Modellwerte muessen aus derselben Bewertung stammen
+    # wie die Decken darueber - sonst steht in der Quote eine Guete aus 50
+    # Kreuzvalidierungslaeufen gegen eine Decke aus sechs Hold-out-Stadtteilen.
+    modelle, quelle_modelle = _modellwerte(mit_holdout)
+    if not modelle:
+        print(f"  HINWEIS: {quelle_modelle} fehlt - Ausschoepfung wird "
+              f"uebersprungen. Erst 'python modelle/m03_struktur.py"
+              f"{' holdout' if mit_holdout else ''}'.\n")
 
     aus = ausschoepfung(modelle, basis, a, b) if modelle else pd.DataFrame()
     if not aus.empty:
+        print(f"  Modellwerte aus {quelle_modelle}")
         print(aus.to_string(index=False), "\n")
 
     mrg = marge(panel)
@@ -291,7 +366,8 @@ def main(argv: list[str]) -> int:
     if not aus.empty:
         aus.to_csv(OUT / f"decke_ausschoepfung{endung}.csv", index=False)
     (OUT / f"decke{endung}.md").write_text(
-        bericht(tab, aus, mrg, kipp, treffer, modal, panel["stadtteil"].nunique()),
+        bericht(tab, aus, mrg, kipp, treffer, modal,
+                panel["stadtteil"].nunique(), quelle_modelle if modelle else ""),
         encoding="utf-8")
 
     # PRUEFAUFTRAG 1 und 2 maschinell.
