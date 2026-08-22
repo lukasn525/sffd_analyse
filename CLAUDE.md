@@ -32,6 +32,29 @@ Zahl an sechs Stellen, von denen fünf falsch werden, ohne dass es auffällt.
 Die Schreibanleitung für die Kapitel steht als Kommentarblöcke **in `main.tex`**,
 nicht in `docs/` — sonst laufen zwei Fassungen derselben Anleitung auseinander.
 
+### Wo der Text lebt — Overleaf ist der Master
+
+**Der Thesis-Text liegt ausschließlich in Overleaf.** Das lokale Repo enthält
+Quellen, Code, Ergebnisse und Entscheidungen — **keinen Fließtext, keine
+Bibliothek, keine zweite Fassung von `main.tex`**.
+
+| liegt lokal | liegt in Overleaf |
+|---|---|
+| `Quellen/` — die PDF der zitierten Literatur | `main.tex` — der gesamte Text |
+| `docs/` — Vorgaben, Entscheidungen, Stand, Befunde | `literatur.bib` — die Bibliothek und zugleich das Quellenregister |
+| `prep/`, `vorpruefung/`, `modelle/`, `tests/`, `tools/` | die eingebundenen Bilddateien |
+| `results/` — Tabellen und Abbildungen, die der Text einbindet | |
+
+Konsequenz für die Zuarbeit: Textbausteine, `tabular`-Blöcke,
+`figure`-Umgebungen und `.bib`-Einträge werden **geliefert, nicht ins Repo
+geschrieben**. Die lokale `main.tex` im Repo ist ein alter Abzug und darf nicht
+als Referenz für den Wortlaut benutzt werden — nur ihre Kommentarblöcke, also
+die Schreibanleitung, sind noch maßgeblich. Wer eine Textstelle prüfen will,
+prüft sie in Overleaf.
+
+`results/` ist die Nahtstelle: Was dort entsteht, wird in Overleaf eingebunden
+oder abgetippt. Deshalb gilt die Zahlenregel unten auch dort.
+
 ### Die eine Regel, die den Aufbau trägt
 
 **Jede Ergebniszahl steht in `docs/03_STAND.md` — und nur dort.** Alle anderen

@@ -36,7 +36,7 @@ wird, ob sie methodisch *gelöst* wurden.
 | **Primärtest auf zehn Werten und Holm-Bonferroni freigegeben** — „sauber umgesetzt"; unkorrigierter Einzeltest der Klassifikation „folgerichtig" | 08.08. | #37, #38, Kapitel 7 |
 | **Anforderungen je Verfahren darstellen**, Tabelle oder Prosa, mit Teststatistik und p-Wert; QQ-Plot genannt | 10.08. | `03_STAND.md` §7, `v2_eignung` Abschnitt 6, Abbildung A10 |
 | **„Keine lineare Baseline, wenn es keine Linearität gibt"** — Wiederholung von R7 | 10.08. | beantwortet über den Log-Link, siehe R7 unten |
-| **Codebook und Variablenbuch mit Skalenniveau**, eine große Tabelle, Was/Wie/Wofür — *nicht* je Merkmal eine deskriptive Statistik | 10.08. | `results/codebook/merkmale.md`, erzeugt von `tools/codebook.py` |
+| **Codebook und Variablenbuch mit Skalenniveau**, eine große Tabelle, Was/Wie/Wofür — *nicht* je Merkmal eine deskriptive Statistik | 10.08. | `results/codebook/merkmale.md`, erzeugt von `tools/codebook.py`. **Wo die Tabelle steht, ist offen — siehe Abschnitt 0a** |
 | **Rund 20 nicht-triviale Codeausschnitte**, ausdrücklich Serialisierung und Multithreading | 10.08. | **offen** — Kandidaten stehen in `07_BEFUNDE.md` (B-16, B-23, B-24) |
 | **Komplexität des „V" in E-V-A beziffern** | 10.08. | ✅ Kennzahl steht: **10.000 Modellanpassungen** (25 Suchläufe × 100 Ziehungen × 4 innere Folds), 139 Minuten Suchzeit; dazu 600 Bewertungsläufe, 200 Spezifikationsanpassungen, 1.200 Ablationsanpassungen. Schreibanleitung in `main.tex` §7.3 |
 | **Alle Analysen in die Arbeit**, auch verworfene | 10.08. | Ablation, Spezifikationsgegenprobe, Leakage-Diagnose, Extrapolation — als **Sensitivitätsanalysen** gerahmt, nicht als Chronologie |
@@ -46,6 +46,69 @@ wird, ob sie methodisch *gelöst* wurden.
 | **Formales**: keine Kursivschrift, keine Anführungszeichen, keine Unterstreichungen · „o.A." bei unbekanntem Autor · p-Werte 95/99/99,5, Abweichung möglich | 10.08. | **offen** — beim Schreiben umzusetzen |
 | **Seitenbudget**: zu den 40–60 Seiten zählen alle Inhaltsseiten inklusive Code und Tabellen, **Abbildungen nicht** | 10.08. | verschiebt die Rechnung: Abbildungen sind kostenlos, die 20 Codeausschnitte teuer |
 | **Kolloquium**: kein KI-Text vorlesen, Live-Demo | 10.08. | **offen** — Demo-Modus nötig, ein voller Modelllauf dauert rund 90 Minuten |
+
+### 0a. Offene Entscheidungen zur Platzierung — vor der Abgabe erneut aufschlagen
+
+Diese Punkte sind **keine** Auflagen Schröters, sondern Entscheidungen, die
+davon abhängen, wie sich die Arbeit am Ende liest. Sie werden hier geführt,
+damit sie nicht in einer Sitzungsnotiz verschwinden.
+
+| # | Frage | Stand | Wann zu entscheiden |
+|---|---|---|---|
+| P1 | **Steht die große Merkmalstabelle (`results/codebook/merkmale.md`, 34 Zeilen) im Fließtext von Kapitel 4.1 oder im Anhang?** | **vertagt, 22.08.2026** — entschieden ist nur: **keine vierseitige Tabelle im Fließtext**. Kapitel 4 wird so geschrieben, dass es ohne die Tabelle trägt | wenn der Text steht und das Seitenbudget belastbar ist |
+| P2 | Zählt der Anhang zu den 40–60 Inhaltsseiten? | **beantwortet, 22.08.2026: nein.** Zugleich die Richtungsentscheidung, **möglichst ohne Anhang auszukommen** | erledigt |
+
+**Was P2 für das Schreiben bedeutet.** Kein Kapitel darf einen Anhang
+*voraussetzen*. Konkret: kein Satz der Form „siehe Anhang A", keine Tabelle,
+deren Aussage erst im Anhang vollständig wird, keine Abbildung, die auf eine
+Anhangstabelle verweist. Was im Text steht, muss für sich stehen; was nicht in
+den Text passt, ist entweder zu verdichten oder entfällt. Verweise auf
+`results/`-Dateien bleiben möglich — das ist der Quellcode der Abgabe, nicht
+der Anhang der Arbeit.
+
+**Die Spannung, die daraus entsteht — vor der Abgabe auflösen.** Die Auflage
+vom 10.08. verlangt „eine große Tabelle" mit Skalenniveau und Was/Wie/Wofür.
+Ohne Anhang und ohne vierseitige Tabelle im Fließtext bleiben drei Wege:
+
+1. **Verdichtete Tabelle im Text** — die zwölf Modellmerkmale plus die drei
+   Zielgrößen, fünf Spalten statt acht, quer gesetzt oder in `\small`. Rund
+   eine Seite. Die vollständige Fassung bleibt `results/codebook/merkmale.md`
+   und geht mit dem Abgabe-ZIP mit.
+2. **Vollständige Tabelle im Text**, quer und klein gesetzt, rund zwei bis
+   zweieinhalb Seiten. Erfüllt die Auflage wörtlich, kostet aber ein Drittel
+   des Kapitelbudgets.
+3. **Die Frage an Schröter stellen**, ob die Tabelle als Teil des Quellcodes
+   (`results/codebook/merkmale.md`) die Auflage erfüllt. Billig zu fragen,
+   teuer zu raten — dasselbe Muster wie bei P2.
+
+Empfehlung bis zur Entscheidung: **Weg 1**, weil er in allen drei Fällen
+anschlussfähig bleibt.
+
+**Zu P1, damit die Abwägung später nicht neu aufgerollt werden muss.**
+
+*Warum sie nicht vollständig in den Fließtext kann:* Die Tabelle hat 34 Zeilen
+und acht Spalten und belegt normal gesetzt rund vier Seiten. Kapitel 4 ist mit
+vier bis fünf Seiten veranschlagt — die Tabelle wäre größer als das Kapitel,
+das sie trägt. Gutachtenregel R8 („umfangreich, aber nicht fokussiert") zielt
+genau auf solche Stellen.
+
+*Warum sie trotzdem irgendwo stehen muss:* Die Auflage vom 10.08. lautet „eine
+große Tabelle" mit Skalenniveau und Was/Wie/Wofür. Sie ist eine der wenigen
+Auflagen, die ein sichtbares Artefakt verlangen — und sie im Quellcode zu
+verstecken, ohne das abzustimmen, ist ein vermeidbares Risiko.
+
+*Was die Auflage nicht sagt:* Sie sagt nicht, **wo** die Tabelle steht, und sie
+sagt nichts über die Zahl der Spalten. Sie sagt, dass es sie gibt, dass sie
+Skalenniveau und Was/Wie/Wofür führt und dass sie keine deskriptive Statistik
+je Merkmal enthält. Alle drei Bedingungen erfüllt auch eine verdichtete
+Fassung.
+
+*Stand der Umsetzung:* Kapitel 4 ist so geschrieben, dass es **weder die
+Tabelle noch einen Anhang voraussetzt**. Der Text nennt die zwölf
+Modellmerkmale in ihren fünf Gruppen; die Tabelle kann später ohne
+Textänderung dazukommen oder wegbleiben.
+
+---
 
 ### Drei Punkte der Sprechstunde vom 10.08., geklärt am 11.08.
 

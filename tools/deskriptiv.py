@@ -4,11 +4,14 @@ Deskriptive Attributuebersicht - der Befundteil von Kapitel 4.
     python tools/deskriptiv.py          erzeugt alle Tabellen
     python tools/deskriptiv.py -v       zusaetzlich die Rohwerte je Stadtteil
 
-Ausgang: results/deskriptiv/verteilung.csv  · verteilung.md
-         results/deskriptiv/zielgroessen.md
+Ausgang: results/deskriptiv/verteilung.csv
+         results/deskriptiv/varianzzerlegung.csv
          results/deskriptiv/aufloesung.csv
+         results/deskriptiv/korrelation_zielgroesse.csv
          results/deskriptiv/korrelation_pearson.csv · _spearman.csv
-         results/deskriptiv/befunde.md      <- die Lesefassung fuer 4.2
+         results/deskriptiv/stadtteilprofil.csv  <- Datenquelle von A16
+         results/deskriptiv/befunde.md           <- die Lesefassung fuer 4.2
+         results/deskriptiv/je_stadtteil.csv     nur mit -v
 
 NICHT TEIL DER ABGABE - das SKRIPT. Die erzeugten Tabellen schon.
 Wie bei `codebook.py` ist die Ausgabe selbsttragend geschrieben, weil `tools/`
@@ -98,9 +101,20 @@ PRUEFAUFTRAEGE - nach jedem Lauf abzuarbeiten
      erklaert den Widerspruch zwischen Attribution und Ablation in 7.4.
   4  Haben alle Merkmale weiterhin null fehlende Werte? Sonst ist die Aussage
      "keine fehlenden Werte" in Kapitel 5 falsch.
-  5  Ist der hoechste Betrag in der Korrelationsmatrix noch
-     log_kriminalitaetsindex gegen anteil_risikogewerbe_pct (+0,739)? Dieser
-     Wert traegt Mechanismus 2 in 7.4.
+  5  Liegt log_kriminalitaetsindex gegen anteil_risikogewerbe_pct auf den 29
+     ENTWICKLUNGSSTADTTEILEN noch bei +0,739? Dieser Wert traegt Mechanismus 2
+     in 7.4 und steht so in 03_STAND.md Abschnitt 5.6. Auf den 35 Stadtteilen
+     dieser Datei sind es +0,730, auf den 23 Trainingsstadtteilen von Fold 1
+     +0,656 - drei Bezugsmengen, drei Werte, alle drei richtig.
+     KORRIGIERT AM 22.08.2026: Hier stand zuvor, +0,739 sei der hoechste
+     Betrag der Korrelationsmatrix. Das ist er nicht. Hoechster Betrag ist
+     median_haushaltseinkommen gegen median_miete mit +0,913 (35 Stadtteile)
+     bzw. +0,918 (29). 03_STAND.md war nie falsch - dort steht die Aussage
+     "hoechster Betrag" nicht; sie stand nur in diesem Pruefauftrag.
+  6  Enthaelt stadtteilprofil.csv weiterhin genau 35 Zeilen, und liegen die
+     Extremwerte des Mittels bei 6,4 (Seacliff) und 279,7 (Tenderloin)?
+     Die Datei ist die Eingangsgroesse von Abbildung A16; aendert sie sich,
+     aendert sich die Abbildung stillschweigend mit.
 """
 from __future__ import annotations
 
@@ -269,6 +283,43 @@ def aufloesung(d: pd.DataFrame, spalten: list[str]) -> pd.DataFrame:
         })
     return (pd.DataFrame(zeilen)
             .sort_values("eindeutig_je_stadtteil_mittel", ascending=False))
+
+
+# ==========================================================================
+# 3b  STADTTEILPROFIL - die Eingangsgroesse von Abbildung A16
+# ==========================================================================
+def stadtteilprofil(d: pd.DataFrame) -> pd.DataFrame:
+    """Lage und Streuung der Einsatzlast je Stadtteil ueber alle Monate.
+
+    Ein:  Regressionsdatensatz
+    Aus:  eine Zeile je Stadtteil mit Median, Quartilen, Mittel, Maximum,
+          Rate, Bevoelkerung und Hold-out-Kennzeichen
+
+    Warum als eigene Datei und nicht nur als Zahl in befunde.md:
+    `modelle/m05_abbildungen.py` rechnet nichts, es liest ausschliesslich
+    CSV-Dateien aus results/. Abbildung A16 braucht die Verteilung je
+    Stadtteil, also muss sie hier entstehen und nicht dort. Dieselbe
+    Arbeitsteilung wie bei allen uebrigen Abbildungen.
+
+    Abgegrenzt von `je_stadtteil.csv` (Schalter -v): Das ist eine
+    Diagnoseausgabe zum Nachschauen, diese Datei ist ein Artefakt der Arbeit
+    und wird immer geschrieben.
+    """
+    g = d.groupby("stadtteil")
+    profil = pd.DataFrame({
+        "monate":        g["jahr_monat"].count(),
+        "mittel":        g["anzahl_einsaetze"].mean(),
+        "median":        g["anzahl_einsaetze"].median(),
+        "q25":           g["anzahl_einsaetze"].quantile(0.25),
+        "q75":           g["anzahl_einsaetze"].quantile(0.75),
+        "min":           g["anzahl_einsaetze"].min(),
+        "max":           g["anzahl_einsaetze"].max(),
+        "rate_mittel":   g["einsaetze_je_1000_ew"].mean(),
+        "bevoelkerung":  g[EXPOSURE_ROH].mean(),
+        "fold":          g["fold"].first(),
+        "ist_holdout":   g["ist_holdout"].first(),
+    })
+    return profil.sort_values("mittel", ascending=False).reset_index()
 
 
 # ==========================================================================
@@ -446,11 +497,13 @@ def main(argv: list[str]) -> int:
                                               "einsaetze_je_1000_ew"])
     aufl = aufloesung(reg, vorhanden)
     korr = zusammenhaenge(reg, merkmale, "anzahl_einsaetze")
+    prof = stadtteilprofil(reg)
 
     vert.to_csv(ZIEL / "verteilung.csv", index=False)
     varz.to_csv(ZIEL / "varianzzerlegung.csv", index=False)
     aufl.to_csv(ZIEL / "aufloesung.csv", index=False)
     korr.to_csv(ZIEL / "korrelation_zielgroesse.csv", index=False)
+    prof.to_csv(ZIEL / "stadtteilprofil.csv", index=False)
     reg[merkmale].corr(method="pearson").to_csv(ZIEL / "korrelation_pearson.csv")
     reg[merkmale].corr(method="spearman").to_csv(ZIEL / "korrelation_spearman.csv")
 

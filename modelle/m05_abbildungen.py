@@ -1,16 +1,23 @@
 """
-Alle Abbildungen fuer Kapitel 7 - aus den CSV-Dateien, nicht von Hand.
+Alle Abbildungen der Kapitel 4 und 7 - aus den CSV-Dateien, nicht von Hand.
 
     python modelle/m05_abbildungen.py
 
 Eingang: results/regression/*.csv, results/klassifikation/*.csv,
          results/spezifikation/*.csv, results/eignungspruefung/qq_residuen.csv,
          results/shap/{ablation_exposition,gruppen,faktorgruppen_menge,
-         extrapolation_zusammenhang}.csv
-Ausgang: results/abbildungen/a1..a15.pdf
+         extrapolation_zusammenhang}.csv,
+         results/deskriptiv/{stadtteilprofil,varianzzerlegung,aufloesung}.csv
+Ausgang: results/abbildungen/a1..a17.pdf
 
   - Dieses Skript RECHNET NICHTS, es liest nur. Dadurch laesst sich eine
     Darstellung aendern, ohne die Modelle neu zu rechnen
+  - A16 und A17 sind am 22.08.2026 fuer KAPITEL 4 ergaenzt worden - die
+    einzigen beiden Abbildungen, die nicht zu Kapitel 7 gehoeren. Sie lesen
+    aus results/deskriptiv/, erzeugt von tools/deskriptiv.py, und zeigen
+    ausschliesslich BEFUNDE ueber die Daten. Keine Verfahrensaussage, keine
+    Fold-Zuordnung, kein Hold-out: beides waere ein Vorgriff auf Kapitel 5
+    und verstiesse gegen den Abgrenzungsblock in main.tex
   - A11 bis A15 sind am 19.08.2026 fuer Kapitel 7 ergaenzt worden: A11
     Forest-Plot der gepaarten Differenzen (ersetzt A1), A12 Deckenleiter
     des Strukturstrangs, A13 Kreuzvalidierung gegen Hold-out (ersetzt A5),
@@ -62,6 +69,12 @@ PRUEFAUFTRAEGE
     eng, und das gehoert in die Limitationen
   - A9: Steht die Linie bei 1,0 und ist sie beschriftet? Werte darunter
     heissen "parallel langsamer"
+  - A16: Sind es 35 Stadtteile, und stehen Tenderloin (279,7) oben und
+    Seacliff (6,4) unten? Taucht irgendwo "Fold" oder "Hold-out" auf? Dann
+    raus damit - Kapitel 4 kennt die Aufteilung noch nicht
+  - A17: Stehen die drei baulichen Merkmale links bei 100 % und rechts bei 1,
+    und die beiden Saisonterme links bei 0 %? Diese vier Punkte sind die
+    Aussage der Abbildung. Liegt die gestrichelte Linie bei 92,5 %?
 
 Setzt m02, m03, m04, v1 und v3 voraus. Ausfuehrliche Fassung:
 docs/08_FUNKTIONSDOKUMENTATION.md
@@ -85,6 +98,7 @@ REG = RESULTS_DIR / "regression"
 KLA = RESULTS_DIR / "klassifikation"
 SPEZ = RESULTS_DIR / "spezifikation"
 SHAP = RESULTS_DIR / "shap"
+DESK = RESULTS_DIR / "deskriptiv"
 
 # Textbreite einer FOM-Arbeit bei A4 und 2,5 cm Raendern: rund 16 cm = 6,3 Zoll.
 BREITE = 6.3
@@ -383,13 +397,10 @@ def _spezifikationszeilen() -> list[tuple[str, float, str]]:
             zeilen.append((LABEL[z["verfahren"]], float(z["RMSE_mean"]),
                            "verfahren"))
 
-    a = _text(SHAP / "ablation_exposition.csv")
-    if a is not None:
-        ohne = (a[a["spezifikation"] == "ohne_exposition"]
-                .groupby("verfahren")["RMSE"].mean())
-        for v, wert in ohne.items():
-            zeilen.append((f"{LABEL.get(v, v)} ohne Exposition", float(wert),
-                           "spezifikation"))
+    # Die Expositions-Ablation stand hier frueher als zwei weitere Balken.
+    # Sie beantwortet aber eine andere Frage als die Spezifikationsgegenprobe
+    # und gehoert deshalb nach 8.1; die Werte liegen in
+    # results/shap/ablation_exposition.csv bereit.
 
     s = _text(SPEZ / "spezifikation_mittel.csv")
     if s is not None:
@@ -1083,11 +1094,15 @@ def _dez(wert: float, stellen: int = 3) -> str:
 
 
 def a11_differenzen(plt, FuncFormatter) -> list:
-    """Gepaarte Differenzen mit Konfidenzintervall, beide Straenge.
+    """Gepaarte Differenzen mit Konfidenzintervall, je Strang eine Abbildung.
 
     Ein:  results/regression/vergleich.csv, results/klassifikation/vergleich.csv
-    Aus:  results/abbildungen/a11_differenzen.pdf
+    Aus:  results/abbildungen/a11_differenzen.pdf          (Menge,    7.1)
+          results/abbildungen/a11b_differenzen_struktur.pdf (Struktur, 7.2)
 
+    - beide Straenge standen frueher untereinander in EINER Abbildung. In 7.1
+      erschien dadurch ein Block mit Klassifikationsergebnissen, der dort
+      inhaltlich nichts zu suchen hat. Jetzt je Strang eine eigene Datei
     - A1 zeigt dieselbe Groesse als Boxplot ueber die zehn Wiederholungsmittel.
       Der Boxplot traegt aber weder das Intervall noch die Testentscheidung -
       der Leser sieht nicht, welche Differenz gedeckt ist. Hier steht beides
@@ -1122,14 +1137,26 @@ def a11_differenzen(plt, FuncFormatter) -> list:
                     sig=bool(r.signifikant), verf=a))
         return out
 
-    fig, axes = plt.subplots(2, 1, figsize=(BREITE, 4.6),
-                             gridspec_kw={"height_ratios": [6, 3]})
-    for ax, daten, titel, stellen in (
-            (axes[0], _zeilen(vr, POISSON),
-             "Menge: Anzahl Einsätze — Δ RMSE", 2),
-            (axes[1], _zeilen(vk, "Logit"),
-             "Struktur: dominante Einsatzart — Δ Macro-F1", 3)):
+    fussnote = ("Gepaarter Wilcoxon-Test auf den zehn Wiederholungsmitteln, "
+                "95-%-Intervall. Oberer Block: gegen die Stufe-2-Baseline, "
+                "unkorrigiert.\nUnterer Block: paarweise Verfahrensvergleiche, "
+                "p nach Holm über die Familie. Gefüllter Marker bedeutet "
+                "signifikant, x/10 die Zahl der gewonnenen Wiederholungen.")
+
+    pfade = []
+    for daten, titel, stellen, datei in (
+            (_zeilen(vr, POISSON), "Menge: Anzahl Einsätze — Δ RMSE", 2,
+             "a11_differenzen.pdf"),
+            (_zeilen(vk, "Logit"),
+             "Struktur: dominante Einsatzart — Δ Macro-F1", 3,
+             "a11b_differenzen_struktur.pdf")):
+        if not daten:
+            continue
         n = len(daten)
+        # Zeilenhoehe konstant halten, damit beide Abbildungen im Druck
+        # gleich dicht wirken - der Mengenstrang hat sechs Zeilen, der
+        # Strukturstrang drei.
+        fig, ax = plt.subplots(figsize=(BREITE, 1.35 + 0.40 * n))
         ypos = list(range(n))[::-1]
         for y, d in zip(ypos, daten):
             marker = STIL.get(d["verf"], {}).get("marker", "D")
@@ -1160,16 +1187,11 @@ def a11_differenzen(plt, FuncFormatter) -> list:
         rechts.tick_params(axis="y", length=0, pad=3)
         for rand in ("top", "right", "left", "bottom"):
             rechts.spines[rand].set_visible(False)
-
-    fig.supxlabel("Gepaarter Wilcoxon-Test auf den zehn Wiederholungsmitteln, "
-                  "95-%-Intervall. Oberer Block: gegen die Stufe-2-Baseline, "
-                  "unkorrigiert (Decision Log #37).\nUnterer Block: paarweise "
-                  "Verfahrensvergleiche, p nach Holm über die Familie. "
-                  "Gefüllter Marker bedeutet signifikant, x/10 die Zahl der "
-                  "gewonnenen Wiederholungen.", fontsize=SCHRIFT - 2)
-    pfad = OUT / "a11_differenzen.pdf"
-    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-    return [pfad]
+        fig.supxlabel(fussnote, fontsize=SCHRIFT - 2)
+        pfad = OUT / datei
+        fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
+        pfade.append(pfad)
+    return pfade
 
 
 def a12_decken(plt, FuncFormatter) -> list:
@@ -1526,11 +1548,185 @@ def a15_attribution_ablation(plt, FuncFormatter) -> list:
 
 
 # ===========================================================================
-def main() -> int:
-    """Erzeugt alle fuenfzehn Abbildungen nacheinander.
+# KAPITEL 4 - Data Understanding. Nur Befunde ueber die Daten.
+# ===========================================================================
+# Kurzformen fuer A17. Die Rohnamen sind Spaltenbezeichner und als
+# Achsenbeschriftung zu lang; das Codebook nennt sie einmal vollstaendig.
+LABEL_MERKMAL = {
+    "median_haushaltseinkommen":  "Medianeinkommen",
+    "armutsquote_pct":            "Armutsquote",
+    "akademikerquote_pct":        "Akademikerquote",
+    "median_miete":               "Medianmiete",
+    "leerstandsquote_pct":        "Leerstandsquote",
+    "log_bevoelkerung":           "log(Bevölkerung)",
+    "log_kriminalitaetsindex":    "log(Kriminalitätsindex)",
+    "anteil_altbau_vor_1940_pct": "Altbau vor 1940",
+    "anteil_wohngebaeude_pct":    "Wohngebäudeanteil",
+    "anteil_risikogewerbe_pct":   "Risikogewerbeanteil",
+    "monat_sin":                  "Saison (Sinus)",
+    "monat_cos":                  "Saison (Kosinus)",
+}
 
-    Ein:  die CSV-Dateien aus m02, m03, m04, v1, v2 und v3
-    Aus:  results/abbildungen/a1..a15.pdf; Exitcode
+
+def a16_einsatzlast(plt, FuncFormatter) -> list:
+    """A16: Einsatzlast je Stadtteil - Lage und Streuung ueber 132 Monate.
+
+    Ein:  results/deskriptiv/stadtteilprofil.csv
+    Aus:  a16_einsatzlast.pdf
+
+    - Punkt ist der Median des Stadtteils, der Balken der Interquartilsabstand,
+      die Antenne die Spannweite ueber alle Monate
+    - ein Histogramm ueber alle 4.620 Zeilen waere die naheliegende, aber
+      schwaechere Wahl: Es zeigt die Rechtsschiefe und verschweigt, woher sie
+      kommt. Hier ist beides in einem Bild - das Niveaugefaelle ZWISCHEN den
+      Stadtteilen (Faktor 44) und die vergleichsweise enge Streuung INNERHALB
+      eines Stadtteils. Genau diese Zerlegung traegt spaeter 5.4 und 8.3
+    - bewusst OHNE Fold- oder Hold-out-Kennzeichnung: die Aufteilung entsteht
+      erst in Kapitel 5, eine Einfaerbung hier waere ein Vorgriff
+    """
+    p = _text(DESK / "stadtteilprofil.csv")
+    if p is None:
+        return []
+    p = p.sort_values("mittel")           # unten der kleinste, oben der groesste
+    y = np.arange(len(p))
+
+    fig, ax = plt.subplots(figsize=(BREITE, 0.155 * len(p) + 1.15))
+    ax.hlines(y, p["min"], p["max"], color="0.80", lw=0.8, zorder=1)
+    ax.hlines(y, p["q25"], p["q75"], color="0.45", lw=3.4, zorder=2)
+    ax.plot(p["median"], y, "o", markersize=4.2, color="white",
+            markeredgecolor="black", markeredgewidth=0.9, zorder=3)
+
+    ax.set_yticks(y)
+    ax.set_yticklabels(p["stadtteil"], fontsize=SCHRIFT - 2)
+    ax.set_ylim(-0.8, len(p) - 0.2)
+    ax.set_xlim(left=0)
+    ax.set_xlabel("Einsätze je Monat")
+    ax.xaxis.set_major_formatter(_komma(FuncFormatter, 0))
+    ax.spines["left"].set_visible(False)
+    ax.tick_params(axis="y", length=0)
+    ax.grid(axis="x", color="0.90", lw=0.6, zorder=0)
+    ax.set_axisbelow(True)
+
+    klein, gross = p["mittel"].min(), p["mittel"].max()
+    monate = int(p["monate"].max())
+    # Dezimalkomma je Zahl setzen, nicht ueber den ganzen Satz: ein
+    # str.replace(".", ",") trifft sonst die Satzzeichen mit.
+    fig.supxlabel(
+        f"Punkt: Median über {monate} Monate. Balken: Interquartilsabstand. "
+        f"Feine Linie: Spannweite.\n"
+        f"Stadtteilmittel von {_dez(klein, 1)} bis {_dez(gross, 1)} Einsätzen "
+        f"je Monat — Faktor {gross / klein:.0f}. "
+        f"Bezugsmenge: alle {len(p)} Stadtteile, 2015-01 bis 2025-12.",
+        fontsize=SCHRIFT - 2)
+    pfad = OUT / "a16_einsatzlast.pdf"
+    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
+    return [pfad]
+
+
+def a17_panelstruktur(plt, FuncFormatter) -> list:
+    """A17: Varianzanteile und zeitliche Aufloesung der zwoelf Modellmerkmale.
+
+    Ein:  results/deskriptiv/varianzzerlegung.csv, aufloesung.csv
+    Aus:  a17_panelstruktur.pdf
+
+    - links: wieviel Varianz eines Merkmals ZWISCHEN den Stadtteilen liegt und
+      wieviel INNERHALB. Die gestrichelte Linie ist der Wert der Zielgroesse
+      selbst (92,5 %) - sie macht sichtbar, dass Zielgroesse und Praediktoren
+      dieselbe Struktur haben
+    - rechts: wieviele verschiedene Werte ein Merkmal je Stadtteil ueber 132
+      Monate annimmt, logarithmisch, weil zwischen 1 und 128 sonst nichts zu
+      sehen waere
+    - die beiden Panels sind zwei Blicke auf denselben Befund: Die Merkmale
+      sind fast durchweg Stadtteilmerkmale, nicht Stadtteil-Monats-Merkmale.
+      Zusammen sind sie die quantifizierte Antwort auf die Gutachten-Regeln
+      R2 (Panelabhaengigkeit) und R3 (jaehrlich wiederholte ACS-Werte)
+    - was daraus folgt, steht in 5.4, 7.4 und 8.3 - hier steht nur der Befund
+    """
+    v, a = _text(DESK / "varianzzerlegung.csv"), _text(DESK / "aufloesung.csv")
+    if v is None or a is None:
+        return []
+    merkmale = [m for m in LABEL_MERKMAL if m in set(v["merkmal"])]
+    if not merkmale:
+        return []
+
+    v = v.set_index("merkmal").loc[merkmale]
+    a = a.set_index("merkmal").loc[merkmale]
+    reihen = v.sort_values("anteil_zwischen").index.tolist()
+    y = np.arange(len(reihen))
+
+    fig, axes = plt.subplots(1, 2, figsize=(BREITE, 0.30 * len(reihen) + 1.9),
+                             gridspec_kw={"width_ratios": [2.05, 1]})
+
+    # ---- links: Varianzzerlegung -----------------------------------------
+    ax = axes[0]
+    zwischen = v.loc[reihen, "anteil_zwischen"].to_numpy()
+    ax.barh(y, zwischen, color="0.45", edgecolor="black", lw=0.5,
+            label="zwischen den Stadtteilen")
+    ax.barh(y, 1 - zwischen, left=zwischen, color="0.90", edgecolor="black",
+            lw=0.5, hatch="//", label="innerhalb eines Stadtteils")
+
+    # Der Referenzwert der Zielgroesse steht in derselben Datei, wurde oben
+    # aber durch die Beschraenkung auf die Modellmerkmale herausgefiltert.
+    alle = _text(DESK / "varianzzerlegung.csv")
+    zielwert = alle.loc[alle["merkmal"] == "anzahl_einsaetze", "anteil_zwischen"]
+    if len(zielwert):
+        w = float(zielwert.iloc[0])
+        ax.axvline(w, color="black", ls="--", lw=1.0, zorder=5)
+        # Unten links von der Linie: dort liegt der helle Saison-Balken, der
+        # Text bleibt lesbar. Oben stuende er auf einem 100-%-Balken.
+        ax.annotate(f"Zielgröße {_dez(w * 100, 1)} %",
+                    xy=(w, 0.55), xytext=(-5, 0), textcoords="offset points",
+                    ha="right", va="center", fontsize=SCHRIFT - 2.5,
+                    bbox={"facecolor": "white", "edgecolor": "none",
+                          "pad": 1.4, "alpha": 0.85})
+    ax.set_xlim(0, 1)
+    ax.set_xlabel("Anteil an der Gesamtvarianz")
+    ax.xaxis.set_major_formatter(_prozent(FuncFormatter))
+    ax.legend(loc="lower left", bbox_to_anchor=(0.0, 1.01), frameon=False,
+              ncol=2, fontsize=SCHRIFT - 2.5, handletextpad=0.4)
+
+    # ---- rechts: zeitliche Aufloesung ------------------------------------
+    ax = axes[1]
+    werte = a.loc[reihen, "eindeutig_je_stadtteil_mittel"].to_numpy()
+    ax.barh(y, werte, color="0.72", edgecolor="black", lw=0.5, zorder=3)
+    ax.set_xscale("log")
+    ax.set_xlim(0.85, 420)
+    ax.set_xticks([1, 4, 12, 132])
+    ax.set_xticklabels(["1", "4", "12", "132"], fontsize=SCHRIFT - 2)
+    ax.set_xlabel("Werte je Stadtteil (log.)")
+    for yi, wert in zip(y, werte):
+        ax.annotate(_dez(wert, 1), xy=(wert, yi), xytext=(3, 0),
+                    textcoords="offset points", va="center",
+                    fontsize=SCHRIFT - 2.5)
+    ax.grid(axis="x", color="0.90", lw=0.6, zorder=0)
+    ax.set_axisbelow(True)
+
+    for feld in axes:
+        feld.set_yticks(y)
+        feld.set_ylim(-0.7, len(reihen) - 0.3)
+        feld.spines["left"].set_visible(False)
+        feld.tick_params(axis="y", length=0)
+    axes[0].set_yticklabels([LABEL_MERKMAL[m] for m in reihen],
+                            fontsize=SCHRIFT - 2)
+    axes[1].set_yticklabels([])
+
+    fig.supxlabel(
+        "Links: Zerlegung der Varianz jedes Merkmals. Die gestrichelte Linie "
+        "ist der entsprechende Anteil der Zielgröße `anzahl_einsaetze`.\n"
+        "Rechts: mittlere Zahl verschiedener Werte je Stadtteil über die 132 "
+        "Monate. 132 hieße monatlich neu, 1 heißt zeitkonstant.\n"
+        "Bezugsmenge: alle 35 Stadtteile.", fontsize=SCHRIFT - 2)
+    pfad = OUT / "a17_panelstruktur.pdf"
+    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
+    return [pfad]
+
+
+# ===========================================================================
+def main() -> int:
+    """Erzeugt alle siebzehn Abbildungen nacheinander.
+
+    Ein:  die CSV-Dateien aus m02, m03, m04, v1, v2, v3 und tools/deskriptiv.py
+    Aus:  results/abbildungen/a1..a17.pdf; Exitcode
 
     - fehlt eine Eingangsdatei, wird die betroffene Abbildung uebersprungen und
       gemeldet; ein fehlender Lauf soll die uebrigen nicht verhindern
@@ -1545,6 +1741,9 @@ def main() -> int:
     if not (SHAP / "gruppen.csv").exists():
         print("  Hinweis: results/shap/ fehlt - A6 und A7 entfallen. "
               "Erst m04_shap.py laufen lassen.")
+    if not (DESK / "stadtteilprofil.csv").exists():
+        print("  Hinweis: results/deskriptiv/ fehlt - A16 und A17 entfallen. "
+              "Erst tools/deskriptiv.py laufen lassen.")
     OUT.mkdir(parents=True, exist_ok=True)
     plt, FuncFormatter = _matplotlib()
 
@@ -1562,7 +1761,9 @@ def main() -> int:
                + a12_decken(plt, FuncFormatter)
                + a13_umschlag(plt, FuncFormatter)
                + a14_ueberanpassung(plt, FuncFormatter)
-               + a15_attribution_ablation(plt, FuncFormatter))
+               + a15_attribution_ablation(plt, FuncFormatter)
+               + a16_einsatzlast(plt, FuncFormatter)
+               + a17_panelstruktur(plt, FuncFormatter))
     for pfad in erzeugt:
         try:
             zeigen = pfad.relative_to(ROOT)

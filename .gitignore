@@ -3,6 +3,7 @@ data/raw/
 data/processed/
 results/
 results_test_sample/
+Quellen/
 
 # Gesicherte Ergebnisstände (tools/sichere_ergebnisse.py).
 # Kopien von results/, also aus demselben Grund ausgeschlossen.
@@ -30,3 +31,4 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+Quellen/Aas20221.pdf

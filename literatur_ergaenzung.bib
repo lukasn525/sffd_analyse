@@ -1,0 +1,290 @@
+% =========================================================================
+% ERGAENZUNG ZU literatur.bib  --  Stand 22.08.2026
+%
+% Zehn Eintraege fuer Kapitel 4 (Data Understanding) und fuer den bereits
+% bestehenden CRISP-DM-Bezug. Registerformat wie am 20.08.2026 festgelegt:
+%
+%   %% verwendet = Abschnitt in main.tex, in dem zitiert wird
+%   %% link      = direkter Zugang
+%   %% seiten    = zitierte (= freigegebene) Seiten + Volltext frei | ungeprueft
+%
+% ACHTUNG, EINMAL LESEN BEVOR DU EINFUEGST:
+%
+% 1  Im Repo gibt es KEINE literatur.bib. Sie liegt ausschliesslich im
+%    Overleaf-Projekt. Diese Datei ist deshalb ein Einfuegeblock, kein
+%    Ersatz - Inhalt in Overleaf an das Ende von literatur.bib haengen.
+%
+% 2  Die drei Literaturquellen (Chapman2000, USFA2015, CensusBureau2020)
+%    liegen als PDF in Quellen/ und sind am Volltext geprueft. Die
+%    Seitenangaben stimmen mit der Druckseitenzaehlung des PDF ueberein.
+%
+% 3  Die sieben Datensatzeintraege sind fluechtige Quellen. Nach Schroeters
+%    Auflage gehoert je ein PDF-Ausdruck der Landing Page mit sichtbarem
+%    Abrufdatum in die Abgabe. Das Abrufdatum steht als urldate im Eintrag
+%    und muss mit dem Ausdruck uebereinstimmen.
+%
+% 4  urldate ist ueberall auf 2026-08-22 gesetzt - das Datum, an dem die
+%    Seiten fuer diese Liste aufgerufen wurden. Wenn du spaeter neu
+%    ausdruckst, beide Stellen gemeinsam nachziehen.
+% =========================================================================
+
+
+% -------------------------------------------------------------------------
+% 1  CRISP-DM - das Referenzhandbuch
+% -------------------------------------------------------------------------
+% Loest die Paginierungsfalle von Wirth2000 (Tagungsband 29-39, SCIRP 29-40,
+% freie Kopie ab 1) fuer alle Stellen, an denen auf Phasen, Aufgaben oder
+% Outputs des Prozessmodells verwiesen wird. Die Data-Understanding-Phase
+% mit ihren vier Aufgaben steht auf S. 20-22: 2.1 Collect initial data,
+% 2.2 Describe data, 2.3 Explore data, 2.4 Verify data quality.
+%% verwendet = 2.8; 3.1; 4.1; 4.2
+%% link      = https://public.dhe.ibm.com/software/analytics/spss/documentation/modeler/14.2/es/CRISP-DM.pdf
+%% seiten    = 20-22 (Data Understanding), 16-19 (Business Understanding) - Volltext frei, liegt in Quellen/Chapman2000.pdf
+@report{Chapman2000,
+  author      = {Chapman, Pete and Clinton, Julian and Kerber, Randy and
+                 Khabaza, Thomas and Reinartz, Thomas and Shearer, Colin and
+                 Wirth, R{\"u}diger},
+  title       = {{CRISP-DM} 1.0: Step-by-step Data Mining Guide},
+  type        = {Referenzhandbuch},
+  institution = {The {CRISP-DM} Consortium},
+  year        = {2000},
+  pagetotal   = {78},
+  url         = {https://public.dhe.ibm.com/software/analytics/spss/documentation/modeler/14.2/es/CRISP-DM.pdf},
+  urldate     = {2026-08-22},
+  note        = {Herausgegeben von SPSS Inc. Spiegelung ebenfalls unter
+                 \url{https://www.kde.cs.uni-kassel.de/wp-content/uploads/lehre/ws2012-13/kdd/files/CRISPWP-0800.pdf}},
+}
+
+
+% -------------------------------------------------------------------------
+% 2  NFIRS - die Kodierung der Einsatzart
+% -------------------------------------------------------------------------
+% Traegt die Zielgroesse des Strukturstrangs. Die Uebersicht der neun
+% Codeserien steht auf S. 3-21, die vollstaendige Codeliste ab S. 3-22:
+%   100 Fire | 200 Overpressure Rupture, Explosion, Overheat (No Fire)
+%   300 Rescue and Emergency Medical Service (EMS) Incidents
+%   400 Hazardous Condition (No Fire) | 500 Service Call
+%   600 Good Intent Call | 700 False Alarm and False Call
+%   800 Severe Weather and Natural Disaster | 900 Special Incident Type
+% Die Zusammenfassung dieser Serien zu vier Klassen ist eine Entscheidung
+% der Arbeit und gehoert nach 5.3 - hier steht nur die Quelle der Kodierung.
+%% verwendet = 4.1; 5.3
+%% link      = https://www.usfa.fema.gov/downloads/pdf/nfirs/nfirs_complete_reference_guide_2015.pdf
+%% seiten    = 3-21 (Serienuebersicht), 3-22 ff. (Codeliste) - Volltext frei, liegt in Quellen/nfirs_complete_reference_guide_2015.pdf
+@report{USFA2015,
+  author      = {{U.S. Fire Administration}},
+  title       = {National Fire Incident Reporting System 5.0 Complete
+                 Reference Guide},
+  type        = {Referenzhandbuch},
+  institution = {National Fire Data Center, U.S. Fire Administration},
+  location    = {Emmitsburg, MD},
+  date        = {2015-01},
+  pagetotal   = {512},
+  url         = {https://www.usfa.fema.gov/downloads/pdf/nfirs/nfirs_complete_reference_guide_2015.pdf},
+  urldate     = {2026-08-22},
+}
+
+
+% -------------------------------------------------------------------------
+% 3  ACS - Periodenschaetzung und Publikationsversatz
+% -------------------------------------------------------------------------
+% Belegt zwei Befunde in 4.2 und die Regel acs_jahr <= Einsatzjahr - 1 in 5.2:
+%   S. 13  eine 5-Jahres-Schaetzung ist eine PERIODENschaetzung: "In the case
+%          of ACS multiyear estimates, the period is 5 calendar years (e.g.,
+%          the 2014-2018 ACS estimates cover the period from January 2014
+%          through December 2018)."
+%   S. 14  Abbildung 3.1 stellt Erhebungszeitraum gegen Veroeffentlichungs-
+%          jahr - das ist der Publikationsversatz in einem Bild
+%   S. 16  Tabelle 3.1 fuehrt die 5-Jahres-Schaetzung ausdruecklich als
+%          "Least current"
+%% verwendet = 4.2; 5.2
+%% link      = https://www.census.gov/content/dam/Census/library/publications/2020/acs/acs_general_handbook_2020_ch03.pdf
+%% seiten    = 13 (Periodenschaetzung), 14 (Abb. 3.1), 16 (Tab. 3.1) - Volltext frei, liegt in Quellen/us_cencus_bureau.pdf
+@inbook{CensusBureau2020,
+  author      = {{U.S. Census Bureau}},
+  title       = {Understanding and Using {ACS} Single-Year and Multiyear
+                 Estimates},
+  booktitle   = {Understanding and Using American Community Survey Data:
+                 What All Data Users Need to Know},
+  chapter     = {3},
+  pages       = {13--16},
+  publisher   = {U.S. Government Publishing Office},
+  location    = {Washington, DC},
+  date        = {2020-10},
+  url         = {https://www.census.gov/content/dam/Census/library/publications/2020/acs/acs_general_handbook_2020_ch03.pdf},
+  urldate     = {2026-08-22},
+}
+
+
+% =========================================================================
+% DIE SIEBEN DATENQUELLEN
+%
+% Alle unter Open Data Commons Public Domain Dedication and License (PDDL)
+% bzw. gemeinfrei. Keine Freigabe noetig, aber Abrufdatum ist Pflicht -
+% bei ygi5-84iq sogar inhaltlich, weil der Datensatz archiviert ist.
+%
+% Die Ressourcen-IDs stehen bewusst NUR im note-Feld und nicht in der
+% Quellentabelle in 4.1: Sie identifizieren den Datensatz eindeutig, sind im
+% Fliesstext aber nicht lesbar.
+% =========================================================================
+
+
+% -------------------------------------------------------------------------
+% 4  SFFD - die Einsatzdaten (Zielgroessen beider Straenge)
+% -------------------------------------------------------------------------
+%% verwendet = 4.1; 4.2; 5.1
+%% link      = https://data.sfgov.org/d/wr8u-xric
+%% seiten    = entfaellt (Datensatz) - Data Dictionary liegt in docs/FIR-0001_DataDictionary_fire-incidents.xlsx
+@online{SFFD2026,
+  author       = {{San Francisco Fire Department}},
+  title        = {Fire Incidents},
+  organization = {DataSF -- San Francisco Open Data},
+  year         = {2026},
+  url          = {https://data.sfgov.org/d/wr8u-xric},
+  urldate      = {2026-08-22},
+  note         = {Ressource \texttt{wr8u-xric}. Lizenz: Open Data Commons
+                  Public Domain Dedication and License. Genutzter Ausschnitt:
+                  Januar 2014 bis Dezember 2025},
+}
+
+
+% -------------------------------------------------------------------------
+% 5  SFPD ab 2018 - die aktuelle Kriminalitaetsquelle
+% -------------------------------------------------------------------------
+% WICHTIG: Genutzt wird die abgeleitete Sicht e3si-785i, nicht der
+% Basisdatensatz. Beide werden genannt - wer nur die Sicht zitiert, gibt eine
+% Quelle an, die umbenannt werden kann, ohne dass es auffaellt.
+%% verwendet = 4.1; 5.2
+%% link      = https://data.sfgov.org/d/e3si-785i
+%% seiten    = entfaellt (Datensatz)
+@online{SFPD2026,
+  author       = {{San Francisco Police Department}},
+  title        = {Summary of Incident Reports},
+  organization = {DataSF -- San Francisco Open Data},
+  year         = {2026},
+  url          = {https://data.sfgov.org/d/e3si-785i},
+  urldate      = {2026-08-22},
+  note         = {Ressource \texttt{e3si-785i}, abgeleitete Sicht auf
+                  Police Department Incident Reports: 2018 to Present
+                  (\texttt{wg3w-h783},
+                  \url{https://data.sfgov.org/d/wg3w-h783}). Lizenz: Open Data
+                  Commons Public Domain Dedication and License. Genutzter
+                  Ausschnitt: Januar 2018 bis Dezember 2025},
+}
+
+
+% -------------------------------------------------------------------------
+% 6  SFPD bis Mai 2018 - die Altquelle aus dem CABLE-Mainframe
+% -------------------------------------------------------------------------
+% Sie traegt keine Stadtteilspalte, nur Koordinaten - deshalb der Spatial
+% Join in 5.2. Der Systembruch faellt auf Mai 2018 (Ablaesung durch das
+% Crime Data Warehouse); die Aufbereitung schneidet zum 1. Januar 2018,
+% weil dort die Nachfolgequelle beginnt.
+%% verwendet = 4.1; 5.2
+%% link      = https://data.sfgov.org/d/tmnf-yvry
+%% seiten    = entfaellt (Datensatz)
+@online{SFPD2018,
+  author       = {{San Francisco Police Department}},
+  title        = {Police Department Incident Reports: Historical 2003 to
+                  May 2018},
+  organization = {DataSF -- San Francisco Open Data},
+  year         = {2018},
+  url          = {https://data.sfgov.org/d/tmnf-yvry},
+  urldate      = {2026-08-22},
+  note         = {Ressource \texttt{tmnf-yvry}. Lizenz: Open Data Commons
+                  Public Domain Dedication and License. Erhebung im
+                  CABLE-Altsystem, eingestellt im Mai 2018. Genutzter
+                  Ausschnitt: Januar 2014 bis Dezember 2017},
+}
+
+
+% -------------------------------------------------------------------------
+% 7  Land Use 2020 - die baulichen Merkmale
+% -------------------------------------------------------------------------
+% ARCHIVIERT und nicht fortgeschrieben. Das ist kein Formaldetail, sondern
+% der Grund, warum die drei baulichen Merkmale je Stadtteil zeitkonstant
+% sind (Befund in 4.2, Limitation in 8.3).
+%% verwendet = 4.1; 4.2; 5.2; 8.3
+%% link      = https://data.sfgov.org/d/ygi5-84iq
+%% seiten    = entfaellt (Datensatz)
+@online{SFPlanning2020,
+  author       = {{San Francisco Planning Department}},
+  title        = {San Francisco Land Use -- 2020},
+  organization = {DataSF -- San Francisco Open Data},
+  year         = {2020},
+  url          = {https://data.sfgov.org/d/ygi5-84iq},
+  urldate      = {2026-08-22},
+  note         = {Ressource \texttt{ygi5-84iq}, auf dem Portal gefuehrt mit
+                  dem Zusatz [ARCHIVED]; letzte Aktualisierung Oktober 2023,
+                  keine Fortschreibung. Lizenz: Open Data Commons Public
+                  Domain Dedication and License. 154.544 Parzellen, einziger
+                  Jahrgang},
+}
+
+
+% -------------------------------------------------------------------------
+% 8  Crosswalk Census Tract -> Stadtteil
+% -------------------------------------------------------------------------
+% Bezieht sich auf die Tract-Grenzen des Zensus 2020. Weil sich diese Grenzen
+% ueber die Jahrgaenge veraendern, fallen die Trefferquoten der aelteren
+% ACS-Jahrgaenge ab - Ursache gehoert nach 4.2, die Quoten nach 5.2.
+%% verwendet = 4.1; 5.2
+%% link      = https://data.sfgov.org/d/sevw-6tgi
+%% seiten    = entfaellt (Datensatz)
+@online{SFPlanning2022,
+  author       = {{San Francisco Planning Department}},
+  title        = {Analysis Neighborhoods -- 2020 Census Tracts Assigned to
+                  Neighborhoods},
+  organization = {DataSF -- San Francisco Open Data},
+  year         = {2022},
+  url          = {https://data.sfgov.org/d/sevw-6tgi},
+  urldate      = {2026-08-22},
+  note         = {Ressource \texttt{sevw-6tgi}. Lizenz: Open Data Commons
+                  Public Domain Dedication and License},
+}
+
+
+% -------------------------------------------------------------------------
+% 9  Analysis Neighborhoods - die Analyseeinheit
+% -------------------------------------------------------------------------
+% Die offizielle Abgrenzung kennt 41 Stadtteile. Die Reduktion auf 35 ist
+% eine Entscheidung der Arbeit und gehoert nach 5.1, nicht in diese Angabe.
+% Dieselbe Geometrie traegt den Spatial Join der Kriminalitaets- UND der
+% Parzellendaten - sonst bezoegen sich beide Merkmalsgruppen desselben
+% Stadtteils auf unterschiedliche Flaechen.
+%% verwendet = 4.1; 5.2
+%% link      = https://data.sfgov.org/d/j2bu-swwd
+%% seiten    = entfaellt (Datensatz)
+@online{SFPlanning2023,
+  author       = {{San Francisco Planning Department}},
+  title        = {Analysis Neighborhoods},
+  organization = {DataSF -- San Francisco Open Data},
+  year         = {2023},
+  url          = {https://data.sfgov.org/d/j2bu-swwd},
+  urldate      = {2026-08-22},
+  note         = {Ressource \texttt{j2bu-swwd}, GeoJSON. Lizenz: Open Data
+                  Commons Public Domain Dedication and License. 41 Stadtteile},
+}
+
+
+% -------------------------------------------------------------------------
+% 10  ACS - die soziooekonomischen Merkmale
+% -------------------------------------------------------------------------
+% Bezogen ueber die Census-API, nicht ueber data.census.gov. Sechs Tabellen,
+% fuenf Jahrgaenge. Der Jahrgang 2009 fuehrt B15003 NICHT - deshalb beginnt
+% der Analysezeitraum 2015 und nicht frueher (Befund 4.2, Konsequenz 5.1).
+%% verwendet = 4.1; 4.2; 5.1; 5.2
+%% link      = https://www.census.gov/data/developers/data-sets/acs-5year.html
+%% seiten    = entfaellt (Datensatz)
+@online{CensusACS2023,
+  author       = {{U.S. Census Bureau}},
+  title        = {American Community Survey 5-Year Estimates, Detailed Tables},
+  organization = {U.S. Census Bureau {API}},
+  year         = {2023},
+  url          = {https://www.census.gov/data/developers/data-sets/acs-5year.html},
+  urldate      = {2026-08-22},
+  note         = {Abgerufen ueber \url{https://api.census.gov/data/<Jahrgang>/acs/acs5}
+                  fuer \texttt{state:06 county:075}. Genutzte Jahrgaenge 2009,
+                  2014, 2019, 2021 und 2023; genutzte Tabellen B01003, B15003,
+                  B17001, B19013, B25002 und B25064. Gemeinfrei},
+}
