@@ -36,7 +36,7 @@ zwei Stellen.
 --------------------------------------------------------------------------
 ABGRENZUNG ZU vorpruefung/v2_eignung.py - DIE WICHTIGERE GRENZE
 --------------------------------------------------------------------------
-Der Abgrenzungsblock in `main.tex` vor Kapitel 4 regelt den Grenzfall (a):
+Der Abgrenzungsblock in `main.tex` vor Kapitel 5 regelt den Grenzfall (a):
 
   4.2  WIE DIE DATEN BESCHAFFEN SIND    "rechtsschief, Dispersionsindex 62,8"
   6.2  OB EIN VERFAHREN DAZU PASST      "deshalb Ridge auf log(1+y);

@@ -17,7 +17,8 @@ Ausgang: results/abbildungen/a1..a17.pdf
     aus results/deskriptiv/, erzeugt von tools/deskriptiv.py, und zeigen
     ausschliesslich BEFUNDE ueber die Daten. Keine Verfahrensaussage, keine
     Fold-Zuordnung, kein Hold-out: beides waere ein Vorgriff auf Kapitel 5
-    und verstiesse gegen den Abgrenzungsblock in main.tex
+    und verstiesse gegen den Abgrenzungsblock in main.tex (steht seit dem
+    22.08.2026 vor Kapitel 5, nicht mehr vor Kapitel 4)
   - A11 bis A15 sind am 19.08.2026 fuer Kapitel 7 ergaenzt worden: A11
     Forest-Plot der gepaarten Differenzen (ersetzt A1), A12 Deckenleiter
     des Strukturstrangs, A13 Kreuzvalidierung gegen Hold-out (ersetzt A5),
