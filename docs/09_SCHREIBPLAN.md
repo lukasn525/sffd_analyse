@@ -115,10 +115,11 @@ Schröter am 10.08.: Zu den 40 bis 60 Seiten zählen alle Inhaltsseiten
 
 **Das geht so nicht auf.** Drei Hebel, in dieser Reihenfolge:
 
-1. **Die Frage an Schröter stellen**: Zählt der Anhang zu den Inhaltsseiten?
-   Wenn nein, wandern 12 der 20 Ausschnitte dorthin und das Problem ist zur
-   Hälfte gelöst. Diese Frage gehört in die nächste Sprechstunde oder eine
-   E-Mail — sie ist billig zu stellen und teuer zu raten.
+1. ~~**Die Frage an Schröter stellen**: Zählt der Anhang zu den
+   Inhaltsseiten?~~ **Beantwortet am 22.08.2026: nein** (P2 in
+   `01_VORGABEN.md`). Damit ist zugleich entschieden, **möglichst ohne Anhang
+   auszukommen** — die 12 Ausschnitte wandern also nicht dorthin, sondern
+   werden verdichtet oder entfallen. Hebel 2 und 3 tragen die Kürzung allein.
 2. **Kapitel 2 von 16 auf 12 kürzen.** Die Vorgabe lautet High-Level; 16
    Seiten Grundlagen bei 8 Seiten Modelling ist das falsche Verhältnis und
    genau das, was unter „Methodenkapitel-Overkill" fällt.
@@ -216,8 +217,10 @@ im Text, ohne dass der Leser weiß warum.
 
 **Vier Tabellen tragen Kapitel 7**: Aggregate Regression, Aggregate
 Klassifikation, Vergleichstabelle mit Wilcoxon-Ergebnissen, Hold-out. Die
-große Merkmalstabelle aus `results/codebook/merkmale.md` gehört in Kapitel 4
-beziehungsweise den Anhang.
+große Merkmalstabelle aus `results/codebook/merkmale.md` steht seit dem
+24.08.2026 als verdichtete Fassung — 16 Zeilen, vier Spalten, eine Seite — in
+Abschnitt 5.3 (`tab:codebook`, P1 in `01_VORGABEN.md`). Sie zählt nicht zu den
+vier Tabellen aus Kapitel 7.
 
 ---
 
@@ -319,9 +322,9 @@ Prüfaufträge stehen am Ende des Docstrings.
 | **M6** | **Formalia-Durchgang**: keine Kursivschrift, keine Anführungszeichen, keine Unterstreichungen, „o.A." bei unbekanntem Autor, p-Werte auf 95/99/99,5, Module und Funktionen in Monospace. | KW 41 |
 | **M7** | **Demo-Modus fürs Kolloquium.** Ein voller Lauf dauert rund drei Stunden und ist nicht vorführbar. Vorschlag: ein Skript, das aus `results/` heraus in unter zwei Minuten einen Fold live nachrechnet. | nach der Abgabe, vor dem 15.12. |
 
-**Zwei Dinge, die nur du kannst**: die Frage nach dem Anhang im Seitenbudget
-an Schröter stellen, und entscheiden, ob Unterfrage 2 in der geänderten
-Fassung bleibt.
+**Was nur du entscheiden kannst**: ob Unterfrage 2 in der geänderten Fassung
+bleibt. Die Frage nach dem Anhang im Seitenbudget ist seit dem 22.08.2026
+beantwortet (P2).
 
 ---
 
@@ -331,4 +334,4 @@ Fassung bleibt.
 2. Kapitel 3 schreiben (3 Seiten, das Vokabular für alles Weitere)
 3. `venv\Scripts\python.exe tools\deskriptiv.py` laufen lassen und
    `results/deskriptiv/befunde.md` überfliegen — das ist dein Kapitel 4 in Rohform
-4. E-Mail an Schröter: zählt der Anhang zu den 40–60 Seiten?
+4. ~~E-Mail an Schröter: zählt der Anhang zu den 40–60 Seiten?~~ erledigt, 22.08.2026 (P2)

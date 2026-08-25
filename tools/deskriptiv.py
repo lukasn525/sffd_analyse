@@ -115,6 +115,15 @@ PRUEFAUFTRAEGE - nach jedem Lauf abzuarbeiten
      Extremwerte des Mittels bei 6,4 (Seacliff) und 279,7 (Tenderloin)?
      Die Datei ist die Eingangsgroesse von Abbildung A16; aendert sie sich,
      aendert sich die Abbildung stillschweigend mit.
+  7  Stehen in verteilung.csv die beiden ZIELGROESSEN als eigene Zeilen, und
+     stimmen ihre Werte mit Tabelle 2 in Kapitel 4 ueberein?
+     anzahl_einsaetze     75,9 | 53   | 451   | Schiefe 1,89 | Woelbung 3,43
+     einsaetze_je_1000_ew  5,71 | 3,54 | 67,66 | Schiefe 4,16 | Woelbung 20,72
+     Sie sind am 24.08.2026 dazugekommen. Vorher standen Schiefe und Woelbung
+     der Rate NIRGENDS in einer Ausgabedatei, obwohl Kapitel 4 sie berichtet.
+     Gegenprobe: aufloesung.csv hat weiterhin 17 Zeilen und
+     varianzzerlegung.csv 19 ohne Dubletten - beide speisen A17 und duerfen
+     sich durch die Ergaenzung NICHT veraendert haben.
 """
 from __future__ import annotations
 
@@ -368,6 +377,12 @@ def zielgroessen(reg: pd.DataFrame, kls: pd.DataFrame) -> list[str]:
         "## Zielgroesse 2 - einsaetze_je_1000_ew (Robustheitspruefung)", "",
         f"- Mittel {z(r.mean(), 2)} | Median {z(r.median(), 2)} "
         f"| Min {z(r.min(), 2)} | Max {z(r.max(), 2)}",
+        f"- Schiefe {z(r.skew(), 2)} | Woelbung {z(r.kurtosis(), 2)} "
+        "-> die Normierung glaettet die Verteilung NICHT, sie verschaerft "
+        "sie (Vergleichswerte oben: 1,89 und 3,43)",
+        f"- Dispersionsindex Var/Mean = {z(r.var(ddof=1) / r.mean(), 2)} "
+        "-> nachrichtlich; Var/Mean ist bei einer Rate keine Kenngroesse "
+        "der Verteilungsannahme, die Modellwahl haengt an Zielgroesse 1",
         f"- Stadtteilmittel {z(je_st.min(), 2)} bis {z(je_st.max(), 2)} "
         f"-> Faktor {z(je_st.max() / je_st.min(), 0)}",
         "- Der Faktor ist der Grund, warum R2 auf der Rate kein tragfaehiges "
@@ -492,7 +507,18 @@ def main(argv: list[str]) -> int:
     beschreibend = merkmale + [EXPOSURE_ROH, CRIME_ROH] + list(LAGS)
     vorhanden = [c for c in beschreibend if c in reg.columns]
 
-    vert = verteilung(reg, vorhanden)
+    # Die beiden Mengenzielgroessen kommen NUR in verteilung.csv dazu
+    # (24.08.2026). Vorher liefen sie allein durch zielgroessen() in die
+    # Lesefassung; ihre Schiefe und Woelbung standen damit in keiner
+    # maschinenlesbaren Datei, obwohl Tabelle 2 in Kapitel 4 beide
+    # gegenueberstellt. NICHT in `vorhanden` aufnehmen: varianzzerlegung()
+    # bekommt sie unten ohnehin explizit, sie stuenden sonst doppelt, und
+    # aufloesung() speist A17, das ausschliesslich die zwoelf Merkmale zeigt.
+    mit_zielen = vorhanden + [c for c in ("anzahl_einsaetze",
+                                          "einsaetze_je_1000_ew")
+                              if c in reg.columns]
+
+    vert = verteilung(reg, mit_zielen)
     varz = varianzzerlegung(reg, vorhanden + ["anzahl_einsaetze",
                                               "einsaetze_je_1000_ew"])
     aufl = aufloesung(reg, vorhanden)

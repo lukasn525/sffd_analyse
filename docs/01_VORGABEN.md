@@ -55,7 +55,7 @@ damit sie nicht in einer Sitzungsnotiz verschwinden.
 
 | # | Frage | Stand | Wann zu entscheiden |
 |---|---|---|---|
-| P1 | **Steht die große Merkmalstabelle (`results/codebook/merkmale.md`, 34 Zeilen) im Fließtext von Kapitel 4.1 oder im Anhang?** | **vertagt, 22.08.2026** — entschieden ist nur: **keine vierseitige Tabelle im Fließtext**. Kapitel 4 wird so geschrieben, dass es ohne die Tabelle trägt | wenn der Text steht und das Seitenbudget belastbar ist |
+| P1 | **Steht die große Merkmalstabelle (`results/codebook/merkmale.md`, 34 Zeilen) im Fließtext von Kapitel 4.1 oder im Anhang?** | **entschieden, 24.08.2026: weder noch.** Eine verdichtete Fassung — 16 Zeilen, vier Spalten, genau eine Seite — steht als `tab:codebook` in **Abschnitt 5.3**. Das ist Weg 1 unten | erledigt |
 | P2 | Zählt der Anhang zu den 40–60 Inhaltsseiten? | **beantwortet, 22.08.2026: nein.** Zugleich die Richtungsentscheidung, **möglichst ohne Anhang auszukommen** | erledigt |
 
 **Was P2 für das Schreiben bedeutet.** Kein Kapitel darf einen Anhang
@@ -83,6 +83,23 @@ Ohne Anhang und ohne vierseitige Tabelle im Fließtext bleiben drei Wege:
 
 Empfehlung bis zur Entscheidung: **Weg 1**, weil er in allen drei Fällen
 anschlussfähig bleibt.
+
+**Wie P1 entschieden wurde (24.08.2026).** Weg 1, aber an anderer Stelle als
+gedacht: nicht in Kapitel 4.1, sondern am Anfang von Abschnitt 5.3
+„Konstruktion der Merkmale und Zielgrößen". Der Grund ist inhaltlich, nicht
+typografisch — die Tabelle zeigt, **was aus der Konstruktion herauskommt**, und
+gehört damit in das Kapitel, das konstruiert. In Kapitel 4 hätte sie Größen
+beschrieben, die dort noch gar nicht existieren; das ist genau die
+Phasenvermischung, die der Kapitelschnitt vermeiden soll. Kapitel 4.1 nennt die
+zwölf Merkmale weiterhin im Fließtext nach Gruppen und verweist für Skala,
+Einheit und Wertebereich auf `tab:codebook`.
+
+Die Tabelle führt vier Spalten — Größe, Skala, Wertebereich und Einheit, Quelle
+und Bildung — und 16 Zeilen: zwölf Merkmale, drei Zielgrößen, eine
+Expositionsgröße. Damit erfüllt sie die Auflage vom 10.08. (Skalenniveau,
+Was/Wie/Wofür, eine große Tabelle) und bleibt auf einer Seite. Die vollständige
+Fassung bleibt `results/codebook/merkmale.md` und geht mit dem Abgabe-ZIP mit;
+kein Satz der Arbeit setzt sie voraus, P2 bleibt also gewahrt.
 
 **Zu P1, damit die Abwägung später nicht neu aufgerollt werden muss.**
 

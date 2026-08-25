@@ -1,0 +1,129 @@
+% =========================================================================
+% KAPITEL 5.3 -- GLEITOBJEKTE
+% 24.08.2026. Drei Objekte: zwei Quelltexte und die Merkmalstabelle.
+%
+% PLATZIERUNG
+%   Quelltext 2 (lst:quoten)     -> nach Absatz 3 (Quoten)
+%   Quelltext 3 (lst:krimindex)  -> nach Absatz 4 (Kriminalitaetsindex)
+%   Tabelle (tab:codebook)       -> nach Absatz 8 (Zielgroessen).
+%                                   4.1 verweist bereits darauf.
+%
+% ZUR TABELLE -- WAS GEGENUEBER DER BESTEHENDEN FASSUNG GEAENDERT IST
+%   1) "flaechengewichtet" -> "bevoelkerungsgewichtet". acs_je_neighborhood
+%      gewichtet mit total_population, nicht mit Flaeche. Betraf
+%      Medianeinkommen und Medianmiete.
+%   2) Wohnbevoelkerung war ebenfalls als "flaechengewichtet" gefuehrt --
+%      sie wird ueber die Tracts SUMMIERT, nicht gewichtet gemittelt.
+%   3) Spalte Skala: "absolut" ist kein Skalenniveau. Zaehlgroessen sind
+%      verhaeltnisskaliert; die Spalte fuehrt jetzt durchgehend Verhaeltnis,
+%      Intervall oder nominal. Schroeters Auflage vom 10.08. verlangt
+%      ausdruecklich das Skalenniveau.
+%   4) Risikogewerbe: "Handel, Gastgewerbe und Produktion" trifft die
+%      Kategorien nicht. HIGH_RISK_COMMERCIAL = {RETAIL/ENT, PDR}, also
+%      Handel und Unterhaltung sowie Produktion, Logistik und Reparatur.
+%   5) Kriminalitaetsindex: Begriff "Standortquotient" beibehalten und der
+%      Nenner benannt -- die Bevoelkerung, nicht die Gesamtzahl der Delikte.
+%      Der Unterschied traegt den Absatz im Fliesstext.
+%   Wertebereiche und Einheiten sind UNVERAENDERT uebernommen.
+%
+% KEINE deskriptive Statistik je Merkmal -- Auflage Schroeter 10.08.2026.
+% Mittelwert, Median und Streuung stehen in Tabelle~\ref{tab:kennzahlen}
+% in Abschnitt 4.2 und werden hier nicht wiederholt.
+%
+% Die Tabelle braucht tabularx und booktabs, beides ist in Kapitel 4 schon
+% im Einsatz.
+% =========================================================================
+
+
+% ---------------------------- AB HIER KOPIEREN ---------------------------
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:quoten},
+  caption={Anteilswerte aus Zählvariablen
+           (\texttt{prep/s1\_daten.py}, Z.~559--584, gekürzt)}]
+QUOTEN = [
+    ("poverty_rate",     "poverty_below",         "poverty_universe_total"),
+    ("bachelor_rate",    "bachelor_degree_count", "education_universe_total"),
+    ("vacancy_rate",     "vacant_housing_units",  "total_housing_units"),
+    ("pct_pre1940",      "pre1940_count",         "yrbuilt_count"),
+    ("pct_residential",  "residential_count",     "parcel_count"),
+]
+
+def berechne_quoten(df: pd.DataFrame) -> pd.DataFrame:
+    for name, zaehler, nenner in QUOTEN:
+        z = pd.to_numeric(df[zaehler], errors="coerce").astype(float)
+        n = pd.to_numeric(df[nenner], errors="coerce").astype(float)
+        df[name] = (z / n.where(n > 0, np.nan)).round(4)
+    return df
+\end{lstlisting}
+
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:krimindex},
+  caption={Relativer Kriminalitätsindex je Stadtteil und Monat
+           (\texttt{prep/s1\_daten.py}, Z.~465--488, gekürzt)}]
+    # Rollierendes Fenster, endend im VORMONAT: shift(1) VOR rolling()
+    raster["delikte_fenster"] = (
+        raster.groupby("neighborhood")["delikte"]
+              .transform(lambda s: s.shift(1).rolling(CRIME_FENSTER_MONATE).sum()))
+    raster = raster.dropna(subset=["delikte_fenster"])
+
+    stadt = (raster.groupby(["jahr", "monat"])
+                   .agg(stadt_delikte=("delikte_fenster", "sum"),
+                        stadt_bev=("total_population", "sum")).reset_index())
+    raster = raster.merge(stadt, on=["jahr", "monat"], how="left")
+
+    raster["crime_rate_raw"] = (raster["delikte_fenster"]
+                                / raster["total_population"] * 1000).round(3)
+    raster["crime_index"] = (raster["crime_rate_raw"]
+                             / (raster["stadt_delikte"] / raster["stadt_bev"] * 1000)
+                             ).round(4)
+\end{lstlisting}
+
+
+\begin{table}[htbp]
+\centering
+\caption{Merkmale und Zielgrößen des Analysedatensatzes}
+\label{tab:codebook}
+\vspace{4pt}
+\small
+\begin{tabularx}{\textwidth}{@{}l l l X@{}}
+\toprule
+\textbf{Größe} & \textbf{Skala} & \textbf{Wertebereich} & \textbf{Quelle und Bildung} \\
+\midrule
+\addlinespace
+\multicolumn{4}{@{}l}{\textbf{Merkmale --- sozioökonomisch}} \\
+\addlinespace
+Medianeinkommen & Verhältnis & 20.562 bis 246.635 USD je Jahr & ACS B19013, bevölkerungsgewichtetes Mittel der Tract-Werte \\
+Armutsquote & Verhältnis & 0,007 bis 0,361 & ACS B17001, Anteil an der Bezugsbevölkerung \\
+Akademikerquote & Verhältnis & 0,147 bis 0,553 & ACS B15003, Anteil an der Bezugsbevölkerung \\
+Medianmiete & Verhältnis & 722 bis 3.501 USD je Monat & ACS B25064, bevölkerungsgewichtetes Mittel der Tract-Werte \\
+Leerstandsquote & Verhältnis & 0,005 bis 0,237 & ACS B25002, Anteil an allen Wohneinheiten \\
+\addlinespace
+\multicolumn{4}{@{}l}{\textbf{Merkmale --- kriminalitätsbezogen}} \\
+\addlinespace
+Kriminalitätsindex, logarithmiert & Intervall & $-2{,}98$ bis $2{,}61$ & SFPD, Standortquotient der Deliktrate je Einwohner über die zwölf Vormonate; 0 ist der Stadtdurchschnitt \\
+\addlinespace
+\multicolumn{4}{@{}l}{\textbf{Merkmale --- baulich}} \\
+\addlinespace
+Altbauanteil vor 1940 & Verhältnis & 0,128 bis 0,908 & Land Use 2020, Anteil an den Parzellen mit bekanntem Baujahr \\
+Wohngebäudeanteil & Verhältnis & 0,133 bis 0,971 & Land Use 2020, Anteil an allen Parzellen \\
+Risikogewerbeanteil & Verhältnis & 0,000 bis 0,222 & Land Use 2020, Flächenanteil der Nutzungsarten Handel und Unterhaltung sowie Produktion, Logistik und Reparatur \\
+\addlinespace
+\multicolumn{4}{@{}l}{\textbf{Merkmale --- Größenkontrolle und Saison}} \\
+\addlinespace
+Wohnbevölkerung, logarithmiert & Intervall & 7,77 bis 11,30 & ACS B01003, über die Tracts summiert und logarithmiert \\
+Saison, Sinus & Intervall & $-1{,}000$ bis $1{,}000$ & abgeleitet, $\sin(2\pi \cdot \text{Monat}/12)$ \\
+Saison, Kosinus & Intervall & $-1{,}000$ bis $1{,}000$ & abgeleitet, $\cos(2\pi \cdot \text{Monat}/12)$ \\
+\addlinespace
+\multicolumn{4}{@{}l}{\textbf{Zielgrößen und Expositionsgröße}} \\
+\addlinespace
+Einsatzhäufigkeit & Verhältnis & 0 bis 451 Einsätze je Monat & SFFD, Zählung je Stadtteil und Monat \\
+Einsätze je 1.000 Einwohner & Verhältnis & 0,00 bis 67,66 & abgeleitet, auf die Wohnbevölkerung normiert \\
+überwiegende Einsatzart & nominal & Brand, Rettung, technische Hilfe, Fehlalarm & SFFD, größter der vier Anteile desselben Monats \\
+Wohnbevölkerung & Verhältnis & 2.357 bis 81.209 Personen & ACS B01003, über die Tracts summiert; Exposition \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ---------------------------- BIS HIER KOPIEREN --------------------------

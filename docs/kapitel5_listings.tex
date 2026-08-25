@@ -15,6 +15,10 @@
 % 22.08.2026. Sie verschieben sich bei jeder Codeaenderung -- vor der Abgabe
 % einmal nachziehen.
 %
+% BESCHRIFTUNGEN: bewusst einzeilig, nur Gegenstand und Fundstelle. Die
+% Begruendung gehoert in den Fliesstext, nicht unter den Ausschnitt --
+% sonst steht sie zweimal da.
+%
 % Voraussetzung im Preamble: \lstdefinestyle{pythonstil}{...}
 % (Vorschlag siehe Kapitel5_Codeausschnitte.md, Abschnitt 3)
 % =========================================================================
@@ -25,8 +29,8 @@
 % -------------------------------------------------------------------------
 \begin{lstlisting}[style=pythonstil,
   label={lst:acs-versatz},
-  caption={Zeitbewusste Zuordnung des ACS-Jahrgangs.
-           Quelle: \texttt{prep/s1\_daten.py}, Z.~306--322 und 337, gekürzt}]
+  caption={Zeitbewusste Zuordnung des ACS-Jahrgangs
+           (\texttt{prep/s1\_daten.py}, Z.~306--322 und 337, gekürzt)}]
 def acs_snapshot(jahr: int, acs_years: list[int]) -> int:
     return max([a for a in acs_years if a <= int(jahr) - ACS_PUBLIKATIONS_LAG],
                default=min(acs_years))
@@ -40,9 +44,8 @@ sffd["acs_year"] = sffd["year"].apply(lambda y: acs_snapshot(y, jahrgaenge))
 % -------------------------------------------------------------------------
 \begin{lstlisting}[style=pythonstil,
   label={lst:quoten},
-  caption={Anteilswerte aus Zählvariablen; ein Nenner von null ergibt einen
-           fehlenden Wert statt einer Division durch null.
-           Quelle: \texttt{prep/s1\_daten.py}, Z.~559--584, gekürzt}]
+  caption={Anteilswerte aus Zählvariablen
+           (\texttt{prep/s1\_daten.py}, Z.~559--584, gekürzt)}]
 QUOTEN = [
     ("poverty_rate",     "poverty_below",         "poverty_universe_total"),
     ("bachelor_rate",    "bachelor_degree_count", "education_universe_total"),
@@ -66,8 +69,8 @@ def berechne_quoten(df: pd.DataFrame) -> pd.DataFrame:
 % -------------------------------------------------------------------------
 \begin{lstlisting}[style=pythonstil,
   label={lst:krimindex},
-  caption={Relativer Kriminalitätsindex je Stadtteil und Monat.
-           Quelle: \texttt{prep/s1\_daten.py}, Z.~465--488, gekürzt}]
+  caption={Relativer Kriminalitätsindex je Stadtteil und Monat
+           (\texttt{prep/s1\_daten.py}, Z.~465--488, gekürzt)}]
     # Rollierendes Fenster, endend im VORMONAT: shift(1) VOR rolling()
     raster["delikte_fenster"] = (
         raster.groupby("neighborhood")["delikte"]
@@ -94,8 +97,8 @@ def berechne_quoten(df: pd.DataFrame) -> pd.DataFrame:
 % -------------------------------------------------------------------------
 \begin{lstlisting}[style=pythonstil,
   label={lst:lags},
-  caption={Verlaufsmerkmale, strikt rückwärtsgerichtet und je Stadtteil gebildet.
-           Quelle: \texttt{prep/s2\_datensaetze.py}, Z.~269--283, gekürzt}]
+  caption={Bildung der Verlaufsmerkmale
+           (\texttt{prep/s2\_datensaetze.py}, Z.~269--283, gekürzt)}]
     # LAGS - Strikt rueckwaertsgerichtet und je Stadtteil gebildet, nie ueber
     # Stadtteilgrenzen hinweg. Beim gleitenden Mittel steht `shift(1)` VOR
     # `rolling(3)`: der Wert fuer Monat t verwendet t-1, t-2, t-3, nie t selbst.
@@ -115,8 +118,8 @@ def berechne_quoten(df: pd.DataFrame) -> pd.DataFrame:
 % -------------------------------------------------------------------------
 \begin{lstlisting}[style=pythonstil,
   label={lst:dtypes},
-  caption={Vereinheitlichung auf modelltaugliche NumPy-Typen.
-           Quelle: \texttt{prep/s2\_datensaetze.py}, Z.~147--170, gekürzt}]
+  caption={Vereinheitlichung auf modelltaugliche NumPy-Typen
+           (\texttt{prep/s2\_datensaetze.py}, Z.~147--170, gekürzt)}]
 def _setze_datentypen(d: pd.DataFrame, merkmale: list[str]) -> pd.DataFrame:
     # notwendig, weil EINE nullable Int64-Spalte genuegt, damit X.to_numpy() ein
     # object-Array liefert
@@ -136,9 +139,8 @@ def _setze_datentypen(d: pd.DataFrame, merkmale: list[str]) -> pd.DataFrame:
 % -------------------------------------------------------------------------
 \begin{lstlisting}[style=pythonstil,
   label={lst:folds},
-  caption={Zuteilung der Stadtteile auf Folds und Hold-out mit doppelter
-           Stratifizierung.
-           Quelle: \texttt{prep/s2\_datensaetze.py}, Z.~61--89, gekürzt}]
+  caption={Zuteilung der Stadtteile auf Folds und Hold-out
+           (\texttt{prep/s2\_datensaetze.py}, Z.~61--89, gekürzt)}]
 def ergaenze_aufteilung(daten: pd.DataFrame, versatz: int = 0,
                         selten: pd.Series | None = None) -> pd.DataFrame:
     bev = daten.groupby("stadtteil")[EXPOSURE_ROH].mean()
@@ -162,9 +164,8 @@ def ergaenze_aufteilung(daten: pd.DataFrame, versatz: int = 0,
 % -------------------------------------------------------------------------
 \begin{lstlisting}[style=pythonstil,
   label={lst:poisson},
-  caption={Stufe-2-Baseline: Poisson-GLM mit \texttt{log}-Link und
-           Bevölkerung als Offset.
-           Quelle: \texttt{vorpruefung/v1\_baselines.py}, Z.~74--104, gekürzt}]
+  caption={Stufe-2-Baseline: Poisson-GLM mit Offset
+           (\texttt{vorpruefung/v1\_baselines.py}, Z.~74--104, gekürzt)}]
 def poisson_glm(train: pd.DataFrame, test: pd.DataFrame,
                 merkmale: list[str] | None = None) -> np.ndarray:
     import statsmodels.api as sm
@@ -190,9 +191,9 @@ def poisson_glm(train: pd.DataFrame, test: pd.DataFrame,
 % -------------------------------------------------------------------------
 \begin{lstlisting}[style=pythonstil,
   label={lst:tests},
-  caption={Zwei der neunzehn Prüfungen an den erzeugten Dateien.
-           Quelle: \texttt{tests/test\_aufbereitung.py}, Z.~255--260 und
-           277--285, gekürzt}]
+  caption={Zwei der neunzehn Prüfungen an den erzeugten Dateien
+           (\texttt{tests/test\_aufbereitung.py}, Z.~255--260 und 277--285,
+           gekürzt)}]
 def test_lags_nicht_gegenwartsbezogen():
     """Gegenprobe gegen ein vergessenes shift(): lag_1 darf nicht der Istwert sein."""
     d = regression()

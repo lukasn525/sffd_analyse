@@ -1,0 +1,357 @@
+% #########################################################################
+% SCHREIBANLEITUNG KAPITEL 5 -- UND DIE ABGRENZUNG DER KAPITEL 3 BIS 8
+% Stand 24.08.2026. Ersetzt die Fassung vom 22.08.2026 vollstaendig.
+% Vor dem Schreiben lesen.
+% #########################################################################
+%
+% WAS SICH GEGENUEBER DER VORFASSUNG GEAENDERT HAT
+%   1. Kapitel 3 kommt vor. Die Vorfassung begann bei Kapitel 4 und wusste
+%      nicht, dass 3.1 die Entscheidungseinheit und 3.2 die Zielgroessen und
+%      Referenzstufen bereits festlegt. Damit war die Abgrenzung an ihrem
+%      wichtigsten Punkt unvollstaendig.
+%   2. Neue Regel fuer die Merkmale, Abschnitt 4 dieses Blocks. Sie loest
+%      das Unbehagen auf, die Merkmale erst in Kapitel 4 zu beschreiben und
+%      danach in Kapitel 5 zu berechnen.
+%   3. Drei falsche Angaben der Vorfassung sind hier nicht mehr enthalten;
+%      sie stehen zur Sicherheit unter Abschnitt 10 als "nicht wieder
+%      hereinschreiben".
+%   4. Verweise laufen ueber ABSCHNITTSNAMEN, nicht ueber Nummern. Solange
+%      die Entscheidung aus Abschnitt 6 offen ist, waeren Nummern zur
+%      Haelfte falsch.
+%
+% -------------------------------------------------------------------------
+% 1. DER ROTE FADEN IN DREI SAETZEN
+% -------------------------------------------------------------------------
+% Kapitel 3  Was soll entschieden werden? Anwendungsfall, Entscheidungs-
+%            einheit, Zielgroessen, Erfolgsmassstab. Fachlich, ohne eine
+%            einzige Zahl aus den Daten.
+% Kapitel 4  Was liefern die Quellen, und was faellt daran auf?
+%            BEFUND, ohne ein einziges "deshalb".
+% Kapitel 5  Was wurde damit gemacht, warum, und woran sieht man, dass es
+%            stimmt? EINGRIFF und NACHWEIS, ohne eine einzige
+%            Verteilungskennzahl neu herzuleiten.
+%
+% Kapitel 5 ist das einzige Kapitel, das den Nachweis mitliefert: die 19
+% automatisierten Pruefungen an den erzeugten Dateien. Genau darin liegt
+% seine Rolle. Der Merksatz aus dem Gutachten -- Probleme zu ERKENNEN
+% reicht nicht, bewertet wird, ob sie methodisch GELOEST wurden -- ist die
+% Naht zwischen Kapitel 4 und Kapitel 5.
+%
+% MERKSATZ: Ein Befund gehoert einmal genannt und danach nur noch zitiert.
+% Wer ihn beim zweiten Mal erneut herleitet, schreibt das Kapitel doppelt.
+%
+% -------------------------------------------------------------------------
+% 2. DIE TRENNUNG IN EINEM SATZ JE KAPITEL
+% -------------------------------------------------------------------------
+%   Kap. 3  Business Understanding  AUFTRAG   Was ist die Frage, woran misst
+%                                             sie sich?  -- FERTIG
+%   Kap. 4  Data Understanding      BEFUND    Was ist da, was faellt auf?
+%                                             -- FERTIG, nicht mehr anfassen
+%   Kap. 5  Data Preparation        EINGRIFF  Was wurde damit gemacht, warum,
+%                                             und was beweist es?
+%   Kap. 6  Modelling               VERFAHREN Was wurde angewandt, warum das?
+%   Kap. 7  Evaluation              ERGEBNIS  Wie gut war es?
+%   Kap. 8  Diskussion              DEUTUNG   Was heisst das, was gilt nicht?
+%
+% VIER TESTFRAGEN, wenn unklar ist, wohin ein Absatz gehoert:
+%   0. Gaelte der Satz auch ohne diese Daten, allein aus dem Anwendungsfall?
+%                                                      -> ja: Kapitel 3
+%   1. Gaelte der Satz auch, wenn die Daten gar nicht verarbeitet wuerden?
+%                                                      -> ja: Kapitel 4
+%   2. Veraendert dieser Schritt die Datei auf der Platte?
+%                                                      -> ja: Kapitel 5
+%   3. Passiert das je Fold, innerhalb der sklearn-Pipeline?
+%                                                      -> ja: Kapitel 6
+%
+% -------------------------------------------------------------------------
+% 3. WAS KAPITEL 3 UND 4 BEREITS VERBRAUCHT HABEN
+% -------------------------------------------------------------------------
+% Links steht, was schon dasteht. Rechts, was in Kapitel 5 dazugehoert.
+% Links darf NUR NOCH ZITIERT werden -- mit Verweis, ohne Herleitung, ohne
+% die Zahl ein zweites Mal zu erklaeren.
+%
+% DIESE TABELLE IST DIE DRAMATURGIE DES KAPITELS, nicht nur eine Notiz.
+% Jeder Abschnitt von Kapitel 5 beginnt mit dem Befund, den er beantwortet
+% -- ein Halbsatz, kein Absatz. Beispiel:
+%   "Von den 41 Analysis Neighborhoods aus Abschnitt 4.1 gehen 35 in die
+%    Analyse ein."
+% Dann kommt der Eingriff. Damit hat der Leser durchgehend das Gefuehl,
+% dass hier erledigt wird, was vorher offen blieb.
+%
+%   Steht in Kapitel 3 oder 4              Eingriff in Kapitel 5
+%   ------------------------------------   -------------------------------
+%   3.1 Entscheidungseinheit               Uebernahme als Analyseeinheit,
+%       Stadtteil x Monat, fachlich         Ausschluss der beiden
+%       begruendet                          Alternativen (Einzeleinsatz,
+%                                           Tract x Jahr). NICHT als neue
+%                                           Wahl darstellen -- gewaehlt
+%                                           wurde in 3.1
+%   3.2 drei Zielgroessen, zwei des        Konstruktion der Zielgroessen
+%       Mengen-, eine des Struktur-         (Abschnitt Merkmale)
+%       strangs
+%   3.2 die Referenzstufen als             Stufe 1 und Stufe 2 samt Werten
+%       Erfolgsmassstab                     (Abschnitt Analyserahmen)
+%   4.1 sieben Quellen, drei Raumbezuege   die drei Joins samt Trefferquoten
+%       und zwei Zeitraster fallen          (Abschnitt Zusammenfuehrung)
+%       auseinander
+%   4.1 41 Analysis Neighborhoods          Vollzug des Ausschlusses auf 35.
+%   4.2 nennt alle SECHS ausgeschlossenen   Die sechs Namen stehen schon in
+%       Stadtteile namentlich               4.2 -- hier nur der Vollzug und
+%                                           der Unterschied zwischen
+%                                           zeilenweisem dropna und dem
+%                                           Ausschluss ganzer Einheiten
+%   4.2 269 doppelte Einsatznummern         Entfernung, Zahl nicht neu
+%       (0,04 %)                            herleiten
+%   4.2 Antwortzeit durchgehend             Fenster 0-60 min als
+%       plausibel                           Plausibilitaetspruefung, OHNE
+%                                           Entfallquote. Es entfaellt
+%                                           keine einzige Zeile. Dazu der
+%                                           Satz, dass die Grenze GESETZT
+%                                           ist und nicht aus den Daten folgt
+%   4.2 10,9 % der Parzellen ohne Baujahr   Nenner yrbuilt_count statt
+%                                           parcel_count
+%   4.2 ACS ist Periodenschaetzung mit      Regel acs_jahr kleinergleich
+%       Publikationsversatz                 Einsatzjahr minus 1
+%   4.2 ACS 2009 ohne Bildungsangaben       Analysebeginn 2015-01 als
+%                                           KONSEQUENZ, nicht als Setzung
+%   4.2 Tract-Grenzen aendern sich,         die drei Trefferquoten
+%       Crosswalk beruht auf Zensus 2020    63,1 / 79,7 / 99,2 %
+%   4.2 Klassenverteilung                   argmax-Bildung der vier Klassen
+%       79,0 / 16,3 / 3,1 / 1,5 %
+%   4.2 Dispersionsindex 62,8,              Poisson-GLM als Stufe-2-Baseline
+%       rechtsschiefe Zielgroesse
+%   4.2 92,5 % Zwischenvarianz              Stadtteil-Split -- steht als
+%                                           Spalte IN der Datei
+%   4.2 zeitliche Aufloesung 128,3 / 4 / 1  NICHTS in Kapitel 5. Der Befund
+%                                           wird in 7.4 und 8.3 zitiert
+%
+% -------------------------------------------------------------------------
+% 4. DIE MERKMALSREGEL -- die wichtigste Neuerung dieses Blocks
+% -------------------------------------------------------------------------
+% Kapitel 4 beschreibt die zwoelf Modellmerkmale, Kapitel 5 berechnet sie.
+% Das ist die richtige Reihenfolge -- man kann nichts explorieren, was man
+% nicht konstruiert hat, und keine Konstruktion begruenden, die man nicht
+% exploriert hat. CRISP-DM zeichnet zwischen Data Understanding und Data
+% Preparation deshalb Pfeile in beide Richtungen.
+%
+% Falsch wird es erst, wenn beide Kapitel auf DERSELBEN FLUGHOEHE
+% beschreiben. Dann liest sich das zweite wie eine Wiederholung. Die Regel:
+%
+%   KAPITEL 4 NENNT KEINE RECHENVORSCHRIFT.
+%   KAPITEL 5 NENNT KEINE VERTEILUNGSKENNZAHL.
+%
+%   Merkmal                       Kapitel 4          Kapitel 5
+%   ---------------------------   ----------------   --------------------
+%   armutsquote_pct               Korrelation        Zaehler und Nenner,
+%                                 0,465, vier Werte  Nenner kleinergleich 0
+%                                 je Stadtteil       ergibt NaN
+%   log_kriminalitaetsindex       128,3 Werte je     Location Quotient,
+%                                 Stadtteil, das     Fenster endend im
+%                                 einzige monatlich  Vormonat, logarithmiert
+%                                 variierende
+%                                 Merkmal, rho 0,589
+%   anteil_altbau_vor_1940_pct    ein Wert je        Nenner ist
+%                                 Stadtteil,         yrbuilt_count, nicht
+%                                 Zwischenvarianz    parcel_count
+%                                 1,000
+%
+% Rechts steht nie eine Zahl ueber die Verteilung, links nie eine Formel.
+% Kein Satz erscheint zweimal, und der Leser denkt beim zweiten Durchgang
+% nicht "das hatten wir schon", sondern "daher kommt das also".
+%
+% FOLGE FUER DIE MERKMALSTABELLE IN 4.1 (offener Punkt P1): Sie darf
+% Skalenniveau, Einheit und Wertebereich fuehren -- aber KEINE Spalte
+% "Berechnung".
+%
+% -------------------------------------------------------------------------
+% 5. WAS NICHT IN KAPITEL 5 GEHOERT
+% -------------------------------------------------------------------------
+%   Linearitaetspruefung, Residuen, RESET-Test   -> 6.2, prueft ein
+%                                                   VERFAHREN, nicht die Daten
+%   VIF / Multikollinearitaet                    -> 6.2, betrifft Ridge
+%   StandardScaler, log(1+y), Label-Encoder      -> 6, laeuft je Fold
+%   class_weight "balanced"                      -> 6, Modellparameter
+%   Hyperparameter-Suchraeume, Tuning-Budget     -> 6
+%   Fold-Ergebnisse der Verfahren                -> 7
+%   Trainings- und Inferenzzeiten                -> 7
+%   Vergleich der Verfahren, Rangfolge oder      -> 8
+%     deren Verweigerung bei ueberlappender Streuung
+%   n_eff rund 38 (ICC 0,926), Extrapolation     -> 8, Limitation
+%
+% WAS SEHR WOHL HIERHER GEHOERT: die BASELINES samt ihren Werten
+% (R2 0,542 / RMSE 33,98 usw.). Auflage Schroeter vom 27.07.2026 -- sie
+% gehoeren in die Data Preparation, nicht nach 6 oder 7. CRISP-DM stuetzt
+% das: unter "Select data" steht als Aktivitaet ausdruecklich "Consider use
+% of sampling techniques (e.g. ... splitting test and training datasets)".
+% Der Stadtteil-Split steht also nicht nur wegen der Auflage hier, sondern
+% weil das Vorgehensmodell ihn selbst in dieser Phase fuehrt. Ein Satz dazu
+% im Abschnitt Analyserahmen nimmt der Frage "warum steht Ihre Validierung
+% nicht in Kapitel 6?" die Spitze.
+%
+% NOTIZ ZUR EXPOSE-ANKUENDIGUNG:
+% Das Expose kuendigte an, "bei ausgepraegten Ungleichgewichten werden
+% seltene Kategorien zusammengefasst oder die Klassifikation auf zwei
+% Klassen vereinfacht, etwa Brand vs. Nicht-Brand". Das ist NICHT
+% eingetreten: Die Zielgroesse hat vier Klassen, die Schieflage wird ueber
+% class_weight "balanced" und Macro-F1 behandelt, nicht ueber
+% Zusammenlegung. In Kapitel 5 steht davon nur die argmax-Bildung; die
+% Behandlung gehoert nach 6, die Abweichung vom Expose nach 8.
+%
+% -------------------------------------------------------------------------
+% 6. GLIEDERUNG VON KAPITEL 5 -- eine Entscheidung ist offen
+% -------------------------------------------------------------------------
+% CRISP-DM fuehrt fuer die Phase Data Preparation fuenf Aufgaben
+% (Chapman et al. 2000, S. 23-26, im Referenzmodell nachgeschlagen):
+% 3.1 Select data, 3.2 Clean data, 3.3 Construct data, 3.4 Integrate data,
+% 3.5 Format data. Die Ueberschriften treffen sie fast eins zu eins:
+%
+%   Datenauswahl und Bereinigung        Select data + Clean data
+%   Zusammenfuehrung der Datenquellen   Integrate data
+%   Konstruktion der Merkmale und
+%     Zielgroessen                      Construct data
+%   Analyserahmen und Baselines         Select data (Splitting) + Format data
+%
+% Damit ist die Kolloquiumsfrage "warum ist Ihr Kapitel 5 so geschnitten?"
+% genauso beantwortet wie bei Kapitel 4: die Gliederung folgt dem
+% Vorgehensmodell. Eine Fussnote, \footcite[23-26]{Chapman2000}.
+% NEBENBEI ZU BENENNEN: Die Reihenfolge weicht ab -- integriert wird VOR
+% dem Konstruieren, weil die Pipeline es so tut (s1 joint auf Einsatzebene,
+% s2 aggregiert und konstruiert danach). Ein Halbsatz genuegt; ungesagt
+% liest es sich als Schludrigkeit statt als bewusste Ordnung.
+%
+% OFFEN: WO STEHT DIE ANALYSEEINHEIT?
+% Die 13 Zeilen Fliesstext, die heute zwischen \section{Data Preparation}
+% und der ersten \subsection stehen, verstossen gegen die Blindabsatz-Regel
+% (Abschnitt 8) und muessen ohnehin weg. Drei Varianten:
+%
+%   A  eigener Abschnitt "Analyseeinheit" davor, alle uebrigen um eins
+%      verschoben. Die Entscheidung steht im Inhaltsverzeichnis -- das
+%      zaehlt fuer das Bewertungskriterium "kritische Reflexion im Verlauf"
+%      (Gutachten 2,7). Preis: fuenf Unterabschnitte, und alle
+%      Kapitelverweise im Code verschieben sich um +1.
+%   B  Abschnitt "Analyseeinheit und Datenauswahl", Bereinigung faellt aus
+%      dem Titel und bleibt im Inhalt. Vier Unterabschnitte, Entscheidung
+%      trotzdem im Verzeichnis sichtbar.
+%   C  Alles unter "Datenauswahl und Bereinigung", Analyseeinheit als
+%      erster Absatz. Nummerierung bleibt 5.1 bis 5.4, keine Codeverweise
+%      zu aendern. Preis: die Entscheidung ist im Verzeichnis unsichtbar.
+%
+% Seit klar ist, dass 3.1 die Entscheidungseinheit BEREITS begruendet,
+% spricht mehr fuer C als vorher: Kapitel 5 trifft hier keine Wahl, es
+% setzt eine getroffene Wahl um. Bei C beginnt der Abschnitt mit der
+% Analyseeinheit -- der erste Satz des heutigen Fliesstextes
+% ("Die Data-Preparation-Phase ueberfuehrt ...") faellt ersatzlos weg, er
+% ist eine Kapitelankuendigung und damit ein Blindabsatz in Satzform.
+%
+% NOCH NICHT ENTSCHIEDEN. Bis dahin: Abschnitte im Text ueber \ref
+% ansprechen, nicht ueber ausgeschriebene Nummern.
+%
+% EMPFEHLUNG ZU EINER UEBERSCHRIFT: "Zusammenfuehrung der VIER
+% Datenquellen" -> die Zahl streichen. Kapitel 4 fuehrt in Tabelle 4.1
+% sieben Quellen; die Vier meint ACS, Kriminalitaet, Land Use und
+% Geometrie, also ohne die Einsatzdaten und ohne den Crosswalk. Beide
+% Zaehlungen sind fuer sich richtig, nebeneinander sehen sie nach einem
+% Fehler aus -- und die Ueberschrift ist die exponierteste Stelle dafuer.
+%
+% ENTSCHIEDEN AM 24.08.2026: "Baselines" bleibt stehen. Der Begriff ist in
+% Kapitel 7 und im Code ("Stufe-2-Baseline") durchgezogen; ein Wechsel auf
+% "Referenzmodelle" nur hier waere schlechter als gar keiner. Falls
+% Anglizismen abgebaut werden, dann gesammelt im Formalia-Durchgang M6.
+%
+% -------------------------------------------------------------------------
+% 7. ZWEI SONDERFAELLE
+% -------------------------------------------------------------------------
+%  (a) 4.2 EDA gegen 6.2 Eignungspruefung. Beide schauen Verteilungen an.
+%      Die Regel: In 4.2 steht, WIE DIE DATEN BESCHAFFEN SIND ("die
+%      Zielgroesse ist rechtsschief, Dispersionsindex 62,8"). In 6.2 steht,
+%      OB EIN VERFAHREN DAZU PASST ("weil sie rechtsschief ist, wird Ridge
+%      auf log(1+y) geschaetzt; der RESET-Test verwirft die lineare
+%      Spezifikation"). Jede Abbildung erscheint GENAU EINMAL.
+%      ACHTUNG: A16 und A17 sind in 4.2 verbraucht -- 6.2 braucht eigene
+%      Abbildungen oder verweist auf Kapitel 4.
+%
+%  (b) 2.3 Grundlagen der Verfahren gegen 6. Kapitel 2 erklaert, WIE ein
+%      Verfahren funktioniert -- allgemein, lehrbuchhaft, ohne diesen
+%      Datensatz. Kapitel 6 sagt, WARUM es hier eingesetzt wird und MIT
+%      WELCHEN Einstellungen. Wer in 6 erklaeren muss, wie Boosting
+%      arbeitet, hat es in 2.3 versaeumt.
+%      Dasselbe gilt fuer den Verfuegbarkeitsgrundsatz: Dass ein Praediktor
+%      zum Prognosezeitpunkt verfuegbar gewesen sein muss, ist Lehrbuch-
+%      wissen und gehoert nach Kapitel 2. In Kapitel 5 steht die ANWENDUNG
+%      -- welche Spalten, welcher Versatz, welcher Split -- mit einem
+%      Verweis, ohne den Grundsatz erneut herzuleiten.
+%
+% -------------------------------------------------------------------------
+% 8. BLINDABSAETZE -- GILT FUER JEDE GLIEDERUNGSEBENE DER ARBEIT
+% -------------------------------------------------------------------------
+% Woertlich aus der Mitschrift vom 27.07.2026:
+%   "Blindabsaetze: Zwischen 1 und 1.1 steht kein Inhalt -> redundanz
+%    vermeiden"
+% und aus der Mitschrift vom 10.08.2026:
+%   "Keine zwischenfazits (keine reudundanz)! Blindabsaetze nutzen!"
+%
+% Ein BLINDABSATZ ist die BEWUSST LEERE Stelle zwischen einer Ueberschrift
+% und ihrer ersten Unterueberschrift. "Blindabsaetze nutzen" heisst: diese
+% Stelle LEER LASSEN.
+%   Zwischen \section und dem ersten \subsection steht KEIN Text.
+%   Zwischen \subsection und dem ersten \subsubsection steht KEIN Text.
+% BEGRUENDUNG (Schroeter): Ein Absatz an dieser Stelle kuendigt an, was
+% gleich ohnehin kommt -- ein vorweggenommenes Zwischenfazit. Der Inhalt
+% gehoert in den ersten Unterabschnitt, wo er ohne Doppelung steht.
+%
+% Die Regel gilt auch fuer EINZELNE SAETZE. Ein Satz, der beschreibt, was
+% das Kapitel gleich tun wird, ist ein Blindabsatz in kurz.
+%
+% -------------------------------------------------------------------------
+% 9. CODEAUSSCHNITTE
+% -------------------------------------------------------------------------
+% Sieben Ausschnitte, fertig als lstlisting in docs/kapitel5_listings.tex,
+% Auswahl und Overleaf-Einbindung in docs/Kapitel5_Codeausschnitte.md.
+% Zwei Regeln daraus:
+%   - Jede Zeile steht ZEICHENGLEICH so in der .py-Datei. Gekuerzt wird nur
+%     durch Weglassen ganzer Zeilen, nie durch Umformulieren. Soll ein
+%     Kommentar anders lauten, wird er ZUERST im Code geaendert.
+%   - Der Ausschnitt zeigt eine ENTSCHEIDUNG. Wer ihn mit "das laedt eine
+%     Datei" zusammenfassen kann, hat ihn falsch gewaehlt.
+% Seitenbudget: Code zaehlt zu den 40-60 Inhaltsseiten, Abbildungen nicht.
+% Der Anhang zaehlt nicht mit und soll moeglichst entfallen (22.08.2026) --
+% es gibt also keinen Fluchtweg fuer zu lange Ausschnitte.
+%
+% -------------------------------------------------------------------------
+% 10. ARBEITSWEISE -- und was nicht wieder hereinschreiben
+% -------------------------------------------------------------------------
+% Alle ZAHLEN kommen aus docs/03_STAND.md -- dort stehen sie, und nur dort.
+% Nicht aus aelteren Fassungen abschreiben. Die Pipeline wurde am
+% 28.07.2026 vollstaendig umgebaut.
+% Reihenfolge des Kapitels folgt der Pipeline:
+%   prep/s1_daten.py -> prep/s2_datensaetze.py -> vorpruefung/v1_baselines.py
+%
+% DREI ANGABEN DER VORFASSUNG WAREN FALSCH. Sie stehen teils noch in den
+% INHALT-Bloecken unter den einzelnen \subsection und sind dort zu ziehen:
+%
+%   (a) "Ausrueckzeit auf 0-60 min begrenzt (~1,7 % entfallen)".
+%       Es heisst ANTWORTZEIT (arrival_dttm minus alarm_dttm, Spalte
+%       response_time_min), und es entfaellt KEINE EINZIGE ZEILE:
+%       720.258 minus 269 Dubletten ergibt exakt die 719.989 aus
+%       03_STAND.md. Die 1,7 % stammen aus einem Stand vor dem
+%       Downloadfilter "arrival_dttm IS NOT NULL".
+%
+%   (b) "LISTING 1: safe_ratio". Eine Funktion dieses Namens gibt es nicht.
+%       Der Schutz gegen Division durch null sitzt in
+%       s1_daten.berechne_quoten als n.where(n > 0, np.nan).
+%
+%   (c) "Reihenfolge folgt der Pipeline: ... -> s3_baselines.py".
+%       prep/s3_baselines.py existiert nicht. Die Baselines stehen in
+%       vorpruefung/v1_baselines.py -- in einem eigenen Ordner VOR der
+%       Modellierung. Genau so ist Schroeters Auflage im Code umgesetzt,
+%       und genau so gehoert es in den Text.
+%
+% NACHZUZIEHEN IM CODE (Kommentare, kein Verhaltensrisiko, kein Neulauf):
+%   tests/test_aufbereitung.py:127  "NegBin-Offset" -> "Poisson-Offset"
+%   tests/test_aufbereitung.py:5-6  Bezug auf den Anhang streichen
+%   prep/config.py:76-77            ergaenzen, dass 0-60 min eine GESETZTE
+%                                   Grenze ist und nicht aus den Daten folgt
+%   fuenf Kapitelverweise           nur falls Variante A oder B gewaehlt
+%     (prep/config.py:114, prep/s1_daten.py:451,
+%      prep/s2_datensaetze.py:39 und :110, tests/test_aufbereitung.py:127)
+% #########################################################################

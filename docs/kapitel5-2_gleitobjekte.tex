@@ -1,0 +1,51 @@
+% =========================================================================
+% KAPITEL 5.2 -- GLEITOBJEKTE
+% 24.08.2026. Zu 5.2 gehoert genau EIN Gleitobjekt: Quelltext 1.
+% Keine Tabelle, keine Abbildung.
+%
+% PLATZIERUNG
+%   Direkt NACH Absatz 2 (ACS-Join) einfuegen. Der Fliesstext verweist mit
+%   \ref{lst:acs-versatz} darauf.
+%
+% VORAUSSETZUNGEN IM PREAMBLE
+%   \lstdefinestyle{pythonstil}{...}   -- laut Schreibplan vorhanden
+%   Falls pythonstil anders definiert ist (z. B. \lstdefinelanguage), in der
+%   ersten Zeile style= entsprechend anpassen.
+%
+%   Fuer die deutsche Benennung im Text und im Verzeichnis:
+%     \renewcommand{\lstlistingname}{Quelltext}
+%     \renewcommand{\lstlistlistingname}{Quellcodeverzeichnis}
+%   Der Fliesstext schreibt "Quelltext~\ref{lst:acs-versatz}". Ohne das
+%   \renewcommand heisst es im Verzeichnis "Listing" -- dann entweder das
+%   \renewcommand setzen oder im Text "Listing" schreiben. Nicht mischen.
+%
+%   Die literate-Zuordnung fuer Umlaute wird hier NICHT gebraucht: Der
+%   Ausschnitt ist reines ASCII. Ab Quelltext 6 (tests/) ist sie noetig.
+%
+% BESCHRIFTUNG
+%   Bewusst einzeilig. Der Satz "die Auswahl greift auf den juengsten
+%   veroeffentlichten Jahrgang zurueck" stand hier doppelt -- er steht schon
+%   im Fliesstext von Absatz 2 und ist dort besser aufgehoben. Die
+%   Beschriftung traegt nur noch Gegenstand und Fundstelle.
+%
+% QUELLE, ZEICHENGLEICH
+%   prep/s1_daten.py, Z. 306--322 (Funktionskopf und Rueckgabe) und Z. 337
+%   (Aufruf). Gekuerzt ausschliesslich durch Weglassen ganzer Zeilen:
+%   entfernt ist der Docstring. Keine Zeile ist umformuliert.
+% =========================================================================
+
+
+% ---------------------------- AB HIER KOPIEREN ---------------------------
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:acs-versatz},
+  caption={Zeitbewusste Zuordnung des ACS-Jahrgangs
+           (\texttt{prep/s1\_daten.py}, Z.~306--322 und 337, gekürzt)}]
+def acs_snapshot(jahr: int, acs_years: list[int]) -> int:
+    return max([a for a in acs_years if a <= int(jahr) - ACS_PUBLIKATIONS_LAG],
+               default=min(acs_years))
+
+sffd["acs_year"] = sffd["year"].apply(lambda y: acs_snapshot(y, jahrgaenge))
+\end{lstlisting}
+
+% ---------------------------- BIS HIER KOPIEREN --------------------------
