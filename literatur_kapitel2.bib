@@ -1,0 +1,456 @@
+% =========================================================================
+% ERGAENZUNG ZU literatur.bib  --  Stand 27.08.2026  --  KAPITEL 2
+%
+% Sechs Eintraege fuer Kapitel 2 (Grundlagen und Forschungsstand). Alle
+% sechs standen bereits als Schluessel in literatur.bib, aber ohne
+% geprueften Locator. Sie liegen jetzt als PDF in Quellen/ und sind am
+% Volltext geprueft. Registerformat wie am 20.08.2026 festgelegt:
+%
+%   %% verwendet = Abschnitt in main.tex, in dem zitiert wird
+%   %% link      = direkter Zugang
+%   %% seiten    = zitierte (= freigegebene) Seiten + Volltext
+%
+% Einfuegeblock, kein Ersatz -- Inhalt in Overleaf gegen die bestehenden
+% sechs Eintraege austauschen. Datei ist reines ASCII.
+%
+% =========================================================================
+% ACHTUNG -- VIER INHALTSKONFLIKTE, VOR DEM SCHREIBEN LESEN
+% =========================================================================
+%
+% K1  FernandezDelgado2014 traegt den Satz NICHT, an dem er haengt.
+%     Im Geruest steht: "Empirische Benchmark-Studien zeigen, dass die
+%     Eignung eines Verfahrens stark vom jeweiligen Datensatz abhaengt und
+%     kein Algorithmus auf allen Problemklassen gleichermassen ueberlegen
+%     ist.\footcite[3133, 3175]{FernandezDelgado2014}"
+%     Die Quelle sagt fast das Gegenteil. S. 3175 (Conclusion): parRF ist
+%     ueber 121 Datensaetze der beste Klassifikator und "may be considered
+%     as a reference (gold-standard)"; sechs RF und fuenf SVM stehen unter
+%     den zwanzig besten. Die Formulierung "not dependent on the data set
+%     collection" in der Kurzfassung beschreibt das STUDIENDESIGN (121
+%     Datensaetze, damit die Schluesse nicht an der Auswahl haengen) --
+%     sie ist im Geruest rueckwaerts gelesen.
+%     BELEGT IST DIE AUSSAGE TROTZDEM, aber ueber eine andere Zahl:
+%     S. 3175 -- parRF erreicht im Mittel 82,0 % Genauigkeit, der jeweils
+%     BESTE Klassifikator je Datensatz erreicht 86,9 %. Diese Luecke von
+%     4,9 Punkten ist der Beleg dafuer, dass kein einzelnes Verfahren je
+%     Datensatz optimal ist. Satz entsprechend umbauen.
+%
+% K2  Grinsztajn2022 traegt die Aufzaehlung im dritten Absatz nicht.
+%     Im Geruest steht: "Die Performance eines Algorithmus haengt
+%     empirisch nachweislich von Stichprobengroesse, Feature-Anzahl,
+%     Signalstaerke, Multikollinearitaetsstruktur und Interaktionseffekten
+%     ab.\footcite{Grinsztajn2022}"
+%     Keiner dieser fuenf Begriffe kommt in der Quelle vor. Grinsztajn
+%     nennt DREI Dateneigenschaften (S. 6-9, Zusammenfassung S. 9):
+%       Finding 1, S. 6  NN sind zu glatten Loesungen verzerrt und lernen
+%                        unregelmaessige Zielfunktionen schlechter
+%       Finding 2, S. 7  uninformative Merkmale schaden MLP-artigen NN
+%                        staerker als Baumverfahren
+%       Finding 3, S. 8-9 NN sind rotationsinvariant, Tabellendaten nicht
+%     Satz auf diese drei umschreiben. Das ist inhaltlich sogar naeher an
+%     dieser Arbeit -- "uninformative Merkmale" ist genau der Befund der
+%     Ablation in 7.4.
+%
+% K3  Rudin2019 sagt das Gegenteil der zweiten Satzhaelfte in 2.6.
+%     Im Geruest steht: "...; Post-hoc-Erklaerungsmethoden wie SHAP oder
+%     Permutation Feature Importance koennen diesen Konflikt teilweise
+%     entschaerfen.\footcite{Rudin2019}"
+%     Rudins gesamtes Argument ist, dass genau das NICHT geht. S. 1:
+%     "trying to explain black box models, rather than creating models
+%     that are interpretable in the first place, is likely to perpetuate
+%     bad practices and can potentially cause catastrophic harm"; S. 4:
+%     die Erklaerung benutze andere Merkmale als das Modell und sei
+%     deshalb "not faithful to the computation of the black box".
+%     Die Entschaerfungs-Haelfte braucht eine andere Quelle (Molnar) oder
+%     faellt weg. Rudin ist fuer diese Arbeit die STAERKERE Quelle als das
+%     Expose sie benutzt: S. 2 haelt fest, dass der Zielkonflikt sich
+%     umkehren kann -- "more interpretability leads to better overall
+%     accuracy" -- und S. 3, dass der geglaubte Zielkonflikt viele
+%     Forscher davon abhalte, ein interpretierbares Modell ueberhaupt zu
+%     versuchen. Genau das ist der Befund dieser Arbeit.
+%
+% K4  Schroeer2021 traegt die Gewichtungsaussage nicht.
+%     Im Geruest steht: "Da der Schwerpunkt dieser Arbeit auf dem
+%     Algorithmenvergleich liegt, erhalten insbesondere die Phasen
+%     Modeling und Evaluation ueberproportionales
+%     Gewicht.\footcite[526-532]{Schroeer2021}"
+%     Das ist eine Entscheidung DIESER Arbeit, keine Aussage der Quelle;
+%     "overproportional", "Modeling and Evaluation" als Gewichtung kommen
+%     bei Schroeer nicht vor. Fussnote streichen oder auf die zweite
+%     Satzhaelfte begrenzen. Was Schroeer belegt, steht unten.
+%
+% =========================================================================
+% SEITENVERSATZ DER SECHS DATEIEN (gemessen 27.08.2026)
+% =========================================================================
+%   Bergstra2012.pdf             PDF + 280   = Druckseite (281-305)
+%   fernandez-delegado2014.pdf   PDF + 3132  = Druckseite (3133-3181)
+%   schroer2021.pdf              PDF + 525   = Druckseite (526-534)
+%   Grinsztajn2022.pdf           eigene Zaehlung 1-33   (arXiv v1)
+%   Shwartz-Ziv2021.pdf          eigene Zaehlung 1-13   (arXiv v2)
+%   rudin2019.pdf                eigene Zaehlung 1-20   (arXiv v3)
+%
+% Die drei arXiv-Fassungen tragen KEINE Bandseiten. Zitiert wird, was
+% gelesen wurde -- dieselbe Regel wie bei Kaufman2011 (Konferenzfassung)
+% und Gourieroux1981 (Arbeitspapierfassung). Fuer Grinsztajn und Rudin
+% aendert das nichts am Jahr. Fuer Shwartz-Ziv schon: der Schluessel
+% wandert von ShwartzZiv2022 auf ShwartzZiv2021, und im Fliesstext steht
+% dann "Shwartz-Ziv und Armon (2021)".
+% =========================================================================
+
+
+% -------------------------------------------------------------------------
+% 17  BENCHMARK -- kein Verfahren ist je Datensatz optimal
+% -------------------------------------------------------------------------
+% S. 3133  Kurzfassung: 179 Klassifikatoren aus 17 Familien ueber 121
+%          Datensaetze. "The classifiers most likely to be the bests are
+%          the random forest (RF) versions" -- 94,1 % der maximalen
+%          Genauigkeit, kein statistisch signifikanter Abstand zur SVM
+%          mit Gauss-Kern (92,3 %)
+% S. 3175  Conclusion: parRF erreicht im Mittel ueber alle Datensaetze
+%          82,0 % Genauigkeit, die maximale mittlere Genauigkeit (je
+%          Datensatz der beste Klassifikator) betraegt 86,9 %. Ebenda:
+%          parRF "may be considered as a reference (gold-standard) to
+%          compare with new classifier proposals"
+% -> Der 82,0/86,9-Abstand traegt den Satz zur Datensatzabhaengigkeit,
+%    das gold-standard-Zitat traegt die Rechtfertigung systematischer
+%    Algorithmenvergleiche. Siehe K1.
+%% verwendet = 1.1; 2.2
+%% link      = https://jmlr.org/papers/v15/delgado14a.html
+%% seiten    = 3133, 3175 -- GEPRUEFT 27.08.2026, Volltext frei, liegt in Quellen/fernandez-delegado2014.pdf
+@article{FernandezDelgado2014,
+  author      = {Fern{\'a}ndez-Delgado, Manuel and Cernadas, Eva and
+                 Barro, Sen{\'e}n and Amorim, Dinani},
+  title       = {Do we Need Hundreds of Classifiers to Solve Real World
+                 Classification Problems?},
+  journal     = {Journal of Machine Learning Research},
+  volume      = {15},
+  year        = {2014},
+  pages       = {3133--3181},
+  url         = {https://jmlr.org/papers/v15/delgado14a.html},
+  urldate     = {2026-08-27},
+}
+
+
+% -------------------------------------------------------------------------
+% 18  BENCHMARK -- Baumverfahren auf Tabellendaten
+% -------------------------------------------------------------------------
+% S. 1  Kurzfassung: "tree-based models remain state-of-the-art on
+%       medium-sized data (~10K samples) even without accounting for their
+%       superior speed"
+% S. 6  "Tree-based models are superior for every random search budget,
+%       and the performance gap stays wide even after a large number of
+%       random search iterations" -> belegt "auch nach umfangreichem
+%       Hyperparameter-Tuning"
+% S. 6  "Categorical variables are not the main weakness of NNs" ->
+%       belegt "unabhaengig von der Behandlung kategorialer Variablen"
+% S. 6-9 die drei Dateneigenschaften, siehe K2; Zusammenfassung auf S. 9:
+%       "irregular patterns in the target function, uninformative
+%       features, and non rotationally-invariant data"
+% -> In 2.8 (Erwartungen) reicht S. 1.
+%% verwendet = 2.2; 2.8
+%% link      = https://arxiv.org/abs/2207.08815
+%% seiten    = 1, 6 (Tuning und Kategorien), 9 (drei Dateneigenschaften) -- GEPRUEFT 27.08.2026, arXiv-Zaehlung, liegt in Quellen/Grinsztajn2022.pdf
+@misc{Grinsztajn2022,
+  author      = {Grinsztajn, L{\'e}o and Oyallon, Edouard and
+                 Varoquaux, Ga{\"e}l},
+  title       = {Why do tree-based models still outperform deep learning
+                 on tabular data?},
+  year        = {2022},
+  eprint      = {2207.08815},
+  eprinttype  = {arXiv},
+  eprintclass = {cs.LG},
+  url         = {https://arxiv.org/abs/2207.08815},
+  urldate     = {2026-08-27},
+  note        = {Zitiert wird die arXiv-Fassung v1 vom 18.07.2022 mit
+                 eigener Seitenzaehlung 1--33. Ebenfalls erschienen in:
+                 Advances in Neural Information Processing Systems 35
+                 (2022), Datasets and Benchmarks Track},
+}
+
+
+% -------------------------------------------------------------------------
+% 19  BENCHMARK -- XGBoost gegen Deep-Learning-Architekturen
+% -------------------------------------------------------------------------
+% ACHTUNG: Schluessel und Jahr geaendert, siehe Kopf. Vorher ShwartzZiv2022
+% mit Locator 84-90; diese Seiten existieren in der vorliegenden Datei
+% nicht.
+% S. 1  Kurzfassung: "XGBoost outperforms these deep models across the
+%       datasets, including the datasets used in the papers that proposed
+%       the deep models" und "XGBoost requires much less tuning"
+% S. 6  "XGBoost outperformed the other models in most cases"
+% S. 8  Einschraenkung, die genannt werden sollte: ein Ensemble aus tiefen
+%       Modellen und XGBoost war besser als XGBoost allein
+%% verwendet = 2.2
+%% link      = https://arxiv.org/abs/2106.03253
+%% seiten    = 1 -- GEPRUEFT 27.08.2026, arXiv-Zaehlung, liegt in Quellen/Shwartz-Ziv2021.pdf
+@misc{ShwartzZiv2021,
+  author      = {Shwartz-Ziv, Ravid and Armon, Amitai},
+  title       = {Tabular Data: Deep Learning is Not All You Need},
+  year        = {2021},
+  eprint      = {2106.03253},
+  eprinttype  = {arXiv},
+  eprintclass = {cs.LG},
+  url         = {https://arxiv.org/abs/2106.03253},
+  urldate     = {2026-08-27},
+  note        = {Zitiert wird die arXiv-Fassung v2 vom 23.11.2021 mit
+                 eigener Seitenzaehlung 1--13. Die Zeitschriftenfassung
+                 erschien in: Information Fusion 81 (2022), S. 84--90,
+                 doi 10.1016/j.inffus.2021.11.011},
+}
+
+
+% -------------------------------------------------------------------------
+% 20  HYPERPARAMETERSUCHE -- warum zufaellig statt Gitter
+% -------------------------------------------------------------------------
+% S. 281  Kurzfassung: "randomly chosen trials are more efficient for
+%         hyper-parameter optimization than trials on a grid"; ebenda der
+%         Mechanismus: "for most data sets only a few of the
+%         hyper-parameters really matter, but that different
+%         hyper-parameters are important on different data sets. This
+%         phenomenon makes grid search a poor choice for configuring
+%         algorithms for new data sets"
+% S. 282  Definition der Gittersuche: S = Produkt der Kandidatenmengen,
+%         waechst exponentiell in der Zahl der Hyperparameter
+% S. 295  Abschnitt "Grid Search and Sets with Low Effective
+%         Dimensionality" -- die theoretische Begruendung
+% -> 2.5.1 braucht S. 281 und S. 282. S. 295 nur, wenn der Abschnitt die
+%    Begruendung ausfuehren soll; bei einem Absatz eher nicht.
+%% verwendet = 2.5.1; 6.3; 7.1
+%% link      = https://jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf
+%% seiten    = 281 (Befund und Mechanismus), 282 (Gittersuche) -- GEPRUEFT 27.08.2026, Volltext frei, liegt in Quellen/Bergstra2012.pdf
+@article{Bergstra2012,
+  author      = {Bergstra, James and Bengio, Yoshua},
+  title       = {Random Search for Hyper-Parameter Optimization},
+  journal     = {Journal of Machine Learning Research},
+  volume      = {13},
+  year        = {2012},
+  pages       = {281--305},
+  url         = {https://jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf},
+  urldate     = {2026-08-27},
+}
+
+
+% -------------------------------------------------------------------------
+% 21  INTERPRETIERBARKEIT -- der Zielkonflikt und seine Umkehrung
+% -------------------------------------------------------------------------
+% S. 1  Kurzfassung: Black-Box-Modelle in Entscheidungen mit hohem Risiko;
+%       der Versuch, sie nachtraeglich zu erklaeren statt von vornherein
+%       interpretierbar zu modellieren, "is likely to perpetuate bad
+%       practices and can potentially cause catastrophic harm to society"
+% S. 2  zwei Arten von Black Box (zu komplex fuer einen Menschen /
+%       proprietaer); ebenda die Umkehrung des Zielkonflikts: "the
+%       accuracy/interpretability tradeoff is reversed -- more
+%       interpretability leads to better overall accuracy"
+% S. 3  der geglaubte Zielkonflikt stammt aus der DARPA-XAI-Ausschreibung;
+%       "the belief in a trade-off between accuracy and interpretability
+%       has led many researchers to forgo the attempt to produce an
+%       interpretable model"
+% S. 4  Erklaerungen benutzen andere Merkmale als das erklaerte Modell und
+%       sind deshalb "not faithful to the computation of the black box"
+% -> S. 2 und S. 3 sind die Stellen, die diese Arbeit braucht. Siehe K3.
+%    S. 3 gehoert zusaetzlich nach 8.1.
+%% verwendet = 2.6; 8.1
+%% link      = https://arxiv.org/abs/1811.10154
+%% seiten    = 2 (Umkehrung des Zielkonflikts), 3 (Herkunft des Zielkonflikts) -- GEPRUEFT 27.08.2026, arXiv-Zaehlung, liegt in Quellen/rudin2019.pdf
+@misc{Rudin2019,
+  author      = {Rudin, Cynthia},
+  title       = {Stop Explaining Black Box Machine Learning Models for
+                 High Stakes Decisions and Use Interpretable Models
+                 Instead},
+  year        = {2019},
+  eprint      = {1811.10154},
+  eprinttype  = {arXiv},
+  eprintclass = {stat.ML},
+  url         = {https://arxiv.org/abs/1811.10154},
+  urldate     = {2026-08-27},
+  note        = {Zitiert wird die arXiv-Fassung v3 vom 22.09.2019 mit
+                 eigener Seitenzaehlung 1--20. Die gekuerzte
+                 Zeitschriftenfassung erschien in: Nature Machine
+                 Intelligence 1 (2019), S. 206--215,
+                 doi 10.1038/s42256-019-0048-x},
+}
+
+
+% -------------------------------------------------------------------------
+% 22  CRISP-DM -- Verbreitung und die Deployment-Luecke
+% -------------------------------------------------------------------------
+% S. 526  Kurzfassung: "CRISP-DM is the de-facto standard and an
+%         industry-independent process model for applying data mining
+%         projects. Twenty years [after its publication]..."
+% S. 531  Abschnitt 5.3: "17 studies do not perform a deployment phase,
+%         although this is part of the process model"; ebenda die
+%         Bestaetigung des De-facto-Standards aus RQ1
+% S. 532  "the deployment phase is missing in the majority of the studies"
+% -> S. 526 traegt den De-facto-Standard-Satz in 1.3 und 2.7.
+%    S. 531-532 traegt die Begruendung, warum Deployment nicht Gegenstand
+%    dieser Arbeit ist -- die Phase ist als dokumentierte Luecke des
+%    Feldes belegt, nicht als Auslassung dieser Arbeit. Das ist das
+%    eleganteste Zitat im ganzen Kapitel 2.
+%    Die Gewichtungsaussage traegt Schroeer NICHT, siehe K4.
+%% verwendet = 1.3; 2.7
+%% link      = https://doi.org/10.1016/j.procs.2021.01.199
+%% seiten    = 526 (De-facto-Standard), 531-532 (Deployment-Luecke) -- GEPRUEFT 27.08.2026, Open Access, liegt in Quellen/schroer2021.pdf
+@article{Schroeer2021,
+  author      = {Schr{\"o}er, Christoph and Kruse, Felix and
+                 {Marx G{\'o}mez}, Jorge},
+  title       = {A Systematic Literature Review on Applying {CRISP-DM}
+                 Process Model},
+  journal     = {Procedia Computer Science},
+  volume      = {181},
+  year        = {2021},
+  pages       = {526--534},
+  doi         = {10.1016/j.procs.2021.01.199},
+  url         = {https://doi.org/10.1016/j.procs.2021.01.199},
+  urldate     = {2026-08-27},
+  note        = {Open Access. CENTERIS 2020 / ProjMAN 2020 / HCist 2020},
+}
+
+
+% =========================================================================
+% NACHTRAG 27.08.2026 -- ISLP
+%
+% Lukas hat die PYTHON-Ausgabe geladen, nicht die R-Ausgabe von 2021:
+%   Quellen/ISLP_website.pdf, 613 Seiten, First Printing 05.07.2023,
+%   FUENF Autoren (Taylor kommt hinzu).
+% Das ist die bessere Wahl fuer diese Arbeit -- die Laborteile sind Python,
+% und alle in 2.3 bis 2.5 gebrauchten Abschnitte sind enthalten.
+% ACHTUNG: andere Paginierung als ISLR2. Alle Locator unten sind an
+% ISLP_website.pdf geprueft.  SEITENVERSATZ: PDF - 11 = Druckseite.
+%
+% WAS ISLP DAMIT TRAEGT -- und was nicht:
+%   getragen   GLM allgemein, kanonischer Link, Poisson mit Log-Link,
+%              E(Y)=Var(Y), Ueberdispersion, negative Binomial als
+%              Erweiterung, multinomiales Logit mit Referenzkategorie,
+%              Ridge, Random Forest, Boosting, Bias-Varianz,
+%              Kreuzvalidierung, Konfusionsmatrix, ROC, AUC
+%   NICHT      der OFFSET (kommt in ISLP nicht vor -- die drei Treffer auf
+%              S. 110, 163, 165 sind das englische Alltagswort)
+%              F1 und Macro-F1 (ISLP hat Sensitivitaet, Spezifitaet,
+%              PPV/NPV, aber kein F-Mass)
+%              Klassengewichtung bei unbalancierten Klassen
+%
+% DER OFFSET BRAUCHT KEINE QUELLE. Er folgt in einer Zeile aus dem
+% Log-Link (S. 171): wird die RATE mu/E mit Log-Link modelliert, ist
+%   log(mu/E) = x'beta   <=>   log(mu) = log(E) + x'beta
+% Das ist die Herleitung der Arbeit, nicht ein zitiertes Ergebnis. Der
+% Ort, an dem die Wahl begruendet wird, ist ohnehin 5.4 bzw. 6.2
+% (v1_baselines.py, offset=log(gesamtbevoelkerung)). Fuer das Kolloquium
+% ist eine Herleitung, die man an der Tafel wiederholen kann, mehr wert
+% als eine Fussnote.
+%
+% DER R9-ABSATZ IST DAMIT VOLLSTAENDIG BELEGT -- drei Stellen, zwei
+% Quellen, beide vorhanden:
+%   ISLP S. 96-97  Kruemmung geht: Polynomregression erweitert das lineare
+%                  Modell auf nichtlineare Zusammenhaenge
+%   ISLP S. 93     Wechselwirkung geht nur explizit: "One way of extending
+%                  this model is to include a third predictor, called an
+%                  interaction term, which is constructed by computing the
+%                  product of X1 and X2"
+%   ESL  S. 362-363 Baeume nicht: die ANOVA-Entwicklung
+%                  eta(X) = SUM eta_j + SUM eta_jk + SUM eta_jkl + ...
+%                  wird von einem Baum der Groesse J bis zur Ordnung J-1
+%                  automatisch erzeugt; "the value chosen for J should
+%                  reflect the level of dominant interactions of eta(x)".
+%                  Seitenversatz Hastie2009.pdf: PDF - 19 = Druckseite
+% =========================================================================
+
+
+% -------------------------------------------------------------------------
+% 23  LEHRBUCH -- traegt 2.3, 2.4 und Teile von 2.5
+% -------------------------------------------------------------------------
+% S. 30, 33, 37   Bias-Varianz-Zerlegung und Generalisierung -> 2.5.1
+%                 (Hastie2009 S. 38 sagt dasselbe knapper, beide moeglich)
+% S. 93           Interaktionsterm wird als Produkt EXPLIZIT gebildet
+%                 -> Grenze der Modellklasse, Schlussabsatz 2.3
+% S. 96-97        Polynomregression: Kruemmung im linearen Modell
+%                 -> Grenze der Modellklasse, Schlussabsatz 2.3
+% S. 143          multinomiales Logit, Referenzkategorie K -> FORMEL 3
+% S. 144          alle K Klassen, Log-Odds zwischen zwei Klassen (Softmax)
+% S. 150-153      Konfusionsmatrix, Sensitivitaet, Spezifitaet, ROC, AUC
+%                 -> 2.5.2. KEIN F-Mass, siehe Kopf
+% S. 167-168      Poisson-Verteilung; lambda = E(Y) = Var(Y) -> 2.3.1
+% S. 170          Ueberdispersion beim Namen genannt: "the variance in the
+%                 Bikeshare data appears to be much higher than the mean,
+%                 a situation referred to as overdispersion" -> 2.3.1
+% S. 171          exponentielle Familie; die drei Linkfunktionen
+%                 eta(mu) = mu, log(mu/(1-mu)), log(mu) -> FORMEL 1 und 2;
+%                 negative Binomialregression als nicht behandelte
+%                 Erweiterung -> die Abgrenzung in 2.3.1
+% S. 199-206      Kreuzvalidierung -> 2.5.3
+% S. 237-247      Ridge, L2-Strafterm -> 2.4.1 (neben Hoerl1970)
+% S. 339-349      Random Forest -> 2.4.2 (neben Breiman2001)
+% S. 343          Boosting -> 2.4.3 (neben Chen2016)
+%% verwendet = 2.3; 2.4; 2.5
+%% link      = https://www.statlearning.com/
+%% seiten    = 93, 96-97, 143-144, 150-153, 167-168, 170-171, 237-247, 339-349 -- GEPRUEFT 27.08.2026, frei, liegt in Quellen/ISLP_website.pdf
+@book{James2023,
+  author      = {James, Gareth and Witten, Daniela and Hastie, Trevor and
+                 Tibshirani, Robert and Taylor, Jonathan},
+  title       = {An Introduction to Statistical Learning with Applications
+                 in {Python}},
+  series      = {Springer Texts in Statistics},
+  publisher   = {Springer},
+  location    = {Cham},
+  year        = {2023},
+  isbn        = {978-3-031-38746-3},
+  url         = {https://www.statlearning.com/},
+  urldate     = {2026-08-27},
+  note        = {Zitiert wird die frei verfuegbare Fassung der Verlagsseite,
+                 First Printing vom 05.07.2023, 613 Seiten. Nicht zu
+                 verwechseln mit der R-Ausgabe (ISLR, 2. Auflage 2021,
+                 vier Autoren) -- andere Paginierung},
+}
+
+
+% -------------------------------------------------------------------------
+% 24  GUETEMASS -- welches Macro-F1 eigentlich gemeint ist
+% -------------------------------------------------------------------------
+% Schliesst die letzte Belegluecke in Kapitel 2. ISLP hat Konfusionsmatrix,
+% Sensitivitaet, Spezifitaet, PPV/NPV, ROC und AUC (S. 150-153), aber kein
+% F-Mass.
+%
+% S. 1  Definitionen. Praezision, Trefferquote und F1 als harmonisches
+%       Mittel je Klasse (Gleichung 1), mit der Konvention P_i = R_i =
+%       F1_i = 0, wenn der Nenner null ist. Dann Gleichung 2, "Averaged
+%       F1: arithmetic mean over harmonic means" -- das arithmetische
+%       Mittel der klassenweisen F1-Werte.  -> FORMEL fuer 2.5.2
+%       Ebenda die Kernaussage: es gibt ZWEI verbreitete Formeln fuer
+%       "macro F1", ihr Ergebnis kann um bis zu 0,5 auseinanderliegen und
+%       sie koennen zu unterschiedlichen Rangfolgen der Verfahren fuehren
+% S. 6  Empfehlung und Auflage: das arithmetische Mittel ueber die
+%       einzelnen F1-Werte ist "significantly more robust towards the
+%       error type distribution"; und: "At the very least, researchers
+%       should indicate which formula they are using"
+%
+% WARUM DAS FUER DIESE ARBEIT MEHR IST ALS EIN DEFINITIONSBELEG:
+% modelle/m03_struktur.py:292 rechnet
+%     f1_score(y_te, y_hat, average="macro", zero_division=0)
+% und Z. 213 tunt mit scoring="f1_macro". Beides ist das arithmetische
+% Mittel der klassenweisen F1-Werte, also genau Gleichung 2 -- die
+% Fassung, die Opitz und Burst empfehlen. Die Arbeit steht damit auf der
+% richtigen Seite der Unterscheidung, sagt es aber nirgends. Ein Satz in
+% 2.5.2 erledigt Opitz' Auflage von S. 6, und zwar so, dass er nach
+% Sorgfalt aussieht statt nach Pflichtuebung.
+% Das zero_division=0 im Code entspricht exakt der Konvention auf S. 1.
+% Bei 33 Brandfaellen im Entwicklungspanel ist eine leer vorhergesagte
+% Klasse kein theoretischer Fall -- die Konvention greift wirklich.
+%
+% NICHT UEBERZIEHEN: Die Quelle nennt KEINE Bibliotheken (der Anhang E
+% enthaelt ein Haskell-Beispiel). Dass scikit-learn mit average="macro"
+% Gleichung 2 rechnet, ist NICHT ueber Opitz belegbar -- das gehoert nach
+% 6.1 mit Pedregosa2011 bzw. an den Quelltext.
+%% verwendet = 2.5.2
+%% link      = https://arxiv.org/abs/1911.03347
+%% seiten    = 1 (beide Formeln, Konvention bei Nenner null), 6 (Empfehlung und Ausweisungspflicht) -- GEPRUEFT 27.08.2026, arXiv-Zaehlung, liegt in Quellen/opitz2021.pdf
+@misc{Opitz2021,
+  author      = {Opitz, Juri and Burst, Sebastian},
+  title       = {Macro F1 and Macro F1},
+  year        = {2021},
+  eprint      = {1911.03347},
+  eprinttype  = {arXiv},
+  eprintclass = {cs.LG},
+  url         = {https://arxiv.org/abs/1911.03347},
+  urldate     = {2026-08-27},
+  note        = {Zitiert wird die arXiv-Fassung v3 vom 08.02.2021 mit
+                 eigener Seitenzaehlung 1--12},
+}

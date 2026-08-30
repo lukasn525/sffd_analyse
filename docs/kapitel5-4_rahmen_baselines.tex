@@ -1,0 +1,264 @@
+% =========================================================================
+% KAPITEL 5.4 -- ANALYSERAHMEN UND BASELINES
+% Fassung 1, 25.08.2026. Zweiter Schwerpunkt des Kapitels.
+%
+% ERSETZT den Platzhalterabsatz in main.tex Z. 1582-1584 ("Der zweite
+% Schwerpunkt. Er legt fest, wie die Datensaetze in Trainings- und
+% Testmengen zerfallen ...").
+%
+% GLEITOBJEKTE: docs/kapitel5-4_gleitobjekte.tex
+%   Abbildung  abb:foldstruktur   -> nach Absatz 2
+%   Quelltext  lst:foldmasken     -> nach Absatz 2      [KUERZBAR]
+%   Quelltext  lst:folds          -> nach Absatz 4
+%   Quelltext  lst:merkmalsliste  -> nach Absatz 8      [KUERZBAR]
+%   Quelltext  lst:dtypes         -> nach Absatz 9
+%   Tabelle    tab:baselines-menge     -> nach Absatz 11
+%   Quelltext  lst:poisson        -> nach Absatz 11
+%   Tabelle    tab:baselines-struktur  -> nach Absatz 12
+%   Quelltext  lst:logit          -> nach Absatz 12
+%   Quelltext  lst:test-folds     -> nach Absatz 16     [KUERZBAR]
+%   Tabelle    tab:steckbrief     -> ans ENDE des Abschnitts
+%
+% NEUE ZITATE: Chapman2000 (A1), Roberts2017 (A2), Killip2004 (A7),
+% Gourieroux1981 (A13). Chapman, Roberts und Gourieroux stehen bereits in
+% literatur.bib; Killip2004 muss noch eingefuegt werden
+% (docs/literatur_kapitel5-4_killip.bib). Roberts2017 und Gourieroux1981
+% werden hier ZUM ERSTEN MAL zitiert -- vorher erschienen sie nicht im
+% Literaturverzeichnis, weil biblatex nur zitierte Eintraege druckt.
+%
+% ERLEDIGTE AUFLAGEN
+%   A (Abweichung vom Expose)  -> Absatz 3, Ausfuehrung in Kapitel 8
+%   B ("Generalisierung auf unbekannte Stadtteile" woertlich) -> Absatz 1
+%   C (identische Merkmale und Splits BELEGEN) -> Absatz 8
+%   D (drei Argumente woertlich, in Schroeters Reihenfolge)   -> Absatz 14
+%   R-2  (Vorbehalt zu Argument 3)      -> Absatz 14
+%   R-14 (Wechsel weg von NegBin)       -> Absatz 13
+%   R-5  (std_wiederholungen statt std_folds) -> Absatz 6
+%   Serialisierung (Auflage 10.08.)     -> Absatz 9
+%
+% WAS BEWUSST NICHT DRINSTEHT
+%   - class_weight="balanced" als ERKLAERUNG fuer das Verhaeltnis von
+%     Trefferquote und Macro-F1 -> Kapitel 6. Hier steht nur der Befund
+%     und die Konstruktionsentscheidung (keine Vervielfachung von Zeilen).
+%   - Der flache Entscheidungsbaum (Macro-F1 0,270) -> Ergebnis, Kapitel 7.
+%   - Der Extrapolationsanteil von 33,7 % -> Kapitel 7 und 8.
+%
+% BAUSTELLE, DIE HIER AUFFAELLT
+%   In Kapitel 2.4 (sec:referenzmodelle) steht bislang KEIN Text, nur
+%   Kommentare. Die Verweise unten zeigen deshalb auf 2.6 und 3.2, nicht
+%   auf 2.4. Sobald 2.4 geschrieben ist, koennen Absatz 11 und 12 je einen
+%   Rueckverweis dorthin bekommen und dafuer je einen Satz verlieren.
+% =========================================================================
+
+
+% ---------------------------- AB HIER KOPIEREN ---------------------------
+
+\subsection{Analyserahmen und Baselines}
+\label{sec:rahmen-baselines}
+
+Von der Gesamtvarianz der Einsatzhäufigkeit liegen 92,5\,\% zwischen den
+Stadtteilen (Abschnitt~\ref{sec:eda}). Ein Modell, das einen Stadtteil bereits
+aus dem Training kennt, muss dessen Niveau deshalb nicht mehr erklären. Die
+Aufteilung in Trainings- und Testmengen wird daher nicht entlang der Zeit,
+sondern entlang der Stadtteile gezogen; Ziel der Validierung ist die
+Generalisierung auf unbekannte Stadtteile. Sie entsteht in der Aufbereitung und
+wird als Spalten \texttt{fold} und \texttt{ist\_holdout} in beide
+Analysedateien geschrieben, ist also eine Eigenschaft des Datensatzes und nicht
+der Algorithmen. Das Vorgehensmodell führt die Aufteilung folgerichtig unter
+der Auswahl der Daten und nicht unter der
+Modellierung.\footcite[23-26]{Chapman2000} Am Ende stehen fünf Folds über 29
+Entwicklungsstadtteile, sechs zurückgehaltene Stadtteile und eine zweistufige
+Messlatte, an der sich jedes spätere Verfahren messen lassen muss.
+
+Geprüft wird, indem ganze Stadtteile zurückgehalten werden. Die 29
+Entwicklungsstadtteile verteilen sich auf fünf Folds mit sechs, sechs, sechs,
+sechs und fünf Stadtteilen; jeder ist genau einmal Testfall, und zwar mit allen
+132 Monaten. Je Fold stehen damit 3.036 bis 3.168 Trainingszeilen und 660 bis 792
+Testzeilen nebeneinander (Abbildung~\ref{abb:foldstruktur});
+Quelltext~\ref{lst:foldmasken} zeigt, dass beide Mengen aus den Spalten der
+Datei gebildet werden und kein Stadtteil in beiden steht. Ein Zeitschnitt
+prüfte die Forschungsfrage nicht: Dort steht jeder Stadtteil in Training und
+Test, und das Modell kennt sein Niveau bereits --- der Stadtteilmittelwert
+allein erreicht ein Bestimmtheitsmaß von 0,888 (Abschnitt~\ref{sec:eda}). Für
+genau diesen Fall empfehlen Roberts et al. eine räumlich geblockte Aufteilung,
+wenn auf neue Orte vorhergesagt werden soll.\footcite[925]{Roberts2017} Was der
+Rahmen dadurch nicht mehr misst, ist die Fortschreibung eines bereits bekannten
+Stadtteils in die Zukunft.
+
+Damit weicht die Untersuchung von der angemeldeten Fassung ab. Die zweite
+Unterfrage nannte eine zeitreihengerechte Kreuzvalidierung, und ein früher
+Entwurf sah ein Testfenster der letzten zwölf Monate vor. Der Wechsel auf den
+stadtteilweisen Rahmen ist am 28.~Juli 2026 entschieden worden, nachdem die
+Varianzzerlegung des Bestands vorlag. Er ist damit die Folge eines Befundes
+über die Daten und keine Anpassung an ein Ergebnis; die Abwägung beider Rahmen
+steht in Kapitel~\ref{sec:diskussion}.
+
+Welcher Stadtteil in welchen Fold fällt, ist nicht zufällig. Die Zuteilung
+folgt einer Ordnung, die zuerst nach der Zahl brand-dominierter Monate und bei
+Gleichstand nach der Wohnbevölkerung sortiert; die so geordneten Stadtteile
+werden reihum auf sechs Gruppen verteilt, von denen die erste das Hold-out
+bildet (Quelltext~\ref{lst:folds}). Beide Kriterien beantworten je ein Problem.
+Von 70 brand-dominierten Monaten liegen 35 in einem einzigen Stadtteil, und
+ohne Stratifizierung enthielt in drei von vier Aufteilungen ein Fold keinen
+einzigen Brand-Testfall; das Macro-F1 mittelte dann über eine Klasse, die im
+Testfold nicht vorkam. Jetzt verteilen sich die Brandfälle mit 13, 9, 6, 3 und
+2 Monaten auf die fünf Folds. Das zweite Kriterium verhindert, dass ein Fold
+nur aus großen Stadtteilen besteht und die Streuung zwischen den Folds ein
+Größeneffekt wäre. Ein Leckageproblem entsteht dabei nicht: Festgelegt wird
+allein, welche Stadtteile gemeinsam getestet werden, nicht, was ein Modell über
+sie lernt.
+
+Sechs Stadtteile bleiben während der gesamten Entwicklung unberührt und werden
+erst für die Schlussbewertung geöffnet. Sie sind nicht zufällig gezogen,
+sondern die erste Gruppe derselben Ordnung, und deshalb kein verkleinertes
+Abbild der Stadt: Auf sie entfallen 37 der 70 brand-dominierten Monate, ihr
+Brandanteil liegt bei 4,67\,\% gegenüber 0,86\,\% in den
+Entwicklungsstadtteilen. Der Stadtteil mit den meisten brand-dominierten
+Monaten fällt nach dieser Regel zwangsläufig ins Hold-out. Ergebnisse auf dem
+Hold-out sind daher nicht als Durchschnittsleistung über die Stadt zu lesen,
+sondern als Probe unter erschwerten Bedingungen.
+
+Eine einzelne Aufteilung von 29 Stadtteilen auf fünf Folds ist eine
+willkürliche Gruppierung. Alle Referenzwerte entstehen deshalb aus 50 Läufen:
+fünf Folds in zehn Wiederholungen, die innerhalb der Rangblöcke der
+Zuteilungsordnung neu mischen und dabei Foldgrößen und Stratifizierung
+erhalten; die erste Wiederholung reproduziert die Aufteilung der Datei
+bitgenau. Berichtet wird die Streuung dieser zehn Wiederholungsmittel und nicht
+die Streuung über alle 50 Läufe. Letztere fiele kleiner aus, obwohl ihr
+dieselben 29 Stadtteile in zehn Anordnungen zugrunde liegen, und wäre damit zu
+optimistisch.
+
+Die Zahl der Zeilen überzeichnet zugleich, wie viel unabhängige Information
+vorliegt. Die 132 Monate eines Stadtteils verhalten sich weitgehend wie
+Wiederholungen derselben Beobachtung; der Intraklassenkorrelationskoeffizient
+der Einsatzhäufigkeit beträgt 0,926 (Abschnitt~\ref{sec:eda}). Aus ihm und der
+Zahl der Monate je Stadtteil ergibt sich ein Designeffekt von 122 und damit
+eine effektive Stichprobe von rund 38 statt 4.620
+Beobachtungen.\footcite[206]{Killip2004} Die Rechnung setzt gleich große
+Gruppen voraus; diese Bedingung ist hier genau erfüllt, weil das Raster aus
+Abschnitt~\ref{sec:merkmale} lückenlos 35 mal 132 Zeilen führt. Die Aufteilung
+nach Stadtteilen trägt dem Rechnung, indem sie den Stadtteil und nicht die
+Zeile als Einheit behandelt. Für die Auswertung folgt daraus, dass Unterschiede
+zwischen Verfahren an der Streuung über die Wiederholungen zu beurteilen sind
+und nicht an der Zahl der Zeilen.
+
+Dass alle Verfahren dieselben Merkmale und dieselbe Aufteilung sehen, ist keine
+Zusicherung, sondern eine Eigenschaft des Aufbaus. Die Fold-Zuteilung entsteht
+in einem einzigen Aufruf und wird von dort in beide Analysedateien geschrieben;
+Mengen- und Strukturstrang können konstruktiv keine unterschiedlichen
+Aufteilungen sehen. Die Merkmalsliste steht genau einmal, in
+\texttt{prep/config.py}, und wird von jedem Modellskript von dort gelesen
+(Quelltext~\ref{lst:merkmalsliste}); eine zweite Stelle, an der ein
+Merkmalssatz definiert wäre, gibt es nicht. Eine automatisierte Prüfung baut
+die Aufteilung aus den Dateien nach und vergleicht sie zeilenweise mit den
+gespeicherten Spalten. Ohne sie liefen bei einer veralteten Aufteilung alle
+Verfahren auf falschen, aber untereinander identischen Mengen: Der Vergleich
+bliebe fair und das Ergebnis wäre trotzdem falsch.
+
+Beide Dateien werden abschließend auf modelltaugliche Datentypen gebracht ---
+alle Merkmale als \texttt{float64}, Schlüssel und Zählgrößen als
+\texttt{int64}, keine fehlenden Werte (Quelltext~\ref{lst:dtypes}). Der Aufwand
+hat einen konkreten Anlass: Die Aggregation der Zensusdaten liefert
+Medianeinkommen und Medianmiete als nullbare Ganzzahlen, und eine einzige
+solche Spalte genügt, damit die Merkmalsmatrix beim Übergang in ein
+NumPy-Feld den Typ \texttt{object} annimmt. Scikit-learn wandelt das still um,
+XGBoost lehnt es ab. Der Fehler träte also erst beim dritten der drei zu
+vergleichenden Verfahren auf und säße dann in der Aufbereitung und nicht im
+Modell.
+
+Die Messlatte ist zweistufig angelegt (Abschnitt~\ref{sec:zielgroessen}).
+Stufe~1 kommt ohne ein einziges Merkmal aus: der Gesamtmittelwert der
+Trainingsstadtteile für die Mengenzielgrößen, die häufigste Klasse für die
+Einsatzart. Sie beantwortet, ob in den Merkmalen überhaupt Information steckt.
+Stufe~2 ist die einfachste Form, die zur Datenform passt: ein verallgemeinertes
+lineares Modell mit kanonischem Link, unpenalisiert angepasst. Beide Stufen
+laufen über dieselben 50 Läufe, dieselbe Aufteilung und dieselben zwölf
+Merkmale wie die späteren Vergleichsverfahren; die Baseline ist damit
+Mitbewerber unter identischem Protokoll und nicht bloß ein Erwartungswert.
+Maßgeblich ist Stufe~2 --- ein Verfahren, das nur Stufe~1 schlägt, hat nichts
+gezeigt.
+
+Für die Mengenzielgrößen ist Stufe~2 ein Poisson-Modell mit Offset
+(Tabelle~\ref{tab:baselines-menge}, Quelltext~\ref{lst:poisson}). Die
+logarithmierte Wohnbevölkerung geht mit fest auf eins gesetztem Koeffizienten
+ein; geschätzt wird damit die Rate, hochgerechnet wird erst in der Vorhersage.
+Drei Eigenschaften machen diese Wahl zur Messlatte und nicht zum Strohmann.
+Über den Logarithmus als Link wirkt das Modell auf der Skala der Zielgröße
+multiplikativ und bildet damit überproportionale Effekte ab; es erfasst
+Krümmung, aber keine Wechselwirkungen --- und genau die finden Random Forest
+und XGBoost konstruktionsbedingt. Es hat keinen frei wählbaren Parameter, weil
+die Anpassung ohne Strafterm erfolgt; es gibt nichts zu optimieren und damit
+auch nichts zu begründen. Und die zweite Mengenzielgröße entsteht aus derselben
+Anpassung, geteilt durch die Wohnbevölkerung: Ein eigenes Ratenmodell wäre eine
+zweite Spezifikation und gegenüber den Vergleichsverfahren nicht mehr dasselbe
+Protokoll.
+
+Für die Einsatzart ist Stufe~2 ein multinomiales Logit, ebenfalls ohne
+Strafterm (Tabelle~\ref{tab:baselines-struktur},
+Quelltext~\ref{lst:logit}). Es ist das Gegenstück zum Poisson-Modell: dieselbe
+Modellklasse, derselbe kanonische Link, derselbe Verzicht auf einen freien
+Parameter. Die vier Klassen gehen mit ausgeglichenen Gewichten ein; die
+Ungleichverteilung bleibt damit eine Eigenschaft der Daten und wird nicht durch
+Vervielfachen oder Entfernen von Zeilen verändert. Der Datensatz, auf dem
+verglichen wird, ist in beiden Strängen derselbe.
+
+Die Zähldaten sind deutlich überdispers; der Dispersionsindex liegt bei 62,8
+(Abschnitt~\ref{sec:eda}). Die naheliegende Erweiterung wäre eine negative
+Binomialverteilung, und sie war ursprünglich vorgesehen. Sie löst jedoch ein
+Problem, das diese Baseline nicht hat: Überdispersion beschädigt beim
+Poisson-Schätzer die Standardfehler, nicht die Konsistenz des bedingten
+Mittelwerts, solange dieser richtig spezifiziert
+ist.\footcite[5]{Gourieroux1981} Eine Referenz, die ausschließlich
+Punktvorhersagen liefert, verwendet keine Standardfehler. Zugleich brächte die
+negative Binomialverteilung mit dem Dispersionsparameter eine zusätzlich zu
+schätzende Größe mit und wäre damit nicht mehr die einfachste Form, die zur
+Datenform passt. Gemessen ist das Poisson-Modell außerdem die härtere
+Messlatte: 33,98 gegenüber 37,27 RMSE.
+
+Die Reduktion auf die einfacheren Varianten ist methodisch sauber, sie
+vermeidet willkürliche Parameter und liefert zudem stärkere Vergleichswerte.
+Tragend ist das zweite Argument: Ein Strafterm auf dem Vorgabewert der
+verwendeten Software wäre ein willkürlich gesetzter Parameter, ein optimierter
+eine zusätzlich zu begründende Wahl; die unpenalisierte Anpassung hat nichts zu
+wählen. Das dritte Argument gilt allerdings nicht durchgehend. Im Mengenstrang
+steigt die Messlatte von 37,27 auf 33,98 RMSE, im Strukturstrang sinkt sie von
+0,314 auf 0,297 Macro-F1. Dass dieselbe Änderung den einen Strang härter und
+den anderen weicher macht, ist zugleich das Argument dagegen, sie nachträglich
+nach dem Ergebnis auszuwählen.
+
+Drei Eigenschaften dieser Referenzwerte werden leicht als Fehler gelesen.
+Negative Bestimmtheitsmaße sind hier richtig und aussagekräftig: Wer für einen
+unbekannten Stadtteil den Gesamtdurchschnitt vorhersagt, liegt schlechter als
+dessen eigener Mittelwert --- genau diese Lücke sollen die Strukturmerkmale
+schließen. Auf der Rate ist das Bestimmtheitsmaß darüber hinaus kein geeignetes
+Hauptmaß, weil es gegen den Mittelwert der jeweiligen Testdaten misst und die
+Rate zwischen den Stadtteilen um den Faktor 32 streut; in einem Fold fällt es
+auf $-0{,}920$, obwohl das Poisson-Modell die Marke der Stufe~1 beim RMSE in
+jedem Fold schlägt. Für die Rate sind deshalb RMSE und mittlerer absoluter
+Fehler maßgeblich und das Bestimmtheitsmaß nur nachrichtlich
+(Abschnitt~\ref{sec:modellbewertung}). In der Klassifikation schließlich liegt
+die Trefferquote der Stufe~2 unter der von Stufe~1, während das Macro-F1
+steigt; maßgeblich ist Macro-F1, weil die Trefferquote von der häufigsten
+Klasse bestimmt wird.
+
+Eine naheliegende Referenz fehlt bewusst. Eine Fortschreibung des
+Vormonatswerts ließe sich in diesem Rahmen nicht bilden, weil sie die eigene
+Vergangenheit des Teststadtteils verwendete --- und ein zurückgehaltener
+Stadtteil hat im Training keine. Aus demselben Grund gehen die drei
+Verlaufsmerkmale aus Abschnitt~\ref{sec:merkmale} nicht in die Modelle ein.
+Gesamtmittelwert und saisonaler Durchschnitt kämen als merkmalsfreie Referenzen
+beide in Frage, fallen nachgerechnet aber praktisch zusammen und sind damit
+faktisch eine triviale Referenz und nicht zwei. Die Anforderung an eine
+Referenz, die nicht linear in der Zielgröße ist, erfüllt deshalb erst Stufe~2.
+
+Tabelle~\ref{tab:steckbrief} fasst zusammen, was die Modellierung
+übernimmt. Die letzte Zeile ist zugleich der Grund, warum die Angaben dieses
+Kapitels nachprüfbar sind: 19 automatisierte Prüfungen laufen gegen die
+erzeugten Dateien und nicht gegen den Code, der sie erzeugt hat. Sie prüfen
+unter anderem, dass das Panel rechteckig und der Zeitraum festgesetzt ist, dass
+kein Stadtteil zugleich Trainings- und Testfall ist
+(Quelltext~\ref{lst:test-folds}), dass jeder Fold den vollen Zeitraum abdeckt,
+dass die Verlaufsmerkmale keinen Gegenwartsbezug haben und dass keine der zehn
+gesperrten Ergebnisvariablen in einer der beiden Dateien steht.
+
+% ---------------------------- BIS HIER KOPIEREN --------------------------

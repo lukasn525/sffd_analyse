@@ -1,0 +1,397 @@
+% =========================================================================
+% KAPITEL 5 -- GEKUERZTE FASSUNG, ALLE VIER UNTERABSCHNITTE
+% 25.08.2026. Ersetzt den Fliesstext von 5.1 bis 5.4 vollstaendig.
+% Gleitobjekte bleiben, wo sie stehen; sieben kommen hinzu
+% (docs/kapitel5_gekuerzt_listings.tex).
+%
+% UMFANG
+%   vorher  3.806 Woerter Fliesstext, 10 Quelltexte
+%   nachher rund 2.900 Woerter, 15 Quelltexte
+%   5.1  600 -> 465   5.2  468 -> 415
+%   5.3  979 -> 730   5.4 1.759 -> 1.290 (17 -> 13 Absaetze)
+%
+% WAS BEIM KUERZEN GEFALLEN IST
+%   - Einzelwerte, wo eine Spanne genuegt (ACS-Trefferquoten, Brandfaelle
+%     je Fold, Trainings- und Testzeilen je Fold)
+%   - das jeweils dritte Argument, wo zwei tragen
+%   - Bezeichner, die der Quelltext ohnehin zeigt
+%   - Ergebnisse, die nach Kapitel 7 gehoeren (Fold-4-R2, Faktor 32,
+%     Trefferquote 0,806 gegen 0,584, Poisson gegen NegBin als RMSE-Paar
+%     an ZWEI Stellen)
+%
+% WAS BEWUSST STEHEN GEBLIEBEN IST
+%   Auflage A (Absatz 3 von 5.4), Auflage B (woertlich, Absatz 1 von 5.4),
+%   Auflage C (Absatz 7), Auflage D (woertlich, Absatz 11) samt Vorbehalt
+%   R-2, R-5 (Absatz 6), R-14 (Absatz 11), Serialisierung (Absatz 8).
+%
+% ALLE FRUEHER GEMELDETEN FEHLER SIND EINGEARBEITET: das fehlende
+% Leerzeichen, die halbierte darf/kann-Zweiteilung, der Bezug auf das
+% Expose statt auf Unterfrage 2, E(i,t) statt E(i), die beiden woertlichen
+% Dopplungen mit 4.2, die Standardisierung, die Herleitung von "keine
+% fehlenden Werte".
+% =========================================================================
+
+
+% ####################### 5.1 ############################################
+
+\subsection{Datenauswahl und Bereinigung}
+\label{sec:auswahl-bereinigung}
+
+Der Rohbestand aus Abschnitt~\ref{sec:datengrundlage} umfasst 720.258
+Einsatzmeldungen aus 41 Analysis Neighborhoods. Nicht alles davon darf und
+nicht alles kann in die Analyse eingehen. Die erste Frage betrifft die
+Zulässigkeit einer Größe und folgt dem Grundsatz aus
+Abschnitt~\ref{sec:modellbewertung}, dass ein Prädiktor zum Prognosezeitpunkt
+verfügbar gewesen sein muss; die zweite grenzt den Gegenstand zeitlich und
+räumlich ab und stützt sich auf die Qualitätsbefunde aus
+Abschnitt~\ref{sec:eda}. Beide Entscheidungen sind nicht über den
+Verarbeitungscode verteilt, sondern als benannte Konstanten hinterlegt
+(Quelltext~\ref{lst:konstanten}); jede ist damit an einem Ort nachlesbar und an
+einem Ort änderbar. Am Ende steht der Rahmen, in dem gerechnet wird: 35
+Stadtteile über 132 Monate.
+
+In die Analysedatensätze gelangen ausschließlich Größen, die zum Zeitpunkt des
+Alarms bereits feststanden --- das no-time-machine
+requirement.\footcite[559]{Kaufman2011} Damit sind zehn Felder des
+Feldverzeichnisses gesperrt, darunter Sachschaden, eingesetzte Kräfte und
+Antwortzeit (Quelltext~\ref{lst:gesperrt}). Sie sind nicht nur unzulässig,
+sondern gefährlich: Sie hängen eng mit der Zielgröße zusammen, und ein Modell
+mit ihnen erreichte hohe Gütewerte, ohne eine Prognose zu leisten. Der
+Ausschluss geschieht deshalb beim Laden und nicht erst beim Modellieren ---
+was nicht in die Datei gelangt, kann später nicht versehentlich in ein Modell
+geraten.\footcite[560]{Kaufman2011} Dass keines dieser Felder den Weg in die
+erzeugten Dateien findet, wird nicht behauptet, sondern geprüft
+(Quelltext~\ref{lst:test-leakage}).
+
+Bereinigt wird nur, was nachweislich Artefakt ist. 269 doppelte Einsatznummern
+werden entfernt (Abschnitt~\ref{sec:eda}); Ausrückzeiten außerhalb von 0 bis 60
+Minuten und Baujahre außerhalb von 1800 bis 2025 werden als fehlend markiert
+statt gelöscht. Beide Grenzen sind gesetzte Plausibilitätsannahmen und folgen
+nicht aus den Daten. An der Zielgröße selbst wird nichts gekappt oder getrimmt;
+Bereinigung betrifft ausschließlich Platzhalterwerte der Quellen.
+
+Sechs Stadtteile scheiden ganz aus; sie sind in Abschnitt~\ref{sec:eda}
+benannt --- drei Parkgebiete ohne nennenswerte Wohnbevölkerung und drei ohne
+durchgängige Abdeckung durch die ACS-Jahrgänge. Entscheidend ist die Form
+dieses Ausschlusses: Entfernt werden vollständige Analyseeinheiten, nicht
+einzelne Zeilen. Ein zeilenweises Verwerfen erzeugte ein unbalanciertes Panel,
+in dem ein Stadtteil mitten in der Zeitreihe hinzuträte und Summen im
+Testfenster allein durch diesen Zutritt sprängen. Ein rechteckiges Panel ist
+Voraussetzung dafür, dass die Folds aus Abschnitt~\ref{sec:rahmen-baselines}
+miteinander vergleichbar sind.
+
+Der Analysezeitraum ist auf Januar 2015 bis Dezember 2025 festgelegt, also auf
+132 Monate. Der Beginn ist keine Setzung, sondern eine Folge der
+Verfügbarkeitsregel: Für Einsätze vor 2015 wäre der jüngste zulässige
+ACS-Jahrgang der von 2009, und der führt die Tabelle nicht, aus der die
+Akademikerquote stammt (Abschnitt~\ref{sec:eda}). Das Ende ist das letzte
+vollständige Kalenderjahr. Beide Grenzen sind fest hinterlegt und werden nicht
+aus den Daten abgeleitet, weil die Analyse sonst mit jedem neuen Abzug wanderte
+und ein angebrochener Randmonat unbemerkt ins Testfenster geriete.
+
+
+% ####################### 5.2 ############################################
+
+\subsection{Zusammenführung der Datenquellen}
+\label{sec:integration}
+
+Die sieben Quellen aus Abschnitt~\ref{sec:datengrundlage} liegen in drei
+Raumbezügen und zwei Zeitrastern vor. Sie werden auf der Ebene des einzelnen
+Einsatzes zusammengeführt und nicht auf der späteren Analyseeinheit: Jeder
+Einsatz trägt seinen eigenen Zeitpunkt, und nur auf dieser Ebene lässt sich ihm
+derjenige Stand der zeitabhängigen Merkmale zuordnen, der damals verfügbar war.
+Verdichtet wird erst danach (Abschnitt~\ref{sec:merkmale}); die Reihenfolge
+folgt damit der Verarbeitung und nicht der Aufgabenliste des Vorgehensmodells.
+Das Ergebnis ist eine Tabelle mit 719.989 Zeilen und 50 Spalten, eine je
+Einsatz.
+
+Die sozioökonomischen Merkmale werden in zwei Stufen angefügt. Räumlich ordnet
+ein Crosswalk jeden Census Tract einem Stadtteil zu; dabei werden Zählgrößen
+summiert, Medianwerte dagegen bevölkerungsgewichtet gemittelt, weil sich ein
+Median nicht addieren lässt. Zeitlich gilt die Bedingung
+$\text{ACS-Jahrgang} \le \text{Einsatzjahr} - 1$, sodass einem Einsatz nur ein
+Jahrgang zugeordnet wird, der zu seinem Zeitpunkt bereits veröffentlicht war
+(Quelltext~\ref{lst:acs-versatz}). Vollständig ist die räumliche Zuordnung
+nicht: Der Crosswalk beruht auf den Tract-Grenzen des Zensus 2020, sodass die
+Trefferquote je nach Jahrgang zwischen 63,1 und 99,2\,\% liegt.
+
+Die Kriminalitätsbelastung stammt aus zwei Quellen, deren Schnitt im Januar
+2018 liegt. Die Altquelle führt keine Stadtteilspalte, dafür Koordinaten; ihre
+Meldungen werden über einen räumlichen Verbund derselben Geometrie zugeordnet,
+die auch für die baulichen Merkmale gilt --- sonst bezögen sich Kriminalitäts-
+und Baumerkmale desselben Stadtteils auf unterschiedliche Flächen
+(Quelltext~\ref{lst:spatialjoin}). Geschnitten wird am Beginn der
+Nachfolgequelle, damit kein Monat aus zwei Erfassungssystemen gespeist wird.
+
+Die baulichen Merkmale liegen je Parzelle vor und werden über den
+Flächenmittelpunkt zugeordnet; das gelingt für 154.544 Parzellen und damit für
+99,5\,\% des Verzeichnisses. Der Bestand ist ein Abzug des Jahres 2020 und der
+einzige verfügbare Jahrgang. Die baulichen Merkmale sind deshalb je Stadtteil
+über den gesamten Analysezeitraum konstant (Abschnitt~\ref{sec:eda}).
+
+Alle drei Zusammenführungen sind nach demselben Muster abgesichert: Vor jedem
+Verbund wird die Eindeutigkeit des Schlüssels geprüft, nach jedem die Zeilenzahl
+gegen den Erwartungswert gehalten, und bei Abweichung bricht die Aufbereitung
+ab (Quelltext~\ref{lst:joinhygiene}) --- ebenso, wenn die Zuordnungsquote des
+räumlichen Verbunds unter 90\,\% fällt. Das ist keine Sorgfaltsroutine: Ist ein
+Schlüssel mehrdeutig, entsteht ein kartesisches Produkt, und jeder betroffene
+Einsatz geht mehrfach in die spätere Aggregation ein.
+
+
+% ####################### 5.3 ############################################
+
+\subsection{Konstruktion der Merkmale und Zielgrößen}
+\label{sec:merkmale}
+
+Die Einsatztabelle aus Abschnitt~\ref{sec:integration} führt 719.989 Zeilen,
+eine je Ereignis. Auf dieser Ebene stehen Merkmale und Zielgröße nicht auf
+derselben Beobachtung: Die Strukturmerkmale beschreiben einen Stadtteil, die
+Zielgröße dessen Einsatzlast. Die Verdichtung auf Stadtteil und Monat stellt
+beides in dieselbe Zeile und bildet dabei die Größen, mit denen gerechnet wird.
+Eine Verdichtung auf Census Tract und Jahr scheidet aus, weil die Einsatzdaten
+keine Tract-Zuordnung tragen und die Saisonalität dabei verloren ginge.
+Tabelle~\ref{tab:codebook} führt die entstehenden Größen mit Skalenniveau,
+Einheit und Wertebereich; die folgenden Absätze begründen ihre Bildung.
+
+Verdichtet wird auf ein vollständiges Raster aus 35 Stadtteilen und 132
+Monaten: Auch ein Monat ohne Einsatz erhält eine Zeile, und zwar mit dem Wert
+null statt gar nicht. Fehlende Merkmalswerte werden ausschließlich vorwärts
+fortgeschrieben; ein Rückwärtsfüllen schlösse eine Lücke mit einem später
+erhobenen Wert und spielte damit genau die Information ein, die zum
+Prognosezeitpunkt nicht vorlag (Quelltext~\ref{lst:raster}). Am Ende stehen
+4.620 Zeilen für die Menge der Einsatzlast --- 35 mal 132, lückenlos --- und
+4.619 für ihre Zusammensetzung; dem Strukturdatensatz fehlt der eine Monat ohne
+Einsatz.
+
+Sechs der zehn Strukturmerkmale sind Anteilswerte aus je zwei Zählgrößen
+derselben Erhebung. Ein Nenner von null ergibt dabei einen fehlenden Wert und
+nicht null, damit eine fehlende Bezugsgröße sichtbar bleibt
+(Quelltext~\ref{lst:quoten}). Ein Nenner ist begründungspflichtig: Der
+Altbauanteil bezieht sich auf die Parzellen mit bekanntem Baujahr, weil er
+sonst dort am stärksten zu niedrig ausfiele, wo das Verzeichnis am
+lückenhaftesten ist (Abschnitt~\ref{sec:eda}).
+
+Das kriminalitätsbezogene Merkmal ist kein Rohwert, sondern ein
+Standortquotient: die Deliktrate eines Stadtteils, gemessen an der Deliktrate
+der Gesamtstadt im selben Monat.
+
+\begin{equation*}
+    \mathrm{Rate}(i,t) = \frac{D(i,t)}{E(i,t)}
+    \qquad
+    \mathrm{Index}(i,t) = \frac{\mathrm{Rate}(i,t)}{\mathrm{Rate}(\mathrm{Stadt},t)}
+\end{equation*}
+
+Dabei ist $D(i,t)$ die Zahl der Delikte im Stadtteil $i$ über die zwölf Monate
+bis einschließlich $t-1$ und $E(i,t)$ seine Einwohnerzahl im zugeordneten
+Zensusjahrgang; ein Wert von eins bedeutet eine Belastung wie im
+Stadtdurchschnitt desselben Monats. Die Form des Standortquotienten stammt aus
+der Regionalwissenschaft und wird von Brantingham und Brantingham auf
+Kriminalität übertragen.\footcite[268-269]{Brantingham1997} Deren Fassung
+verwendet allerdings die Gesamtzahl der Delikte als Bezugsgröße und misst
+damit, worauf ein Gebiet relativ spezialisiert ist; hier ist die Bezugsgröße
+die Wohnbevölkerung, gemessen wird die relative Belastung je Einwohner.
+
+Zwei Eigenschaften dieser Konstruktion sind Entscheidungen. Die relative Form
+ist die Antwort auf den Quellenwechsel aus Abschnitt~\ref{sec:integration}: Ein
+Wechsel des Erfassungssystems verschiebt das stadtweite Niveau annähernd
+multiplikativ und kürzt sich deshalb weitgehend heraus. Was bleibt, ist eine
+Verschiebung in der Zusammensetzung der erfassten Delikte, die einzelne
+Stadtteile stärker trifft als andere. Die zweite Eigenschaft ist das Fenster:
+Es endet strikt im Vormonat, weil eine im selben Monat gemessene Kriminalität
+die Einsätze dieses Monats erklären statt vorhersagen würde
+(Quelltext~\ref{lst:krimindex}). Der Index geht logarithmiert ein, sodass der
+Stadtdurchschnitt bei null liegt.
+
+Die Wohnbevölkerung geht als eigenes Merkmal ein, ebenfalls logarithmiert. Sie
+wirkt auf die beiden Mengenzielgrößen gegenläufig: Ein größerer Stadtteil hat
+mehr Einsätze, aber nicht zwangsläufig mehr Einsätze je Einwohner. Ohne diese
+Größenkontrolle bildete ein Modell auf der absoluten Zielgröße vor allem die
+Einwohnerzahl ab und nicht die Struktur, nach der gefragt ist. Im
+Poisson-Modell des Abschnitts~\ref{sec:rahmen-baselines} tritt sie zusätzlich
+als Offset auf.
+
+Der Kalendermonat wird nicht als Zahl von eins bis zwölf geführt, sondern als
+Sinus- und Kosinusterm. Als Zahl hätten Dezember und Januar den Abstand elf,
+obwohl sie aufeinanderfolgen. Die beiden Terme sind die einzigen Merkmale, die
+ausschließlich innerhalb der Stadtteile variieren (Abschnitt~\ref{sec:eda}).
+
+Drei Verlaufsmerkmale --- Vormonat, Vorjahresmonat und Mittel der drei
+Vormonate --- werden strikt rückwärtsgerichtet und je Stadtteil gebildet; damit
+sie schon für den ersten Analysemonat definiert sind, beginnt die Aggregation
+zwölf Monate früher, ohne dass diese Vorlaufmonate eigene Zeilen bilden. In die
+Modelle gehen sie dennoch nicht ein: Unter der Aufteilung des
+Abschnitts~\ref{sec:rahmen-baselines} wäre der Vormonatswert die eigene
+Vergangenheit eines zurückgehaltenen Stadtteils. Sie verbleiben im Datensatz,
+weil die Beschreibung in Abschnitt~\ref{sec:datengrundlage} sie benötigt.
+
+Drei Zielgrößen stehen nebeneinander (Abschnitt~\ref{sec:zielgroessen}): die
+Zahl der Einsätze je Stadtteilmonat, dieselbe Zahl auf je 1.000 Einwohner
+normiert und die überwiegende Einsatzart. Die vier Anteile der NFIRS-Gruppen
+sind dabei Zwischengröße und keine eigenen Zielgrößen; aus ihnen entsteht die
+überwiegende Einsatzart als der größte der vier. Lage und Streuung der beiden
+Mengenzielgrößen stehen in Abschnitt~\ref{sec:eda}.
+
+Dass die Einsatzart auf Stadtteilebene und nicht je Einsatz bestimmt wird, ist
+die folgenreichste Festlegung dieses Abschnitts. Innerhalb eines
+Stadtteilmonats tragen alle Einsätze dieselben Strukturmerkmale; die 350.481
+Einsätze des Analysezeitraums verteilen sich deshalb auf nur 4.619 verschiedene
+Merkmalsprofile. Ein Modell, das jedem Profil die dort häufigste Einsatzart
+zuwiese, träfe in 49,9\,\% der Fälle zu, die häufigste Klasse ohne jedes
+Merkmal zu nennen in 48,2\,\% --- der gesamte Spielraum beträgt 1,7
+Prozentpunkte. Auf Stadtteilebene ist die Frage dagegen beantwortbar. Die
+Zielgröße bleibt dabei eine echte Klasse und kein an einem Schwellwert
+geteilter stetiger Anteil; damit entfällt die Begründungslast einer solchen
+Teilung, deren Wirkung Altman und Royston mit dem Verlust eines Drittels der
+Beobachtungen beziffern.\footcite{Altman2006}
+
+
+% ####################### 5.4 ############################################
+
+\subsection{Analyserahmen und Baselines}
+\label{sec:rahmen-baselines}
+
+Die Einsatzhäufigkeit unterscheidet sich weit stärker zwischen den Stadtteilen
+als innerhalb eines Stadtteils über die Zeit; auf die räumliche Dimension
+entfallen 92,5\,\% der Varianz (Abschnitt~\ref{sec:eda}). Ein Modell, das einen
+Stadtteil bereits aus dem Training kennt, muss dessen Niveau deshalb nicht mehr
+erklären. Die Aufteilung in Trainings- und Testmengen wird daher nicht entlang
+der Zeit, sondern entlang der Stadtteile gezogen; Ziel der Validierung ist die
+Generalisierung auf unbekannte Stadtteile. Sie entsteht in der Aufbereitung und
+wird als Spalten \texttt{fold} und \texttt{ist\_holdout} in beide
+Analysedateien geschrieben, ist also eine Eigenschaft des Datensatzes und nicht
+der Algorithmen --- das Vorgehensmodell führt sie folgerichtig unter der
+Auswahl der Daten.\footcite[23-26]{Chapman2000}
+
+Geprüft wird, indem ganze Stadtteile zurückgehalten werden. Die 29
+Entwicklungsstadtteile verteilen sich auf fünf Folds mit sechs, sechs, sechs,
+sechs und fünf Stadtteilen; jeder ist genau einmal Testfall, und zwar mit allen
+132 Monaten (Abbildung~\ref{abb:foldstruktur}, Quelltext~\ref{lst:test-folds}).
+Ein Zeitschnitt prüfte die Forschungsfrage nicht: Dort steht jeder Stadtteil in
+Training und Test, und das Modell kennt sein Niveau bereits --- der
+Stadtteilmittelwert allein erreicht ein Bestimmtheitsmaß von 0,888
+(Abschnitt~\ref{sec:eda}). Für genau diesen Fall empfehlen Roberts et al.\ eine
+räumlich geblockte Aufteilung, wenn auf neue Orte vorhergesagt werden
+soll.\footcite[925]{Roberts2017} Was der Rahmen dadurch nicht mehr misst, ist
+die Fortschreibung eines bereits bekannten Stadtteils in die Zukunft.
+
+Damit weicht die Untersuchung von der angemeldeten Fassung ab. Das Exposé sah
+für die zweite Unterfrage eine zeitreihengerechte Kreuzvalidierung und ein
+Testfenster der letzten zwölf Monate vor. Der Wechsel ist am 28.~Juli 2026
+entschieden worden, nachdem die Varianzzerlegung des Bestands vorlag; er ist
+die Folge eines Befundes über die Daten und keine Anpassung an ein Ergebnis.
+Die Abwägung beider Rahmen steht in Kapitel~\ref{sec:diskussion}.
+
+Welcher Stadtteil in welchen Fold fällt, ist nicht zufällig. Sortiert wird
+zuerst nach der Zahl brand-dominierter Monate, bei Gleichstand nach der
+Wohnbevölkerung; die so geordneten Stadtteile werden reihum auf sechs Gruppen
+verteilt, von denen die erste das Hold-out bildet (Quelltext~\ref{lst:folds}).
+Das erste Kriterium ist nötig, weil die Hälfte der 70 brand-dominierten Monate
+auf einen einzigen Stadtteil entfällt: Ohne Stratifizierung blieb ein Fold
+regelmäßig ganz ohne Brand-Testfall, und das Macro-F1 mittelte über eine
+Klasse, die dort nicht vorkam. Das zweite verhindert, dass die Streuung
+zwischen den Folds ein Größeneffekt ist. Ein Leckageproblem entsteht nicht:
+Festgelegt wird allein, welche Stadtteile gemeinsam getestet werden.
+
+Sechs Stadtteile bleiben während der gesamten Entwicklung unberührt und werden
+erst für die Schlussbewertung geöffnet. Sie sind die erste Gruppe derselben
+Ordnung und deshalb kein verkleinertes Abbild der Stadt: Auf sie entfallen 37
+der 70 brand-dominierten Monate, ihr Brandanteil liegt bei 4,67\,\% gegenüber
+0,86\,\% in den Entwicklungsstadtteilen. Ergebnisse auf dem Hold-out sind daher
+nicht als Durchschnittsleistung über die Stadt zu lesen, sondern als Probe
+unter erschwerten Bedingungen.
+
+Eine einzelne Aufteilung von 29 Stadtteilen auf fünf Folds ist eine
+willkürliche Gruppierung. Alle Referenzwerte entstehen deshalb aus 50 Läufen,
+fünf Folds in zehn Wiederholungen; berichtet wird die Streuung dieser zehn
+Wiederholungsmittel und nicht die über alle 50 Läufe, der dieselben 29
+Stadtteile in zehn Anordnungen zugrunde lägen
+(Quelltext~\ref{lst:streuung}). Auch die Zahl der Zeilen überzeichnet, wie viel
+unabhängige Information vorliegt. Weil das Raster rechteckig ist, gilt die
+Näherung für gleich große Gruppen hier genau: Aus einer Intraklassenkorrelation
+von 0,926 und 132 Monaten je Stadtteil folgt ein Designeffekt von 122 und damit
+eine effektive Stichprobe von rund 38 statt 4.620
+Beobachtungen.\footcite[206]{Killip2004} Die Aufteilung nach Stadtteilen trägt
+dem Rechnung, indem sie den Stadtteil und nicht die Zeile als Einheit
+behandelt.
+
+Dass alle Verfahren dieselben Merkmale und dieselbe Aufteilung sehen, ist keine
+Zusicherung, sondern eine Eigenschaft des Aufbaus. Die Fold-Zuteilung entsteht
+in einem einzigen Aufruf und wird von dort in beide Analysedateien geschrieben;
+Mengen- und Strukturstrang können konstruktiv keine unterschiedlichen
+Aufteilungen sehen. Die Merkmalsliste steht genau einmal, in
+\texttt{prep/config.py}, und wird von jedem Modellskript von dort gelesen
+(Quelltext~\ref{lst:merkmalsliste}). Eine automatisierte Prüfung baut die
+Aufteilung aus den Dateien nach und vergleicht sie mit den gespeicherten
+Spalten; ohne sie liefen bei einer veralteten Aufteilung alle Verfahren auf
+falschen, aber untereinander identischen Mengen: Der Vergleich bliebe fair und
+das Ergebnis wäre trotzdem falsch.
+
+Zuletzt werden beide Dateien auf modelltaugliche Typen gebracht: Merkmale als
+\texttt{float64}, Schlüssel und Zählgrößen als \texttt{int64}, keine fehlenden
+Werte, weil das Raster vollständig ist (Quelltext~\ref{lst:dtypes}). Das ist
+kein Formalismus --- eine einzige nullbare Ganzzahlspalte macht die
+Merkmalsmatrix zu einem \texttt{object}-Feld, das XGBoost ablehnt und
+scikit-learn stillschweigend umwandelt. Skaliert wird im Datensatz nicht; die
+Standardisierung gehört zur Modellpipeline und wird je Fold nur auf den
+Trainingsdaten angepasst.
+
+Die Messlatte ist zweistufig angelegt (Abschnitt~\ref{sec:zielgroessen}).
+Stufe~1 kommt ohne ein einziges Merkmal aus: der Gesamtmittelwert der
+Trainingsstadtteile für die Mengenzielgrößen, die häufigste Klasse für die
+Einsatzart. Sie beantwortet, ob in den Merkmalen überhaupt Information steckt.
+Stufe~2 ist die einfachste Form, die zur Datenform passt: ein verallgemeinertes
+lineares Modell mit kanonischem Link, unpenalisiert angepasst. Beide Stufen
+laufen über dieselben 50 Läufe, dieselbe Aufteilung und dieselben zwölf
+Merkmale wie die späteren Vergleichsverfahren; die Baseline ist damit
+Mitbewerber unter identischem Protokoll und nicht bloß ein Erwartungswert.
+Maßgeblich ist Stufe~2 --- ein Verfahren, das nur Stufe~1 schlägt, hat nichts
+gezeigt (Tabelle~\ref{tab:baselines}).
+
+Für die Mengenzielgrößen ist Stufe~2 ein Poisson-Modell mit Offset: Die
+logarithmierte Wohnbevölkerung geht mit fest auf eins gesetztem Koeffizienten
+ein, geschätzt wird damit die Rate (Quelltext~\ref{lst:poisson}). Über den
+Logarithmus als Link wirkt das Modell auf der Skala der Zielgröße
+multiplikativ; es erfasst Krümmung, aber keine Wechselwirkungen --- und genau
+die finden Random Forest und XGBoost konstruktionsbedingt. Einen frei wählbaren
+Parameter hat es nicht. Die zweite Mengenzielgröße entsteht aus derselben
+Anpassung, geteilt durch die Wohnbevölkerung; ein eigenes Ratenmodell wäre eine
+zweite Spezifikation und damit nicht mehr dasselbe Protokoll. Für die
+Einsatzart ist Stufe~2 das Gegenstück: ein multinomiales Logit, ebenfalls ohne
+Strafterm, mit ausgeglichenen Klassengewichten statt Resampling --- keine Zeile
+wird vervielfacht oder entfernt (Quelltext~\ref{lst:logit}).
+
+Die Zähldaten sind deutlich überdispers; der Dispersionsindex liegt bei 62,8
+(Abschnitt~\ref{sec:eda}). Die naheliegende Erweiterung wäre eine negative
+Binomialverteilung, und sie war ursprünglich vorgesehen. Sie löst jedoch ein
+Problem, das diese Baseline nicht hat: Überdispersion beschädigt beim
+Poisson-Schätzer die Standardfehler, nicht die Konsistenz des bedingten
+Mittelwerts,\footcite[5]{Gourieroux1981} und eine Referenz mit reinen
+Punktvorhersagen verwendet keine Standardfehler. Die Reduktion auf die
+einfacheren Varianten ist damit methodisch sauber, sie vermeidet willkürliche
+Parameter und liefert zudem stärkere Vergleichswerte. Tragend ist das zweite
+Argument: Ein Strafterm auf dem Vorgabewert der verwendeten Software wäre ein
+willkürlich gesetzter Parameter, ein optimierter eine zusätzlich zu begründende
+Wahl. Das dritte gilt nicht durchgehend --- im Mengenstrang steigt die
+Messlatte von 37,27 auf 33,98 RMSE, im Strukturstrang sinkt sie von 0,314 auf
+0,297 Macro-F1. Dass dieselbe Änderung den einen Strang härter und den anderen
+weicher macht, ist zugleich das Argument dagegen, sie nach dem Ergebnis
+auszuwählen.
+
+Drei Eigenschaften dieser Referenzwerte werden leicht als Fehler gelesen.
+Negative Bestimmtheitsmaße sind hier richtig und aussagekräftig: Wer für einen
+unbekannten Stadtteil den Gesamtdurchschnitt vorhersagt, liegt schlechter als
+dessen eigener Mittelwert --- genau diese Lücke sollen die Strukturmerkmale
+schließen. Auf der Rate ist das Bestimmtheitsmaß kein geeignetes Hauptmaß, weil
+es gegen den Mittelwert der jeweiligen Testdaten misst und die Rate zwischen
+den Stadtteilen um ein Vielfaches streut; maßgeblich sind dort RMSE und
+mittlerer absoluter Fehler (Abschnitt~\ref{sec:modellbewertung}). Und in der
+Klassifikation liegt die Trefferquote der Stufe~2 unter der von Stufe~1,
+während das Macro-F1 steigt; maßgeblich ist Macro-F1, weil die Trefferquote von
+der häufigsten Klasse bestimmt wird. Eine Fortschreibung des Vormonatswerts
+fehlt bewusst: Sie verwendete die eigene Vergangenheit des Teststadtteils, und
+ein zurückgehaltener Stadtteil hat im Training keine.
+
+Tabelle~\ref{tab:steckbrief} fasst zusammen, was die Modellierung übernimmt.
+Die letzte Zeile ist zugleich der Grund, warum die Angaben dieses Kapitels
+nachprüfbar sind: 19 automatisierte Prüfungen laufen gegen die erzeugten
+Dateien und nicht gegen den Code, der sie erzeugt hat.

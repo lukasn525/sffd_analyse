@@ -1,0 +1,180 @@
+% =========================================================================
+% KAPITEL 5 -- SIEBEN ZUSAETZLICHE QUELLTEXTE UND EINE ZUSAMMENGELEGTE TABELLE
+% 25.08.2026. Ergaenzt die acht bestehenden Ausschnitte; keiner faellt weg.
+% Damit 15 Quelltexte: 3 in 5.1, 3 in 5.2, 3 in 5.3, 6 in 5.4.
+%
+% Alle Ausschnitte sind woertlich aus dem Repo, Stand 25.08.2026, nach den
+% an diesem Tag nachgezogenen Kommentaren. Zeilennummern entsprechend.
+%
+% PLATZIERUNG
+%   5.1 Absatz 1 -> lst:konstanten
+%   5.1 Absatz 2 -> lst:gesperrt, lst:test-leakage
+%   5.2 Absatz 3 -> lst:spatialjoin
+%   5.2 Absatz 5 -> lst:joinhygiene
+%   5.3 Absatz 2 -> lst:raster
+%   5.4 Absatz 2 -> lst:test-folds  (steht schon, wandert nur von Absatz 16
+%                                    hierher, wo die Aussage belegt wird)
+%   5.4 Absatz 6 -> lst:streuung
+%   tab:baselines ersetzt tab:baselines-menge und tab:baselines-struktur
+% =========================================================================
+
+
+% ---------------------------- AB HIER KOPIEREN ---------------------------
+
+% ---------- 5.1 Absatz 1 -------------------------------------------------
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:konstanten},
+  caption={Zeitraum und Ausschlüsse als benannte Konstanten
+           (\texttt{prep/config.py}, Z.~83--97)}]
+#   START  frueheste Periode mit vollstaendigen ACS-Merkmalen (#5, #11)
+#   ENDE   letztes vollstaendiges Kalenderjahr (#12)
+START = 201501
+ENDE  = 202512
+
+# Lag-Vorlauf (#23): ab START-VORLAUF aggregieren, Lags bilden, auf START
+# zuschneiden. Ohne ihn beginnt die Regression erst 2016-01. 4.620 statt 4.200.
+VORLAUF_MONATE = 12
+
+# Parks ohne Wohnbevoelkerung (#19): 45 bis 507 Einwohner gegen 14.435 im
+# Median. Jede Pro-Kopf-Groesse wird dort beliebig gross.
+PARKGEBIETE = ["Golden Gate Park", "Lincoln Park", "Mclaren Park"]
+
+# Warnschwelle fuer unvollstaendige Monate. Kein Filter - massgeblich ist ENDE.
+VOLLSTAENDIGKEITS_SCHWELLE = 0.5
+\end{lstlisting}
+
+
+% ---------- 5.1 Absatz 2 -------------------------------------------------
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:gesperrt},
+  caption={Gesperrte Ergebnisvariablen
+           (\texttt{prep/config.py}, Z.~168--174)}]
+# Ergebnisvariablen - NIEMALS Merkmal. Stehen erst nach dem Einsatz fest (#20).
+ERGEBNISVARIABLEN = [
+    "schaetzung_sachschaden_usd", "loeschfahrzeuge", "loeschkraefte",
+    "rettungsdienst_einheiten", "alarmstufe", "antwortzeit_min",
+    "zivile_tote", "zivile_verletzte", "flammenausbreitung_eingedaemmt",
+    "ankunft_zeitpunkt",
+]
+\end{lstlisting}
+
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:test-leakage},
+  caption={Prüfung auf Ergebnisvariablen in der erzeugten Datei
+           (\texttt{tests/test\_aufbereitung.py}, Z.~277--285)}]
+def test_keine_ergebnisvariablen():
+    """Wichtigster Test des Strukturteils.
+
+    Sachschaden, Loeschfahrzeuge, Alarmstufe und Antwortzeit stehen erst nach
+    dem Einsatz fest. Rutscht eine dieser Spalten in den Merkmalssatz, sieht
+    das Ergebnis gut aus und ist wertlos.
+    """
+    gefunden = [c for c in ERGEBNISVARIABLEN if c in klassifikation().columns]
+    assert not gefunden, f"Ergebnisvariable(n) im Datensatz: {gefunden}"
+\end{lstlisting}
+
+
+% ---------- 5.2 Absatz 3 -------------------------------------------------
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:spatialjoin},
+  caption={Räumlicher Verbund der Altquelle mit Abbruchschwelle
+           (\texttt{prep/s1\_daten.py}, Z.~391--399)}]
+    print("  Spatial Join (Deliktkoordinate -> Neighborhood-Polygon)...")
+    punkte = gpd.GeoDataFrame(hist[["date"]].copy(),
+                              geometry=gpd.points_from_xy(hist["x"], hist["y"]),
+                              crs="EPSG:4326")
+    joined = gpd.sjoin(punkte, neighborhoods_gdf(), how="left",
+                       predicate="within")
+    quote = joined["neighborhood"].notna().mean()
+    assert quote >= 0.90, f"Match-Rate nur {quote:.1%} - Geometrie pruefen."
+\end{lstlisting}
+
+
+% ---------- 5.2 Absatz 5 -------------------------------------------------
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:joinhygiene},
+  caption={Zeilenzahl vor und nach dem Verbund
+           (\texttt{prep/s1\_daten.py}, Z.~643--647)}]
+    vorher = len(base)
+    base = base.merge(crime, left_on=["neighborhood", "year", "month"],
+                      right_on=["neighborhood", "jahr", "monat"],
+                      how="left").drop(columns=["jahr", "monat"])
+    assert len(base) == vorher, "Crime-Join hat Zeilen dupliziert (1:n-Beziehung!)."
+\end{lstlisting}
+
+
+% ---------- 5.3 Absatz 2 -------------------------------------------------
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:raster},
+  caption={Vollständiges Raster und Vorwärtsfüllen
+           (\texttt{prep/s2\_datensaetze.py}, Z.~220--235)}]
+    # Vollstaendiges Raster: Monate ohne Einsatz sind echte Nullen.
+    idx = pd.MultiIndex.from_product(
+        [agg["stadtteil"].unique(),
+         range(int(agg["jahr"].min()), int(agg["jahr"].max()) + 1),
+         range(1, 13)],
+        names=["stadtteil", "jahr", "monat"])
+    raster = agg.set_index(["stadtteil", "jahr", "monat"]).reindex(idx).reset_index()
+    raster[ZIELGROESSE] = raster[ZIELGROESSE].fillna(0).astype(int)
+
+    # Nur VORWAERTS fuellen. KEIN bfill: Rueckwaertsfuellen wuerde fehlende Werte
+    # (z. B. akademikerquote vor ACS 2014) still mit ZUKUNFTSWERTEN imputieren -
+    # Leakage (Decision Log #10). Echte NaN bleiben sichtbar.
+    raster[_UEBERNOMMEN] = (raster.groupby("stadtteil")[_UEBERNOMMEN]
+                                  .transform(lambda s: s.ffill()))
+\end{lstlisting}
+
+
+% ---------- 5.4 Absatz 6 -------------------------------------------------
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:streuung},
+  caption={Zweistufige Mittelung über die zehn Wiederholungen
+           (\texttt{vorpruefung/v1\_baselines.py}, Z.~181--206, gekürzt)}]
+def _zweistufig(df: pd.DataFrame, schluessel: list[str],
+                masse: list[str]) -> pd.DataFrame:
+    g = df.groupby(schluessel, sort=False)
+    z = g[masse].mean().add_suffix("_mean")
+    z = z.join(g[masse].std().add_suffix("_std_folds"))
+
+    # Streuung der 10 Wiederholungsmittel, nicht der 50 Laeufe: dieselben 29
+    # Stadtteile in zehn Gruppierungen waeren zu optimistisch (R-5).
+    je_wdh = df.groupby(schluessel + ["wiederholung"], sort=False)[masse].mean()
+    z = z.join(je_wdh.groupby(schluessel, sort=False).std()
+                     .add_suffix("_std_wiederholungen"))
+\end{lstlisting}
+
+
+% ---------- Ersetzt die beiden bisherigen Baseline-Tabellen --------------
+
+\begin{table}[htbp]
+    \centering
+    \caption{Referenzwerte beider Stufen, Mittel über 50 Läufe; Streuung über die zehn Wiederholungsmittel}
+    \label{tab:baselines}
+    \footnotesize
+    \singlespacing
+    \setlength{\tabcolsep}{5pt}
+    \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.9cm} c >{\raggedright\arraybackslash}X l l@{}}
+        \toprule
+        \textbf{Zielgröße} & \textbf{Stufe} & \textbf{Referenz} & \textbf{R\textsuperscript{2}} & \textbf{RMSE} \\
+        \midrule
+        Einsatzhäufigkeit & 1 & Gesamtmittelwert & $-0{,}744 \pm 0{,}325$ & $69{,}93 \pm 1{,}92$ \\
+        Einsatzhäufigkeit & 2 & Poisson-Modell mit Offset & $0{,}542 \pm 0{,}082$ & $33{,}98 \pm 3{,}11$ \\
+        Einsätze je 1.000 Einwohner & 1 & Gesamtmittelwert & $-1{,}054 \pm 0{,}875$ & $7{,}54 \pm 0{,}13$ \\
+        Einsätze je 1.000 Einwohner & 2 & Poisson-Modell mit Offset & $0{,}367 \pm 0{,}261$ & $4{,}08 \pm 0{,}62$ \\
+        \midrule
+        & & & \textbf{Macro-F1} & \textbf{Trefferquote} \\
+        \cmidrule(l){4-5}
+        Überwiegende Einsatzart & 1 & Häufigste Klasse & 0,223 & 0,806 \\
+        Überwiegende Einsatzart & 2 & Multinomiales Logit & $0{,}297 \pm 0{,}014$ & 0,584 \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+% ---------------------------- BIS HIER KOPIEREN --------------------------

@@ -1622,6 +1622,77 @@ def a16_einsatzlast(plt, FuncFormatter) -> list:
     pfad = OUT / "a16_einsatzlast.pdf"
     fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
     return [pfad]
+# ===========================================================================
+def a18_foldstruktur(plt, FuncFormatter) -> list:
+    """A18: Struktur der Aufteilung - Beleg fuer Kapitel 5.4.
+
+    Ein:  data/processed/regression.parquet und klassifikation.parquet
+    Aus:  a18_foldstruktur.pdf
+
+    - zeigt die Aufteilung als EIGENSCHAFT DES DATENSATZES, nicht Ergebnisse.
+      Nicht mit A2 verwechseln: A2 traegt den RMSE je Fold und gehoert zu
+      Kapitel 7
+    - drei Aussagen aus 5.4 in einem Bild: Foldgroessen 6/6/6/6/5 plus 6 im
+      Hold-out, Verteilung der brand-dominierten Monate, und dass jede Gruppe
+      die Groessenspanne abdeckt (Punkte ober- und unterhalb des Medians)
+    - Punktflaeche = Zahl brand-dominierter Monate; leere Punkte haben keinen
+    """
+    pfad_r = ROOT / "data" / "processed" / "regression.parquet"
+    pfad_k = ROOT / "data" / "processed" / "klassifikation.parquet"
+    if not pfad_r.exists() or not pfad_k.exists():
+        return []
+    d, k = pd.read_parquet(pfad_r), pd.read_parquet(pfad_k)
+
+    g = d.groupby("stadtteil").agg(fold=("fold", "first"),
+                                   bev=("gesamtbevoelkerung", "mean"))
+    brand = k[k["dominante_einsatzart"] == "brand"].groupby("stadtteil").size()
+    g["brand"] = brand.reindex(g.index).fillna(0).astype(int)
+
+    fig, ax = plt.subplots(figsize=(BREITE, 3.1))
+    rng = np.random.default_rng(7)
+    spalten = [0, 1, 2, 3, 4, 5]
+    for s in spalten:
+        teil = g[g["fold"] == s]
+        x = np.full(len(teil), s, float) + rng.uniform(-0.17, 0.17, len(teil))
+        ohne = (teil["brand"] == 0).to_numpy()
+        ax.scatter(x[ohne], teil.loc[ohne, "bev"] / 1000, s=16,
+                   facecolor="white", edgecolor="0.35", linewidth=0.8, zorder=3)
+        ax.scatter(x[~ohne], teil.loc[~ohne, "bev"] / 1000,
+                   s=22 + teil.loc[~ohne, "brand"] * 7, facecolor="0.45",
+                   edgecolor="black", linewidth=0.7, alpha=0.85, zorder=4)
+
+    median = g["bev"].median() / 1000
+    ax.axhline(median, color="black", linewidth=0.8, linestyle=":", zorder=2)
+    ax.text(5.55, median * 1.06, "Median", va="bottom", ha="right",
+            fontsize=SCHRIFT - 2)
+    ax.axvline(0.5, color="0.6", linewidth=0.8, zorder=1)
+
+    ax.set_xticks(spalten)
+    ax.set_xticklabels([f"{'Hold-out' if s == 0 else f'Fold {s}'}\n"
+                        f"({int((g['fold'] == s).sum())})" for s in spalten])
+    ax.set_xlim(-0.6, 5.6)
+    ax.set_yscale("log")
+    ax.set_yticks([2.5, 5, 10, 20, 40, 80])
+    ax.get_yaxis().set_major_formatter(_komma(FuncFormatter, 1))
+    ax.set_ylabel("Wohnbevölkerung in Tausend")
+    for rand in ("top", "right"):
+        ax.spines[rand].set_visible(False)
+
+    je = g.groupby("fold")["brand"].sum()
+    fig.supxlabel(
+        "Ein Punkt ist ein Stadtteil; die Fläche zeigt die Zahl "
+        "brand-dominierter Monate (leer: keiner). Brand-dominierte Monate je "
+        "Gruppe: " + ", ".join(
+            f"{'Hold-out' if s == 0 else f'Fold {s}'} {int(je[s])}"
+            for s in spalten) + ".", fontsize=SCHRIFT - 2, wrap=True)
+    fig.tight_layout()
+    pfad = OUT / "a18_foldstruktur.pdf"
+    fig.savefig(pfad, bbox_inches="tight")
+    plt.close(fig)
+    return [pfad]
+
+
+
 
 
 def a17_panelstruktur(plt, FuncFormatter) -> list:
@@ -1764,7 +1835,8 @@ def main() -> int:
                + a14_ueberanpassung(plt, FuncFormatter)
                + a15_attribution_ablation(plt, FuncFormatter)
                + a16_einsatzlast(plt, FuncFormatter)
-               + a17_panelstruktur(plt, FuncFormatter))
+               + a17_panelstruktur(plt, FuncFormatter)
+               + a18_foldstruktur(plt, FuncFormatter))
     for pfad in erzeugt:
         try:
             zeigen = pfad.relative_to(ROOT)

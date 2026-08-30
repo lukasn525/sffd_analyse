@@ -290,7 +290,8 @@ der Verlustfunktion (#42) und vor der Expositionsbehandlung (#43).
 Die abschließende Bewertung läuft auf sechs Stadtteilen, 792 Zeilen, ohne
 Streuung und ohne Test. **Im Strukturstrang weicht sie von der Kreuzvalidierung
 ab** (R-2), liegt aber innerhalb der Spannweite der 50 Einzelläufe (Random
-Forest 0,229–0,404, XGBoost 0,230–0,421). Als Einzelmessung zu kennzeichnen und
+Forest 0,229–0,410, XGBoost 0,245–0,424; korrigiert am 25.08.2026, nachgerechnet
+aus `results/klassifikation/struktur_folds.csv`). Als Einzelmessung zu kennzeichnen und
 **nicht** als Widerlegung des Kreuzvalidierungsergebnisses zu lesen.
 
 **Nicht mit den CV-Werten vergleichen.** Der Hold-out ist eine andere,

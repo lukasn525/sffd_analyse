@@ -1,0 +1,580 @@
+% ###########################################################################
+% KAPITEL 8 -- VOLLSTAENDIGE NOTIZEN, SCHREIBANLEITUNG UND TABELLEN
+% Stand 26.08.2026
+%
+% EINBAU: ersetzt in main.tex den Bereich von \section{Diskussion} bis
+% unmittelbar VOR \section{Fazit und Ausblick} (Stand 26.08.: Zeilen
+% 3785-4044). Die beiden Tabellen sind fertiger, kompilierbarer Code; alles
+% Uebrige steht als Kommentar und kostet keine Seite.
+%
+% EINE STELLE AUSSERHALB DIESES BLOCKS IST ANZUFASSEN -- sonst kompiliert die
+% Bildunterschrift von Tabelle 8.1 mit einem ?? und einer Warnung:
+% Unter \subsection{Forschungsluecke und abgeleitete Erwartungen} (main.tex
+% Z. 845) fehlt bisher als einziger Unterabschnitt ein Label. Direkt darunter
+% einfuegen:
+%     \label{sec:forschungsluecke}
+%
+% Alle Zahlen in dieser Datei stammen aus results/ des berichteten Laufs
+% (#52) und sind am 26.08.2026 gegen die CSV-Dateien geprueft. Wo eine Zahl
+% NICHT aus results/ stammt, steht es dabei.
+% ###########################################################################
+
+
+% ===========================================================================
+% BLOCK 0 -- DAS SEITENBUDGET. VERBINDLICH.
+% ===========================================================================
+% Kapitel 8 darf hoechstens 2,5 Seiten belegen. Die folgende Aufteilung ist
+% NICHT geschaetzt, sondern am 26.08.2026 mit der Seitengeometrie dieses
+% Dokuments nachgemessen (geometry 4/2/4/2 cm, 12pt, onehalfspacing):
+%
+%   Satzspiegelhoehe        674,3 pt       Zeilenabstand 18,0 pt
+%   -> 37,5 Zeilen je Seite, rund 550 Woerter je Seite Fliesstext
+%
+%   Tabelle 8.1 mit Unterschrift und Float-Abstand      0,25 S.  (gemessen)
+%   Tabelle 8.2 mit Unterschrift und Float-Abstand      0,54 S.  (gemessen)
+%   1 Ueberschrift Ebene 1 und 3 Ebene 2                0,20 S.
+%                                                     ---------
+%   fuer Fliesstext bleiben                             1,51 S. = 850 Woerter
+%
+% VERTEILUNG DER 850 WOERTER -- das ist das eigentliche Budget:
+%
+%   8.1  3 Absaetze   320 Woerter   (rund 105 je Absatz)
+%   8.2  3 Absaetze   280 Woerter   (rund  95 je Absatz)
+%   8.3  2 Absaetze   250 Woerter   (rund 125 je Absatz)
+%
+% Das Schreibrezept verlangt 70 bis 120 Woerter je Absatz -- die Aufteilung
+% liegt genau in diesem Fenster. Wer einen Absatz laenger schreibt, nimmt
+% ihn einem anderen weg; einen neunten Absatz gibt es nicht.
+%
+% DREI REGELN, DIE DAS BUDGET TRAGEN -- ohne sie wird es nichts:
+%
+% 1. JEDE ZAHL STEHT GENAU EINMAL. Entweder in einer Tabelle oder im
+%    Fliesstext, nie in beiden. Der Text nennt die RICHTUNG und den GRUND,
+%    die Tabelle nennt den WERT. Falsch: "Der Random Forest generalisiert am
+%    schlechtesten (R2 0,412 gegen 0,984 im Training)." Richtig: "Der Random
+%    Forest generalisiert am schlechtesten und rechnet am laengsten
+%    (Tabelle~\ref{tab:erwartung})."
+%
+% 2. KEINE WIEDERHOLUNG AUS KAPITEL 7. Kapitel 7 berichtet die Ergebnisse,
+%    Kapitel 8 deutet sie. Jeder Satz, der eine Zahl aus Kapitel 7 erneut
+%    nennt, ohne eine neue Folgerung daraus zu ziehen, wird gestrichen.
+%
+% 3. LIMITATIONEN GEHEN IN DIE TABELLE, NICHT IN DEN FLIESSTEXT. Der
+%    Fliesstext von 8.3 hat zwei Aufgaben und sonst keine: die Groesse der
+%    effektiven Stichprobe einordnen und die gemessene Fairnesspruefung
+%    berichten. Alles andere ist eine Tabellenzeile.
+%
+% WENN ES AM ENDE DOCH ZU LANG IST, in dieser Reihenfolge kuerzen:
+%   1. Tabelle 8.2 von 13 auf 10 Zeilen -- zuerst fallen "Berichtsumfang",
+%      "Schluss auf Personen" und "Gebietszuschnitt" (spart 0,12 S.).
+%   2. 8.2 von drei auf zwei Absaetze -- die drei Mechanismen auf zwei
+%      Halbsaetze verdichten (spart 0,17 S.).
+%   3. Erst danach an 8.1 oder am Fairnessabsatz kuerzen. Beide tragen
+%      Bewertungspunkte, die sonst nirgends anfallen.
+%
+% BLINDABSATZ: zwischen \section{Diskussion} und \subsection 8.1 steht kein
+% Text (Vorgabe Schroeter).
+%
+% FORMALIA (Schroeter 10.08.): keine Kursivschrift, keine
+% Anfuehrungszeichen, keine Unterstreichungen, keine Zwischenfazits.
+% ===========================================================================
+
+
+% ===================================================
+\section{Diskussion}
+\label{sec:diskussion}
+
+
+% ===========================================================================
+% SCHREIBANLEITUNG 8.1 -- VERGLEICHENDE BEWERTUNG DER ALGORITHMEN
+% 3 Absaetze, zusammen hoechstens 320 Woerter, danach Tabelle 8.1.
+% Beantwortet: Was war zu erwarten, was ist eingetreten, woran liegt es?
+% ===========================================================================
+%
+% ABSATZ 1 -- DIE WIDERLEGTE ERWARTUNG. Gehoert an den ANFANG, nicht ans
+% Ende. Abschnitt 2.7 leitet aus Grinsztajn et al. (2022) ab, dass
+% baumbasierte Verfahren auf tabellarischen Daten dieser Groessenordnung am
+% staerksten abschneiden. Eingetreten ist das Gegenteil: Im Mengenstrang
+% schlaegt kein Verfahren die Referenz der Stufe 2, und im Strukturstrang
+% kehrt sich das Ergebnis der Kreuzvalidierung auf dem Hold-out um. Das ist
+% der interessanteste Befund der Arbeit.
+% Erster Satz nennt den Befund, nicht die Erwartung.
+%
+% ABSATZ 2 -- DIE ERKLAERUNG, UND SIE IST NICHT DIE VERFAHRENSWAHL.
+% Das ist die Antwort auf UF4 und das staerkste Argument des Kapitels:
+% Zwischen den drei Verfahren liegen 2,2 RMSE, zwischen zwei Spezifikationen
+% desselben Verfahrens 19 bis 29. Der Grund ist die multiplikative
+% Groessenstruktur: Baumverfahren geben je Blatt einen festen Wert aus und
+% koennen "Einsaetze = Bevoelkerung mal Risiko" nicht abbilden; Verfahren mit
+% Log-Verknuepfung bekommen die Multiplikation geschenkt.
+% ACHTUNG, UEBERHOLTE FASSUNG: Frueher stand hier von einer
+% "Spezifikationsasymmetrie" zulasten der Vergleichsverfahren. Seit #43
+% modellieren ALLE Verfahren die Rate und multiplizieren zurueck -- die
+% Asymmetrie ist konstruktiv beseitigt, nicht nur benannt. NICHT mehr so
+% schreiben.
+% ZWEITE UEBERHOLTE FASSUNG, ebenfalls nicht mehr schreiben: Der frueher
+% vermerkte "schwaechere Rest" der Asymmetrie ist gemessen und existiert
+% nicht. B-19: Der Offsetvorteil der Referenz betraegt ueber alle 50 Laeufe
+% gepaart -0,0017 RMSE bei der Anzahl und -0,0000 bei der Rate; das negative
+% Vorzeichen heisst, die Variante OHNE Offset ist minimal besser. Grund:
+% log_bevoelkerung steht ohnehin in PRAEDIKTOREN, der Offset legt nur einen
+% Ausgangspunkt fest, den ein frei geschaetzter Koeffizient verschiebt.
+% Wenn der Punkt ueberhaupt vorkommt, dann als Fussnote mit dieser Zahl.
+%
+% ABSATZ 3 -- WARUM FLEXIBILITAET HIER NICHT ZAHLT, UND WAS DAS KOSTET.
+% Zwei Haelften, beide gehoeren hierher:
+% (a) Die Gegenprobe zur Spezifikation (B-41). In-sample ist Nichtlinearitaet
+%     klar nachweisbar; ergaenzt man genau die fehlenden Terme und wertet im
+%     selben Rahmen aus, faellt die Prognose um den Faktor drei bis fuenf:
+%     linear (12 Terme) RMSE 33,98 -- + Quadrate (22) 101,11 --
+%     + Interaktionen (57) 121,63 -- + beides (67) 180,86. Alle 200
+%     Anpassungen konvergiert, also kein numerisches Artefakt.
+%     Ordnet man die Verfahren nach ungebremster Flexibilitaet, faellt R2
+%     monoton: GLM 0,542 -- XGBoost 0,532 -- Ridge 0,511 -- Random Forest
+%     0,402 -- Poisson mit Interaktionen, unbestraft, -6,25. Was die
+%     Ensembles rettet, ist ihre Regularisierung, nicht ihre
+%     Ausdrucksfaehigkeit. Bei 29 unabhaengigen Einheiten ist das das
+%     Bias-Varianz-Dilemma in Reinform.
+%     DAS IST DER UEBERTRAGBARE METHODISCHE BEITRAG DER ARBEIT: In-sample
+%     nachweisbare Nichtlinearitaet ist KEIN hinreichender Grund fuer
+%     flexible Verfahren, wenn die Diagnostik geklumpte Daten als unabhaengig
+%     behandelt. Ein Satz genuegt, aber er muss stehen.
+% (b) Der Preis in Rechenzeit. Der Random Forest braucht 861-mal laenger als
+%     Ridge und generalisiert dabei am schlechtesten -- Groessenordnungen
+%     statt Prozentpunkte, und damit die belastbarste Aussage des Kapitels.
+%     Die Zahlen stehen in der Tabelle, nicht im Satz.
+%
+% WAS AUS PLATZGRUENDEN NICHT IN DEN FLIESSTEXT KOMMT, ABER IN DIE TABELLE:
+% - Unterscheidbarkeit (R-1): keine einzige Verfahrenspaarung ist trennbar.
+%   Formulierungsauflage B7 -- NICHT "nicht gezeigt", sondern "nicht
+%   gemessen". Sekundaertests Menge: alle sechs nach Holm nicht signifikant;
+%   Struktur: RF gegen XGBoost -0,0045, 4 von 10 gewonnen, p 0,625.
+% - Ueberanpassung (#51, B6): die R2-Paare Training gegen Kreuzvalidierung.
+%   Zu benennende Grenze: Ein Wald mit min_samples_leaf = 1 interpoliert
+%   seine Trainingsdaten konstruktionsbedingt; ein hohes Trainings-R2 belegt
+%   dort fuer sich genommen keine krankhafte Ueberanpassung. Der Abstand ist
+%   zwischen KONFIGURATIONEN und gegen die linearen Modelle zu lesen, nicht
+%   als Rangfolge zwischen den Verfahren.
+% ===========================================================================
+
+\subsection{Vergleichende Bewertung der Algorithmen}
+\label{sec:diskussion-verfahren}
+
+% [ABSATZ 1 -- widerlegte Erwartung]
+% [ABSATZ 2 -- Spezifikation schlaegt Verfahrenswahl]
+% [ABSATZ 3 -- Flexibilitaet zahlt sich nicht aus, und sie kostet]
+
+\begin{table}[H]
+\centering
+\caption{Erwartung aus Abschnitt~\ref{sec:forschungsluecke} gegen gemessenen Befund; Gütemaße als Mittel über die zehn Wiederholungen, Zielgröße Anzahl Einsätze}
+\label{tab:erwartung}
+\footnotesize
+\singlespacing
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.4cm} >{\raggedright\arraybackslash}p{3.5cm} >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Frage} & \textbf{Erwartung} & \textbf{Befund} \\
+\midrule
+Menge gegen Referenz & Ensembles übertreffen sie & kein Verfahren übertrifft sie: Referenz 33,98 gegen 35,61 bis 37,77 RMSE; Ridge und XGBoost sind signifikant schlechter, der Random Forest nicht unterscheidbar \\
+\addlinespace
+Struktur gegen Referenz & Ensembles übertreffen sie & in der Kreuzvalidierung ja, $+0{,}031$ und $+0{,}035$ Macro-F1 bei 10 von 10 gewonnenen Wiederholungen --- auf dem Hold-out umgekehrt, $-0{,}070$ und $-0{,}067$ \\
+\addlinespace
+Verfahren untereinander & Rangfolge erkennbar & keine Paarung trennbar; die Streuungsbereiche überlappen in beiden Strängen \\
+\addlinespace
+Aufwand & Ensembles teurer & bestätigt, um Größenordnungen: 0,009 s je Anpassung bei Ridge, 0,98 s bei XGBoost, 7,92 s beim Random Forest \\
+\addlinespace
+Überanpassung & Ensembles anfälliger & bestätigt: $R^2$ Training gegen Kreuzvalidierung 0,826 zu 0,514 bei Ridge, 0,983 zu 0,510 bei XGBoost, 0,984 zu 0,412 beim Random Forest \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+
+% ===========================================================================
+% SCHREIBANLEITUNG 8.2 -- ERKLAERUNGSBEITRAG DER UNTERSUCHTEN FAKTOREN
+% 3 Absaetze, zusammen hoechstens 280 Woerter, KEINE eigene Tabelle.
+% Beantwortet UF1. Bis 26.08.2026 hatte dieser Abschnitt als einziger
+% ueberhaupt keine Schreibanleitung.
+% ===========================================================================
+%
+% SCHNITT GEGEN 7.4 -- OHNE IHN DOPPELN SICH DIE BEIDEN ABSCHNITTE:
+%   7.4 zeigt die Zahlen: SHAP-Attribution und Ablation je Faktorgruppe,
+%       mit der Tabelle. 8.2 nennt KEINE dieser Zahlen erneut.
+%   8.2 zieht die Folgerung: was die Zahlen ueber die Faktoren aussagen,
+%       woran ihre Uneinheitlichkeit liegt und was sie NICHT hergeben.
+% Ein Rueckverweis auf die Tabelle in 7.4 ersetzt jede Wiederholung.
+%
+% ABSATZ 1 -- DIE ANTWORT AUF UF1, UND SIE IST NICHT DIE NAHELIEGENDE.
+% FALSCH: "Nur der Kriminalitaetsindex traegt." Im Strukturstrang widerlegt,
+%         dort ist er praktisch wertlos (+0,0004 bis +0,0020 Macro-F1).
+% RICHTIG: Die drei Faktorgruppen des Exposes tragen dieselbe Information
+%          MEHRFACH; welche davon nuetzt, haengt an der zeitlichen Aufloesung
+%          und an der Modellform.
+% Praezisierung, ohne die die Aussage angreifbar ist: Im Querschnitt
+% korrelieren mehrere Merkmale aehnlich stark mit der Zielgroesse
+% (anteil_risikogewerbe_pct +0,72, anteil_wohngebaeude_pct -0,79,
+% leerstandsquote_pct +0,72 gegenueber +0,66 beim Kriminalitaetsindex). Der
+% korrekte Satz lautet: GEGEBEN den Kriminalitaetsindex tragen die uebrigen
+% Bloecke nichts Eigenstaendiges mehr bei -- nicht "nur Kriminalitaet haengt
+% zusammen".
+%
+% ABSATZ 2 -- DIE DREI MECHANISMEN, die die Uneinheitlichkeit vollstaendig
+% erklaeren. Verdichtet auf drei Halbsaetze, die Zahlen stehen in 7.4:
+%   (1) ZEITLICHE AUFLOESUNG. Eindeutige Werte je Stadtteil ueber 132 Monate:
+%       Kriminalitaetsindex 128,6 -- ACS-Merkmale und log_bevoelkerung je 4
+%       (fuenf Jahrgaenge mit Publikationsversatz) -- die drei baulichen
+%       Merkmale 1, also KONSTANT (Land-Use-Snapshot 2020). Der
+%       Kriminalitaetsindex ist das einzige monatlich variierende Merkmal.
+%   (2) KOLLINEARITAET. Er korreliert mit anteil_risikogewerbe_pct +0,739,
+%       leerstandsquote_pct +0,636, armutsquote_pct +0,622,
+%       anteil_wohngebaeude_pct -0,603 und ist damit ein SAMMELINDIKATOR, der
+%       die soziooekonomische und bauliche Information mittraegt, nur besser
+%       aufgeloest. Bei 23 Trainingsstadtteilen kosten redundante Praediktoren
+%       mehr Varianz, als sie Verzerrung abbauen (hoechster VIF 12,29).
+%   (3) DER OFFSET. Die Groessenkontrolle schadet in der Menge und ist in der
+%       Struktur das wertvollste Merkmal. Das Poisson-GLM hat
+%       log(Bevoelkerung) ohnehin als Offset -- der Praediktor ist dort ein
+%       redundanter freier Parameter. Die Klassifikationsmodelle haben keinen
+%       Offset und brauchen die Groesse als Signal.
+%
+% ABSATZ 3 -- DIE EINSCHRAENKUNG, DIE DIE ANTWORT TRAEGT (R-18).
+% Das ist der Absatz, der bisher NIRGENDS vorgesehen war, und er ist der
+% wichtigste des Abschnitts: log_kriminalitaetsindex ist das einzige Merkmal,
+% dessen Weglassen die Prognose messbar verschlechtert (+24,3 RMSE, 10 von 10
+% Wiederholungen). Der gesamte inhaltliche Befund zu UF1 haengt an dieser
+% einen Spalte -- und sie stammt aus SFPD Incident Reports, also aus
+% polizeilich REGISTRIERTEN Delikten. Registrierte Kriminalitaet ist das
+% Produkt aus Tatgeschehen, Anzeigebereitschaft und Kontrollintensitaet; wo
+% mehr gestreift wird, wird mehr registriert.
+% FORMULIERUNGSAUFLAGE, verbindlich:
+%   NICHT: "Kriminalitaet erklaert Feuerwehreinsaetze."
+%   SONDERN: "Die registrierte Kriminalitaetsbelastung eines Stadtteils ist
+%             der staerkste verfuegbare Indikator." Schwaecher formuliert,
+%             aber haltbar.
+% Belegbar mit Lum & Isaac (2016), Significance 13(5), 14-19 -- kanonischer
+% Nachweis der Rueckkopplung zwischen Polizeieinsatz und registrierten
+% Delikten. QUELLE IST NOCH NICHT GEPRUEFT, siehe Block Z.
+%
+% EIN ZWEITER BEFUND, der in einen Halbsatz passt und viel traegt:
+% Die BAULICHEN Merkmale schaden in ALLEN VIER Modellen und BEIDEN Straengen.
+% Es sind genau die drei, die aus dem Snapshot eines einzelnen Jahres stammen
+% und je Stadtteil konstant sind -- drei Koeffizienten, gefittet auf 23
+% Stadtteile Zwischenvarianz. Gleichzeitig eine Limitation der Datenlage und
+% ein methodischer Befund. Die Zeile dazu steht in Tabelle 8.2.
+%
+% ZWEI SAETZE, DIE NICHT FEHLEN DUERFEN (ggf. als Fussnote):
+% - Kein Signifikanztest auf der Ablation. Die Testfamilien sind mit #38
+%   festgelegt; weitere Tests beruehrten die Holm-Struktur. Berichtet werden
+%   Mittelwert, Streuung ueber die zehn Wiederholungsmittel und die Zahl der
+%   Wiederholungen mit Verschlechterung.
+% - Aus der Ablation folgt NICHT, den Merkmalssatz zu kuerzen. Er kommt aus
+%   dem Expose und ist durch die Fairness-Regel gebunden; nachtraeglich zu
+%   kuerzen waere eine ergebnisgetriebene Spezifikationswahl.
+% ===========================================================================
+
+\subsection{Erklärungsbeitrag der untersuchten Faktoren}
+\label{sec:diskussion-faktoren}
+
+% [ABSATZ 1 -- die Faktorgruppen tragen dieselbe Information mehrfach]
+% [ABSATZ 2 -- die drei Mechanismen: Aufloesung, Kollinearitaet, Offset]
+% [ABSATZ 3 -- registrierte Kriminalitaet, nicht Kriminalitaet]
+
+
+% ===========================================================================
+% SCHREIBANLEITUNG 8.3 -- LIMITATIONEN UND UEBERTRAGBARKEIT
+% 2 Absaetze, zusammen hoechstens 250 Woerter, danach Tabelle 8.2.
+% Der Fliesstext hat GENAU ZWEI Aufgaben. Alles andere ist Tabellenzeile.
+% ===========================================================================
+%
+% ABSATZ 1 -- DIE EFFEKTIVE STICHPROBE. Die Zahl lautet: rund 38 effektive
+% Einheiten bei 4.620 Zeilen (ICC 0,926, Designeffekt 122). Ohne Saison und
+% Kriminalitaetsindex nehmen die Merkmale nur 140 verschiedene Werte an.
+% (Diese Zahlen stehen NICHT in results/ -- sie sind eine Varianzzerlegung
+% der Praediktoren, B-49. Reproduktionsweg dort.)
+%
+% DER TON ENTSCHEIDET HIER MEHR ALS DIE ZAHL. Drei Fassungen:
+%   FALSCH, defensiv: "Leider standen nur 35 Stadtteile zur Verfuegung."
+%       Liest sich als Entschuldigung und laedt zur Nachfrage ein.
+%   FALSCH, offensiv: "Viele Arbeiten mit 35 Gebietseinheiten berichten
+%       p-Werte auf Basis der Zeilenzahl und merken es nicht."
+%       Ein Seitenhieb auf die Literatur OHNE BELEG. Angreifbar, nicht
+%       souveraen. NICHT SO SCHREIBEN.
+%   RICHTIG, sachlich: Die Groessenordnung als Eigenschaft des Gegenstands
+%       benennen, die eigene Behandlung dagegenstellen, beides belegen.
+%
+% GERUEST, KEINE VORLAGE -- eigener Satzbau, eigene Reihenfolge:
+%   "Flaechenbezogene Untersuchungen arbeiten typischerweise mit wenigen
+%   Dutzend Gebietseinheiten; die effektive Stichprobe liegt hier bei rund
+%   38. Entscheidend ist weniger diese Groesse als der Umgang mit ihr:
+%   Getestet wird auf den zehn Wiederholungsmitteln statt auf den 50
+%   Einzellaeufen, weil letztere Pseudoreplikation waeren; validiert wird
+%   stadtteilweise statt zufaellig, weil zufaelliges k-Fold bei
+%   Abhaengigkeitsstrukturen zu optimistische Schaetzungen liefert. Die
+%   berichtete Streuung quantifiziert die Abhaengigkeit von der
+%   Fold-Zuteilung und ist damit eine UNTERGRENZE der Unsicherheit ueber die
+%   Grundgesamtheit der Stadtteile."
+%
+% ERHALTEN BLEIBEN MUESSEN nur die pruefbaren Behauptungen:
+%   - die Zahlen: n_eff rund 38, ICC 0,926, Designeffekt 122, 140
+%     Merkmalsvektoren
+%   - Hurlbert (1984) an der Stelle "warum n = 10 und nicht 50"
+%   - Roberts et al. (2017) an der Stelle "warum stadtteilweise, nicht
+%     zufaellig" -- diese Quelle IST geprueft und steht bereits in 6.1
+%     zitiert, Seite 925
+%   - die Richtung: die berichtete Streuung ist eine UNTERGRENZE
+%   - kein unbelegter Seitenhieb auf andere Arbeiten
+%
+% FALLE BEIM UMFORMULIEREN: Aus "Untergrenze der Unsicherheit" wird leicht
+% "das Konfidenzintervall ist konservativ" oder "vorsichtig geschaetzt". Das
+% ist das GEGENTEIL und waere falsch. Konservativ hiesse zu breit; hier ist
+% es zu SCHMAL, weil alle zehn Wiederholungen dieselben 29 Stadtteile teilen
+% (B-50). Sichere Wendungen: "eher zu schmal als zu breit", "die
+% tatsaechliche Unsicherheit liegt darueber".
+%
+% EBENFALLS IN DIESEN ABSATZ, ein Satz, weil er der naheliegenden
+% Pruefungsfrage die Spitze nimmt: Eine Ausweitung des Zeitraums wuerde die
+% Aussagekraft NICHT erhoehen -- die Beschraenkung liegt bei 35
+% Analyseeinheiten, nicht bei der Zahl der Beobachtungen. Ein zusaetzliches
+% Jahr braechte 420 Zeilen und null zusaetzliche Stadtteile; unter einem
+% Stadtteil-Split besteht die Testmenge aus Stadtteilen.
+%
+% ------------------------------------------------------------------------
+% ABSATZ 2 -- DIE GEMESSENE FAIRNESSPRUEFUNG (R-24, B-52).
+% Bis 26.08.2026 war dieser Absatz NIRGENDS vorgesehen. Er gehoert hierher,
+% weil das Gutachten nach R6/R9 nicht bewertet, ob Probleme auftreten,
+% sondern ob sie methodisch geloest wurden -- und ein gemessener und
+% verneinter Verdacht ist staerker als ein ungeprueftes Bedenken.
+%
+% Der naheliegende Vorwurf: Das Modell ist fuer arme Stadtteile ungenauer,
+% benachteiligt sie also. Geprueft am 17.08.2026 ueber alle 50 Laeufe, indem
+% je Fold das Sozialprofil der Teststadtteile gegen die Fold-Guete gestellt
+% wurde.
+%   ABSOLUT besteht der Zusammenhang: Spearman-Rho zwischen Armutsquote und
+%   RMSE +0,35 bis +0,60 (p < 0,015), ueber alle Verfahren und beide
+%   Zielgroessen, die Poisson-Referenz eingeschlossen.
+%   RELATIV ZUM NIVEAU verschwindet er vollstaendig: setzt man den RMSE ins
+%   Verhaeltnis zur mittleren Einsatzzahl des Folds, liegt Rho zwischen
+%   -0,006 und +0,275, und kein Wert ist auf 5 Prozent signifikant
+%   (kleinstes p = 0,053).
+%   LESART: Der absolute Fehler ist in aermeren Stadtteilen groesser, weil
+%   dort mehr Einsaetze stattfinden. Die relative Genauigkeit ist ueber das
+%   Sozialgefaelle hinweg gleich. Es liegt kein Hinweis auf systematische
+%   Benachteiligung vor.
+%
+% ZWEI EHRLICHKEITEN, die dazugehoeren und nicht wegfallen duerfen:
+%   1. Der relative Fehler ist auf allen Stufen hoch -- im Mittel 0,48 bei
+%      der Anzahl und 0,66 bis 0,69 bei der Rate. Das Modell ist nirgends
+%      praezise, nicht nur in armen Stadtteilen.
+%   2. Es ist eine Pruefung auf FehlerGLEICHHEIT, nicht auf
+%      Verteilungsgerechtigkeit eines hypothetischen Einsatzes. Die waere
+%      eine andere Frage und wird hier nicht beantwortet.
+%
+% WICHTIG: Diese Zahlen liegen NICHT in results/. Reproduktionsweg in B-52:
+% je (Wiederholung, Fold) die mittlere Armutsquote der Teststadtteile
+% berechnen und gegen die Fold-Guete stellen (Spearman, 50 Laeufe).
+% Vor der Verwendung im Text einmal nachrechnen und die Zahlen ablegen.
+%
+% ANSCHLUSS IN EINEM HALBSATZ, wenn der Platz reicht (R-20): Die Abgrenzung
+% der Deployment-Phase ist bisher nur eine Umfangsentscheidung; sie ist
+% zusaetzlich als ethische Grenze zu formulieren. Das unterscheidet die
+% Arbeit von der Predictive-Policing-Kritik, statt ihr auszuweichen: Ein
+% zusaetzlicher Loeschzug NUETZT einem Stadtteil, zusaetzliche Streifen
+% BELASTEN ihn. Zuteilung nach vorhergesagtem Bedarf ist in der
+% Notfallversorgung nicht per se ungerecht, sondern das Ziel.
+% Wenn der Platz nicht reicht: in den Ausblick, Kapitel 9.
+% ===========================================================================
+
+\subsection{Limitationen und Übertragbarkeit}
+\label{sec:limitationen}
+
+% [ABSATZ 1 -- effektive Stichprobe, und warum mehr Zeit nicht hilft]
+% [ABSATZ 2 -- Fairness gemessen und verneint, mit den zwei Ehrlichkeiten]
+
+\begin{table}[H]
+\centering
+\caption{Grenzen der Untersuchung und ihre Wirkung auf die Aussagekraft}
+\label{tab:limitationen}
+\footnotesize
+\singlespacing
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.1cm} >{\raggedright\arraybackslash}p{4.4cm} >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Grenze} & \textbf{Beleg} & \textbf{Wirkung auf die Aussage} \\
+\midrule
+Abhängige Wiederholungen & zehn Wiederholungen teilen dieselben 29 Stadtteile & das Konfidenzintervall ist eher zu schmal als zu breit \\
+\addlinespace
+Extrapolation & 34,6 \% der Testzeilen außerhalb des gelernten Bereichs, 7,6 \% im Hold-out; 9 von 29 Stadtteilen zu 100 \% & begrenzt die Übertragung auf unbekannte Stadtteile \\
+\addlinespace
+Hold-out und Kreuzvalidierung nicht vergleichbar & 29 statt 23 Trainingsstadtteile, 7,6 statt 34,6 \% Extrapolation & die beiden Zahlenreihen dürfen nicht nebeneinandergestellt werden \\
+\addlinespace
+Parameterwahl im Hold-out & die Baumverfahren erben die Parameter eines einzelnen Folds, die Referenz hat keine & Schwäche des Hold-out-Verfahrens, nicht der Verfahren; Wirkung nicht gemessen \\
+\addlinespace
+Einmaliges Tuning & die Parameter stammen aus der ersten Wiederholung und gelten für alle zehn & schwacher Informationsübertrag, alle Verfahren gleichermaßen betroffen \\
+\addlinespace
+Ungetunte Referenz der Struktur & mit Strafterm 0,314 statt 0,297 Macro-F1 & der Vorsprung in der Kreuzvalidierung halbiert sich auf $+0{,}014$ und $+0{,}020$ \\
+\addlinespace
+Seltene Klasse & 33 brandbestimmte Monate in der Entwicklung, 2 bis 13 je Testfold & ein Viertel des Macro-F1 ruht auf wenigen Fällen; der Random Forest erreicht auf dem Hold-out bei dieser Klasse 0,173 AUROC \\
+\addlinespace
+Registrierte Kriminalität & stärkstes Merkmal, $+24{,}3$ RMSE beim Weglassen; Quelle sind Polizeimeldungen & die Aussage gilt für die registrierte Belastung, nicht für Kriminalität \\
+\addlinespace
+Zeitliche Auflösung der Merkmale & ACS jährlich mit Publikationsversatz, Flächennutzung als Momentaufnahme eines Jahres & die baulichen Merkmale verschlechtern alle vier Modelle in beiden Strängen \\
+\addlinespace
+Gebietszuschnitt & 35 Analysis Neighborhoods statt 242 Census Tracts & eine andere Einteilung kann andere Koeffizienten und eine andere Rangfolge liefern \\
+\addlinespace
+Schluss auf Personen & Aggregate je Stadtteil und Monat & keine Aussage über einzelne Haushalte ableitbar \\
+\addlinespace
+Berichtsumfang & der Mengenstrang ist auf die Anzahl verdichtet, die Rate erscheint als Robustheitsbefund & geprüft: alle Tests auf der Rate stimmen in Richtung und Signifikanzmuster überein \\
+\addlinespace
+Abweichungen vom Exposé & Stadtteil-Split statt zeitreihengerechter Kreuzvalidierung, zwei statt drei Verfahren in der Klassifikation & begründet in Abschnitt~\ref{sec:rahmen-baselines} und hier; die zeitreihengerechte Variante wird nicht gerechnet \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+
+% ###########################################################################
+% BLOCK Z -- WAS NICHT IN KAPITEL 8 GEHOERT, WAS OFFEN IST, WAS FEHLT
+% Kein Text, nur Merkposten. Vor der Abgabe abarbeiten.
+% ###########################################################################
+%
+% ---------------------------------------------------------------------------
+% Z1. AUSDRUECKLICHE GEGENANWEISUNGEN -- NICHT NACH KAPITEL 8
+% ---------------------------------------------------------------------------
+% - DIE DECKEN (B-48). Gehoeren VOR die Ergebnistabelle in 7.2, nicht in die
+%   Limitationen -- sonst lesen sie sich als nachtraegliche Entschuldigung
+%   statt als Massstab. Werte: Mehrheitsklasse 0,2233 -- Decke B
+%   (Stadtteilwissen) 0,4572 -- Decke A (Label-Rauschen) 0,6404 -- fehlerfrei
+%   1,0. Hold-out: Decke A 0,6785, Decke B 0,4219.
+% - B-45 (weitere Suchraeume verschlechtern die Prognose) traegt den Vermerk
+%   NUR INTERN, geht NICHT in die Arbeit. Nach #52 wird genau ein Lauf
+%   berichtet, kein Vorher-Nachher. Uebernehmbar ist allein die allgemeine
+%   Lehre, und die ist B-41 (steht in 8.1).
+% - Der Seitenhieb auf die Literatur zur effektiven Stichprobe: ohne Beleg,
+%   ausdruecklich nicht zu schreiben.
+% - Die Extrapolation erklaert KEINEN Verfahrensunterschied (B-31, gemessen
+%   und widerlegt: der Zusammenhang zwischen Extrapolationsanteil und RMSE
+%   ist bei RIDGE am staerksten, Spearman +0,302, beim Random Forest am
+%   schwaechsten, +0,108 bei p 0,456). Sie bleibt eine Eigenschaft des
+%   Validierungsrahmens. Diese Erklaerung darf in 8.1 NICHT auftauchen.
+%
+% ---------------------------------------------------------------------------
+% Z2. AUS PLATZGRUENDEN GESTRICHEN -- bewusst, nicht vergessen
+% ---------------------------------------------------------------------------
+% Diese Punkte sind fuer Kapitel 8 vorgemerkt, passen aber nicht in 2,5
+% Seiten. Wenn Platz entsteht, in dieser Reihenfolge aufnehmen:
+%   1. Die Anpassungsskala (Alle drei Vergleichsverfahren werden auf der Rate
+%      angepasst, das Poisson-GLM auf der Anzahl mit Offset; gemessen wird
+%      symmetrisch, angepasst nicht). Zwei Gegenproben liegen vor: im
+%      Ratenstrang haben die Baeume die Ausrichtung zwischen Verlust und
+%      Metrik und verlieren trotzdem (Hold-out RMSE GLM 0,977 gegen XGBoost
+%      1,137, Ridge 1,153, Random Forest 1,561); die Expositions-Ablation
+%      kostet den Random Forest 29,2 und XGBoost 19,1 RMSE, die gewaehlte
+%      Spezifikation ist also die fuer die Vergleichsverfahren guenstigere.
+%      Eine expositionsgewichtete Variante wurde NICHT erhoben -- #43 legt
+%      eine Spezifikation fuer alle fest, nachtraeglich weitere zu messen und
+%      unter ihnen zu waehlen waere ergebnisgetrieben.
+%   2. Die Rueckkopplung bei hypothetischem Einsatz (R-23): mehr Praesenz,
+%      mehr registrierte Ereignisse, Bestaetigung der Vorhersage. Beim Brand
+%      schwaecher als bei der Polizei, bei Fehlalarmen (79 Prozent, dominante
+%      Klasse) denkbar. Laut Register gehoert das ohnehin in den AUSBLICK,
+%      Kapitel 9, nicht in Kapitel 8.
+%   3. Das fehlende lineare Referenzverfahren der Klassifikation (#31): Die
+%      Symmetrie linear/Bagging/Boosting besteht nur im Regressionsstrang;
+%      der Vergleich in der Klassifikation ist einer zwischen zwei
+%      Baumverfahren, die einander konstruktionsbedingt aehnlicher sind.
+%      Steht bereits in 6.2 -- in 8.3 nur, wenn Platz ist.
+%   4. Die Reflexion der beiden Dokumentationsfehler (B-43/B-44): eine
+%      Information lebte an zwei Orten, nur einer wurde gepflegt. Trifft
+%      Gutachten-R9 (Reflexion im Verlauf). ENTSCHEIDUNG OFFEN, ob ein selbst
+%      berichteter Prozessfehler ueberhaupt in die Arbeit soll.
+%
+% ---------------------------------------------------------------------------
+% Z3. ZAHLENKONFLIKTE -- VOR DEM SCHREIBEN KLAEREN
+% ---------------------------------------------------------------------------
+% (a) RESET-TEST, ZEILENZAHL. 06_RISIKEN.md (Z. 392), 07_BEFUNDE.md B-41 und
+%     der Kommentar in main.tex Z. 2456 nennen 3.828 Zeilen. Richtig sind
+%     3.036 -- die Eignungspruefung lief auf den 23 Trainingsstadtteilen von
+%     Fold 1 (results/eignungspruefung/eignungspruefung.md, Z. 3). 3.828 ist
+%     die TRAININGSGROESSE DES HOLD-OUTS (29 mal 132, holdout.csv). Der
+%     Fliesstext in 6.2 (main.tex Z. 2568-2571) ist bereits richtig; die drei
+%     Kommentar- und Notizstellen sind nachzuziehen.
+% (b) STADTTEIL-MITTELWERT. #29 nennt R2 0,888, die Praezisierung vom
+%     04.08.2026 und 06_RISIKEN.md nennen 0,925. Genau diese Zahl traegt
+%     Auflage A. Vor der Verwendung festlegen, welche gilt.
+% (c) VORSPRUNG DER ENSEMBLES IN DER STRUKTUR. #48 und 07_BEFUNDE B-29 nennen
+%     +0,0304/+0,0371 bzw. +0,0296/+0,0362 -- beides Werte vom 06.08. Der
+%     BERICHTETE Lauf (#52) liefert +0,0306 und +0,0350
+%     (klassifikation/vergleich.csv). In der Arbeit gelten die letzteren.
+% (d) DIE GETUNTE REFERENZ 0,314 stammt aus der Messung vom 06.08. und wurde
+%     nach #48 bewusst NICHT nachgerechnet. Sie ist damit eine Zahl aus einem
+%     anderen Lauf als die uebrigen. Beim Schreiben so kennzeichnen.
+% (e) DISPERSIONSINDEX. annahmen.csv nennt 54,2, #42 nennt 62,8. Es gilt
+%     54,2 (berichteter Lauf, Fold-1-Trainingsstadtteile).
+%
+% ---------------------------------------------------------------------------
+% Z4. QUELLEN, DIE DIESES KAPITEL BRAUCHT
+% ---------------------------------------------------------------------------
+% Roberts et al. (2017) ist geprueft, im Literaturverzeichnis und in 6.1 mit
+% Seite 925 zitiert -- die einzige der folgenden, die verwendbar ist.
+%
+% NICHT GEPRUEFT, kein bib-Eintrag, keine Seitenangabe. Nach der geltenden
+% Regel darf keine davon vor der Volltextpruefung in den Text:
+%   Hurlbert, S. H. (1984): Pseudoreplication and the Design of Ecological
+%     Field Experiments. Ecological Monographs 54(2), 187-211.
+%     -> braucht 8.3 Absatz 1 fuer "warum n = 10 und nicht 50"
+%   Lum, K. & Isaac, W. (2016): To predict and serve? Significance 13(5),
+%     14-19.  -> braucht 8.2 Absatz 3
+%   Robinson, W. S. (1950): Ecological Correlations and the Behavior of
+%     Individuals. American Sociological Review 15(3), 351-357.
+%     -> staerkt die Tabellenzeile "Schluss auf Personen"
+%   Openshaw, S. (1984): Ecological Fallacies and the Analysis of Areal
+%     Census Data. Environment and Planning A 16(1), 17-31.
+%     -> staerkt die Tabellenzeile "Gebietszuschnitt"
+%   Nadeau, C. & Bengio, Y. (2003): Inference for the Generalization Error.
+%     -> staerkt die Tabellenzeile "Abhaengige Wiederholungen"
+%
+% ENTLASTUNG: Die beiden Tabellenzeilen zum Gebietszuschnitt und zum Schluss
+% auf Personen sind Aussagen ueber das EIGENE Design und tragen auch ohne
+% Zitat. Nur Hurlbert und Lum & Isaac werden wirklich gebraucht; ohne sie ist
+% der jeweilige Satz abzuschwaechen, nicht zu streichen.
+%
+% ---------------------------------------------------------------------------
+% Z5. SCHREIBREIHENFOLGE UND ABHAENGIGKEITEN
+% ---------------------------------------------------------------------------
+% - Abschnitt 2.7 (Forschungsluecke) wird ZULETZT geschrieben, nach 8.1. Die
+%   dort abgeleiteten Erwartungen sind genau die, die 8.1 widerlegt -- sie
+%   muessen zusammenpassen (09_SCHREIBPLAN.md Z. 74).
+% - AUFLAGE A (Schroeter, 04.08.2026, woertlich): "Wichtig ist, dass Sie die
+%   Abweichung von der urspruenglich angekuendigten zeitreihengerechten
+%   Kreuzvalidierung transparent erlaeutern." Das begruendete Verwerfen ist
+%   VERLANGT, nicht optional. Es steht als letzte Zeile in Tabelle 8.2 -- die
+%   Zeile allein erfuellt die Auflage nur, wenn der Beleg mit dranhaengt:
+%   92,5 Prozent der Varianz liegen zwischen den Stadtteilen, ein Zeitschnitt
+%   wuerde im Kern die zeitliche Stabilitaet messen und die Forschungsfrage
+%   nicht pruefen. Pruefen, ob dieser Beleg in 5.4 schon steht -- wenn ja,
+%   genuegt in 8.3 der Verweis; wenn nein, muss er in die Tabellenzeile.
+% - DARSTELLUNGSREGEL (Schroeter, 10.08.2026): keine grosse iterative
+%   Entwicklung im Text; Kapitel 6 beschreibt die finale Spezifikation, die
+%   Reflexion ist KONZENTRIERT IN KAPITEL 8. Damit gehoeren #42
+%   (Verlustfunktionen) und #43 (Exposition) hierher -- beide ausdruecklich
+%   NACH einem Modelllauf getroffen und in der Arbeit als solches zu
+%   kennzeichnen. Bei 2,5 Seiten reicht dafuer ein Halbsatz in 8.1 Absatz 2.
+% - KI-VERZEICHNIS: Wird eine hier vorformulierte Passage als Geruest
+%   genutzt, gehoert ein Eintrag in die Tabelle am Ende des Dokuments, nach
+%   dem Muster der vorhandenen Eintraege mit Prompt und Ergebnisverweis.
+% - GLOBALE UMBENENNUNG (Schroeter, 24.08.2026): Quelltext/Quellcode wird zu
+%   "Code 1: xy". Betrifft auch die \ref-Aufrufe in diesem Kapitel, falls
+%   welche dazukommen.
+%
+% ---------------------------------------------------------------------------
+% Z6. PRUEFUNG NACH DEM SCHREIBEN
+% ---------------------------------------------------------------------------
+% 1. Zweimal kompilieren (Verzeichnisse stabilisieren sich erst im zweiten
+%    Lauf), dann die Seitenzahl von \section{Diskussion} bis
+%    \section{Fazit und Ausblick} nachmessen. Ziel: hoechstens 2,5.
+% 2. Beide Tabellen muessen auf ihrer Seite stehen bleiben. Faellt eine um,
+%    ist der Float an den ANFANG seines Blocks zu setzen, nicht ans Ende --
+%    [H] allein schiebt sie nur auf die naechste Seite.
+% 3. Jede Zahl im Fliesstext gegen die Tabellen pruefen: steht sie zweimal,
+%    faellt die im Fliesstext weg.
+% 4. Gegen Kapitel 7 lesen: Wird eine Ergebniszahl wiederholt, ohne dass eine
+%    neue Folgerung daraus entsteht, streichen.
+% ###########################################################################

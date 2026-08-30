@@ -111,7 +111,7 @@ PRAEDIKTOREN = [
     "anteil_risikogewerbe_pct",
 ]
 
-# Rohwerte: keine Merkmale, aber Offset des Poisson-GLM und Deskription 5.1.
+# Rohwerte: keine Merkmale, aber Offset des Poisson-GLM und Deskription 4.1.
 EXPOSURE_ROH = "gesamtbevoelkerung"
 CRIME_ROH    = "kriminalitaetsindex"
 

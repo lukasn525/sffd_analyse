@@ -124,7 +124,7 @@ def test_exposure_und_kriminalitaetsindex_vorhanden():
     d = regression()
     assert d["log_bevoelkerung"].notna().all()
     assert d["log_kriminalitaetsindex"].notna().all()
-    # Rohwerte bleiben erhalten (NegBin-Offset, Raten-Sensitivität, Kap. 5.1)
+    # Rohwerte bleiben erhalten (Poisson-Offset, Raten-Sensitivität, Kap. 5.1)
     assert {"gesamtbevoelkerung", "kriminalitaetsindex"} <= set(d.columns)
 
 

@@ -1,0 +1,314 @@
+% =========================================================================
+% KAPITEL 5.4 -- GLEITOBJEKTE
+% 25.08.2026. Elf Objekte: eine Abbildung, sieben Quelltexte, drei Tabellen.
+%
+% REIHENFOLGE IM TEXT
+%   Absatz  2  -> abb:foldstruktur, lst:foldmasken        [lst KUERZBAR]
+%   Absatz  4  -> lst:folds
+%   Absatz  8  -> lst:merkmalsliste                       [KUERZBAR]
+%   Absatz  9  -> lst:dtypes
+%   Absatz 11  -> tab:baselines-menge, lst:poisson
+%   Absatz 12  -> tab:baselines-struktur, lst:logit
+%   Absatz 16  -> lst:test-folds                          [KUERZBAR]
+%   ENDE       -> tab:steckbrief
+%
+% CODEKOMMENTARE SIND NACHGEZOGEN. Die neuen Kommentarzeilen stehen
+% seit dem 25.08.2026 auch im Repo (prep/s2_datensaetze.py, prep/config.py,
+% vorpruefung/v1_baselines.py); die Ausschnitte unten stimmen mit den Dateien
+% ueberein. Die Zeilennummern in den Beschriftungen sind auf den Stand NACH
+% dieser Aenderung gesetzt. Liste der Aenderungen am Ende dieser Datei.
+%
+% Die Abbildung braucht das Paket float (wegen [H]) -- ist in Kapitel 4
+% bereits im Einsatz. Die Tabellen brauchen tabularx und booktabs, ebenfalls
+% vorhanden.
+% =========================================================================
+
+
+% ---------------------------- AB HIER KOPIEREN ---------------------------
+
+% ---------- Absatz 2 -----------------------------------------------------
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Abbildungen/a2_foldstruktur.pdf}
+    \caption{Zuteilung der 35 Stadtteile auf fünf Folds und das Hold-out}
+    \label{abb:foldstruktur}
+\end{figure}
+
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:foldmasken},
+  caption={Trainings- und Testmenge eines Folds
+           (\texttt{prep/s2\_datensaetze.py}, Z.~96--111, gekürzt)}]
+def fold_masken(daten: pd.DataFrame, k: int) -> tuple[pd.Series, pd.Series]:
+    test = daten["fold"] == k
+    assert test.any(), (f"Kein Fold {k} im Datensatz "
+                        f"(vorhanden: {sorted(daten['fold'].unique())}).")
+    train = (daten["fold"] != k) & (daten["ist_holdout"] == 0)
+    return train, test
+\end{lstlisting}
+
+
+% ---------- Absatz 4 -----------------------------------------------------
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:folds},
+  caption={Fold-Zuteilung mit doppelter Stratifizierung
+           (\texttt{prep/s2\_datensaetze.py}, Z.~61--93, gekürzt)}]
+def ergaenze_aufteilung(daten: pd.DataFrame, versatz: int = 0,
+                        selten: pd.Series | None = None) -> pd.DataFrame:
+    # Doppelte Stratifizierung (#30): zuerst nach brand-dominierten Monaten,
+    # bei Gleichstand nach Bevoelkerung.
+    bev = daten.groupby("stadtteil")[EXPOSURE_ROH].mean()
+    if selten is None:
+        selten = pd.Series(0, index=bev.index)
+    ordnung = (pd.DataFrame({"selten": selten.reindex(bev.index).fillna(0),
+                             "bev": bev})
+                 .sort_values(["selten", "bev"], ascending=False).index)
+
+    # Reihum auf N_FOLDS + 1 Gruppen; Gruppe 0 ist das Hold-out.
+    gruppe = {st: (i + versatz) % (N_FOLDS + 1) for i, st in enumerate(ordnung)}
+
+    d = daten.copy()
+    d["fold"] = d["stadtteil"].map(gruppe).astype(int)
+    d["ist_holdout"] = (d["fold"] == 0).astype(int)
+    return d
+\end{lstlisting}
+
+
+% ---------- Absatz 8 -----------------------------------------------------
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:merkmalsliste},
+  caption={Merkmalssatz, einmalig hinterlegt
+           (\texttt{prep/config.py}, Z.~106--131, gekürzt)}]
+PRAEDIKTOREN = [
+    "median_haushaltseinkommen", "armutsquote_pct", "akademikerquote_pct",
+    "median_miete", "leerstandsquote_pct", "log_bevoelkerung",
+    "log_kriminalitaetsindex",
+    "anteil_altbau_vor_1940_pct", "anteil_wohngebaeude_pct",
+    "anteil_risikogewerbe_pct",
+]
+
+# Rohwert: kein Merkmal, aber Offset des Poisson-GLM.
+EXPOSURE_ROH = "gesamtbevoelkerung"
+
+# Saison als sin/cos - der Monat als Zahl gaebe Dezember und Januar Abstand 11.
+SAISON = ["monat_sin", "monat_cos"]
+
+# Ein Merkmalssatz fuer alle drei Verfahren. Ohne rohes Jahr und
+# Stadtteil-ID: Baeume koennen nicht extrapolieren, Ridge schon - das
+# verzerrte den Vergleich.
+FEATURE_SETS = {
+    "S": PRAEDIKTOREN + SAISON,
+}
+\end{lstlisting}
+
+
+% ---------- Absatz 9 -----------------------------------------------------
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:dtypes},
+  caption={Vereinheitlichung der Datentypen
+           (\texttt{prep/s2\_datensaetze.py}, Z.~151--174, gekürzt)}]
+def _setze_datentypen(d: pd.DataFrame, merkmale: list[str]) -> pd.DataFrame:
+    # Eine einzige nullable Int64-Spalte genuegt, damit X.to_numpy() ein
+    # object-Array liefert: sklearn faengt das still ab, XGBoost nicht (#24).
+    d = d.copy()
+    for c in merkmale:
+        d[c] = pd.to_numeric(d[c], errors="coerce").astype("float64")
+    for c in ["jahr", "monat", "jahr_monat", ZIELGROESSE,
+              "fold", "ist_holdout", EXPOSURE_ROH] + ANZAHLEN:
+        if c in d.columns:
+            d[c] = pd.to_numeric(d[c], errors="coerce").astype("int64")
+    for c in ("stadtteil", ZIELKLASSE):
+        if c in d.columns:
+            d[c] = d[c].astype(str)
+    return d
+\end{lstlisting}
+
+
+% ---------- Absatz 11 ----------------------------------------------------
+
+\begin{table}[htbp]
+    \centering
+    \caption{Referenzwerte der Mengenzielgrößen, Mittel über 50 Läufe}
+    \label{tab:baselines-menge}
+    \footnotesize
+    \singlespacing
+    \setlength{\tabcolsep}{5pt}
+    \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.9cm} c >{\raggedright\arraybackslash}X l l@{}}
+        \toprule
+        \textbf{Zielgröße} & \textbf{Stufe} & \textbf{Referenz} & \textbf{R\textsuperscript{2}} & \textbf{RMSE} \\
+        \midrule
+        Einsatzhäufigkeit & 1 & Gesamtmittelwert & $-0{,}744 \pm 0{,}325$ & $69{,}93 \pm 1{,}92$ \\
+        Einsatzhäufigkeit & 2 & Poisson-Modell mit Offset & $0{,}542 \pm 0{,}082$ & $33{,}98 \pm 3{,}11$ \\
+        \addlinespace
+        Einsätze je 1.000 Einwohner & 1 & Gesamtmittelwert & $-1{,}054 \pm 0{,}875$ & $7{,}54 \pm 0{,}13$ \\
+        Einsätze je 1.000 Einwohner & 2 & Poisson-Modell mit Offset & $0{,}367 \pm 0{,}261$ & $4{,}08 \pm 0{,}62$ \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:poisson},
+  caption={Poisson-Modell mit Offset, Stufe 2 der Menge
+           (\texttt{vorpruefung/v1\_baselines.py}, Z.~74--108, gekürzt)}]
+def poisson_glm(train: pd.DataFrame, test: pd.DataFrame,
+                merkmale: list[str] | None = None) -> np.ndarray:
+    import statsmodels.api as sm
+
+    spalten = MERKMALE if merkmale is None else list(merkmale)
+    X_tr = sm.add_constant(train[spalten].astype(float), has_constant="add")
+    X_te = sm.add_constant(test[spalten].astype(float),  has_constant="add")
+    y_tr = train[ZIELGROESSE].astype(float)
+
+    # log(Bevoelkerung) als OFFSET, Koeffizient fest auf 1: geschaetzt wird
+    # die Rate, hochgerechnet wird erst in der Vorhersage (#13).
+    off_tr = np.log(train[EXPOSURE_ROH].astype(float))
+    off_te = np.log(test[EXPOSURE_ROH].astype(float))
+
+    # kanonischer log-Link, unpenalisiert - kein freier Hyperparameter
+    modell = sm.GLM(y_tr, X_tr, family=sm.families.Poisson(),
+                    offset=off_tr).fit()
+    return np.asarray(modell.predict(X_te, offset=off_te))
+\end{lstlisting}
+
+
+% ---------- Absatz 12 ----------------------------------------------------
+
+\begin{table}[htbp]
+    \centering
+    \caption{Referenzwerte der überwiegenden Einsatzart, Mittel über 50 Läufe; für die konstante Vorhersage der Stufe 1 ist AUROC nicht definiert}
+    \label{tab:baselines-struktur}
+    \footnotesize
+    \singlespacing
+    \setlength{\tabcolsep}{5pt}
+    \begin{tabularx}{\textwidth}{@{}c >{\raggedright\arraybackslash}X l l l@{}}
+        \toprule
+        \textbf{Stufe} & \textbf{Referenz} & \textbf{Macro-F1} & \textbf{Macro-AUROC} & \textbf{Trefferquote} \\
+        \midrule
+        1 & Häufigste Klasse & 0,223 & --- & 0,806 \\
+        2 & Multinomiales Logit & $0{,}297 \pm 0{,}014$ & 0,705 & 0,584 \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:logit},
+  caption={Multinomiales Logit, Stufe 2 der Struktur
+           (\texttt{vorpruefung/v1\_baselines.py}, Z.~111--139, gekürzt)}]
+def logit_glm(train: pd.DataFrame, merkmale: list[str] | None = None):
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    spalten = MERKMALE if merkmale is None else list(merkmale)
+
+    # unpenalisiert (C = inf); ausgeglichene Klassengewichte statt Resampling:
+    # keine duplizierte und keine geloeschte Zeile
+    return make_pipeline(
+        StandardScaler(),
+        LogisticRegression(max_iter=2000, C=np.inf, class_weight="balanced")
+    ).fit(train[spalten].astype(float), train[ZIELKLASSE])
+\end{lstlisting}
+
+
+% ---------- Absatz 16 ----------------------------------------------------
+
+\begin{lstlisting}[style=pythonstil,
+  label={lst:test-folds},
+  caption={Prüfung der Stadtteiltrennung an der erzeugten Datei
+           (\texttt{tests/test\_aufbereitung.py}, Z.~134--156, gekürzt)}]
+def test_folds_ordnung_und_holdout():
+    d = regression()
+    holdout = set(d.loc[d["ist_holdout"] == 1, "stadtteil"])
+    gesehen = set()
+    for k in range(1, N_FOLDS + 1):
+        train, test = fold_masken(d, k)
+        st_train = set(d.loc[train, "stadtteil"])
+        st_test = set(d.loc[test, "stadtteil"])
+        assert st_train.isdisjoint(st_test), \
+            f"Fold {k}: Stadtteil in Training UND Test: {st_train & st_test}"
+        assert st_test.isdisjoint(holdout), f"Fold {k} greift ins Hold-out"
+        assert gesehen.isdisjoint(st_test), "Stadtteil in zwei Folds im Test"
+        gesehen |= st_test
+    assert gesehen | holdout == set(d["stadtteil"]), \
+        "Nicht jeder Stadtteil ist genau einmal Testfall oder im Hold-out"
+\end{lstlisting}
+
+
+% ---------- Ende des Abschnitts ------------------------------------------
+
+\begin{table}[htbp]
+    \centering
+    \caption{Steckbrief der beiden Analysedatensätze}
+    \label{tab:steckbrief}
+    \footnotesize
+    \singlespacing
+    \setlength{\tabcolsep}{5pt}
+    \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4.6cm} >{\raggedright\arraybackslash}X@{}}
+        \toprule
+        \textbf{Eigenschaft} & \textbf{Ausprägung} \\
+        \midrule
+        Analyseeinheit & Stadtteil und Monat, in beiden Dateien \\
+        Zeitraum & Januar 2015 bis Dezember 2025, 132 Monate \\
+        Beobachtungen Menge & 4.620, das sind 35 mal 132 \\
+        Beobachtungen Struktur & 4.619, ein Monat ohne Einsatz entfällt \\
+        Merkmale & 10 Strukturmerkmale und 2 Saisonterme \\
+        Aufteilung & 5 Folds mit 6, 6, 6, 6 und 5 Stadtteilen; 29 Entwicklungs- und 6 Hold-out-Stadtteile \\
+        Ausschlüsse & 3 Parkgebiete, 3 Stadtteile ohne durchgängige Zensusabdeckung \\
+        Absicherung & 19 automatisierte Prüfungen an den erzeugten Dateien \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+% ---------------------------- BIS HIER KOPIEREN --------------------------
+
+
+% =========================================================================
+% CODEAENDERUNGEN -- am 25.08.2026 im Repo AUSGEFUEHRT, py_compile fehlerfrei
+% =========================================================================
+% prep/s2_datensaetze.py
+%   ergaenze_aufteilung(), vor `bev = ...`
+%     # Doppelte Stratifizierung (#30): zuerst nach brand-dominierten Monaten,
+%     # bei Gleichstand nach Bevoelkerung.
+%   ergaenze_aufteilung(), vor `gruppe = ...` (mit Leerzeile davor)
+%     # Reihum auf N_FOLDS + 1 Gruppen; Gruppe 0 ist das Hold-out.
+%   _setze_datentypen(), erste Zeile im Rumpf
+%     # Eine einzige nullable Int64-Spalte genuegt, damit X.to_numpy() ein
+%     # object-Array liefert: sklearn faengt das still ab, XGBoost nicht (#24).
+%
+% vorpruefung/v1_baselines.py
+%   poisson_glm(), vor `off_tr = ...`
+%     # log(Bevoelkerung) als OFFSET, Koeffizient fest auf 1: geschaetzt wird
+%     # die Rate, hochgerechnet wird erst in der Vorhersage (#13).
+%   poisson_glm(), vor `modell = sm.GLM(...)`
+%     # kanonischer log-Link, unpenalisiert - kein freier Hyperparameter
+%   logit_glm(), vor `return make_pipeline(`
+%     # unpenalisiert (C = inf); ausgeglichene Klassengewichte statt Resampling:
+%     # keine duplizierte und keine geloeschte Zeile
+%
+% Zwei alte Punkte gleich miterledigt:
+%   prep/config.py Z. 114  "Deskription 5.1" -> "Deskription 4.1"
+%   tests/test_aufbereitung.py  "NegBin-Offset" -> "Poisson-Offset"
+%
+% Durch die acht eingefuegten Zeilen verschieben sich Zeilennummern:
+%   fold_masken        92-107  ->  96-111
+%   ergaenze_aufteilung 61-90  ->  61-93
+%   _setze_datentypen 147-170  -> 151-174
+%   poisson_glm         74-105 ->  74-108
+%   logit_glm          107-132 -> 111-139
+% Die Beschriftungen oben tragen bereits die neuen Nummern. Wenn du im Repo
+% noch etwas aenderst, hier nachziehen.
+%
+% NOCH OFFEN im Code (nicht 5.4-relevant, aber auf der Liste):
+%   tests/test_aufbereitung.py Z. 5-6   Verweis auf einen Anhang entfernen
+%   prep/config.py Z. 76-77             0-60 min als gesetzte Annahme kennzeichnen
+%   prep/s2_datensaetze.py Z. ~380      "Zaehlgroesse" -> "stetigen Groesse"
+%   prep/config.py Z. 41                Census-API-Schluessel in eine
+%                                       Umgebungsvariable, alten Schluessel
+%                                       vor der Abgabe zuruecknehmen
+% =========================================================================

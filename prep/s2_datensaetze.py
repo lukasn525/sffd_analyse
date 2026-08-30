@@ -75,12 +75,16 @@ def ergaenze_aufteilung(daten: pd.DataFrame, versatz: int = 0,
     - kein Leakage: festgelegt wird nur, welche Stadtteile gemeinsam getestet
       werden, wie bei StratifiedGroupKFold
     """
+    # Doppelte Stratifizierung (#30): zuerst nach brand-dominierten Monaten,
+    # bei Gleichstand nach Bevoelkerung.
     bev = daten.groupby("stadtteil")[EXPOSURE_ROH].mean()
     if selten is None:
         selten = pd.Series(0, index=bev.index)
     ordnung = (pd.DataFrame({"selten": selten.reindex(bev.index).fillna(0),
                              "bev": bev})
                  .sort_values(["selten", "bev"], ascending=False).index)
+
+    # Reihum auf N_FOLDS + 1 Gruppen; Gruppe 0 ist das Hold-out.
     gruppe = {st: (i + versatz) % (N_FOLDS + 1) for i, st in enumerate(ordnung)}
 
     d = daten.copy()
@@ -155,6 +159,8 @@ def _setze_datentypen(d: pd.DataFrame, merkmale: list[str]) -> pd.DataFrame:
       object-Array liefert
     - sklearn faengt das still ab, XGBoost lehnt es ab (#24)
     """
+    # Eine einzige nullable Int64-Spalte genuegt, damit X.to_numpy() ein
+    # object-Array liefert: sklearn faengt das still ab, XGBoost nicht (#24).
     d = d.copy()
     for c in merkmale:
         d[c] = pd.to_numeric(d[c], errors="coerce").astype("float64")

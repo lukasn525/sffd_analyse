@@ -246,8 +246,12 @@ train, test = fold_masken(daten, k)     # k = 1..5
 
 **Wiederholte Splits sind verbindlich.** Bei 29 Entwicklungsstadtteilen schwankt
 ein einzelner Fold massiv — schon die Baseline streut von R² −0,17 bis 0,73.
-Deshalb 10 Wiederholungen mit unterschiedlichem Versatz, Mittelung über alle 50
-Fold-Ergebnisse:
+Deshalb 10 Wiederholungen mit je Wiederholung geseedeter Mischung innerhalb der
+Rangblöcke (#36 — der `versatz` rotierte nur die Gruppennummern und ist ersetzt;
+die Formulierung „mit unterschiedlichem Versatz" ist für Kapitel 6 ausdrücklich
+untersagt). Aggregiert wird **zweistufig** (#37): erst je Wiederholung über die
+5 Folds, dann über die 10 Wiederholungsmittel — nicht in einem Schritt über alle
+50 Fold-Ergebnisse:
 
 ```python
 from v0_aufteilung import selten_je_stadtteil, wiederholte_aufteilung

@@ -96,9 +96,13 @@ def poisson_glm(train: pd.DataFrame, test: pd.DataFrame,
     X_tr = sm.add_constant(train[spalten].astype(float), has_constant="add")
     X_te = sm.add_constant(test[spalten].astype(float),  has_constant="add")
     y_tr = train[ZIELGROESSE].astype(float)
+
+    # log(Bevoelkerung) als OFFSET, Koeffizient fest auf 1: geschaetzt wird
+    # die Rate, hochgerechnet wird erst in der Vorhersage (#13).
     off_tr = np.log(train[EXPOSURE_ROH].astype(float))
     off_te = np.log(test[EXPOSURE_ROH].astype(float))
 
+    # kanonischer log-Link, unpenalisiert - kein freier Hyperparameter
     modell = sm.GLM(y_tr, X_tr, family=sm.families.Poisson(),
                     offset=off_tr).fit()
     return np.asarray(modell.predict(X_te, offset=off_te))
@@ -125,6 +129,9 @@ def logit_glm(train: pd.DataFrame, merkmale: list[str] | None = None):
     from sklearn.preprocessing import StandardScaler
 
     spalten = MERKMALE if merkmale is None else list(merkmale)
+
+    # unpenalisiert (C = inf); ausgeglichene Klassengewichte statt Resampling:
+    # keine duplizierte und keine geloeschte Zeile
     return make_pipeline(
         StandardScaler(),
         LogisticRegression(max_iter=2000, C=np.inf, class_weight="balanced")
@@ -189,6 +196,8 @@ def _zweistufig(df: pd.DataFrame, schluessel: list[str],
     g = df.groupby(schluessel, sort=False)
     z = g[masse].mean().add_suffix("_mean")
     z = z.join(g[masse].std().add_suffix("_std_folds"))
+    # Streuung der 10 Wiederholungsmittel, nicht der 50 Laeufe: dieselben 29
+    # Stadtteile in zehn Gruppierungen waeren zu optimistisch (R-5).
     je_wdh = df.groupby(schluessel + ["wiederholung"], sort=False)[masse].mean()
     z = z.join(je_wdh.groupby(schluessel, sort=False).std()
                      .add_suffix("_std_wiederholungen"))

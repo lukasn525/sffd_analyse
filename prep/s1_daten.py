@@ -279,6 +279,36 @@ def prepare_sffd(df: pd.DataFrame) -> pd.DataFrame:
 # ==========================================================================
 # TEIL C  ACS - soziooekonomische Merkmale
 # ==========================================================================
+def tract_zu_stadtteil(geoids: pd.Series, crosswalk: pd.DataFrame) -> pd.Series:
+    """Ordnet Census Tracts einem Stadtteil zu, auch ueber Zensusgrenzen hinweg.
+
+    Ein:  GEOID-Spalte einer ACS-Tabelle, Crosswalk
+    Aus:  Stadtteilspalte, fehlend wo keine Zuordnung moeglich ist
+
+    - der Crosswalk beruht auf den Tract-Grenzen des Zensus 2020 (242 Tracts).
+      Die Jahrgaenge 2009 bis 2019 tragen die Grenzen der Zensus 2000 bzw. 2010
+      und damit teils andere GEOIDs. Ein reiner Gleichheitsverbund verwarf
+      deshalb 40 der 197 Tracts von 2014/2019 - und mit ihnen 27 % der
+      Wohnbevoelkerung, konzentriert in den geteilten Downtown-Tracts
+    - Rueckfallebene ist der vierstellige Basiscode der Tract-Nummer: Eine
+      Teilung im Zensus 2020 behaelt ihn bei und aendert nur das zweistellige
+      Suffix (012400 -> 012401 + 012402). Die Kinder eines geteilten Tracts
+      liegen im selben Stadtteil, weil Stadtteilgrenzen entlang der
+      Hauptstrassen verlaufen und Teilungen innerhalb dieser Flaechen erfolgen
+    - die Rueckfallebene greift nur, wenn ALLE 2020er Tracts desselben
+      Basiscodes in denselben Stadtteil fallen; sonst bleibt der Tract offen.
+      Fuer 2014/2019 ist das bei allen 39 betroffenen Tracts der Fall
+    - offen bleiben danach nur die Wasserflaechen-Tracts (99xx) ohne Bewohner
+    """
+    direkt = dict(zip(crosswalk["geoid"], crosswalk["neighborhood"]))
+    basis = (crosswalk.assign(basis=crosswalk["geoid"].str[5:9])
+                      .groupby("basis")["neighborhood"]
+                      .agg(lambda s: s.iloc[0] if s.nunique() == 1 else None)
+                      .dropna().to_dict())
+    g = geoids.astype(str).str.zfill(11)
+    return g.map(direkt).fillna(g.str[5:9].map(basis))
+
+
 def acs_je_neighborhood(acs: pd.DataFrame, crosswalk: pd.DataFrame) -> pd.DataFrame:
     """Aggregiert Census Tracts auf Stadtteile.
 
@@ -287,8 +317,21 @@ def acs_je_neighborhood(acs: pd.DataFrame, crosswalk: pd.DataFrame) -> pd.DataFr
 
     - Mediane werden bevoelkerungsgewichtet gemittelt, Zaehlgroessen summiert
     - ein Median laesst sich nicht addieren, daher die Gewichtung
+    - die Zuordnung laeuft ueber tract_zu_stadtteil(); die Abbruchschwelle
+      sichert, dass kein Jahrgang mit unvollstaendiger Bevoelkerung in die
+      Exposition geraet - genau das war der Fehler vor dem Basiscode-Fallback
     """
-    m = acs.merge(crosswalk, on="geoid", how="left").dropna(subset=["neighborhood"])
+    m = acs.copy()
+    m["neighborhood"] = tract_zu_stadtteil(m["geoid"], crosswalk)
+    bev_gesamt = pd.to_numeric(m["total_population"], errors="coerce").fillna(0)
+    zugeordnet = bev_gesamt[m["neighborhood"].notna()].sum()
+    quote = zugeordnet / bev_gesamt.sum() if bev_gesamt.sum() else 0.0
+    print(f"  ACS-Zuordnung: {m['neighborhood'].notna().sum()}/{len(m)} Tracts, "
+          f"{quote:.1%} der Wohnbevoelkerung")
+    assert quote >= 0.95, (
+        f"ACS-Zuordnung deckt nur {quote:.1%} der Wohnbevoelkerung - "
+        f"Crosswalk gegen die Tract-Grenzen des Jahrgangs pruefen.")
+    m = m.dropna(subset=["neighborhood"])
     for col in ACS_GEWICHTET:
         m[f"_w_{col}"] = m[col] * m["total_population"]
 
