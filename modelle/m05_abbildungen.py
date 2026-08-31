@@ -200,7 +200,7 @@ def _komma(FuncFormatter, stellen: int = 2, vorzeichen: bool = False):
     Ein:  Zahl, Nachkommastellen, Schalter fuer explizites Vorzeichen
     Aus:  Zeichenkette
 
-    - `stellen` ist nicht kosmetisch: Macro-F1 liegt zwischen 0,328 und 0,334;
+    - `stellen` ist nicht kosmetisch: Macro-F1 liegt zwischen 0,301 und 0,318;
       mit zwei Nachkommastellen stuende an allen Achsenmarken "0,33"
     - `vorzeichen` setzt auf Differenzachsen ein explizites Plus, sonst liest sich
       "2,5" wie ein Absolutwert statt wie ein Abstand
@@ -869,7 +869,7 @@ def a8_hyperparameter(plt, FuncFormatter) -> list:
       die graue Strecke ist der volle Suchraum
     - streuen die Punkte ueber die ganze Strecke, hat die Kreuzvalidierung diesen
       Parameter nicht bestimmt; das Tuning waehlt dann faktisch zufaellig
-    - das ist eine Aussage fuer Kapitel 8 und keine Fehlermeldung: bei 23
+    - das ist eine Aussage fuer Kapitel 8 und keine Fehlermeldung: bei 24
       Trainingsstadtteilen je Fold ist es zu erwarten
     - die Spannweite rechts ist die Kennzahl dazu; 1,00 heisst "von Rand zu Rand"
     """
@@ -1361,9 +1361,10 @@ def a14_ueberanpassung(plt, FuncFormatter) -> list:
           baselines_klasse_mittel.csv
     Aus:  results/abbildungen/a14_ueberanpassung.pdf
 
-    - B6: Random Forest braucht Faktor 861 mehr Trainingszeit als Ridge und
-      generalisiert dabei am schlechtesten. Die Zeit steht in A4, der Abstand
-      Training-CV bisher nirgends
+    - B6: Random Forest braucht Faktor 326 mehr Trainingszeit als Ridge. Am
+      schlechtesten generalisiert im finalen Lauf XGBoost - Ueberanpassung
+      27,0 RMSE gegen 21,9 beim Random Forest und 3,0 bei Ridge. Die Zeit
+      steht in A4, der Abstand Training-CV bisher nirgends
     - die Stufe-2-Baselines haben keinen gespeicherten Trainingswert; sie
       stehen als waagerechte Referenz der Kreuzvalidierungsguete. Ein Punkt
       waere dort eine erfundene Zahl

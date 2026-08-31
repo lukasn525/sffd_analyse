@@ -31,7 +31,7 @@ PRUEFAUFTRAEGE nach JEDEM Lauf (CLAUDE.md, B-9)
      heraus, bevor irgendetwas rechnet
   6  std_wiederholungen deutlich kleiner als std_folds? Waere es null,
      waeren die Wiederholungen Dubletten (B-3)
-  7  Extrapolationsanteil um 34,6 %? Starke Abweichung heisst, die
+  7  Extrapolationsanteil um 36,6 %? Starke Abweichung heisst, die
      Aufteilung ist nicht die dokumentierte
   8  Laufzeiten einkernig gemessen, Parallelisierungsgewinn getrennt
      (#39/#40); Kernzahl der Maschine protokollieren
@@ -750,7 +750,7 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
       Spezifikation legt nicht fest, welcher gilt (B-14)
     - gewaehlt ist der Satz des Folds mit dem niedrigsten RMSE in Wiederholung 0:
       deterministisch und ausschliesslich aus Entwicklungsdaten
-    - beide Baselines laufen mit; ohne Bezugspunkt ist ein RMSE von 23,7 keine
+    - beide Baselines laufen mit; ohne Bezugspunkt ist ein RMSE von 28,5 keine
       Aussage (B-38)
     - zu berichten ist, dass dies EINE Messung an SECHS Einheiten ist: kein
       Mittelwert, keine Streuung, deutlich unsicherer als die
@@ -763,7 +763,7 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
           f"({len(train):,} Zeilen), Bewertung auf "
           f"{test['stadtteil'].nunique()} ({len(test):,} Zeilen)")
 
-    # DIE BASELINES GEHOEREN DAZU: Ein RMSE von 23,7 ist ohne Referenz keine
+    # DIE BASELINES GEHOEREN DAZU: Ein RMSE von 28,5 ist ohne Referenz keine
     # Aussage (B-38), und die Primaeraussage nach #34 lautet "Verfahren gegen
     # Stufe-2-Baseline". Sie haben keine Hyperparameter - es gibt nichts zu
     # waehlen und damit nichts, was der Hold-out beeinflussen koennte.

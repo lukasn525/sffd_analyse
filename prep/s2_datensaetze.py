@@ -321,8 +321,9 @@ def baue_regression(vorlauf: int = VORLAUF_MONATE,
     # REPRODUZIERBARKEITSVERTRAG - diese Sortierung darf nicht veraendert
     # werden: Random Forest und XGBoost ziehen ihre Bootstrap- bzw.
     # Subsample-Stichproben ueber Zeilenpositionen. Eine andere Reihenfolge
-    # liefert trotz identischem random_state leicht andere Baeume (empirisch
-    # 17,2587 statt 17,2974 RMSE in Fold 1). Ridge ist reihenfolgeinvariant.
+    # liefert trotz identischem random_state leicht andere Baeume (gemessen
+    # am 07.08.2026: 17,2587 statt 17,2974 RMSE in Fold 1). Ridge ist
+    # reihenfolgeinvariant.
     d = d.sort_values(["jahr_monat", "stadtteil"]).reset_index(drop=True)
     merkmale = FEATURE_SETS["S"] + LAGS
     spalten = SCHLUESSEL + [ZIELGROESSE, RATE] + merkmale + R_NEBEN

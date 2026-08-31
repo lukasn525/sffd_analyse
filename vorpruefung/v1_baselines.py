@@ -196,7 +196,7 @@ def _zweistufig(df: pd.DataFrame, schluessel: list[str],
     g = df.groupby(schluessel, sort=False)
     z = g[masse].mean().add_suffix("_mean")
     z = z.join(g[masse].std().add_suffix("_std_folds"))
-    # Streuung der 10 Wiederholungsmittel, nicht der 50 Laeufe: dieselben 29
+    # Streuung der 10 Wiederholungsmittel, nicht der 50 Laeufe: dieselben 30
     # Stadtteile in zehn Gruppierungen waeren zu optimistisch (R-5).
     je_wdh = df.groupby(schluessel + ["wiederholung"], sort=False)[masse].mean()
     z = z.join(je_wdh.groupby(schluessel, sort=False).std()

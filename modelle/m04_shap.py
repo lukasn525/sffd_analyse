@@ -226,9 +226,9 @@ def ablation_exposition(panel: pd.DataFrame, selten: pd.Series,
     - alles andere bleibt gleich: dieselben Folds, Merkmale und Hyperparameter
     - die Hyperparameter werden bewusst nicht neu gesucht, sonst aenderten sich
       zwei Dinge gleichzeitig
-    - gemessen (B-33): ohne Expositionsbehandlung RF 67,7 und XGBoost 61,7 RMSE,
-      mit ihr 36,4 und 35,7 - der Spezifikationsunterschied ist ein Vielfaches
-      des Verfahrensunterschieds
+    - gemessen (B-33): ohne Expositionsbehandlung RF 50,85 und XGBoost 51,81
+      RMSE, mit ihr 34,97 und 37,39 - der Spezifikationsunterschied ist ein
+      Vielfaches des Verfahrensunterschieds
     - Vermutung dahinter: Baeume koennen "Einsaetze = Bevoelkerung x Risiko" nicht
       nachbauen, weil sie je Blatt einen festen Wert ausgeben; RMSE auf der
       Originalskala wird von den grossen Stadtteilen dominiert
@@ -282,8 +282,9 @@ def ablation_faktorgruppen(reg: pd.DataFrame, kl: pd.DataFrame,
     - Mengenstrang: abladiert wird das Poisson-GLM, weil kein Vergleichsverfahren
       es schlaegt (B-26) und weil es keinen Hyperparameter hat - dann aendert sich
       ausschliesslich die Merkmalsmenge
-    - Strukturstrang: RF und XGBoost, beide schlagen die Stufe-2-Baseline (B-29);
-      das Logit laeuft zum Vergleich mit
+    - Strukturstrang: im finalen Lauf schlaegt allein der Random Forest die
+      Stufe-2-Baseline; XGBoost liegt bei -0,0003 Macro-F1 (p = 1,000) und
+      steht deshalb in uebersprungen.csv. Das Logit laeuft zum Vergleich mit
     - Einschraenkung, die zu berichten ist: Bei den Baumverfahren stammen die
       Hyperparameter aus dem vollen Merkmalssatz. Die gemessene Verschlechterung
       enthaelt einen Anteil aus einer nicht mehr passenden Einstellung

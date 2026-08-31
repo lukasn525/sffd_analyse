@@ -50,7 +50,7 @@ ist unten ausgeführt.
 | **R-2** | Der Strukturstrang widerspricht sich zwischen CV und Hold-out | hoch, eingetreten | beide Auswertungen berichten, dazu die Decken (R-21b) |
 | **R-19** | Kriminalitätsindex und Einsatzlast messen teils dasselbe | mittel–hoch | offen benennen, Partialkorrelation berichten |
 | **R-21** | Ökologischer Fehlschluss und MAUP | mittel | Ergebnisse ausdrücklich auf Stadtteilebene begrenzen |
-| **R-4/R-5** | Sechs bzw. 29 unabhängige Einheiten | eingetreten | bereits offen benannt, n_eff ≈ 38 |
+| **R-4/R-5** | Sechs bzw. 30 unabhängige Einheiten | eingetreten | bereits offen benannt, n_eff ≈ 39 |
 | **R-1** | Die Verfahren trennen sich nicht | eingetreten | Trennschärfe beziffern, nicht als Gleichheit lesen |
 | **R-23** | Rückkopplung bei hypothetischem Einsatz | gering | Deployment ausgeschlossen, Grenze benennen |
 | **R-24** | „Ihr Modell ist für arme Stadtteile schlechter." | **entkräftet** | geprüft: relativ zum Niveau kein Zusammenhang |
@@ -118,8 +118,9 @@ angetreten ist.
 | **#45** | NegBin mit Störparameter, Logit mit sklearn-Vorgabewert `C = 1,0` | **Vereinheitlichung einer Regel**, keine Modellwahl: Was einen freien Parameter hat, wird mit gleichem Budget getunt; was keinen hat, wird angepasst. `C = 1,0` war eine Voreinstellung, keine Entscheidung |
 
 **Der stärkste Beleg gegen Ergebnisoptimierung ist die Wirkungsrichtung:** #45
-macht die **Regressionslatte härter** (37,27 → 33,98 RMSE) und die
-Klassifikationslatte weicher (0,314 → 0,297). Wer sein Ergebnis sucht, ändert
+machte die **Regressionslatte härter** (damals 37,27 → 33,98 RMSE) und die
+Klassifikationslatte weicher (0,314 → 0,297); im finalen Lauf liegen sie bei
+32,99 und 0,301. Wer sein Ergebnis sucht, ändert
 nicht die Latte, über die er selbst springen muss.
 
 **Zwei Belege bleiben im Text — nicht als Geständnis, sondern als Nachweis:**
@@ -168,8 +169,9 @@ Link bleibt kanonisch, der Offset bleibt. **Die Freigabe deckt ihn dennoch
 nicht.**
 
 **Das stärkste Argument in der E-Mail ist die Asymmetrie der Folge:** Die
-Regressionslatte **steigt** von 37,27 auf 33,98 RMSE, die Klassifikationslatte
-**sinkt** von 0,314 auf 0,297 Macro-F1. Die Änderung hilft im einen Strang und
+Regressionslatte **stieg** damals von 37,27 auf 33,98 RMSE, die
+Klassifikationslatte **sank** von 0,314 auf 0,297 Macro-F1 (finaler Lauf:
+32,99 und 0,301). Die Änderung hilft im einen Strang und
 schadet im anderen — das ist das Gegenteil von Rosinenpicken und sollte genau
 so formuliert werden.
 
@@ -195,30 +197,31 @@ wird beim Lesen darauf achten. **Vor dem nächsten Kapitelversand erledigen.**
 ### R-2 · Der Klassifikationsstrang — eingetreten, in beide Richtungen
 
 > **Ergänzt 17.08.2026, B-48:** Die erreichbare Obergrenze liegt bei Macro-F1
-> 0,457 (Stadtteilwissen), nicht bei 1,0. XGBoost schöpft davon 46,6 % aus.
+> 0,4147 (Stadtteilwissen), nicht bei 1,0. Der Random Forest schöpft davon
+> 50,2 % aus, XGBoost 41,1 %.
 > Das ordnet den Strang ein, statt ihn nur als schwach zu berichten.
 
 | Auswertung | Mehrheitsklasse | Logit (Stufe 2) | Random Forest | XGBoost |
 |---|---|---|---|---|
-| Kreuzvalidierung, 50 Läufe | 0,223 | 0,297 | **0,3278 ± 0,0121** | **0,3322 ± 0,0125** |
-| Hold-out, einmalig | 0,208 | **0,327** | 0,257 | 0,260 |
-| Abstand Training zu Test | – | – | **+0,244** | **+0,170** |
+| Kreuzvalidierung, 50 Läufe | 0,221 | 0,301 | **0,3184 ± 0,0142** | 0,3008 ± 0,0149 |
+| Hold-out, einmalig | 0,222 | **0,350** | 0,282 | 0,291 |
+| Abstand Training zu Test | – | – | **+0,263** | **+0,179** |
 
 **Neu am 16.08.2026: der Widerspruch ist erklärt.** Die dritte Zeile ist der
 Überanpassungsnachweis nach #51. Wären die sechs Hold-out-Stadtteile schlicht
 schwerer, müsste **jedes** Modell einbrechen. Die Baseline wird dort aber
-**besser** (0,297 → 0,327) und die Mehrheitsklasse bleibt etwa gleich
-(0,223 → 0,208); nur die beiden Baumverfahren stürzen um 0,07 bzw. 0,07 ab —
-und das, obwohl sie im Hold-out auf 29 statt 23 Stadtteilen trainieren, also
+**besser** (0,301 → 0,350) und die Mehrheitsklasse bleibt praktisch gleich
+(0,221 → 0,222); nur die beiden Baumverfahren stürzen um 0,04 bzw. 0,01 ab —
+und das, obwohl sie im Hold-out auf 30 statt 24 Stadtteilen trainieren, also
 mit **mehr** Daten. Mehr Trainingsdaten und trotzdem schlechter: Das ist
 Überanpassung, keine schwierige Testmenge (`07_BEFUNDE.md`, **B-46**).
 
 **Drei Befunde, alle zu berichten:**
 
-1. **In der Kreuzvalidierung schlagen beide Baumverfahren die Stufe-2-Baseline**
-   — +0,0304 und +0,0371 Macro-F1, je **10 von 10** Wiederholungen, p = 0,002.
-   Das ist der kleinste bei n = 10 erreichbare p-Wert; die Richtung ist
-   eindeutig, nicht knapp.
+1. **In der Kreuzvalidierung schlägt nur der Random Forest die Stufe-2-Baseline**
+   — +0,0173 Macro-F1 in 9 von 10 Wiederholungen, p = 0,004. XGBoost schlägt sie
+   mit −0,0003 (6/10, p = 1,000) **nicht mehr**; in der Macro-AUROC liegt die
+   Referenz mit 0,725 über beiden Baumverfahren.
 2. **Auf dem Hold-out dreht das Vorzeichen.** Die Werte liegen innerhalb der
    jeweiligen CV-Spanne (Perzentil 14 für Random Forest, 16 für XGBoost, 64 für
    das Logit) — kein Wert ist für sich auffällig. Auffällig ist die Richtung:
@@ -243,7 +246,8 @@ und alle Verfahren holen wenig davon. Gehört in die Limitationen.
 
 **Und ein Vorbehalt, der mit einer Zahl in Kapitel 8 gehört** (#48): Der
 Vorsprung in der Kreuzvalidierung ist gegen die **unpenalisierte** Baseline
-gemessen (0,297). Gegen eine mit gleichem Budget getunte Fassung (0,314) fiele
+gemessen (finaler Lauf 0,301). Gegen eine mit gleichem Budget getunte Fassung
+(damals 0,314) fiele
 er von +0,0304 und +0,0371 auf +0,0136 und +0,0203 — bei einer Streuung von
 0,013 also womöglich nicht mehr signifikant. Die Sensitivität wird bewusst
 **nicht** gerechnet: Schröter hat die unpenalisierte Form am 08.08. in Kenntnis
@@ -295,9 +299,11 @@ aus `results/klassifikation/struktur_folds.csv`). Als Einzelmessung zu kennzeich
 **nicht** als Widerlegung des Kreuzvalidierungsergebnisses zu lesen.
 
 **Nicht mit den CV-Werten vergleichen.** Der Hold-out ist eine andere,
-leichtere Aufgabe: Extrapolationsanteil 7,6 % gegen 34,6 %, Training auf 29
-statt 23 Stadtteilen. Die absoluten Werte fallen deshalb günstiger aus — im
-Mengenstrang durchgehend.
+andere Aufgabe: Training auf 30 statt 24 Stadtteilen. Der Extrapolationsanteil
+unterscheidet sich dagegen kaum noch (34,8 % gegen 36,6 %) — anders als im Lauf
+vor der Bevölkerungskorrektur. Im Mengenstrang **kehrt sich die Rangfolge auf
+dem Hold-out um**: dort schlagen beide Baumverfahren die Referenz, und Ridge
+fällt hinter sie zurück.
 
 **Zweite, eigenständige Schwäche des Verfahrens** (B-42): Die Baumverfahren
 treten mit den Hyperparametern **eines einzigen** Folds an
@@ -316,8 +322,8 @@ messen. Nicht durchgeführt; Aufwand und Nutzen vor der Abgabe abzuwägen.
 > Wiederholungsmittel misst die Abhängigkeit von der Fold-Zuteilung, nicht die
 > Unsicherheit über die Grundgesamtheit — sie ist eine **Untergrenze** (B-50).
 
-4.620 Zeilen klingen komfortabel, es sind **35 Querschnittseinheiten × 132
-Monate**, davon 29 in der Entwicklung und 6 im Hold-out. Gemeinsame Ursache von
+4.752 Zeilen klingen komfortabel, es sind **36 Querschnittseinheiten × 132
+Monate**, davon 30 in der Entwicklung und 6 im Hold-out. Gemeinsame Ursache von
 R-1, R-3, R-4 und R-11.
 
 **Zwei Folgen für die Auswertung:**
@@ -337,22 +343,22 @@ Gehört in die Limitationen und schützt vor dem Vorwurf der Überinterpretation
 
 ### R-3 · Extrapolation — Eigenschaft des Rahmens, keine Erklärung
 
-**34,6 %** der Testzeilen über alle 50 Läufe liegen in mindestens einem Merkmal
-außerhalb der Trainingsspanne; 33,7 % in Wiederholung 0 (Fold-Spanne 3,6 bis
-57,4 %), 7,6 % im Hold-out. Unvermeidliche Folge des Stadtteil-Splits, begrenzt
+**36,6 %** der Testzeilen über alle 50 Läufe liegen in mindestens einem Merkmal
+außerhalb der Trainingsspanne; 38,2 % in Wiederholung 0 (Fold-Spanne 0,0 bis
+66,7 %), 34,8 % im Hold-out. Unvermeidliche Folge des Stadtteil-Splits, begrenzt
 die Generalisierbarkeit.
 
 **Als Erklärung für Verfahrensunterschiede geprüft und widerlegt** (B-31) — und
 unter der finalen Spezifikation erst recht gegenstandslos:
 
-- Es gibt **keinen Rückstand mehr zu erklären**. Bei `anzahl_einsaetze` liegen
-  Random Forest 0,90 RMSE **vor** Ridge, XGBoost 1,26 dahinter; bei der Rate
-  Random Forest 0,49 davor, XGBoost 0,12 dahinter.
+- Es gibt **keinen Rückstand mehr zu erklären**. Bei `anzahl_einsaetze` liegt
+  Ridge 4,04 RMSE **vor** dem Random Forest und 6,46 vor XGBoost, beide
+  signifikant; bei der Rate 0,16 bzw. 0,21 davor.
 - Der Zusammenhang zwischen Extrapolationsanteil und RMSE ist bei **Ridge am
-  stärksten** (ρ +0,302 / +0,309) und beim **Random Forest am schwächsten**
-  (+0,108 / +0,162), bei XGBoost dazwischen (+0,247 / +0,316). Wäre
-  Extrapolation der Hebel gegen die Bäume, müsste es umgekehrt sein. Beim
-  Random Forest ist der Zusammenhang nicht einmal signifikant (p 0,456 / 0,261).
+  stärksten** (ρ +0,335 / +0,461) und beim **Random Forest am schwächsten**
+  (+0,249 / +0,287), bei XGBoost dazwischen (+0,353 / +0,375). Wäre
+  Extrapolation der Hebel gegen die Bäume, müsste es umgekehrt sein — Ridge ist
+  von ihr am stärksten betroffen und zugleich das beste Verfahren.
 
 **Der Satz in Kapitel 7 und 8 muss lauten: geprüft und nicht bestätigt.** Das
 ist ein stärkerer Beitrag als die ursprüngliche Vermutung, weil er eine
@@ -389,7 +395,7 @@ Unsicherheit. Deshalb stehen mittlere Differenz, KI und gewonnene Läufe immer
 neben dem p-Wert.
 
 **Dieselbe Pseudoreplikation, an anderer Stelle und mit umgekehrter Wirkung**
-(B-41): Der RESET-Test der Eignungsprüfung lief auf 3.828 Zeilen, als wären sie
+(B-41): Der RESET-Test der Eignungsprüfung lief auf 3.168 Zeilen, als wären sie
 unabhängig. Ein F-Test mit dieser Fallzahl findet praktisch jede Abweichung
 signifikant — die daraus abgeleitete Nichtlinearität generalisiert nicht, sie
 zerstört die Prognose out-of-sample um den Faktor drei bis fünf. Dort macht die
@@ -460,8 +466,8 @@ Nebenlast und `requirements_lauf.txt` gehören in Kapitel 6.
 ACS erscheint jährlich, Land Use ist ein Snapshot 2020. Das Modell sagt für
 alle zwölf Monate eines Stadtteils fast denselben Wert vorher; die
 Monatsschwankung geht vollständig ins Residuum. Sichtbar auch in der
-VIF-Rechnung: Die Strukturmerkmale variieren nur auf **319 Stadtteil-Jahren**,
-nicht auf 3.828 Zeilen (B-18) — höchster VIF 12,29 bei
+VIF-Rechnung: Die Strukturmerkmale variieren nur auf **330 Stadtteil-Jahren**,
+nicht auf 3.960 Zeilen (B-18) — höchster VIF 10,64 bei
 `median_haushaltseinkommen`, weshalb blockweise statt einzelmerkmalsweise
 interpretiert wird.
 

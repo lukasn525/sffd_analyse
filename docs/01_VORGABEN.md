@@ -151,9 +151,10 @@ willkürlich gesetzter Parameter, und ein getunter wäre eine Wahl, die zu
 begründen wäre. Die unpenalisierte Maximum-Likelihood-Anpassung hat nichts zu
 wählen.
 
-**Ein Vorbehalt, der dazugehört:** Punkt 3 trifft auf den Mengenstrang zu (die
-Latte steigt von 37,27 auf 33,98 RMSE), auf den Strukturstrang jedoch nicht —
-dort sinkt sie von 0,314 auf 0,297 Macro-F1. Beide Zahlen standen in der Anfrage
+**Ein Vorbehalt, der dazugehört:** Punkt 3 traf auf den Mengenstrang zu (die
+Latte stieg damals von 37,27 auf 33,98 RMSE), auf den Strukturstrang jedoch
+nicht — dort sank sie von 0,314 auf 0,297 Macro-F1. Im finalen Lauf liegen die
+beiden Latten bei 32,99 RMSE und 0,301 Macro-F1. Beide Zahlen standen in der Anfrage
 vom 08.08., die Freigabe erfolgte also in Kenntnis. In Kapitel 5.4 ist der
 Unterschied trotzdem zu benennen, statt Punkt 3 pauschal zu übernehmen —
 `06_RISIKEN.md`, R-2.
@@ -366,7 +367,7 @@ dokumentierte KI-Nutzung.
 - „Wie stellen Sie sicher, dass der Vergleich der Verfahren fair ist?"
 - „Warum ist Ihre Validierung leakage-frei?"
 - „Warum teilen Sie nach Stadtteilen statt nach der Zeit?"
-- „Sie haben nur 35 Stadtteile — wie belastbar sind Ihre Ergebnisse?"
+- „Sie haben nur 36 Stadtteile — wie belastbar sind Ihre Ergebnisse?"
 - „Ihre sozioökonomischen Merkmale ändern sich nur jährlich. Was sagt Ihr Modell
   dann eigentlich vorher?"
 - „Ist Ridge bei Zähldaten überhaupt das richtige Modell?"

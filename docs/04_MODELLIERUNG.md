@@ -140,7 +140,7 @@ Alternative bedacht wurde:
 
 > „Gewählt wurden fünf Folds. Bei zehn Folds enthielte jeder Test nur drei
 > Stadtteile, das Ergebnis hinge dann noch stärker von einzelnen Einheiten ab;
-> bei drei Folds stünden nur 19 statt 23 Stadtteile im Training."
+> bei drei Folds stünden nur 20 statt 24 Stadtteile im Training."
 
 **Konvention** — ein Standardwert ohne inhaltlichen Grund. Genau so benennen;
 ein erfundener Grund ist schlechter als die ehrliche Auskunft:
@@ -244,7 +244,7 @@ from s2_datensaetze import fold_masken
 train, test = fold_masken(daten, k)     # k = 1..5
 ```
 
-**Wiederholte Splits sind verbindlich.** Bei 29 Entwicklungsstadtteilen schwankt
+**Wiederholte Splits sind verbindlich.** Bei 30 Entwicklungsstadtteilen schwankt
 ein einzelner Fold massiv — schon die Baseline streut von R² −0,17 bis 0,73.
 Deshalb 10 Wiederholungen mit je Wiederholung geseedeter Mischung innerhalb der
 Rangblöcke (#36 — der `versatz` rotierte nur die Gruppennummern und ist ersetzt;
@@ -269,7 +269,7 @@ durchführbar, alle am Datensatz nachgewiesen (`07_BEFUNDE.md`, B-1 bis B-3,
 B-12):
 
 1. Ohne `selten` entfällt die Stratifizierung nach der seltensten Klasse (#30);
-   30 von 35 Stadtteilen landen in einem anderen Fold als in der Datei.
+   30 von 36 Stadtteilen landen in einem anderen Fold als in der Datei.
 2. Der `versatz` rotiert nur die Gruppen*nummern*. Über 0–9 entstehen 6
    Partitionen statt 10 — und hielte man das Hold-out fest, sogar nur eine.
 3. Gruppe 0 **ist** das Hold-out. Bei `versatz = 1` liegt keiner der sechs
@@ -354,7 +354,7 @@ unter der Mehrheitsklasse. Genau diese Instabilität behebt Bagging.
 Praktisch relevant: Random Forest ist vergleichsweise unempfindlich gegenüber
 den Voreinstellungen (`Probst2019`), was bei begrenztem Tuning-Budget zählt.
 
-**XGBoost.** 4.620 Zeilen, zwölf numerische Merkmale — ein mittelgroßer
+**XGBoost.** 4.752 Zeilen, zwölf numerische Merkmale — ein mittelgroßer
 tabellarischer Datensatz. `Grinsztajn2022` zeigen über 45 Datensätze, dass
 Baumverfahren auf genau dieser Größenordnung führen, begründet durch ihre
 Fähigkeit, **nicht-glatte Zielfunktionen** abzubilden. Das passt direkt auf den
@@ -366,7 +366,7 @@ baut sie sequenziell, jeder korrigiert die Fehler des vorigen — das senkt Bias
 (`Chen2016`). Beide zu vergleichen ist deshalb keine Doppelung, sondern der
 eigentliche Erkenntnisgewinn: **Welche Fehlerquelle dominiert bei diesen Daten?**
 Datenbezogen relevant ist außerdem die eingebaute Regularisierung
-(`reg_lambda`, `subsample`, `colsample_bytree`) — bei 23 Trainingseinheiten ist
+(`reg_lambda`, `subsample`, `colsample_bytree`) — bei 24 Trainingseinheiten ist
 Überanpassung die Hauptgefahr, und die Gegenmittel stehen im Suchraum.
 
 ### Warum nicht die naheliegenden Alternativen
@@ -376,7 +376,7 @@ bedacht wurde:
 
 | Alternative | Warum nicht |
 |---|---|
-| Neuronale Netze | Bei 35 Analyseeinheiten nicht sinnvoll trainierbar; auf tabellarischen Daten dieser Größe unterlegen (`Grinsztajn2022`) |
+| Neuronale Netze | Bei 36 Analyseeinheiten nicht sinnvoll trainierbar; auf tabellarischen Daten dieser Größe unterlegen (`Grinsztajn2022`) |
 | LightGBM, CatBoost | Leistungsgleich zu XGBoost, aber eine vierte Variante derselben Familie ohne neue Frage (R8) |
 | Support Vector Machines | Kernelwahl wäre selbst zu begründen; keine interpretierbaren Beiträge für die SHAP-Analyse |
 | Einzelner Entscheidungsbaum | In der eigenen Vorprüfung als zu instabil gemessen |
@@ -472,7 +472,7 @@ vergleiche(folds, baselines) -> DataFrame
 
 main(argv)
     Ohne Argument: Phase 1, Phase 2, Aggregation, Vergleich.
-    Mit "holdout": zusaetzlich auf allen 29 Entwicklungsstadtteilen
+    Mit "holdout": zusaetzlich auf allen 30 Entwicklungsstadtteilen
     trainieren und auf den 6 Hold-out-Stadtteilen bewerten -> holdout.csv.
 ```
 
@@ -570,7 +570,7 @@ Erklärung.
 ### Hold-out — die Schlussbewertung
 
 Genau **einmal**, nach Abschluss von Modellwahl und Tuning. Ablauf: Je Verfahren
-und Zielgröße wird auf **allen 29 Entwicklungsstadtteilen** mit den in der
+und Zielgröße wird auf **allen 30 Entwicklungsstadtteilen** mit den in der
 Kreuzvalidierung gewählten Hyperparametern neu trainiert und auf den 6
 Hold-out-Stadtteilen bewertet.
 
@@ -607,7 +607,7 @@ die Information, für die der Validierungsrahmen gebaut wurde — und es ist
 dieselbe Paarung, auf der der Wilcoxon-Test beruht.
 
 Das alte A2 hatte zusätzlich einen einfachen Darstellungsfehler: Balken ab null,
-während sich alles zwischen 33,98 und 36,51 abspielt.
+während sich alles zwischen 30,93 und 37,39 abspielt.
 
 **Anforderungen an die Darstellung** — sie landen im gedruckten Dokument:
 
@@ -686,7 +686,7 @@ Zeilen verglichen werden.
 Begründungen stehen in `06_RISIKEN.md`; hier nur die Umsetzung.
 
 **1 · Die Streuung über 50 Läufe ist zu optimistisch (R-5).** Die 50
-Fold-Ergebnisse sind nicht unabhängig — es sind dieselben 29 Stadtteile in zehn
+Fold-Ergebnisse sind nicht unabhängig — es sind dieselben 30 Stadtteile in zehn
 verschiedenen Gruppierungen. Ein Konfidenzintervall aus σ/√50 wäre zu eng.
 
 > **Umsetzung:** Zweistufig aggregieren. Erst je Wiederholung über die 5 Folds
@@ -724,7 +724,7 @@ Unterschied bei der Regression ist gering (0,0083 statt 0,0071).
 
 **Fallstrick 2b · Der Test setzt Unabhängigkeit voraus, die es nicht gibt
 (R-11).** Holm korrigiert Mehrfachvergleiche, nicht Pseudoreplikation. Die 50
-Fold-Ergebnisse stammen von denselben 29 Stadtteilen.
+Fold-Ergebnisse stammen von denselben 30 Stadtteilen.
 
 > **Umsetzung:** Der **Primärtest läuft auf den 10 Wiederholungsmitteln**
 > (Spalte `teststufe = wiederholung`), nicht auf den 50 Einzelläufen — dieselbe

@@ -371,7 +371,13 @@ def baue_pruefungen() -> list[Pruefung]:
         add(f"Faktorgruppe Menge {g}",
             summe(fg, "anteil", gruppe=g) * 100, S, "5.6", 1, fg)
     gr = "shap/gruppen.csv"
-    for v in ("random_forest", "xgboost"):
+    # SEIT 31.08.2026 NICHT MEHR FEST: m04_shap.py rechnet SHAP nur fuer
+    # Verfahren, die die Stufe-2-Baseline schlagen (uebersprungen.csv haelt
+    # die uebrigen fest). Im finalen Lauf ist das im Strukturstrang allein der
+    # Random Forest. Eine feste Liste liess den Waechter hier ABBRECHEN - und
+    # mit ihm alle nachfolgenden Pruefungen, auch die voellig intakten. Die
+    # Liste kommt deshalb aus der Datei: Geprueft wird, was gerechnet wurde.
+    for v in sorted(tab(gr)["verfahren"].unique()):
         for g in ("soziooekonomisch", "baulich", "kriminalitaetsbezogen"):
             add(f"Faktorgruppe Struktur {v} {g}",
                 wert(gr, "anteil", verfahren=v, gruppe=g) * 100,
@@ -456,21 +462,30 @@ def pruefe_negative_vorhersagen(erg: Ergebnis) -> None:
 def pruefe_signifikanzen(erg: Ergebnis) -> None:
     """Welche Paarungen sind signifikant? Aendert sich das, aendert sich Kapitel 7."""
     for datei, erwartet in (
-            # Stand nach dem finalen Lauf vom 16.08.2026 (#49/#50/#52). Bis
-            # dahin war "ridge vs xgboost|einsaetze_je_1000_ew" die einzige
-            # trennbare Verfahrenspaarung; mit den erweiterten Suchraeumen
-            # verschlechtert sich XGBoost und liegt nun selbst gesichert hinter
-            # der Baseline. R-1 ist damit vollstaendig eingetreten: KEINE
-            # Verfahrenspaarung ist mehr trennbar, nur noch Abstaende zur
-            # Baseline sind signifikant.
+            # Stand nach dem finalen Lauf vom 31.08.2026 - dem Lauf NACH der
+            # Korrektur der Wohnbevoelkerung (Crosswalk-Rueckfallebene) und mit
+            # Mission Bay, also 36 statt 35 Stadtteilen.
+            #
+            # DAS MUSTER HAT SICH UMGEDREHT, und zwar in beiden Straengen:
+            #   MENGE     Kein Verfahren ist mehr von der Baseline zu trennen -
+            #             weder nach oben noch nach unten. Dafuer ist RIDGE
+            #             erstmals signifikant besser als BEIDE Baumverfahren
+            #             (10/10 gegen XGBoost, 9/10 gegen Random Forest, in
+            #             beiden Zielgroessen dieselbe Richtung). R-1 ist damit
+            #             im Verfahrensvergleich NICHT eingetreten.
+            #   STRUKTUR  XGBoost schlaegt die Baseline nicht mehr (-0,0003,
+            #             p = 1,000); der Random Forest schlaegt sie noch, aber
+            #             nur halb so deutlich, und er schlaegt nun auch XGBoost.
+            #
+            # Wer diese Menge aendert, aendert Kapitel 7 der Arbeit. Vorher
+            # 03_STAND.md 5.1/5.2 und 06_RISIKEN.md R-1/R-2 nachziehen.
             ("regression/vergleich.csv",
-             {"ridge vs Poisson-GLM|anzahl_einsaetze",
-              "ridge vs Poisson-GLM|einsaetze_je_1000_ew",
-              "xgboost vs Poisson-GLM|anzahl_einsaetze",
-              "xgboost vs Poisson-GLM|einsaetze_je_1000_ew"}),
+             {"ridge vs random_forest|anzahl_einsaetze",
+              "ridge vs xgboost|anzahl_einsaetze",
+              "ridge vs xgboost|einsaetze_je_1000_ew"}),
             ("klassifikation/vergleich.csv",
              {"random_forest vs Multinomiale logistische Regression|dominante_einsatzart",
-              "xgboost vs Multinomiale logistische Regression|dominante_einsatzart"})):
+              "random_forest vs xgboost|dominante_einsatzart"})):
         d = tab(datei)
         d = d[(d["teststufe"] == "wiederholung") & (d["signifikant"] == True)]  # noqa: E712
         ist = {f"{r.paarung}|{r.zielgroesse}" for r in d.itertuples()}
@@ -595,13 +610,16 @@ class Altlast:
 
 
 ALTLASTEN = [
-    Altlast("37,27", "33,98", "Negative-Binomial-Baseline, ersetzt (#45)"),
-    Altlast("37,44", "33,98", "Negative Binomial auf Wiederholung 0 (#45)"),
-    Altlast("0,477", "0,542", "R2 der Negative Binomial, ersetzt (#45)"),
-    Altlast("0,314", "0,297", "getunte Logit-Baseline, ersetzt (#45)",
+    Altlast("37,27", "32,99", "Negative-Binomial-Baseline, ersetzt (#45)"),
+    Altlast("37,44", "32,99", "Negative Binomial auf Wiederholung 0 (#45)"),
+    Altlast("0,477", "0,607", "R2 der Negative Binomial, ersetzt (#45)"),
+    Altlast("0,314", "0,301", "getunte Logit-Baseline, ersetzt (#45)",
             ausser=r"je Fold|Fold \d"),
-    Altlast("0,290", "0,297", "Logit-Vortest, ersetzt durch den vollen Lauf"),
-    Altlast("0,298", "0,297", "Logit mit C = 1,0, ersetzt (#45)"),
+    Altlast("0,290", "0,301", "Logit-Vortest, ersetzt durch den vollen Lauf"),
+    # `ausser` seit 31.08.2026: 0,298 ist im finalen Lauf das relative Rho der
+    # Fairnesspruefung fuer Ridge (results/fairness/fairness.csv).
+    Altlast("0,298", "0,301", "Logit mit C = 1,0, ersetzt (#45)",
+            ausser=r"rho|Rho|Fairness|Armut"),
     # `ausser` seit 16.08.2026: Im finalen Lauf ist 0,020 der p-Wert von
     # XGBoost gegen die Baseline (§5.1). Ohne die Ausnahme meldet der Waechter
     # eine echte Zahl als Altlast - ein Fehlalarm, der die uebrigen Meldungen
@@ -614,12 +632,39 @@ ALTLASTEN = [
     # ausschliesslich der finale Lauf berichtet - kein Vorher-Nachher, keine
     # zweite Ergebnisreihe. Taucht eine dieser Zahlen in docs/ auf, ist sie
     # entweder ein Rueckblick (dann markiert) oder ein Verstoss gegen #52.
-    Altlast("35,88", "37,77", "XGBoost RMSE, Lauf mit Budget 50 (#52)"),
-    Altlast("35,63", "35,61", "Random Forest RMSE, Budget 50 (#52)"),
-    Altlast("0,3343", "0,3322", "XGBoost Macro-F1, Budget 50 (#52)"),
-    Altlast("0,3276", "0,3278", "Random Forest Macro-F1, Budget 50 (#52)"),
-    Altlast("57,86", "56,90", "XGBoost ohne Exposition, Budget 50 (#52)"),
-    Altlast("526", "861", "Laufzeitfaktor Ridge/Random Forest, Budget 50 (#52)"),
+    Altlast("35,88", "37,39", "XGBoost RMSE, Lauf mit Budget 50 (#52)"),
+    Altlast("35,63", "34,96", "Random Forest RMSE, Budget 50 (#52)"),
+    Altlast("0,3343", "0,3008", "XGBoost Macro-F1, Budget 50 (#52)"),
+    Altlast("0,3276", "0,3184", "Random Forest Macro-F1, Budget 50 (#52)"),
+    Altlast("57,86", "51,81", "XGBoost ohne Exposition, Budget 50 (#52)"),
+    Altlast("526", "326", "Laufzeitfaktor Ridge/Random Forest, Budget 50 (#52)"),
+
+    # ----------------------------------------------------------------------
+    # Lauf vom 16.08.2026 - VOR der Korrektur der Wohnbevoelkerung. Der
+    # Crosswalk ordnete 40 von 197 Census Tracts nicht zu, weil er auf
+    # Zensusgrenzen 2020 beruht und die ACS-Jahrgaenge 2014/2019 auf denen von
+    # 2010; rund 27 % der Einwohner fehlten, konzentriert in Downtown. Nach
+    # der Reparatur (Basiscode-Rueckfallebene) und mit Mission Bay sind es 36
+    # statt 35 Stadtteile. Diese Werte sind damit vollstaendig ersetzt.
+    # ----------------------------------------------------------------------
+    Altlast("33,98", "32,99", "Poisson-GLM RMSE, vor der Bevoelkerungskorrektur"),
+    Altlast("36,51", "30,93", "Ridge RMSE, vor der Bevoelkerungskorrektur"),
+    Altlast("35,61", "34,96", "Random Forest RMSE, vor der Korrektur"),
+    Altlast("37,77", "37,39", "XGBoost RMSE, vor der Korrektur"),
+    Altlast("69,93", "68,09", "Gesamtmittelwert RMSE, vor der Korrektur"),
+    Altlast("0,297", "0,301", "Logit Macro-F1, vor der Korrektur"),
+    Altlast("0,3278", "0,3184", "Random Forest Macro-F1, vor der Korrektur"),
+    Altlast("0,3322", "0,3008", "XGBoost Macro-F1, vor der Korrektur"),
+    Altlast("0,223", "0,221", "Mehrheitsklasse Macro-F1, vor der Korrektur"),
+    Altlast("0,806", "0,795", "Mehrheitsklasse Accuracy, vor der Korrektur"),
+    Altlast("0,457", "0,4147", "Decke B Stadtteilwissen, vor der Korrektur"),
+    Altlast("12,29", "10,64", "hoechster VIF, vor der Korrektur"),
+    Altlast("861", "326", "Laufzeitfaktor Ridge/Random Forest, vor der Korrektur"),
+    Altlast("56,90", "51,81", "XGBoost ohne Exposition, vor der Korrektur"),
+    Altlast("3.828", "3.960", "Zeilen Entwicklungspanel, 29 statt 30 Stadtteile"),
+    Altlast("4.620", "4.752", "Zeilen Regression, 35 statt 36 Stadtteile"),
+    Altlast("0,739", "0,779", "Kriminalitaet gegen Risikogewerbe, Entwicklungspanel"),
+    Altlast("128,6", "127,9", "eindeutige Kriminalitaetswerte je Stadtteil"),
 ]
 
 # Zeilen mit diesen Markern sind bewusste Rueckblicke und keine Altlast.

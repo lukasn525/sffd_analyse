@@ -4,6 +4,13 @@
 > umgeschrieben. Grundlage fuer die Limitationen in Kapitel 8 und die kritische
 > Reflexion, die das Gutachten verlangt (R6, R9).
 >
+> **Jeder Befund traegt sein Datum und gilt fuer den Stand, an dem er erhoben
+> wurde.** Die Zahlen aelterer Eintraege sind deshalb bewusst nicht nachgezogen
+> — insbesondere nicht auf den finalen Lauf vom 31.08.2026, der nach der
+> Korrektur der Wohnbevoelkerung mit 36 statt 35 Stadtteilen rechnet. Wie es
+> im Decision Log: **die gueltigen Ergebniszahlen stehen ausschliesslich in
+> `03_STAND.md`**; hier stehen die Zahlen, die einen Befund BELEGT haben.
+>
 > Hier steht, was beim Bauen aufgefallen ist: luckenhafte oder widerspruechliche
 > Stellen der Spezifikation, Ergebnisse gegen dokumentierte Entscheidungen,
 > Schwaechen im vorhandenen Code, notgedrungene Annahmen. **Nicht** hierher
