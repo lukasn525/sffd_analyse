@@ -12,7 +12,7 @@ Ausgang: keine Datei - liefert Datenrahmen an v1_baselines.py, m02_menge.py
     nicht: ein Versatz rotiert nur die Beschriftung der Gruppen, nicht ihre
     Zusammensetzung - und rotiert dabei das Hold-out mit (B-1, B-2)
   - Gemischt wird deshalb INNERHALB der Rangbloecke. Jeder Fold behaelt
-    genau einen Stadtteil je Block, die Foldgroessen bleiben 6/6/6/6/5,
+    genau einen Stadtteil je Block, die Foldgroessen bleiben 6/6/6/6/6,
     aber die Zusammensetzung aendert sich wirklich
   - Drei Zusagen: das Hold-out bleibt fest, die doppelte Stratifizierung
     (#30) bleibt erhalten, und Wiederholung 0 reproduziert die fold-Spalte
@@ -117,7 +117,7 @@ def wiederholte_aufteilung(daten: pd.DataFrame, wiederholung: int = 0,
 
 def entwicklung_und_holdout(daten: pd.DataFrame
                             ) -> tuple[pd.Series, pd.Series]:
-    """Masken der Schlussbewertung: 29 Entwicklungs- gegen 6 Hold-out-Stadtteile.
+    """Masken der Schlussbewertung: 30 Entwicklungs- gegen 6 Hold-out-Stadtteile.
 
     Ein:  Datenrahmen mit Spalte ist_holdout
     Aus:  zwei boolesche Reihen (Entwicklung, Hold-out)
@@ -138,7 +138,7 @@ def _selbsttest() -> int:
     Aus:  Exitcode 0 bei Erfolg, 1 bei mindestens einem Fehler
 
     Geprueft wird:
-    - Foldgroessen 6/6/6/6/5
+    - Foldgroessen 6/6/6/6/6
     - mindestens ein Brand-Testfall je Fold
     - Hold-out in jeder Wiederholung unveraendert
     - 10 verschiedene Partitionen, keine Dubletten

@@ -1,5 +1,5 @@
 """
-Wer sind die 29 und wer sind die 6? - Profil beider Panelhaelften.
+Wer sind die 30 und wer sind die 6? - Profil beider Panelhaelften.
 
     python vorpruefung/v5_panelprofil.py
 
@@ -28,8 +28,8 @@ Ausgang: results/panelprofil/stadtteile.csv, klassenverteilung.csv,
     weil es keine Voraussetzung fuer die Baselines ist
 
 FALLSTRICKE
-  1  Die Klassenverteilung kommt aus klassifikation.parquet (4.619 Zeilen),
-     die Zielgroessen aus regression.parquet (4.620). Der Unterschied ist
+  1  Die Klassenverteilung kommt aus klassifikation.parquet (4.751 Zeilen),
+     die Zielgroessen aus regression.parquet (4.752). Der Unterschied ist
      der eine Monat ohne Einsatz, der keine Zusammensetzung hat. Beide
      Zahlen nebeneinanderzustellen ohne das zu sagen waere ein stiller
      Bezugsmengenwechsel
@@ -259,22 +259,22 @@ def main(argv: list[str]) -> int:
     (OUT / "panelprofil.md").write_text(bericht(st, kv, zg), encoding="utf-8")
 
     # PRUEFAUFTRAEGE maschinell.
-    #   1  6 Stadtteile im Hold-out, 29 in der Entwicklung
+    #   1  6 Stadtteile im Hold-out, 30 in der Entwicklung
     #   2  Klassenanteile summieren je Haelfte auf 1
-    #   3  Zeilenzahlen 4.620 (Regression) und 4.619 (Klassifikation)
+    #   3  Zeilenzahlen 4.752 (Regression) und 4.751 (Klassifikation)
     #   4  brand-dominierte Monate beider Haelften ergeben die Gesamtzahl
     n_hold = int((st["ist_holdout"] == 1).sum())
     n_dev = int((st["ist_holdout"] == 0).sum())
-    if (n_hold, n_dev) != (6, 29):
+    if (n_hold, n_dev) != (6, 30):
         print(f"  WARNUNG: {n_hold} Hold-out- und {n_dev} "
-              f"Entwicklungsstadtteile, erwartet 6 und 29.")
+              f"Entwicklungsstadtteile, erwartet 6 und 30.")
     for name, teil in kv.groupby("haelfte"):
         if abs(teil["anteil"].sum() - 1.0) > 0.001:
             print(f"  WARNUNG: Klassenanteile {name} summieren auf "
                   f"{teil['anteil'].sum():.4f}, erwartet 1.")
-    if (len(reg), len(kl)) != (4620, 4619):
+    if (len(reg), len(kl)) != (4752, 4751):
         print(f"  WARNUNG: {len(reg)} und {len(kl)} Zeilen, "
-              f"erwartet 4620 und 4619.")
+              f"erwartet 4752 und 4751.")
     gesamt = int((kl[ZIELKLASSE] == "brand").sum())
     if int(st["monate_brand_dominiert"].sum()) != gesamt:
         print("  WARNUNG: brand-dominierte Monate je Stadtteil summieren "

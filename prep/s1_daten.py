@@ -412,12 +412,11 @@ def neighborhoods_gdf():
 # ==========================================================================
 # TEIL E  CRIME - relativer Kriminalitaetsindex je Stadtteil x Monat
 # ==========================================================================
-def crime_monatlich(hist: pd.DataFrame, neu: pd.DataFrame,
-                    crosswalk: pd.DataFrame) -> pd.DataFrame:
+def crime_monatlich() -> pd.DataFrame:
     """Zaehlt Delikte je Stadtteil und Monat aus beiden SFPD-Quellen.
 
-    Ein:  historische Tabelle (bis 2017), moderne Tabelle (ab 2018-01),
-          Crosswalk fuer den Spatial Join
+    Ein:  nichts; beide Rohtabellen und die Stadtteilgeometrie werden hier
+          aus data/raw gelesen
     Aus:  eine Zeile je Stadtteil und Monat mit der Deliktzahl
 
     - zwei Quellen mit Schnitt 2018

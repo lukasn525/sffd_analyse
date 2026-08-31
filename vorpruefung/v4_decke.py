@@ -1,7 +1,7 @@
 """
 Wie gut KANN die Einsatzart mit diesen Merkmalen ueberhaupt vorhergesagt werden?
 
-    python vorpruefung/v4_decke.py            Entwicklungspanel, 29 Stadtteile
+    python vorpruefung/v4_decke.py            Entwicklungspanel, 30 Stadtteile
     python vorpruefung/v4_decke.py holdout    zusaetzlich die 6 gesperrten
 
 Eingang: data/processed/klassifikation.parquet
@@ -167,7 +167,7 @@ def _modellwerte(mit_holdout: bool) -> tuple[dict[str, float], str]:
     Aus:  Zuordnung Verfahren -> Macro-F1 und der Dateiname als Herkunftsnachweis
 
     - ohne "holdout": struktur_mittel.csv, also die Mittel ueber die 50 Laeufe
-      auf den 29 Entwicklungsstadtteilen. Dazu passen die Decken aus
+      auf den 30 Entwicklungsstadtteilen. Dazu passen die Decken aus
       demselben Panel
     - mit "holdout": holdout.csv, die einmalige Schlussbewertung auf den sechs
       gesperrten Stadtteilen. Dazu passen die Decken aus dem vollen Panel

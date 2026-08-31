@@ -36,7 +36,7 @@ D.folie(P, "Was dieser Ordner leistet",
             reihe(
                 kasten("Die Kernidee", punkte([
                     "Modelliert wird nicht der einzelne Einsatz, sondern der "
-                    "<b>Stadtteil-Monat</b> — 35 Stadtteile × 132 Monate.",
+                    "<b>Stadtteil-Monat</b> — 36 Stadtteile × 132 Monate.",
                     "Jedes Merkmal muss zum Prognosezeitpunkt bereits "
                     "veröffentlicht gewesen sein.",
                     "Die Aufteilung in Trainings- und Testgruppen wird hier "
@@ -242,7 +242,7 @@ D.folie("prep/s1_daten.py", "acs_je_neighborhood(acs, crosswalk)",
             reihe(
                 block("Das Problem", absatz(
                     "Der American Community Survey liefert Census Tracts — "
-                    "kleinere Einheiten als die 35 Stadtteile. Mehrere Tracts "
+                    "kleinere Einheiten als die 36 Stadtteile. Mehrere Tracts "
                     "gehören zu einem Stadtteil und müssen zusammengefasst "
                     "werden.")),
                 kasten("Die Lösung, und warum sie zweigeteilt ist", punkte([
@@ -322,7 +322,7 @@ D.folie("prep/s1_daten.py", "Die räumliche Zuordnung",
         stapel(
             reihe(
                 block("neighborhoods_gdf()", stapel(
-                    einaus("nichts", "GeoDataFrame der 35 Stadtteilpolygone"),
+                    einaus("nichts", "GeoDataFrame der 41 Stadtteilpolygone"),
                     punkte([
                         "Wird von beiden räumlichen Verknüpfungen benutzt.",
                         "Absicht: Kriminalitäts- und Baumerkmale beziehen sich "
@@ -345,7 +345,7 @@ D.folie("prep/s1_daten.py", "Die räumliche Zuordnung",
                 "nur einer monatlich."), "warn"),
             abstand=15), label="Funktionen")
 
-D.folie("prep/s1_daten.py", "crime_monatlich(hist, neu, crosswalk)",
+D.folie("prep/s1_daten.py", "crime_monatlich()",
         "Zählt Delikte je Stadtteil und Monat aus zwei Polizeiquellen.",
         stapel(
             einaus("die historische SFPD-Tabelle (bis 2017), die moderne "
@@ -439,7 +439,7 @@ D.kapitel("s2_datensaetze.py",
           "Verdichten und Zuschneiden. Hier entstehen die beiden Panels, die "
           "alle späteren Skripte lesen.",
           [("459", "Zeilen"), ("9", "Funktionen"),
-           ("4 620", "Zeilen im Panel")])
+           ("4 752", "Zeilen im Panel")])
 
 D.folie("prep/s2_datensaetze.py", "Der Weg zu den beiden Panels", None,
         stapel(
@@ -447,15 +447,15 @@ D.folie("prep/s2_datensaetze.py", "Der Weg zu den beiden Panels", None,
                 {"nr": "1", "titel": "aggregiere()",
                  "text": "Einsatzebene → Stadtteil × Monat, lückenloses Raster"},
                 {"nr": "2", "titel": "baue_regression()",
-                 "text": "Merkmale, Zielgrößen, Saison, Lags — 4 620 Zeilen"},
+                 "text": "Merkmale, Zielgrößen, Saison, Lags — 4 752 Zeilen"},
                 {"nr": "3", "titel": "baue_klassifikation()",
-                 "text": "vier Anteilsspalten und deren argmax — 4 619 Zeilen"},
+                 "text": "vier Anteilsspalten und deren argmax — 4 751 Zeilen"},
                 {"nr": "4", "titel": "ergaenze_aufteilung()", "akt": True,
                  "text": "fold und ist_holdout, einmal für beide Panels"},
             ]),
             reihe(
-                kpi([("35", "Stadtteile"), ("132", "Monate"),
-                     ("4 620", "Zeilen Regression"), ("29 / 6", "Entwicklung / Hold-out")]),
+                kpi([("36", "Stadtteile"), ("132", "Monate"),
+                     ("4 752", "Zeilen Regression"), ("30 / 6", "Entwicklung / Hold-out")]),
             ),
             kasten("Die Fairness-Regel", absatz(
                 "Die Fold-Zuteilung wird <b>einmal</b> berechnet und auf "
@@ -496,7 +496,7 @@ D.folie("prep/s2_datensaetze.py", "baue_regression(vorlauf, verbose)",
         "Der Mengenstrang: wie viele Einsätze fallen an?",
         stapel(
             einaus("einsaetze.parquet und die Zahl der Vorlaufmonate",
-                   "4 620 Zeilen × 25 Spalten"),
+                   "4 752 Zeilen × 25 Spalten"),
             reihe(
                 block("Was in den Datensatz kommt", punkte([
                     "<b>10 Prädiktoren</b> — sozioökonomisch, kriminalitäts"
@@ -526,7 +526,7 @@ D.folie("prep/s2_datensaetze.py", "baue_klassifikation(regression, verbose)",
         "Der Strukturstrang: welche Art von Einsätzen dominiert?",
         stapel(
             einaus("der fertige Regressionsdatensatz",
-                   "4 619 Zeilen × 29 Spalten mit dominante_einsatzart"),
+                   "4 751 Zeilen × 29 Spalten mit dominante_einsatzart"),
             reihe(
                 block("Wie die Zielgröße entsteht", punkte([
                     "Die NFIRS-Codes werden auf <b>vier Klassen</b> abgebildet: "
@@ -557,7 +557,7 @@ D.folie("prep/s2_datensaetze.py", "ergaenze_aufteilung(daten, versatz, selten)",
                    "derselbe Datensatz mit den Spalten fold und ist_holdout"),
             reihe(
                 block("Das Verfahren", punkte([
-                    "Die 35 Stadtteile werden sortiert und reihum auf "
+                    "Die 36 Stadtteile werden sortiert und reihum auf "
                     "<b>sechs</b> Gruppen verteilt.",
                     "<b>Gruppe 0 ist das Hold-out</b> — sechs Stadtteile, die "
                     "bis zur Schlussbewertung unberührt bleiben.",
@@ -695,7 +695,7 @@ D.folie(P, "Was man über diesen Ordner wissen muss",
             reihe(
                 kasten("1 · Die Analyseeinheit", absatz(
                     "Modelliert wird der <b>Stadtteil-Monat</b>, nicht der "
-                    "Einsatz. 35 Stadtteile × 132 Monate = 4 620 Zeilen. "
+                    "Einsatz. 36 Stadtteile × 132 Monate = 4 752 Zeilen. "
                     "Die Verdichtung ist eine bewusste Entscheidung, keine "
                     "Bequemlichkeit — auf Einzelfallebene tragen alle Einsätze "
                     "eines Monats dieselben Merkmale.")),

@@ -187,7 +187,7 @@ def _zweistufig(df: pd.DataFrame, schluessel: list[str],
 
     - Stufe 1: je Wiederholung ueber die 5 Folds mitteln
     - Stufe 2: Streuung dieser 10 Werte berichten -> `std_wiederholungen`
-    - `std_folds` ueber alle 50 Laeufe ist zu optimistisch: dieselben 29
+    - `std_folds` ueber alle 50 Laeufe ist zu optimistisch: dieselben 30
       Stadtteile in zehn Gruppierungen (R-5)
     - beide Spalten wandern mit, damit der Unterschied sichtbar bleibt
     - eine Datei beschreibt genau einen Durchgang; Einzellaeufe stehen in

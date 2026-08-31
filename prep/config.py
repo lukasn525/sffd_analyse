@@ -86,12 +86,24 @@ START = 201501
 ENDE  = 202512
 
 # Lag-Vorlauf (#23): ab START-VORLAUF aggregieren, Lags bilden, auf START
-# zuschneiden. Ohne ihn beginnt die Regression erst 2016-01. 4.620 statt 4.200.
+# zuschneiden. Ohne ihn beginnt die Regression erst 2016-01. 4.752 statt 4.320.
 VORLAUF_MONATE = 12
 
 # Parks ohne Wohnbevoelkerung (#19): 45 bis 507 Einwohner gegen 14.435 im
 # Median. Jede Pro-Kopf-Groesse wird dort beliebig gross.
 PARKGEBIETE = ["Golden Gate Park", "Lincoln Park", "Mclaren Park"]
+
+# Erwarteter Analysezuschnitt. Ausgeschlossen sind die drei Parkgebiete ohne
+# Wohnbevoelkerung sowie Lakeshore und Treasure Island, fuer die das
+# Parzellenverzeichnis kein einziges Baujahr fuehrt - der Altbauanteil ist dort
+# nicht bildbar. Bleiben 36 der 41 Analysis Neighborhoods.
+N_STADTTEILE_ERWARTET = 36
+
+# Plausibilitaetsspanne der stadtweiten Wohnbevoelkerung ueber die enthaltenen
+# Stadtteile. San Francisco liegt im Analysezeitraum bei rund 810.000 bis
+# 875.000 Einwohnern; die Spanne faengt ab, wenn ein Verbund Tracts verwirft und
+# die Exposition dadurch stillschweigend zu klein wird.
+BEV_PLAUSIBEL = (750_000, 950_000)
 
 # Warnschwelle fuer unvollstaendige Monate. Kein Filter - massgeblich ist ENDE.
 VOLLSTAENDIGKEITS_SCHWELLE = 0.5
@@ -152,7 +164,7 @@ KLASSEN    = ["Brand", "Rettung/EMS", "Technische Hilfe/Gefahr", "Fehlalarm/Good
 RESTKLASSE = "Technische Hilfe/Gefahr"
 
 # Zielgroesse ist die ZUSAMMENSETZUNG der Einsatzlast je Stadtteil-Monat (#29).
-# Auf Einzeleinsatz-Ebene waeren es nur 4.619 Profile fuer 350.481 Einsaetze.
+# Auf Einzeleinsatz-Ebene waeren es nur 4.751 Profile fuer 357.553 Einsaetze.
 ANTEILE = [f"anteil_{k}" for k in
            ["brand", "rettung_ems", "technische_hilfe", "fehlalarm"]]
 
@@ -180,7 +192,7 @@ ERGEBNISVARIABLEN = [
 # STADTTEIL-SPLIT (#29): ein Stadtteil wird komplett zurueckgehalten. Bei einem
 # Zeitschnitt stuende jeder Stadtteil in Training UND Test und das Modell
 # kennte sein Niveau bereits.
-#     29 Stadtteile -> 5 Folds (6/6/6/6/5)   6 -> Hold-out
+#     30 Stadtteile -> 5 Folds (6/6/6/6/6)   6 -> Hold-out
 # Stratifiziert nach einem PRAEDIKTOR, nicht nach der Zielgroesse.
 N_FOLDS = 5
 

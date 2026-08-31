@@ -455,7 +455,7 @@ def _vif(panel: pd.DataFrame) -> pd.DataFrame:
       sind innerhalb eines Jahres konstant; ueber alle Zeilen zaehlte jede
       Kombination bis zu zwoelfmal und der VIF waere kuenstlich stabilisiert
     - drop_duplicates() auf allen Praediktoren leistet das nicht: seit #17 ist
-      log_kriminalitaetsindex monatlich rollierend, damit sind 3.757 von 3.828
+      log_kriminalitaetsindex monatlich rollierend, damit sind nahezu alle 3.960
       Zeilen eindeutig und die Entdopplung laeuft ins Leere (B-18)
     - `stadtteil_jahr` ist die Ebene, auf der ACS- und Land-Use-Merkmale
       variieren; diese Zahl gehoert in den Text

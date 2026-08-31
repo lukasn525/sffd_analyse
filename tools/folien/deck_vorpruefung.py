@@ -142,7 +142,7 @@ D.folie("vorpruefung/v0_aufteilung.py", "Warum diese Datei existiert",
                 "die Plätze 0–4, Block 1 die Plätze 5–9 und so fort. Jeder Fold "
                 "bekommt weiterhin genau einen Stadtteil aus jedem Block — die "
                 "doppelte Stratifizierung überlebt, die Foldgrößen bleiben "
-                "6/6/6/6/5, aber die <b>Zusammensetzung</b> ändert sich "
+                "6/6/6/6/6, aber die <b>Zusammensetzung</b> ändert sich "
                 "wirklich.")),
             abstand=16),
         label="Datei")
@@ -173,7 +173,7 @@ D.folie("vorpruefung/v0_aufteilung.py", "Die vier Funktionen", None,
                     ], eng=True), abstand=9))),
             reihe(
                 block("entwicklung_und_holdout(daten)", punkte([
-                    "Liefert zwei Masken: 29 Entwicklungs- gegen 6 "
+                    "Liefert zwei Masken: 30 Entwicklungs- gegen 6 "
                     "Hold-out-Stadtteile.",
                     "Die <b>einzige</b> Stelle im Repository, die "
                     "<code>ist_holdout == 1</code> auswertet.",
@@ -316,7 +316,7 @@ D.folie("vorpruefung/v1_baselines.py", "Die Auswertungsfunktionen",
                         "<b>Stufe 2:</b> die Streuung <i>dieser zehn</i> Werte "
                         "berichten.",
                         "<code>std_folds</code> über alle 50 Läufe ist zu "
-                        "optimistisch — es sind dieselben 29 Stadtteile in zehn "
+                        "optimistisch — es sind dieselben 30 Stadtteile in zehn "
                         "Gruppierungen.",
                     ], eng=True), abstand=9))),
             reihe(
@@ -548,7 +548,7 @@ D.folie("vorpruefung/v3_spezifikation.py", "Die Frage hinter der Datei",
                     "<b>unabhängig</b>.",
                 ]), "warn"),
                 block("Warum das nicht reicht", punkte([
-                    "Tatsächlich liegen <b>29 unabhängige Stadtteile</b> mit je "
+                    "Tatsächlich liegen <b>30 unabhängige Stadtteile</b> mit je "
                     "132 Monaten vor.",
                     "Ein F-Test mit n = 3 828 findet praktisch jede Abweichung "
                     "signifikant.",

@@ -5,8 +5,8 @@ DER EINE BEFEHL. Erzeugt aus den Rohdaten die beiden finalen Datensaetze.
     python prep/build.py tests      anschliessend die Pruefungen
 
 Eingang: data/raw/*  (sechs Rohquellen)
-Ausgang: data/processed/regression.parquet      4.620 x 25, modellfertig
-         data/processed/klassifikation.parquet  4.619 x 29, modellfertig
+Ausgang: data/processed/regression.parquet      4.752 x 25, modellfertig
+         data/processed/klassifikation.parquet  4.751 x 29, modellfertig
 
 - Zwei Schritte: s1_daten laedt und verortet, s2_datensaetze baut das Panel.
 - Dieser Ordner erzeugt DATEN und sonst nichts. Baselines liegen in

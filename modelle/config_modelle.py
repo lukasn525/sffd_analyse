@@ -104,7 +104,7 @@ SUCHRAEUME = {
 # ==========================================================================
 # 2  WIEDERHOLTE SPLITS
 # ==========================================================================
-# Bei 29 Entwicklungsstadtteilen schwankt ein einzelner Fold massiv. Deshalb
+# Bei 30 Entwicklungsstadtteilen schwankt ein einzelner Fold massiv. Deshalb
 # wird die Fold-Zuteilung mehrfach mit unterschiedlichem Versatz gebildet und
 # ueber alle Laeufe gemittelt (docs/04_MODELLIERUNG.md, Abschnitt 2).
 WIEDERHOLUNGEN = 10

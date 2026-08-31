@@ -3,6 +3,7 @@ Verfahrensvergleich fuer die MENGE der Einsatzlast.
 
     python modelle/m02_menge.py            Tuning, Bewertung, Aggregation, Vergleich
     python modelle/m02_menge.py holdout    zusaetzlich die einmalige Schlussbewertung
+    python modelle/m02_menge.py holdout --weiter   Phase 1+2 aus results/ uebernehmen
 
 Eingang: data/processed/regression.parquet
 Ausgang: results/regression/menge_folds.csv, menge_mittel.csv, tuning.csv,
@@ -240,7 +241,8 @@ def tune(name: str, train: pd.DataFrame, ziel: str) -> dict:
 # ---------------------------------------------------------------------------
 def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
              test: pd.DataFrame, ziel: str,
-             auch_parallel: bool = False) -> dict:
+             auch_parallel: bool = False,
+             mit_vorhersagen: bool = False) -> dict:
     """Ein Fit, eine Vorhersage, mit Zeitmessung - eine Zeile fuer die CSV.
 
     Ein:  Trainings- und Testrahmen, Verfahren, Parameter, Zielgroesse,
@@ -283,7 +285,8 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
     y_hat = modell.predict(X_te) * zurueck
     inferenz_sek = time.perf_counter() - t
 
-    train_par, inferenz_par, abweichung = np.nan, np.nan, np.nan
+    train_par, inferenz_par = np.nan, np.nan
+    abweichung, abweichung_rmse = np.nan, np.nan
     if auch_parallel:
         parallel = verfahren(name, n_jobs=-1).set_params(**parameter)
         t = time.perf_counter()
@@ -302,6 +305,10 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
         # knapp benachbarte Split-Kandidaten und schaukelt sich ueber hunderte
         # Baeume auf. Eine Aussage ueber Reproduzierbarkeit, gehoert in Kap. 6.
         abweichung = float(np.max(np.abs(y_hat - y_par)))
+        # Das Maximum sagt, wie weit EINE Zeile auseinanderlaeuft. Ob die
+        # berichteten Guetemasse davon beruehrt waeren, entscheidet der
+        # Abstand ueber ALLE Zeilen auf der Skala des Guetemasses.
+        abweichung_rmse = float(np.sqrt(np.mean((y_hat - y_par) ** 2)))
 
     # UEBERANPASSUNGSNACHWEIS (#51): dieselbe Guete auf den TRAININGS-
     # stadtteilen. Der Abstand ist der Standardnachweis fuer Ueberanpassung -
@@ -322,10 +329,11 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
         train[EXPOSURE_ROH].astype(float).to_numpy() / 1000.0 if auf_rate else 1.0)
     y_tr_echt = train[ziel].astype(float)
 
-    return {
+    ergebnis = {
         "train_sekunden_parallel": train_par,
         "inferenz_sekunden_parallel": inferenz_par,
         "parallel_abweichung": abweichung,
+        "parallel_abweichung_rmse": abweichung_rmse,
         "verfahren": name, "zielgroesse": ziel,
         "RMSE": float(np.sqrt(mean_squared_error(y_te, y_hat))),
         "MAE": float(mean_absolute_error(y_te, y_hat)),
@@ -338,6 +346,18 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
         "n_negativ": int((y_hat < 0).sum()),
         "y_hat_min": float(np.min(y_hat)),
     }
+
+    # VORHERSAGEN JE ZEILE (nur von phase_bewertung angefordert): Ohne sie
+    # braucht jede spaetere Frage - Fehleranalyse je Stadtteil, Beitrag eines
+    # einzelnen Teststadtteils zum Gesamtfehler - einen neuen Modelllauf.
+    if mit_vorhersagen:
+        ergebnis["_vorhersagen"] = pd.DataFrame({
+            "stadtteil": test["stadtteil"].to_numpy(),
+            "jahr_monat": test["jahr_monat"].to_numpy(),
+            "zielgroesse": ziel, "verfahren": name,
+            "y": y_te.to_numpy(), "y_hat": y_hat,
+        })
+    return ergebnis
 
 
 def extrapolationsanteil(train: pd.DataFrame, test: pd.DataFrame) -> float:
@@ -364,9 +384,13 @@ def phase_tuning(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     Ein:  Panel der Entwicklungsstadtteile
     Aus:  tuning.csv mit 30 Zeilen, Parameter als Spalten und als JSON
 
-    - keine Wiederverwendung: tuning.csv ist ein Ergebnis dieses Laufs, kein
-      Eingang. Sonst wuerden nach einer Aenderung der Spezifikation still
+    - keine STILLE Wiederverwendung: tuning.csv ist ein Ergebnis dieses Laufs,
+      kein Eingang. Sonst wuerden nach einer Aenderung der Spezifikation still
       Parameter aus einer anderen Welt weiterverwendet
+    - die einzige Ausnahme ist der ausdrueckliche Schalter --weiter, siehe
+      uebernehmen(). Er muss auf der Kommandozeile stehen und bricht ab, wenn
+      Daten oder Konfiguration neuer sind als tuning.csv. Damit bleibt das
+      Verbot dort bestehen, wo es gemeint war: beim unbemerkten Weiterrechnen
     - getunt wird nur auf Wiederholung 0; die Parameter gelten fuer alle zehn
       (#34). Bewusste Vereinfachung, im Text zu benennen
     - gesucht wird ueber (Verfahren x Fold) = 15 Durchgaenge; beide Zielgroessen
@@ -443,14 +467,15 @@ def phase_bewertung(panel: pd.DataFrame, parameter: pd.DataFrame,
     """Phase 2: 10 Wiederholungen x 5 Folds x 3 Verfahren x 2 Zielgroessen.
 
     Ein:  Panel, Parametertabelle aus Phase 1
-    Aus:  menge_folds.csv mit 300 Zeilen
+    Aus:  menge_folds.csv mit 300 Zeilen und menge_vorhersagen.parquet
+          mit einer Zeile je Vorhersage
 
     - trainiert wird je Fold auf allen Trainingsstadtteilen
     - mit den Parametern aus Phase 1, aber einem frischen Modell: best_estimator_
       aus dem Tuning waere auf nur drei Vierteln der Trainingsstadtteile gefittet
     """
     param = _parameter_je_fold(parameter)
-    zeilen = []
+    zeilen, vorhersagen = [], []
     for w in range(WIEDERHOLUNGEN):
         d = wiederholte_aufteilung(panel, wiederholung=w, selten=selten)
         for k in range(1, N_FOLDS + 1):
@@ -460,7 +485,10 @@ def phase_bewertung(panel: pd.DataFrame, parameter: pd.DataFrame,
                 for name in VERFAHREN:
                     # Parallelmessung in jedem Lauf - keine Ausnahmen.
                     z = ein_lauf(name, param[(ziel, name, k)], train, test,
-                                 ziel, auch_parallel=True)
+                                 ziel, auch_parallel=True,
+                                 mit_vorhersagen=True)
+                    vorhersagen.append(z.pop("_vorhersagen")
+                                        .assign(wiederholung=w, fold=k))
                     zeilen.append({"wiederholung": w, "fold": k, **z})
         print(f"    Wiederholung {w}: {len(zeilen):>3} Laeufe")
     df = pd.DataFrame(zeilen)
@@ -468,11 +496,13 @@ def phase_bewertung(panel: pd.DataFrame, parameter: pd.DataFrame,
                 "RMSE", "MAE", "R2", "RMSE_train", "R2_train",
                 "train_sekunden", "inferenz_sekunden",
                 "train_sekunden_parallel", "inferenz_sekunden_parallel",
-                "parallel_abweichung",
+                "parallel_abweichung", "parallel_abweichung_rmse",
                 "n_train", "n_test", "extrapolationsanteil",
                 "n_negativ", "y_hat_min"])
     df = df[spalten]
     df.to_csv(OUT / "menge_folds.csv", index=False)
+    pd.concat(vorhersagen, ignore_index=True).to_parquet(
+        OUT / "menge_vorhersagen.parquet", index=False)
     return df
 
 
@@ -487,7 +517,7 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
     Ein:  menge_folds.csv als Datenrahmen
     Aus:  menge_mittel.csv mit std_folds und std_wiederholungen
 
-    - die 50 Fold-Ergebnisse sind nicht unabhaengig: dieselben 29 Stadtteile in
+    - die 50 Fold-Ergebnisse sind nicht unabhaengig: dieselben 30 Stadtteile in
       zehn Gruppierungen. Ein Intervall aus std_folds/sqrt(50) waere zu eng (R-5)
     - massgeblich ist std_wiederholungen
     - beide Spalten wandern mit, damit der Unterschied sichtbar bleibt
@@ -711,7 +741,7 @@ def leakage_diagnose(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFra
 # ---------------------------------------------------------------------------
 def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
              folds: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
-    """Einmalige Schlussbewertung: 29 Stadtteile trainieren, 6 bewerten.
+    """Einmalige Schlussbewertung: 30 Stadtteile trainieren, 6 bewerten.
 
     Ein:  vollstaendiges Panel, Parametertabelle aus Phase 1
     Aus:  holdout.csv mit Spalte fold_der_parameter
@@ -772,10 +802,72 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
     return df
 
 
+# ---------------------------------------------------------------------------
+# Anschlusslauf: Phase 1 und 2 uebernehmen statt neu rechnen
+# ---------------------------------------------------------------------------
+def uebernehmen(panel: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Liest Tuning und Bewertung aus results/, statt sie neu zu rechnen.
+
+    Ein:  Entwicklungspanel; liest tuning.csv und menge_folds.csv
+    Aus:  dieselben zwei Datenrahmen, die Phase 1 und Phase 2 zurueckgeben
+
+    - NUR ueber den Schalter --weiter erreichbar. Ohne ihn rechnet das Skript
+      unveraendert alles neu; ein stiller Cache waere genau der Fehler vom
+      30.08.2026 (crime_index_monatlich.csv aus einem Lauf mit falscher
+      Wohnbevoelkerung)
+    - WOZU: "holdout" rechnet die Phasen 1 bis 4 mit, obwohl nur Phase 5 fehlt.
+      Bei unveraenderten Daten und unveraenderter Konfiguration sind das 149
+      von 150 Minuten fuer ein Ergebnis, das fertig auf der Platte liegt
+    - die Uebernahme ist an fuenf Bedingungen geknuepft; jede bricht ab, statt
+      mit fremden Zahlen weiterzurechnen. Die wichtigste ist der Zeitstempel:
+      Ist regression.parquet oder config_modelle.py neuer als tuning.csv,
+      koennen Daten, Suchraum oder Budget andere sein
+    - was die Pruefungen NICHT leisten: Sie sehen die Form, nicht den Inhalt
+      der Parquet-Datei. Eine zurueckkopierte aeltere Datei mit derselben
+      Zeilenzahl faellt nicht auf. Der Schalter ist fuer den Anschlusslauf
+      desselben Tages gedacht, nicht als Dauereinrichtung
+    """
+    konfig = Path(__file__).resolve().parent / "config_modelle.py"
+    fehlend = [d for d in ("tuning.csv", "menge_folds.csv")
+               if not (OUT / d).exists()]
+    if fehlend:
+        raise SystemExit(f"--weiter: {', '.join(fehlend)} fehlt in "
+                         f"{OUT.relative_to(ROOT)}. Erst ohne --weiter laufen.")
+    parameter = pd.read_csv(OUT / "tuning.csv")
+    folds = pd.read_csv(OUT / "menge_folds.csv")
+    erwartet = len(ZIELE) * len(VERFAHREN) * WIEDERHOLUNGEN * N_FOLDS
+    n = int(folds["n_train"].iloc[0] + folds["n_test"].iloc[0])
+    juenger = max(konfig.stat().st_mtime, PFAD_REGRESSION.stat().st_mtime)
+    for erfuellt, meldung in (
+            (juenger <= (OUT / "tuning.csv").stat().st_mtime,
+             "regression.parquet oder config_modelle.py ist neuer als "
+             "tuning.csv - Daten, Suchraum oder Budget koennen andere sein"),
+            (len(folds) == erwartet,
+             f"menge_folds.csv hat {len(folds)} statt {erwartet} Zeilen"),
+            (n == len(panel),
+             f"die uebernommenen Laeufe stammen aus einem Panel mit {n} "
+             f"Zeilen, das aktuelle hat {len(panel)}"),
+            (set(parameter["verfahren"]) == set(VERFAHREN),
+             f"tuning.csv fuehrt {sorted(set(parameter['verfahren']))} "
+             f"statt {sorted(VERFAHREN)}"),
+            (sorted(int(f) for f in parameter["fold"].unique())
+             == list(range(1, N_FOLDS + 1)),
+             f"tuning.csv fuehrt die Folds "
+             f"{sorted(int(f) for f in parameter['fold'].unique())}")):
+        if not erfuellt:
+            raise SystemExit(f"--weiter abgebrochen: {meldung}. "
+                             f"Ohne --weiter neu rechnen.")
+    print(f"  Phase 1+2 uebernommen aus {OUT.relative_to(ROOT)}: "
+          f"{len(parameter)} Parametersaetze, {len(folds)} Laeufe, "
+          f"Panel {n} Zeilen")
+    return parameter, folds
+
+
 def main(argv: list[str]) -> int:
     """Faehrt die vier Phasen und schreibt alle Ergebnisdateien.
 
-    Ein:  regression.parquet; Argument "holdout" haengt die Schlussbewertung an
+    Ein:  regression.parquet; Argument "holdout" haengt die Schlussbewertung
+          an, "--weiter" uebernimmt Phase 1 und 2 aus results/regression/
     Aus:  tuning.csv, menge_folds.csv, menge_mittel.csv, vergleich.csv,
           leakage_diagnose.csv, optional holdout.csv; Exitcode
 
@@ -800,10 +892,13 @@ def main(argv: list[str]) -> int:
     print(f"  Entwicklung: {len(panel):,} Zeilen | "
           f"{panel['stadtteil'].nunique()} Stadtteile\n")
 
-    print("  Phase 1  Tuning")
-    parameter = phase_tuning(panel, selten)
-    print("\n  Phase 2  Bewertung")
-    folds = phase_bewertung(panel, parameter, selten)
+    if "--weiter" in argv:
+        parameter, folds = uebernehmen(panel)
+    else:
+        print("  Phase 1  Tuning")
+        parameter = phase_tuning(panel, selten)
+        print("\n  Phase 2  Bewertung")
+        folds = phase_bewertung(panel, parameter, selten)
     print("\n  Phase 3  Aggregation")
     mittel = aggregiere(folds)
     print(mittel.to_string(index=False))

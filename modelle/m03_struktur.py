@@ -3,6 +3,7 @@ Verfahrensvergleich fuer die STRUKTUR der Einsatzlast.
 
     python modelle/m03_struktur.py            Tuning, Bewertung, Aggregation, Vergleich
     python modelle/m03_struktur.py holdout    zusaetzlich die einmalige Schlussbewertung
+    python modelle/m03_struktur.py holdout --weiter   Phase 1+2 aus results/ uebernehmen
 
 Eingang: data/processed/klassifikation.parquet
 Ausgang: results/klassifikation/struktur_folds.csv, struktur_mittel.csv,
@@ -225,7 +226,8 @@ def tune(name: str, train: pd.DataFrame) -> dict:
 # BAUSTEIN 3  Ein einzelner Lauf
 # ---------------------------------------------------------------------------
 def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
-             test: pd.DataFrame, auch_parallel: bool = False) -> dict:
+             test: pd.DataFrame, auch_parallel: bool = False,
+             mit_vorhersagen: bool = False) -> dict:
     """Ein Fit, eine Vorhersage, mit Zeitmessung - eine Zeile fuer die CSV.
 
     Ein:  Trainings- und Testrahmen, Verfahren, Parameter, auch_parallel
@@ -284,7 +286,7 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
     # waehrend beide Baumverfahren einbrechen.
     y_hat_tr = modell.predict(X_tr)
 
-    return {
+    ergebnis = {
         "verfahren": name, "zielgroesse": ZIELKLASSE,
         "train_sekunden_parallel": train_par,
         "inferenz_sekunden_parallel": inferenz_par,
@@ -301,6 +303,18 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
         "n_brand_test": int((test[ZIELKLASSE] == SELTENE_KLASSE).sum()),
         "extrapolationsanteil": extrapolationsanteil(train, test),
     }
+
+    # VORHERSAGEN JE ZEILE (nur von phase_bewertung angefordert): Traegt die
+    # Konfusionsmatrix und die klassenweisen F1-Werte, ohne die ein Macro-F1
+    # aus vier Klassen nicht lesbar ist. Kein neuer Modelllauf noetig.
+    if mit_vorhersagen:
+        ergebnis["_vorhersagen"] = pd.DataFrame({
+            "stadtteil": test["stadtteil"].to_numpy(),
+            "jahr_monat": test["jahr_monat"].to_numpy(),
+            "verfahren": name,
+            "y": np.asarray(y_te), "y_hat": np.asarray(y_hat),
+        })
+    return ergebnis
 
 
 def extrapolationsanteil(train: pd.DataFrame, test: pd.DataFrame) -> float:
@@ -377,8 +391,9 @@ def phase_tuning(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     Ein:  Panel der Entwicklungsstadtteile
     Aus:  tuning.csv mit 10 Zeilen
 
-    - wie in m02 wird nichts wiederverwendet: tuning.csv ist ein Ergebnis dieses
-      Laufs, kein Eingang
+    - wie in m02 wird nichts STILL wiederverwendet: tuning.csv ist ein Ergebnis
+      dieses Laufs, kein Eingang. Einzige Ausnahme ist der ausdrueckliche
+      Schalter --weiter, siehe uebernehmen()
     """
     d = wiederholte_aufteilung(panel, wiederholung=0, selten=selten)
     zeilen = []
@@ -425,22 +440,25 @@ def phase_bewertung(panel: pd.DataFrame, parameter: pd.DataFrame,
     """Phase 2: 10 Wiederholungen x 5 Folds x 2 Verfahren = 100 Zeilen.
 
     Ein:  Panel, Parametertabelle aus Phase 1
-    Aus:  struktur_folds.csv
+    Aus:  struktur_folds.csv und struktur_vorhersagen.parquet mit einer
+          Zeile je Vorhersage
 
     - trainiert wird je Fold mit einem frischen Modell auf allen
       Trainingsstadtteilen, nicht mit best_estimator_ aus dem Tuning
     """
     param = _parameter_je_fold(parameter)
-    zeilen = []
+    zeilen, vorhersagen = [], []
     for w in range(WIEDERHOLUNGEN):
         d = wiederholte_aufteilung(panel, wiederholung=w, selten=selten)
         for k in range(1, N_FOLDS + 1):
             tr, te = fold_masken(d, k)
             train, test = d[tr], d[te]
             for name in VERFAHREN:
-                zeilen.append({"wiederholung": w, "fold": k,
-                               **ein_lauf(name, param[(name, k)], train, test,
-                                          auch_parallel=True)})
+                z = ein_lauf(name, param[(name, k)], train, test,
+                             auch_parallel=True, mit_vorhersagen=True)
+                vorhersagen.append(z.pop("_vorhersagen")
+                                    .assign(wiederholung=w, fold=k))
+                zeilen.append({"wiederholung": w, "fold": k, **z})
         print(f"    Wiederholung {w}: {len(zeilen):>3} Laeufe")
     df = pd.DataFrame(zeilen)
     spalten = ["zielgroesse", "verfahren", "wiederholung", "fold",
@@ -452,6 +470,8 @@ def phase_bewertung(panel: pd.DataFrame, parameter: pd.DataFrame,
                "n_train", "n_test", "n_brand_test", "extrapolationsanteil"]
     df = df[spalten]
     df.to_csv(OUT / "struktur_folds.csv", index=False)
+    pd.concat(vorhersagen, ignore_index=True).to_parquet(
+        OUT / "struktur_vorhersagen.parquet", index=False)
     return df
 
 
@@ -467,7 +487,7 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
     Aus:  struktur_mittel.csv
 
     - massgeblich ist std_wiederholungen, nicht std_folds (R-5)
-    - die 50 Fold-Ergebnisse sind dieselben 29 Stadtteile in zehn Gruppierungen
+    - die 50 Fold-Ergebnisse sind dieselben 30 Stadtteile in zehn Gruppierungen
     """
     schluessel = ["zielgroesse", "verfahren"]
     g = folds.groupby(schluessel, sort=False)
@@ -665,11 +685,61 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
     return df
 
 
+# ---------------------------------------------------------------------------
+# Anschlusslauf: Phase 1 und 2 uebernehmen statt neu rechnen
+# ---------------------------------------------------------------------------
+def uebernehmen(panel: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Liest Tuning und Bewertung aus results/, statt sie neu zu rechnen.
+
+    Ein:  Entwicklungspanel; liest tuning.csv und struktur_folds.csv
+    Aus:  dieselben zwei Datenrahmen, die Phase 1 und Phase 2 zurueckgeben
+
+    - baugleich zu m02_menge.uebernehmen(); die Begruendung steht dort
+    - NUR ueber den Schalter --weiter erreichbar; ohne ihn rechnet das Skript
+      unveraendert alles neu
+    """
+    konfig = Path(__file__).resolve().parent / "config_modelle.py"
+    fehlend = [d for d in ("tuning.csv", "struktur_folds.csv")
+               if not (OUT / d).exists()]
+    if fehlend:
+        raise SystemExit(f"--weiter: {', '.join(fehlend)} fehlt in "
+                         f"{OUT.relative_to(ROOT)}. Erst ohne --weiter laufen.")
+    parameter = pd.read_csv(OUT / "tuning.csv")
+    folds = pd.read_csv(OUT / "struktur_folds.csv")
+    erwartet = len(VERFAHREN) * WIEDERHOLUNGEN * N_FOLDS
+    n = int(folds["n_train"].iloc[0] + folds["n_test"].iloc[0])
+    juenger = max(konfig.stat().st_mtime, PFAD_KLASSIFIKATION.stat().st_mtime)
+    for erfuellt, meldung in (
+            (juenger <= (OUT / "tuning.csv").stat().st_mtime,
+             "klassifikation.parquet oder config_modelle.py ist neuer als "
+             "tuning.csv - Daten, Suchraum oder Budget koennen andere sein"),
+            (len(folds) == erwartet,
+             f"struktur_folds.csv hat {len(folds)} statt {erwartet} Zeilen"),
+            (n == len(panel),
+             f"die uebernommenen Laeufe stammen aus einem Panel mit {n} "
+             f"Zeilen, das aktuelle hat {len(panel)}"),
+            (set(parameter["verfahren"]) == set(VERFAHREN),
+             f"tuning.csv fuehrt {sorted(set(parameter['verfahren']))} "
+             f"statt {sorted(VERFAHREN)}"),
+            (sorted(int(f) for f in parameter["fold"].unique())
+             == list(range(1, N_FOLDS + 1)),
+             f"tuning.csv fuehrt die Folds "
+             f"{sorted(int(f) for f in parameter['fold'].unique())}")):
+        if not erfuellt:
+            raise SystemExit(f"--weiter abgebrochen: {meldung}. "
+                             f"Ohne --weiter neu rechnen.")
+    print(f"  Phase 1+2 uebernommen aus {OUT.relative_to(ROOT)}: "
+          f"{len(parameter)} Parametersaetze, {len(folds)} Laeufe, "
+          f"Panel {n} Zeilen")
+    return parameter, folds
+
+
 def main(argv: list[str]) -> int:
     """Faehrt die vier Phasen und schreibt alle Ergebnisdateien.
 
-    Ein:  klassifikation.parquet; Argument "holdout" haengt die Schlussbewertung
-          an
+    Ein:  klassifikation.parquet; Argument "holdout" haengt die
+          Schlussbewertung an, "--weiter" uebernimmt Phase 1 und 2 aus
+          results/klassifikation/
     Aus:  tuning.csv, struktur_folds.csv, struktur_mittel.csv, vergleich.csv,
           leakage_diagnose.csv, optional holdout.csv; Exitcode
 
@@ -694,10 +764,13 @@ def main(argv: list[str]) -> int:
           f"{panel['stadtteil'].nunique()} Stadtteile | Klassen "
           f"{dict(panel[ZIELKLASSE].value_counts())}\n")
 
-    print("  Phase 1  Tuning")
-    parameter = phase_tuning(panel, selten)
-    print("\n  Phase 2  Bewertung")
-    folds = phase_bewertung(panel, parameter, selten)
+    if "--weiter" in argv:
+        parameter, folds = uebernehmen(panel)
+    else:
+        print("  Phase 1  Tuning")
+        parameter = phase_tuning(panel, selten)
+        print("\n  Phase 2  Bewertung")
+        folds = phase_bewertung(panel, parameter, selten)
     print("\n  Phase 3  Aggregation")
     mittel = aggregiere(folds)
     print(mittel.to_string(index=False))

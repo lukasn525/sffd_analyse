@@ -70,7 +70,7 @@ PRUEFAUFTRAEGE
     eng, und das gehoert in die Limitationen
   - A9: Steht die Linie bei 1,0 und ist sie beschriftet? Werte darunter
     heissen "parallel langsamer"
-  - A16: Sind es 35 Stadtteile, und stehen Tenderloin (279,7) oben und
+  - A16: Sind es 36 Stadtteile, und stehen Tenderloin (279,7) oben und
     Seacliff (6,4) unten? Taucht irgendwo "Fold" oder "Hold-out" auf? Dann
     raus damit - Kapitel 4 kennt die Aufteilung noch nicht
   - A17: Stehen die drei baulichen Merkmale links bei 100 % und rechts bei 1,
@@ -860,7 +860,7 @@ def _hyperparameter_lagen() -> pd.DataFrame:
 
 
 def a8_hyperparameter(plt, FuncFormatter) -> list:
-    """A8: Stabilitaet der Modellwahl bei 29 Entwicklungsstadtteilen.
+    """A8: Stabilitaet der Modellwahl bei 30 Entwicklungsstadtteilen.
 
     Ein:  tuning.csv beider Straenge
     Aus:  a8_hyperparameter.pdf
@@ -1337,7 +1337,7 @@ def a13_umschlag(plt, FuncFormatter) -> list:
                     textcoords="offset points", va="bottom", ha="center",
                     fontsize=SCHRIFT - 2)
     ax.set_xticks([0.0, 1.0])
-    ax.set_xticklabels(["Kreuzvalidierung\n50 Läufe, 29 Stadtteile",
+    ax.set_xticklabels(["Kreuzvalidierung\n50 Läufe, 30 Stadtteile",
                         "Hold-out\neine Messung, 6 Stadtteile"])
     ax.set_xlim(-0.40, 1.72)
     ax.set_ylabel("Macro-F1")
@@ -1577,7 +1577,7 @@ def a16_einsatzlast(plt, FuncFormatter) -> list:
 
     - Punkt ist der Median des Stadtteils, der Balken der Interquartilsabstand,
       die Antenne die Spannweite ueber alle Monate
-    - ein Histogramm ueber alle 4.620 Zeilen waere die naheliegende, aber
+    - ein Histogramm ueber alle 4.752 Zeilen waere die naheliegende, aber
       schwaechere Wahl: Es zeigt die Rechtsschiefe und verschweigt, woher sie
       kommt. Hier ist beides in einem Bild - das Niveaugefaelle ZWISCHEN den
       Stadtteilen (Faktor 44) und die vergleichsweise enge Streuung INNERHALB
@@ -1632,7 +1632,7 @@ def a18_foldstruktur(plt, FuncFormatter) -> list:
     - zeigt die Aufteilung als EIGENSCHAFT DES DATENSATZES, nicht Ergebnisse.
       Nicht mit A2 verwechseln: A2 traegt den RMSE je Fold und gehoert zu
       Kapitel 7
-    - drei Aussagen aus 5.4 in einem Bild: Foldgroessen 6/6/6/6/5 plus 6 im
+    - drei Aussagen aus 5.4 in einem Bild: Foldgroessen 6/6/6/6/6 plus 6 im
       Hold-out, Verteilung der brand-dominierten Monate, und dass jede Gruppe
       die Groessenspanne abdeckt (Punkte ober- und unterhalb des Medians)
     - Punktflaeche = Zahl brand-dominierter Monate; leere Punkte haben keinen
@@ -1787,7 +1787,7 @@ def a17_panelstruktur(plt, FuncFormatter) -> list:
         "ist der entsprechende Anteil der Zielgröße `anzahl_einsaetze`.\n"
         "Rechts: mittlere Zahl verschiedener Werte je Stadtteil über die 132 "
         "Monate. 132 hieße monatlich neu, 1 heißt zeitkonstant.\n"
-        "Bezugsmenge: alle 35 Stadtteile.", fontsize=SCHRIFT - 2)
+        "Bezugsmenge: alle 36 Stadtteile.", fontsize=SCHRIFT - 2)
     pfad = OUT / "a17_panelstruktur.pdf"
     fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
     return [pfad]

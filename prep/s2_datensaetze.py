@@ -25,9 +25,11 @@ import sys
 import numpy as np
 import pandas as pd
 
-from config import (ANTEILE, ANZAHLEN, CRIME_ROH, ENDE, ERGEBNISVARIABLEN,
+from config import (ANTEILE, ANZAHLEN, BEV_PLAUSIBEL, CRIME_ROH, ENDE,
+                    ERGEBNISVARIABLEN,
                     EXPOSURE_ROH, FEATURE_SETS, KLASSEN, LAGS,
-                    MERKMALE_STRUKTUR, N_FOLDS, NFIRS_GRUPPEN, PARKGEBIETE,
+                    MERKMALE_STRUKTUR, N_FOLDS, N_STADTTEILE_ERWARTET,
+                    NFIRS_GRUPPEN, PARKGEBIETE,
                     PFAD_EINSAETZE, PFAD_KLASSIFIKATION, PFAD_REGRESSION,
                     PRAEDIKTOREN, RESTKLASSE, ROOT, SAISON, START,
                     VOLLSTAENDIGKEITS_SCHWELLE, VORLAUF_MONATE)
@@ -54,7 +56,7 @@ _UEBERNOMMEN = ([c for c in PRAEDIKTOREN if c not in _ABGELEITET]
 # TEIL A  STADTTEIL-SPLIT
 # ==========================================================================
 # Geprueft wird, indem ganze Stadtteile zurueckgehalten werden: 6 ins Hold-out,
-# die uebrigen 29 auf 5 Folds (6/6/6/6/5), jeder genau einmal Testfall. Ein
+# die uebrigen 30 auf 5 Folds (6/6/6/6/6), jeder genau einmal Testfall. Ein
 # Zeitschnitt wuerde die Forschungsfrage nicht pruefen - dort steht jeder
 # Stadtteil in Training UND Test (Decision Log #29).
 # ==========================================================================
@@ -256,7 +258,7 @@ def baue_regression(vorlauf: int = VORLAUF_MONATE,
     """Baut den vollstaendigen Regressionsdatensatz.
 
     Ein:  einsaetze.parquet, Zahl der Vorlaufmonate
-    Aus:  4.620 Zeilen x 25 Spalten - Merkmale, beide Mengen-Zielgroessen,
+    Aus:  4.752 Zeilen x 25 Spalten - Merkmale, beide Mengen-Zielgroessen,
           Exposition, Saison, Lags
 
     - Lag-Vorlauf (#23): aggregiert wird ab START minus `vorlauf` Monaten, damit
@@ -335,7 +337,7 @@ def baue_klassifikation(regression: pd.DataFrame,
     """Baut die Anteile der vier NFIRS-Gruppen je Stadtteil und Monat.
 
     Ein:  der fertige Regressionsdatensatz
-    Aus:  4.619 Zeilen x 29 Spalten mit `dominante_einsatzart` als argmax ueber
+    Aus:  4.751 Zeilen x 29 Spalten mit `dominante_einsatzart` als argmax ueber
           die vier Anteile
 
     - Zielgroesse ist die ZUSAMMENSETZUNG der Einsatzlast, nicht die Art des
@@ -411,6 +413,35 @@ def baue_klassifikation(regression: pd.DataFrame,
 # ==========================================================================
 # Ablauf
 # ==========================================================================
+def pruefe_zuschnitt(r: pd.DataFrame) -> None:
+    """Prueft, ob der Analysezuschnitt der Festlegung entspricht.
+
+    Ein:  fertiger Regressionsdatensatz
+    Aus:  nichts; bricht ab, wenn Zuschnitt oder Exposition unplausibel sind
+
+    - ein Verbund, der nicht matchende Zeilen verwirft, verliert Analyseeinheiten
+      und Bevoelkerung, ohne dass etwas abbricht; alle Folgezahlen sehen
+      weiterhin plausibel aus. Die 19 Pruefungen in tests/ sichern die Struktur
+      der erzeugten Dateien, nicht die Plausibilitaet ihrer Werte
+    - deshalb hier zwei Groessen, die ein solcher Verlust zwangslaeufig bewegt:
+      die Zahl der Analyseeinheiten und die stadtweite Wohnbevoelkerung
+    """
+    ist = sorted(r["stadtteil"].unique())
+    alle = sorted(pd.read_parquet(PFAD_EINSAETZE, columns=["stadtteil"])
+                    ["stadtteil"].dropna().unique())
+    assert len(ist) == N_STADTTEILE_ERWARTET, (
+        f"{len(ist)} Analyseeinheiten statt {N_STADTTEILE_ERWARTET}. "
+        f"Nicht enthalten: {sorted(set(alle) - set(ist))}")
+
+    bev = (r.groupby(["jahr", "stadtteil"])[EXPOSURE_ROH].first()
+             .groupby("jahr").sum())
+    unten, oben = BEV_PLAUSIBEL
+    assert unten <= bev.min() and bev.max() <= oben, (
+        f"Stadtweite Wohnbevoelkerung {bev.min():,.0f} bis {bev.max():,.0f} "
+        f"ausserhalb {unten:,}-{oben:,} - ACS-Zuordnung pruefen "
+        f"(Tract-Grenzen der Jahrgaenge gegen den Crosswalk).")
+
+
 def run(verbose: bool = True) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Baut beide finalen Datensaetze, traegt die Folds ein und schreibt sie.
 
@@ -432,6 +463,8 @@ def run(verbose: bool = True) -> tuple[pd.DataFrame, pd.DataFrame]:
                 .reindex(sorted(r["stadtteil"].unique()), fill_value=0))
     r = ergaenze_aufteilung(r, selten=selten)
     k = ergaenze_aufteilung(k, selten=selten)
+
+    pruefe_zuschnitt(r)
 
     r.to_parquet(PFAD_REGRESSION, index=False)
     k.to_parquet(PFAD_KLASSIFIKATION, index=False)

@@ -31,8 +31,10 @@ import pandas as pd
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "prep"))
 
-from config import (ANTEILE, ANZAHLEN, ENDE, ERGEBNISVARIABLEN,  # noqa: E402
+from config import (ANTEILE, ANZAHLEN, BEV_PLAUSIBEL, ENDE,  # noqa: E402
+                    ERGEBNISVARIABLEN, EXPOSURE_ROH,
                     FEATURE_SETS, MERKMALE_STRUKTUR, N_FOLDS,
+                    N_STADTTEILE_ERWARTET,
                     PFAD_KLASSIFIKATION, PFAD_REGRESSION, PRAEDIKTOREN,
                     SAISON, START, VORLAUF_MONATE)
 from s2_datensaetze import (RATE, ZIELGROESSE, ZIELKLASSE,  # noqa: E402
@@ -41,10 +43,10 @@ from s2_datensaetze import (RATE, ZIELGROESSE, ZIELKLASSE,  # noqa: E402
 
 # Erwartungswerte des festgesetzten Analysedatensatzes
 # (Decision Log #15, #18, #19, #23)
-N_STADTTEILE = 35
+N_STADTTEILE = N_STADTTEILE_ERWARTET            # eine Quelle: prep/config.py
 N_MONATE     = 132                              # 2015-01 bis 2025-12
-N_MODELL     = N_STADTTEILE * N_MONATE          # 4.620
-N_STRUKTUR   = 4_619                            # ein Monat ohne Einsatz fällt weg
+N_MODELL     = N_STADTTEILE * N_MONATE          # 4.752
+N_STRUKTUR   = 4_751                            # ein Monat ohne Einsatz fällt weg
 
 _cache: dict[str, pd.DataFrame] = {}
 
@@ -353,6 +355,43 @@ def test_struktur_hat_signal():
     assert je_stadtteil.max() / je_stadtteil.min() > 2.0, \
         "Brandanteil variiert kaum zwischen Stadtteilen"
     assert k[MERKMALE_STRUKTUR + SAISON].notna().all().all()
+
+
+def test_exposition_plausibel():
+    """Die Exposition muss der Groessenordnung der Stadt entsprechen.
+
+    Die uebrigen Pruefungen dieser Datei sichern die STRUKTUR der erzeugten
+    Dateien - Zeilenzahl, Spalten, Foldtrennung, keine Ergebnisvariablen. Genau
+    deshalb konnte ein Verbund, der nicht matchende Census Tracts verwarf, die
+    Wohnbevoelkerung um ein Viertel zu klein machen, ohne dass etwas abbrach:
+    Der Datensatz blieb rechteckig, vollstaendig und typrichtig, nur die WERTE
+    waren falsch. Diese Pruefung schliesst die Luecke mit zwei Groessen, die
+    ein solcher Verlust zwangslaeufig bewegt.
+
+    1  Die stadtweite Wohnbevoelkerung ueber die enthaltenen Stadtteile liegt in
+       der Spanne aus config.py. San Francisco hatte im Analysezeitraum rund
+       810.000 bis 875.000 Einwohner; der fehlerhafte Stand kam auf 591.246.
+    2  Kein Stadtteil springt zwischen zwei Jahren um mehr als 60 Prozent. Die
+       Wohnbevoelkerung wechselt nur beim ACS-Jahrgangswechsel; echte Spruenge
+       liegen dort bei bis zu Faktor 1,35 (South Of Market 2014 auf 2019), der
+       fehlerhafte Stand erreichte Faktor 5,0.
+    """
+    d = regression()
+    bev = (d.groupby(["jahr", "stadtteil"])[EXPOSURE_ROH].first()
+             .groupby("jahr").sum())
+    unten, oben = BEV_PLAUSIBEL
+    assert unten <= bev.min() and bev.max() <= oben, (
+        f"stadtweite Wohnbevoelkerung {bev.min():,.0f} bis {bev.max():,.0f}, "
+        f"erwartet {unten:,} bis {oben:,} - ACS-Zuordnung pruefen")
+
+    je = (d.groupby(["stadtteil", "jahr"])[EXPOSURE_ROH].first()
+            .unstack("jahr").sort_index(axis=1))
+    faktor = (je / je.shift(axis=1)).stack().dropna()
+    auffaellig = faktor[(faktor < 0.625) | (faktor > 1.6)]
+    assert auffaellig.empty, (
+        f"{len(auffaellig)} Jahressprung/-spruenge ueber 60 Prozent, "
+        f"groesster {auffaellig.abs().max():.2f}: "
+        f"{auffaellig.head(3).round(2).to_dict()}")
 
 
 # ---------------------------------------------------------------------------

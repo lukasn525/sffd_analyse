@@ -56,16 +56,16 @@ lineares Modell die Kruemmung nicht abbildet - gehoert nach 6.2.
 --------------------------------------------------------------------------
 DIE GESAMTMENGE, AUF DER GERECHNET WIRD
 --------------------------------------------------------------------------
-ALLE 35 Stadtteile, Entwicklung UND Hold-out. Das ist hier richtig und in der
+ALLE 36 Stadtteile, Entwicklung UND Hold-out. Das ist hier richtig und in der
 Eignungspruefung falsch:
 
-  Kapitel 4 beschreibt den DATENBESTAND. Wer ihn nur auf 29 Stadtteilen
+  Kapitel 4 beschreibt den DATENBESTAND. Wer ihn nur auf 30 Stadtteilen
   beschriebe, beschriebe nicht den Datensatz, sondern eine Teilmenge davon.
   Es wird nichts geschaetzt und nichts entschieden - eine Verteilungsangabe
   ueber den vollen Bestand kann kein Leakage erzeugen.
 
   Die Eignungspruefung dagegen ENTSCHEIDET ueber Verfahren. Sie rechnet
-  deshalb auf den 23 Trainingsstadtteilen von Fold 1.
+  deshalb auf den 24 Trainingsstadtteilen von Fold 1.
 
 Beide Bezugsmengen kommen in der Arbeit vor. Wo eine Zahl steht, ist sie zu
 nennen - deshalb traegt jede erzeugte Tabelle ihre Bezugsmenge in der
@@ -75,7 +75,7 @@ Datensatz, 54,2 auf den Trainingsstadtteilen von Fold 1. Beide korrekt.
 --------------------------------------------------------------------------
 WARUM DIE VARIANZZERLEGUNG DER KERN DIESES SKRIPTS IST
 --------------------------------------------------------------------------
-Der Datensatz hat 4.620 Zeilen, aber nur 35 Stadtteile. Fast alle Merkmale
+Der Datensatz hat 4.752 Zeilen, aber nur 36 Stadtteile. Fast alle Merkmale
 sind innerhalb eines Stadtteils nahezu konstant. Die Zerlegung zwischen /
 innerhalb macht das messbar statt behauptet und traegt drei Stellen der
 Arbeit gleichzeitig:
@@ -95,23 +95,23 @@ PRUEFAUFTRAEGE - nach jedem Lauf abzuarbeiten
      Diese Zahl traegt die Begruendung des Stadtteil-Splits in Kapitel 5.4.
   3  Zeigt die Aufloesungstabelle weiterhin 1 eindeutigen Wert je Stadtteil
      fuer die drei baulichen Merkmale und rund 128 fuer den
-     Kriminalitaetsindex? (Genau: 128,3 auf allen 35 Stadtteilen, 128,6 auf
-     den 29 Entwicklungsstadtteilen - so steht es in 03_STAND.md. Der
+     Kriminalitaetsindex? (Genau: 128,3 auf allen 36 Stadtteilen, 128,6 auf
+     den 30 Entwicklungsstadtteilen - so steht es in 03_STAND.md. Der
      Unterschied ist die Bezugsmenge, kein Fehler.) Das ist Mechanismus 1 aus 07_BEFUNDE.md B-47 und
      erklaert den Widerspruch zwischen Attribution und Ablation in 7.4.
   4  Haben alle Merkmale weiterhin null fehlende Werte? Sonst ist die Aussage
      "keine fehlenden Werte" in Kapitel 5 falsch.
   5  Liegt log_kriminalitaetsindex gegen anteil_risikogewerbe_pct auf den 29
      ENTWICKLUNGSSTADTTEILEN noch bei +0,739? Dieser Wert traegt Mechanismus 2
-     in 7.4 und steht so in 03_STAND.md Abschnitt 5.6. Auf den 35 Stadtteilen
-     dieser Datei sind es +0,730, auf den 23 Trainingsstadtteilen von Fold 1
+     in 7.4 und steht so in 03_STAND.md Abschnitt 5.6. Auf den 36 Stadtteilen
+     dieser Datei sind es +0,730, auf den 24 Trainingsstadtteilen von Fold 1
      +0,656 - drei Bezugsmengen, drei Werte, alle drei richtig.
      KORRIGIERT AM 22.08.2026: Hier stand zuvor, +0,739 sei der hoechste
      Betrag der Korrelationsmatrix. Das ist er nicht. Hoechster Betrag ist
-     median_haushaltseinkommen gegen median_miete mit +0,913 (35 Stadtteile)
+     median_haushaltseinkommen gegen median_miete mit +0,913 (36 Stadtteile)
      bzw. +0,918 (29). 03_STAND.md war nie falsch - dort steht die Aussage
      "hoechster Betrag" nicht; sie stand nur in diesem Pruefauftrag.
-  6  Enthaelt stadtteilprofil.csv weiterhin genau 35 Zeilen, und liegen die
+  6  Enthaelt stadtteilprofil.csv weiterhin genau 36 Zeilen, und liegen die
      Extremwerte des Mittels bei 6,4 (Seacliff) und 279,7 (Tenderloin)?
      Die Datei ist die Eingangsgroesse von Abbildung A16; aendert sie sich,
      aendert sich die Abbildung stillschweigend mit.
@@ -427,9 +427,9 @@ def zielgroessen(reg: pd.DataFrame, kls: pd.DataFrame) -> list[str]:
         "wird in `vorpruefung/v4_decke.py` gerechnet und gehoert vor die "
         "Ergebnistabelle in 7.2.",
         "- BEZUGSMENGE BEACHTEN: `v4_decke.py` rechnet auf dem "
-        "Entwicklungspanel (29 Stadtteile) und berichtet deshalb einen "
+        "Entwicklungspanel (30 Stadtteile) und berichtet deshalb einen "
         "mittleren Siegeranteil von 0,509 und einen Margenanteil unter 0,20 "
-        "von 41,6 %. Die Werte hier gelten fuer alle 35 Stadtteile. Beide "
+        "von 41,6 %. Die Werte hier gelten fuer alle 36 Stadtteile. Beide "
         "sind korrekt - in der Arbeit ist die Zahl aus `v4_decke.py` zu "
         "verwenden, weil sie zur Ergebnistabelle in 7.2 gehoert.",
         "",
@@ -552,11 +552,11 @@ def main(argv: list[str]) -> int:
         f"**Bezugsmenge: alle {n_st} Stadtteile**, Entwicklung und Hold-out, "
         f"{zeitraum}, {z(len(reg), 0)} Zeilen.",
         "",
-        "Die Eignungspruefung rechnet auf den 23 Trainingsstadtteilen von "
-        "Fold 1, `03_STAND.md` teilweise auf den 29 Entwicklungsstadtteilen. "
+        "Die Eignungspruefung rechnet auf den 24 Trainingsstadtteilen von "
+        "Fold 1, `03_STAND.md` teilweise auf den 30 Entwicklungsstadtteilen. "
         "Bei denselben Groessen entstehen dadurch leicht abweichende Werte - "
         "alle drei sind korrekt. Beispiel: eindeutige Werte des "
-        "Kriminalitaetsindex je Stadtteil betragen 128,3 hier (35), 128,6 in "
+        "Kriminalitaetsindex je Stadtteil betragen 128,3 hier (36), 128,6 in "
         "`03_STAND.md` (29) und 128,2 in der Eignungspruefung (23). **Wo eine "
         "Zahl in der Arbeit steht, ist ihre Bezugsmenge zu nennen.**",
         "",

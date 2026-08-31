@@ -26,7 +26,7 @@ Ausgang: results/parametersensitivitaet/matrix.csv, zusammenfassung.csv,
     (2,2 RMSE bzw. 0,004 Macro-F1)? Dann traegt die Schlussbewertung. Ist er
     gross, ist sie zu einem erheblichen Teil eine Parameterlotterie
   - Beruehrt das Hold-out NICHT. Die Gegenprobe laeuft vollstaendig innerhalb
-    der Kreuzvalidierung auf den 29 Entwicklungsstadtteilen - genau so in R-4
+    der Kreuzvalidierung auf den 30 Entwicklungsstadtteilen - genau so in R-4
     entworfen. Es entsteht keine zweite Schlussbewertung
 
 FALLSTRICKE
@@ -223,7 +223,7 @@ def bericht(teile: list[tuple[pd.DataFrame, pd.DataFrame, str]]) -> str:
                                           + " |" for r in df.itertuples(index=False)])
     z = ["# Sensitivitaet gegenueber der Wahl des Parametersatzes", "",
          "Erzeugt von `vorpruefung/v6_parametersensitivitaet.py`. Wiederholung 0,",
-         "29 Entwicklungsstadtteile, Hold-out unberuehrt.", "",
+         "30 Entwicklungsstadtteile, Hold-out unberuehrt.", "",
          "Jeder Testfold wurde mit jedem der fuenf getunten Parametersaetze",
          "bewertet. Die Diagonale ist die berichtete Konfiguration.", ""]
     for _, s, strang in teile:

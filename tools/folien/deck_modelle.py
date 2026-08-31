@@ -129,7 +129,7 @@ D.folie(P, "Drei Fallstricke, die in beiden Strängen gelten",
             block("2 · Zweistufig mitteln", stapel(
                 absatz("Die 50 Fold-Ergebnisse sind <b>nicht unabhängig</b>."),
                 punkte([
-                    "Es sind dieselben 29 Stadtteile in zehn Gruppierungen.",
+                    "Es sind dieselben 30 Stadtteile in zehn Gruppierungen.",
                     "Ein Intervall aus <code>std_folds/√50</code> wäre zu eng.",
                     "Maßgeblich ist <code>std_wiederholungen</code> — die "
                     "Streuung der zehn Wiederholungsmittel.",
@@ -410,7 +410,7 @@ D.folie("modelle/m02_menge.py", "vergleiche(folds, baselines)",
                 ]))),
             kasten("Warum immer drei Zahlen daneben stehen", absatz(
                 "Auch die zehn Wiederholungsmittel sind nicht unabhängig — es "
-                "bleiben 29 Einheiten. Das berichtete Konfidenzintervall ist "
+                "bleiben 30 Einheiten. Das berichtete Konfidenzintervall ist "
                 "daher <b>enger als die wahre Unsicherheit</b> (Nadeau & Bengio "
                 "2003). Deshalb stehen mittlere Differenz, Intervall und "
                 "gewonnene Läufe <b>immer</b> neben dem p-Wert — unabhängig "
@@ -426,7 +426,7 @@ D.folie("modelle/m02_menge.py", "hold_out() und leakage_diagnose()",
                     einaus("vollständiges Panel, Parametertabelle aus Phase 1",
                            "holdout.csv mit Spalte fold_der_parameter"),
                     punkte([
-                        "Auf 29 Stadtteilen trainieren, auf 6 bewerten — "
+                        "Auf 30 Stadtteilen trainieren, auf 6 bewerten — "
                         "<b>einmalig</b>.",
                         "Welche Parameter? Das Tuning liefert fünf Sätze. "
                         "Gewählt ist der Satz des Folds mit dem niedrigsten "

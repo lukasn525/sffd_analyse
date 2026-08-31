@@ -55,6 +55,36 @@ prüft sie in Overleaf.
 `results/` ist die Nahtstelle: Was dort entsteht, wird in Overleaf eingebunden
 oder abgetippt. Deshalb gilt die Zahlenregel unten auch dort.
 
+### Vor jeder Aussage über eine Quelle: erst Overleaf lesen
+
+**Die Registerzeilen `%% verwendet` und `%% seiten` in `literatur.bib` sind eine
+abgeleitete Kopie des Zitierstands, keine Quelle der Wahrheit.** Sie werden von
+Hand gepflegt und laufen dem Text hinterher. Stand 30.08.2026 weichen **38 von
+59** Registerzeilen von den tatsächlichen Fundstellen ab; der Kopfkommentar
+nennt 34 Fußnoten, im Text stehen 104.
+
+Daraus folgt die Arbeitsregel:
+
+1. Wer sagen will, **wo** eine Quelle zitiert wird, **mit welchem Locator** oder
+   **wie oft**, liest zuerst die aktuelle `main.tex` aus Overleaf — nicht die
+   Registerzeile, nicht eine frühere Session, nicht diese Datei.
+2. Dasselbe gilt für den Code: maßgeblich ist die Datei in `modelle/`,
+   `prep/`, `vorpruefung/`, nicht ihre Beschreibung in `docs/`.
+3. Erst **nachdem** die Fundstelle im Text gelesen ist, wird geprüft, ob die
+   PDF in `Quellen/` den dort stehenden Satz auf der angegebenen Seite trägt.
+   Die Reihenfolge ist nicht beliebig: Der Satz im Text bestimmt, welche Seite
+   die richtige ist.
+
+Wird diese Reihenfolge umgedreht, entstehen Korrekturen, die zu einer Aussage
+passen, die im Text gar nicht mehr steht. Genau so ist am 30.08.2026 der
+Gouriéroux-Locator zweimal falsch gesetzt worden: Die Registerzeile behauptete
+`verwendet = 5.4`, zitiert wird die Quelle aber in 2.3.1 für eine andere
+Aussage.
+
+**Belastbar ist die Registerzeile nur dort, wo sie eine am Volltext geprüfte
+Seite mit Datum und Zitat nennt.** Diese Prüfvermerke bleiben gültig; die
+Angaben zu Kapitel und Häufigkeit sind es nicht.
+
 ### Die eine Regel, die den Aufbau trägt
 
 **Jede Ergebniszahl steht in `docs/03_STAND.md` — und nur dort.** Alle anderen
