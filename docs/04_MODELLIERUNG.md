@@ -341,8 +341,9 @@ Faktorgruppen begründet, und **Unterfrage 1 fragt nach dem Erklärungsbeitrag
 aller Gruppen**. Ein Verfahren, das eine Gruppe eliminiert, umgeht die Frage.
 Ridge behält alle Merkmale und schrumpft nur.
 
-**Random Forest.** 33,7 % Extrapolation, große Fold-Streuung, Wechselwirkungen
-zwischen Merkmalen (adjustiertes R² 0,805 → 0,919). Bäume finden Wechselwirkungen
+**Random Forest.** 36,6 % Extrapolation über alle 50 Läufe, große
+Fold-Streuung, Wechselwirkungen zwischen Merkmalen (adjustiertes R²
+0,859 → 0,932). Bäume finden Wechselwirkungen
 datengetrieben, weil jeder Split auf den vorherigen bedingt. Und Splits nutzen
 nur die **Ordnung** der Werte, nicht ihre Größe — das macht sie robust gegen
 Ausreißer in den Prädiktoren (`Breiman2001`).

@@ -48,7 +48,7 @@ D.folie(P, "Was dieser Ordner leistet",
             kasten("Warum das eine eigene Stufe ist", absatz(
                 "Ohne diesen Ordner wäre jeder Vergleich eine Rangliste ohne "
                 "Maßstab. Erst die Messlatte macht aus „Random Forest erreicht "
-                "RMSE 36,4“ eine Aussage — nämlich, ob sich der Mehraufwand "
+                "RMSE 34,97“ eine Aussage — nämlich, ob sich der Mehraufwand "
                 "gegenüber einem GLM gelohnt hat.")),
             abstand=20),
         label="Ordner")
@@ -426,9 +426,9 @@ D.folie("vorpruefung/v2_eignung.py", "Belege 2 bis 5", None,
                            "F-Wert, p-Wert, adjustiertes R²"),
                     punkte([
                         "Der RESET-Test prüft, ob Potenzen der Vorhersage noch "
-                        "etwas erklären. <b>F = 215,2.</b>",
+                        "etwas erklären. <b>F = 360,4.</b>",
                         "45 Interaktionsterme heben das adjustierte R² von "
-                        "0,805 auf 0,919.",
+                        "0,859 auf 0,932.",
                         "Beides sind <b>In-Sample</b>-Größen — die Übertragung "
                         "prüft v3.",
                     ], eng=True), abstand=9))),
@@ -541,16 +541,16 @@ D.folie("vorpruefung/v3_spezifikation.py", "Die Frage hinter der Datei",
             reihe(
                 kasten("Was v2 zeigt — in-sample", punkte([
                     "RESET verwirft die lineare Spezifikation deutlich "
-                    "(<b>F = 215,2</b>).",
-                    "45 Interaktionsterme heben das adjustierte R² von 0,805 "
-                    "auf 0,919.",
-                    "Beide Kennzahlen behandeln 3 828 Zeilen als "
+                    "(<b>F = 360,4</b>).",
+                    "45 Interaktionsterme heben das adjustierte R² von 0,859 "
+                    "auf 0,932.",
+                    "Beide Kennzahlen behandeln 3 960 Zeilen als "
                     "<b>unabhängig</b>.",
                 ]), "warn"),
                 block("Warum das nicht reicht", punkte([
                     "Tatsächlich liegen <b>30 unabhängige Stadtteile</b> mit je "
                     "132 Monaten vor.",
-                    "Ein F-Test mit n = 3 828 findet praktisch jede Abweichung "
+                    "Ein F-Test mit n = 3 960 findet praktisch jede Abweichung "
                     "signifikant.",
                     "Adjustiertes R² korrigiert für die Zahl der Parameter — "
                     "nicht für die geklumpte Struktur.",

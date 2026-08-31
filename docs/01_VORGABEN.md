@@ -251,8 +251,8 @@ Decision Log #31.
 ### R2 — Panelabhängigkeiten explizit adressieren
 Die Daten sind ein Panel, kein i.i.d.-Querschnitt. Stadtteil-Heterogenität
 behandeln und die Wahl begründen. **Effektive Stichprobengröße offen ansprechen:**
-Die Zeilenzahl klingt komfortabel, es sind aber nur 35 unabhängige
-Querschnittseinheiten, davon 29 in der Entwicklung. Gehört in die Limitationen.
+Die Zeilenzahl klingt komfortabel, es sind aber nur 36 unabhängige
+Querschnittseinheiten, davon 30 in der Entwicklung. Gehört in die Limitationen.
 
 ### R3 — Keine zeitgleichen Merkmale
 Alle Prädiktoren müssen zum Prognosezeitpunkt tatsächlich verfügbar gewesen sein.
@@ -352,10 +352,20 @@ dokumentierte KI-Nutzung.
 - Methodenkapitel so präzise, dass die Arbeit reproduzierbar ist
 - Abgabe-Zip max. 250 MB, flüchtige Quellen als PDF/A
 
-**Ins Zip:** `prep/`, `modelle/`, `tests/`, die beiden finalen Parquet-Dateien,
-`results/`, `docs/`, `README.md`, `requirements.txt`.
-**Nicht ins Zip:** `venv/`, `data/raw/`, `einsaetze.parquet` (Zwischenstand),
-`prep/_archiv/` — alles über `requirements.txt` bzw. `s1_daten.py` reproduzierbar.
+**Ins Zip** (Stand 31.08.2026, zusammen rund 9,3 MB unkomprimiert):
+`prep/`, `vorpruefung/`, `modelle/`, `tools/`, `tests/`, `results/`, `docs/`,
+die beiden finalen Parquet-Dateien (`data/processed/regression.parquet`,
+`data/processed/klassifikation.parquet`), `README.md`, `CLAUDE.md`,
+`requirements.txt`, `requirements_lauf.txt` und die `.bib`-Dateien.
+
+**Nicht ins Zip:** `venv/`, `data/raw/`, `archiv/`, alle `__pycache__/`,
+`data/processed/einsaetze.parquet` (36 MB Zwischenstand) — alles über
+`requirements.txt` bzw. `prep/s1_daten.py` reproduzierbar.
+
+**Gesondert zu klären: `Quellen/`.** Der Ordner mit den als PDF/A gesicherten
+flüchtigen Quellen ist allein **248 MB** groß und sprengt die 250-MB-Grenze,
+sobald etwas anderes dazukommt. Entweder getrennt einreichen oder vorher
+verkleinern; er darf nicht stillschweigend im Zip landen.
 
 ---
 

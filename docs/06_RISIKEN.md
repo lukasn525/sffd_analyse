@@ -62,7 +62,7 @@ verneint, die Testkonstruktion ist offengelegt. Angreifbar ist sie an zwei
 Stellen, die nicht in der Methodik liegen: an der **Validität des
 Kriminalitätsindex**, der die Ablation dominiert und dennoch eine
 Verwaltungsstatistik ist, und am **Zweck** — eine Prognose für unbekannte
-Stadtteile hat in einer Stadt mit 35 bekannten Stadtteilen keinen unmittelbaren
+Stadtteile hat in einer Stadt mit 36 bekannten Stadtteilen keinen unmittelbaren
 Anwendungsfall. Beides ist mit einer ehrlichen Umdeutung zu halten: Die Arbeit
 ist eine Erklärungsstudie mit Prognosewerkzeugen, keine Einsatzplanung.
 
@@ -92,9 +92,9 @@ ist jetzt eine Eigenschaft des Ergebnisses, mit der die Arbeit umgehen muss.
 | **R-19** | Zirkularität zwischen Kriminalitätsindex und Einsatzlast | **neu**, mittel–hoch | §2.2 |
 | **R-21** | Ökologischer Fehlschluss und MAUP | **neu**, mittel | §2.2 |
 | **R-23** | Rückkopplung, falls das Modell je eingesetzt würde | **neu**, gering | §2.2 |
-| **R-24** | Systematisch schlechtere Güte für arme Stadtteile | **neu**, geprüft und verneint | §2.2 |
+| **R-24** | Systematisch schlechtere Güte für arme Stadtteile | geprüft, **teilweise bestätigt** | §2.2 |
 | **R-25** | Berichtsumfang auf eine Mengen-Zielgröße verdichtet | **neu**, Entscheidung | §2.2 |
-| **R-8** | ACS-Trefferquote 2009 nur 63,1 % | gering | `03_STAND.md` §1 |
+| **R-8** | ACS-Trefferquote je Jahrgang — **war nicht folgenlos** | ✅ behoben 29.08.2026 (#53) | unten, `03_STAND.md` §1 |
 | ~~R-13~~ | ~~Spezifikationsentscheidungen nach dem ersten Lauf~~ | **entfällt** — siehe unten | #42, #43, #45 |
 
 ### R-13 · entfällt — die Spezifikation ist iteriert, nicht abgeändert
@@ -239,9 +239,9 @@ nicht belegt. Genau der Fall, den `CLAUDE.md` vorab als berichtbar vorgesehen
 hat.
 
 **Was zusätzlich bleibt, unabhängig vom Vorzeichen: der Ertrag.** Das beste
-Verfahren erreicht 0,334 bei einem theoretischen Maximum von 1,0, während die
-Kruskal-Wallis-Tests neun der zehn Strukturmerkmale als hochsignifikant
-klassentrennend ausweisen (Teststatistiken bis H = 481). Es ist viel zu holen,
+Verfahren erreicht 0,318 bei einem theoretischen Maximum von 1,0, während die
+Kruskal-Wallis-Tests alle zehn Strukturmerkmale als hochsignifikant
+klassentrennend ausweisen (Teststatistiken bis H = 459,6). Es ist viel zu holen,
 und alle Verfahren holen wenig davon. Gehört in die Limitationen.
 
 **Und ein Vorbehalt, der mit einer Zahl in Kapitel 8 gehört** (#48): Der
@@ -333,7 +333,7 @@ R-1, R-3, R-4 und R-11.
   kleiner als *n*. Dass 92,5 % der Varianz von `anzahl_einsaetze` *zwischen*
   den Stadtteilen liegen, ist derselbe Sachverhalt von der anderen Seite.
 - Die 50 Fold-Ergebnisse aus 10 Wiederholungen sind **nicht unabhängig**:
-  dieselben 29 Stadtteile, nur anders gruppiert. Der Gewinn an Präzision ist
+  dieselben 30 Stadtteile, nur anders gruppiert. Der Gewinn an Präzision ist
   kleiner als √10 (Nadeau & Bengio 2003). Deshalb ist `std_wiederholungen` über
   die 10 Wiederholungsmittel maßgeblich und nicht `std_folds` über die 50
   Läufe.
@@ -475,10 +475,49 @@ Das ist zugleich die Antwort auf eine der erwarteten Kolloquiumsfragen (siehe
 Abschnitt 5): Das Modell sagt das **Niveau** eines unbekannten Stadtteils
 vorher, nicht seine Monatsdynamik. Genau das ist die Forschungsfrage.
 
-### R-8 · ACS-Trefferquote 2009
+### R-8 · ACS-Trefferquote je Jahrgang — behoben, und der alte Eintrag war falsch
 
-63,1 % im Jahrgang 2009, gegenüber 99,2 % in 2021/23. Für die Hauptanalyse ab
-2015 folgenlos, gehört in die Limitationen.
+> **Korrigiert am 31.08.2026.** Hier stand: „63,1 % im Jahrgang 2009, gegenüber
+> 99,2 % in 2021/23. Für die Hauptanalyse ab 2015 **folgenlos**." Der zweite
+> Satz war falsch, und er hat den Fehler gedeckt, der am 29.08.2026 den
+> vollständigen Neulauf ausgelöst hat.
+
+Die Census-Tract-Grenzen ändern sich zwischen den ACS-Jahrgängen. Der Crosswalk
+liegt auf den Grenzen von 2020; ein Tract eines älteren Jahrgangs fand über die
+volle elfstellige GEOID deshalb oft keinen Partner. Anteil der zugeordneten
+Wohnbevölkerung, allein über die GEOID:
+
+| Jahrgang | genutzt | Tracts | nur GEOID | mit Basiscode-Fallback |
+|---|---|---:|---:|---:|
+| 2009 | nein | 176 | 55,5 % | 98,5 % |
+| 2014 | **ja** | 197 | **73,1 %** | **100,0 %** |
+| 2019 | **ja** | 197 | **72,1 %** | **100,0 %** |
+| 2021 | ja | 244 | 100,0 % | 100,0 % |
+| 2023 | ja | 244 | 100,0 % | 100,0 % |
+
+**Betroffen waren also gerade die genutzten Jahrgänge.** 2014 und 2019 tragen
+die Merkmale für 2015 bis 2020 — über ein Viertel der Wohnbevölkerung fiel dort
+still aus der Exposition, und der Offset des Poisson-GLM sowie jede Pro-Kopf-
+Größe rechneten mit einer zu kleinen Bezugsmenge. Der Jahrgang 2009, auf den
+sich der alte Eintrag bezog, geht ohnehin nicht ein: Keiner seiner 176 Tracts
+führt die Bildungsangabe (`results/deskriptiv/rohbefunde_acs.csv`,
+`mit_bildungsangabe = 0`).
+
+**Behoben** durch den Basiscode-Fallback in `tract_zu_stadtteil()`
+(`prep/s1_daten.py`): Findet die volle GEOID keinen Partner, greift der
+vierstellige Basiscode — aber nur, wenn er im Crosswalk **eindeutig** auf einen
+Stadtteil zeigt. Uneindeutige Basiscodes bleiben unzugeordnet, statt geraten zu
+werden. Abgesichert ist das nicht durch Zusehen, sondern durch
+`assert quote >= 0.95` unmittelbar danach: Ein Jahrgang mit unvollständiger
+Wohnbevölkerung bricht den Aufbau ab, statt still in die Exposition zu geraten.
+
+**Was bleibt.** Die Stadtteilzahl stieg dadurch von 35 auf 36 (Mission Bay hat
+seither eine Wohnbevölkerung), und sämtliche Ergebnisse stammen aus dem
+Neulauf. In die Limitationen gehört nicht mehr die Trefferquote, sondern der
+Umstand, dass **die Zuordnung über Zensusgrenzen hinweg eine Setzung ist**:
+Der Basiscode-Fallback unterstellt, dass ein neu geschnittener Tract im selben
+Stadtteil liegt wie sein Vorgänger. Für die 39 betroffenen Tracts der Jahrgänge
+2014 und 2019 trifft das zu; als Verfahren bleibt es eine Annahme.
 
 
 ---
@@ -498,7 +537,7 @@ auf den Zweck.
 
 Der Stadtteil-Split misst, wie gut sich ein **unbekannter** Stadtteil aus
 seinem Querschnittsprofil vorhersagen lässt. San Francisco hat aber keine
-unbekannten Stadtteile — alle 35 liegen mit 132 Monaten Historie vor. Für den
+unbekannten Stadtteile — alle 36 liegen mit 132 Monaten Historie vor. Für den
 operativen Einsatz wäre die eigene Vergangenheit eines Stadtteils die weitaus
 stärkere Information, und genau die schließt Decision Log #29 als Modellmerkmal
 aus: `lag_1`, `lag_12` und `rolling_mean_3` stehen in der Datei, aber nicht im
@@ -595,7 +634,7 @@ Einsatzlast auf Stadtteilebene sagt nichts über einzelne Haushalte. Der Satz
 
 **Modifiable Areal Unit Problem.** Die Ergebnisse hängen an der gewählten
 Gebietseinteilung. Dieselben Rohdaten auf den 242 Census Tracts statt auf den
-35 Analysis Neighborhoods könnten andere Koeffizienten und eine andere
+36 Analysis Neighborhoods könnten andere Koeffizienten und eine andere
 Rangfolge liefern (Openshaw 1984). Der Zuschnitt ist eine Setzung, keine
 Naturgegebenheit — die Wahl der Analysis Neighborhoods ist zu begründen
 (offizielle Abgrenzung, Verfügbarkeit des Crosswalks) und ihre Wirkung als
@@ -617,38 +656,64 @@ Praktisch gering, weil nichts eingesetzt wird. Gehört trotzdem in einen Satz
 des Ausblicks, weil es die Grenze markiert, an der aus einer Erklärungsstudie
 ein Eingriff würde.
 
-### R-24 · Fairness der Prognosegüte — NEU, geprüft und verneint
+### R-24 · Fairness der Prognosegüte — geprüft, TEILWEISE BESTÄTIGT
+
+> **Umgekehrt am 31.08.2026.** Am 17.08.2026 lautete das Ergebnis „geprüft und
+> verneint": relativ zum Niveau sei kein Wert auf 5 % signifikant. Auf dem
+> finalen Lauf mit 36 Stadtteilen gilt das **nicht mehr**. Der Eintrag ist
+> deshalb neu geschrieben; der alte Befund vom 17.08. steht in `07_BEFUNDE.md`,
+> B-52 mit seinem Datum.
 
 Der naheliegende Vorwurf lautet: Das Modell ist für arme Stadtteile ungenauer,
-also benachteiligt es sie. Geprüft am 17.08.2026 über alle 50 Läufe, indem je
-Fold das Sozialprofil der Teststadtteile gegen die Fold-Güte gestellt wurde.
+also benachteiligt es sie. Geprüft über alle 50 Läufe, indem je Fold die
+Armutsquote der Teststadtteile gegen die dort erreichte Güte gestellt wurde
+(`results/fairness/fairness.csv`, `tools/fairness.py`). Positives Rho heißt:
+in ärmeren Stadtteilen größerer Fehler.
 
-**Absolut** besteht der Zusammenhang: Spearman-Rho zwischen Armutsquote und
-RMSE liegt bei +0,35 bis +0,60 (p < 0,015) über alle Verfahren und beide
-Zielgrößen, einschließlich der Poisson-Baseline.
+**Absolut** besteht der Zusammenhang deutlich: Spearman-Rho zwischen Armutsquote
+und RMSE liegt bei +0,390 bis +0,809, jeder der acht Werte ist signifikant
+(größtes p = 0,0052).
 
-**Relativ zum Niveau** verschwindet er vollständig. Setzt man den RMSE ins
-Verhältnis zur mittleren Einsatzzahl des Folds, liegt Rho zwischen −0,006 und
-+0,275, und **kein Wert ist auf 5 % signifikant** (kleinstes p = 0,053 bei
-XGBoost auf der Rate).
+**Relativ zum Niveau schrumpft er, verschwindet aber nicht.** Setzt man den RMSE
+ins Verhältnis zur mittleren Einsatzzahl des Folds, liegt Rho zwischen +0,010
+und +0,604 — und **drei von acht Werten sind auf 5 % signifikant**:
 
-**Lesart:** Der absolute Fehler ist in ärmeren Stadtteilen größer, weil dort
-schlicht mehr Einsätze stattfinden. Die relative Genauigkeit ist über das
-Sozialgefälle hinweg gleich. Es liegt kein Hinweis auf systematische
-Benachteiligung vor.
+| Zielgröße | Verfahren | Rho relativ | p |
+|---|---|---:|---:|
+| `anzahl_einsaetze` | **Poisson-GLM** | **+0,604** | **< 0,0001** |
+| `anzahl_einsaetze` | **Ridge** | **+0,298** | **0,0354** |
+| `anzahl_einsaetze` | Random Forest | +0,183 | 0,2021 |
+| `anzahl_einsaetze` | XGBoost | +0,154 | 0,2865 |
+| `einsaetze_je_1000_ew` | **Poisson-GLM** | **+0,409** | **0,0032** |
+| `einsaetze_je_1000_ew` | Ridge | +0,190 | 0,1872 |
+| `einsaetze_je_1000_ew` | Random Forest | +0,010 | 0,9433 |
+| `einsaetze_je_1000_ew` | XGBoost | +0,046 | 0,7493 |
+
+**Lesart, und sie ist unbequem genug, um im Text zu stehen.** Betroffen sind
+ausgerechnet die beiden sparsamen, linearen Verfahren — das Poisson-GLM in
+beiden Zielgrößen und Ridge bei der Anzahl. Die beiden Baumverfahren verteilen
+ihren relativen Fehler gleichmäßig über das Sozialgefälle. Das Modell, das im
+Mittel am besten prognostiziert, ist damit zugleich das mit der ungleichsten
+Fehlerverteilung. Das ist ein belastbarer Befund und kein Schaden: Er gehört
+als Zielkonflikt zwischen Güte und Fehlergleichheit ins Ethikkapitel, nicht
+als Entwarnung.
 
 **Zwei Ehrlichkeiten dazu.** Erstens ist der relative Fehler auf allen Stufen
-hoch — im Mittel 0,48 bei `anzahl_einsaetze` und 0,66 bis 0,69 bei der Rate.
-Das Modell ist nirgends präzise, nicht nur in armen Stadtteilen. Zweitens ist
-das eine Prüfung auf Fehler*gleichheit*, nicht auf Verteilungsgerechtigkeit
-eines hypothetischen Einsatzes — die wäre eine andere Frage und wird hier nicht
+hoch — im Mittel 0,401 bis 0,504 über alle acht Kombinationen. Das Modell ist
+nirgends präzise, nicht nur in armen Stadtteilen; ein Rho auf einem durchweg
+hohen Fehlerniveau beschreibt eine Schieflage, keine belastbare Prognose für
+die eine und eine unbrauchbare für die andere Gruppe. Zweitens ist das eine
+Prüfung auf Fehler*gleichheit*, nicht auf Verteilungsgerechtigkeit eines
+hypothetischen Einsatzes — die wäre eine andere Frage und wird hier nicht
 beantwortet.
 
-Herleitung und Reproduktionsweg: `07_BEFUNDE.md`, B-52.
+Herleitung und Reproduktionsweg: `07_BEFUNDE.md`, B-52 (Stand 17.08.) und
+`results/fairness/fairness.md` (finaler Lauf).
 
-Diese Prüfung ist der Grund, warum das Ethikkapitel nicht bei „könnte
-problematisch sein" stehen bleiben muss. Ein gemessener und verneinter Verdacht
-ist stärker als ein ungeprüfter.
+Die Prüfung bleibt der Grund, warum das Ethikkapitel nicht bei „könnte
+problematisch sein" stehen bleiben muss — nur lautet die Antwort jetzt
+„gemessen, teilweise bestätigt, benannt" statt „verneint". Ein gemessener und
+offen berichteter Befund ist stärker als ein ungeprüfter.
 
 ### R-25 · Berichtsumfang des Mengenstrangs verdichtet — NEU, Entscheidung
 
@@ -784,13 +849,13 @@ vorliegen.
 | „Hätten Sie es nicht anders machen können? Ist das nicht Overkill?" | Genau das ist das Ergebnis (UF4): Die Spezifikation bewegt bis zu 146,9 RMSE, die Verfahrenswahl 2,5. Der Mehraufwand lohnt sich hier nicht — belegt, nicht behauptet |
 | „Wie stellen Sie sicher, dass der Vergleich fair ist?" | Auflage C, konstruktiv abgesichert: Fold-Spalten in den Dateien, eine Merkmalsliste, eine Aufteilungsfunktion. Dazu #42 und #43: Verlustfunktion und Expositionsbehandlung sind für alle Verfahren gleich — die beiden Ungleichbehandlungen wurden gesucht, gemessen und beseitigt (B-33) |
 | „Warum ist Ihre Validierung leakage-frei?" | Stadtteil-Split, Hold-out einmalig, alles Preprocessing in der Pipeline je Fold — und B-2: Der naheliegende Fehler, das Hold-out mitrotieren zu lassen, ist gefunden und behoben worden (R-12) |
-| „Sie haben nur 35 Stadtteile — wie belastbar sind Ihre Ergebnisse?" | R-5, offen benannt. 29 unabhängige Entwicklungseinheiten, `std_wiederholungen` statt `std_folds`, Primärtest auf 10 Mitteln, Konfidenzintervall enger als die wahre Unsicherheit |
+| „Sie haben nur 36 Stadtteile — wie belastbar sind Ihre Ergebnisse?" | R-5, offen benannt. 30 unabhängige Entwicklungseinheiten, `std_wiederholungen` statt `std_folds`, Primärtest auf 10 Mitteln, Konfidenzintervall enger als die wahre Unsicherheit |
 | „Ihre sozioökonomischen Merkmale ändern sich nur jährlich. Was sagt Ihr Modell dann eigentlich vorher?" | R-6: das **Niveau** eines unbekannten Stadtteils, nicht seine Monatsdynamik. Das ist die Forschungsfrage, nicht ein Mangel |
 | „Ist Ridge bei Zähldaten überhaupt das richtige Modell?" | Ridge rechnet auf `log(1+y)` und modelliert seit #43 die Rate — es bekommt die multiplikative Struktur damit ebenso wie das Poisson-GLM. Und empirisch: Ridge ist bei nicht unterscheidbarer Güte 130-mal schneller als XGBoost |
 | *(neu)* „Wozu ist das gut? Sie sagen Stadtteile vorher, die Sie alle kennen." | R-22. Die Arbeit ist eine Erklärungsstudie, die Prognosegüte als **Maßstab** benutzt, weil out-of-sample strenger ist als In-sample-Signifikanz. Die eigene Einsatzhistorie ist bewusst kein Merkmal (#29) — sonst misst man die Trägheit der Zeitreihe statt den Beitrag der Strukturfaktoren. Übertragungsnutzen: Städte ohne Einsatzhistorie je Stadtteil |
 | *(neu)* „Ihr wichtigstes Merkmal misst doch nur, wo die Polizei hinfährt." | R-18. Zugestanden. Registrierte Kriminalität ist Tatgeschehen × Anzeigebereitschaft × Kontrollintensität (Lum & Isaac 2016). Die Aussage lautet deshalb „registrierte Kriminalitätsbelastung ist der stärkste verfügbare Indikator", nicht „Kriminalität erklärt Feuerwehreinsätze" |
 | *(neu)* „Sie verteilen Ressourcen nach Armut. Ist das nicht Redlining?" | R-20. Deployment ist ausdrücklich abgegrenzt — als ethische Grenze, nicht nur als Umfangsentscheidung. Dazu der Unterschied zur Polizeiarbeit: Ein zusätzlicher Löschzug nützt einem Stadtteil, zusätzliche Streifen belasten ihn |
-| *(neu)* „Ist Ihr Modell für arme Stadtteile schlechter?" | R-24, **geprüft und verneint.** Absolut ja (Rho +0,35 bis +0,60), relativ zum Einsatzniveau nein (kein Wert auf 5 % signifikant). Der absolute Fehler ist größer, weil dort mehr passiert |
+| *(neu)* „Ist Ihr Modell für arme Stadtteile schlechter?" | R-24, **geprüft, teilweise bestätigt.** Absolut ja (Rho +0,390 bis +0,809, alle signifikant). Relativ zum Einsatzniveau bei **drei von acht** Kombinationen signifikant — Poisson-GLM in beiden Zielgrößen (+0,604 / +0,409) und Ridge bei der Anzahl (+0,298); die Baumverfahren nicht. Das sparsamste Modell prognostiziert im Mittel am besten und verteilt seinen Fehler am ungleichsten |
 | *(neu)* „Gilt Ihr Befund auch für einzelne Haushalte?" | R-21. Nein. Ökologischer Fehlschluss (Robinson 1950); die Ergebnisse gelten auf Stadtteilebene und nur dort. Zusätzlich hängen sie am Gebietszuschnitt (MAUP, Openshaw 1984) |
 | *(neu)* „Warum nach Stadtteil aufteilen und nicht zufällig?" | Roberts et al. (2017): Block-Kreuzvalidierung ist bei Abhängigkeitsstrukturen die empfohlene Praxis, zufälliges k-Fold liefert zu optimistische Schätzungen. Der Split ist Standard, kein Sonderweg |
 | *(zu erwarten)* „Sie haben die Spezifikation im Verlauf geändert." | Ja — das ist der CRISP-DM-Kreislauf, und ohne ihn gäbe es die Antwort auf UF4 nicht. Beide Spezifikationen sind berichtet (§5.5), das Hold-out war nie berührt, und die Änderung machte die Regressionslatte **härter** statt weicher (R-13) |

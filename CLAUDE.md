@@ -177,18 +177,27 @@ vorpruefung/  die Messlatte      v0_aufteilung.py  wiederholte Splits
 modelle/      der Vergleich      m02_menge.py · m03_struktur.py · m04_shap.py
               Stufe 3            m05_abbildungen.py · config_modelle.py
 tests/                           test_aufbereitung.py
-tools/        NICHT ABGABE       pruefe_zahlen.py       Doku gegen results/
+tools/        ABGABE (neu)       pruefe_zahlen.py       Doku gegen results/
                                  codebook.py            Merkmalstabelle Kap. 4
+                                 deskriptiv.py          Kap.-4-Deskription
+                                 rohbefunde.py          ACS-Rohbefunde
+                                 fairness.py            R-24, Kap. 8.3
+                                 suchdiagnose.py        war die Suche am Limit?
                                  aufraeumen.py          verwaiste Artefakte
                                  sichere_ergebnisse.py  results/ nach archiv/
-                                 suchdiagnose.py        war die Suche am Limit?
+                                 funktionsdoku.py       Docstring-Archiv
+                                 folien/                Vortragsmaterial
 archiv/       NICHT ABGABE       gesicherte Ergebnisstände mit Manifest
 ```
 
-`tools/` wird vor dem Packen des Abgabe-ZIP gelöscht. **Eine Ausnahme:** Die
-Ausgabe von `codebook.py` gehört zur Arbeit — `results/codebook/merkmale.md`
-ist die große Merkmalstabelle aus Kapitel 4 und ist deshalb selbsttragend
-geschrieben.
+**Geändert am 31.08.2026: `tools/` geht mit ins Abgabe-ZIP.** Bis dahin war
+vorgesehen, den Ordner vor dem Packen zu löschen. Das geht nicht mehr auf:
+`fairness.py` erzeugt die Zahlen von R-24 und Kapitel 8.3, `suchdiagnose.py`
+die Budgetdiagnose in Kapitel 6.4, `deskriptiv.py` und `codebook.py` die
+Tabellen aus Kapitel 4, `pruefe_zahlen.py` die Zusicherung, dass Text und
+`results/` zusammenpassen. Ohne den Ordner lägen in `results/` Ergebnisse ohne
+Erzeuger — gegen die Reproduzierbarkeitsauflage. Die Ausgabe von `codebook.py`
+(`results/codebook/merkmale.md`) bleibt selbsttragend geschrieben.
 
 **Faustregel:** Erzeugt ein Schritt *Daten*, gehört er nach `prep/`. Legt er
 fest, *was ein Modell mindestens leisten muss und warum diese Verfahren*, nach
@@ -305,12 +314,13 @@ Zweck — die Laufzeitzahlen sind nachzuziehen.
 
 Danach je Skript den Block **Prüfaufträge** am Ende des Docstrings abarbeiten
 und `03_STAND.md` überschreiben. `tools/pruefe_zahlen.py` meldet mit Exit-Code 1,
-welche Stelle der Dokumentation nicht mehr zu `results/` passt — der Ordner
-`tools/` gehört nicht zur Abgabe.
+welche Stelle der Dokumentation nicht mehr zu `results/` passt.
 
-**Ergebnis des Klassifikationsstrangs** (stand hier zuvor als offener Punkt):
-In der Kreuzvalidierung schlagen Random Forest und XGBoost die Stufe-2-Baseline
-in 10 von 10 Wiederholungen, auf dem Hold-out verlieren beide gegen sie
+**Ergebnis des Klassifikationsstrangs** (Stand finaler Lauf, 31.08.2026):
+In der Kreuzvalidierung schlägt **allein der Random Forest** die Stufe-2-Baseline
+(+0,0173 Macro-F1, p = 0,0039, 9 von 10 Wiederholungen); XGBoost nicht
+(−0,0003, p = 1,000). Auf dem Hold-out verlieren **beide** gegen sie, und die
+Baseline wird dort sogar besser (0,301 → 0,350) — Signatur von Überanpassung
 (`06_RISIKEN.md`, R-2). Eine Rangfolge zwischen Logit und Baumverfahren ist
 damit nicht zulässig; die berichtbare Aussage lautet „der Mehraufwand ist im
 Strukturstrang nicht belegt" — genau der Fall, der vorab vorgesehen war.

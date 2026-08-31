@@ -253,8 +253,9 @@ Umgebung (scikit-learn 1.7.2 statt 1.8) mit identischen Werten nachgerechnet.
 > 0,297, während die Regressionslatte von 37,27 auf 33,98 RMSE stieg** — die
 > Änderung hilft im einen Strang und schadet im anderen. Das spricht gegen
 > Rosinenpicken und sollte genau so gesagt werden.
-> `results/klassifikation/tuning_baseline.csv` stammt aus der getunten
-> Zwischenfassung und hat im aktuellen Lauf keinen Bezug mehr.
+> Die Datei `results/klassifikation/tuning_baseline.csv` stammte aus der
+> getunten Zwischenfassung, hatte im finalen Lauf keinen Bezug mehr und wurde
+> am 31.08.2026 entfernt.
 
 Seit #33 hat auch die Klassifikation eine Stufe 2 — eine Referenz, die dieselben
 zwölf Merkmale benutzt. **Stufe 2 ist die Latte, die Random Forest und XGBoost
@@ -678,9 +679,11 @@ beide Verfahren die Baseline in 10 von 10 Wiederholungen.
 #### Wie diese Zahlen zu lesen sind
 
 **Nicht mit den Kreuzvalidierungswerten vergleichen.** Der Hold-out ist eine
-andere, leichtere Aufgabe: Extrapolationsanteil 7,6 % gegenüber 34,6 % in den
-CV-Folds, und das Training läuft auf 30 statt 24 Stadtteilen. Die absoluten
-Werte fallen deshalb günstiger aus.
+andere Aufgabe: Das Training läuft auf 30 statt 24 Stadtteilen, die absoluten
+Werte fallen deshalb günstiger aus. Am Extrapolationsanteil liegt es *nicht* —
+34,8 % im Hold-out gegenüber 36,6 % in den CV-Folds ist praktisch derselbe
+Wert. Der Vorsprung kommt aus der größeren Trainingsmenge, nicht aus
+leichteren Teststadtteilen.
 
 **Keine Rangfolge zwischen den Verfahren.** Eine Messung an sechs Einheiten,
 ohne Streuung und ohne Test (R-4).
@@ -724,7 +727,7 @@ ist nicht nachweisbar (B-27).
 | Hold-out | ✅ einmalig ausgewertet, Abschnitt 5.7 |
 | E-Mail an Schröter | ✅ **abgeschickt 08.08.2026** — Poisson statt Negative Binomial (#45), Expositionsbehandlung für alle Verfahren (#43), Primärtest auf den 10 Wiederholungsmitteln (#37), zwei Testfamilien (#38). Antwort ausstehend, `06_RISIKEN.md` R-14 |
 | **„Generalisierung auf unbekannte Stadtteile" in den Text** | **offen, zugesagt** — der Begriff ist Schröter gegenüber als umgesetzt gemeldet, steht aber noch nicht in `main.tex`. Gehört wörtlich in die Zielsetzung und in Kapitel 5.4 (`06_RISIKEN.md`, R-17) |
-| Ertrag des Klassifikationsstrangs | offen als **Befund**, nicht als Aufgabe: bestes Verfahren 0,334 von maximal 1,0, und CV und Hold-out widersprechen sich (`06_RISIKEN.md`, R-2) |
+| Ertrag des Klassifikationsstrangs | offen als **Befund**, nicht als Aufgabe: bestes Verfahren 0,318 von maximal 1,0, und CV und Hold-out widersprechen sich (`06_RISIKEN.md`, R-2) |
 | Komplexität des „V" in E-V-A (Auflage 10.08.) | ✅ beziffert — 10.000 Modellanpassungen im Tuning, 139 min Suchzeit, dazu 600 Bewertungs- und 1.200 Ablationsläufe |
 | ~20 Codeausschnitte (Auflage 10.08.) | **offen** — Kandidaten stehen in `07_BEFUNDE.md` (B-16, B-23, B-24, B-45) |
 | Formalregeln beim Schreiben (Auflage 10.08.) | **offen** — keine Kursive, keine Anführungszeichen, keine Unterstreichungen, „o.A." bei unbekanntem Autor |

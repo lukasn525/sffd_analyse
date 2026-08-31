@@ -7,7 +7,7 @@ Eingang: data/processed/regression.parquet
 Ausgang: results/spezifikation/spezifikation_{folds,mittel}.csv
 
   - v2_eignung.py verwirft die lineare Spezifikation IN-SAMPLE (RESET
-    F = 215,2; adjustiertes R2 von 0,805 auf 0,919 mit 45 Interaktionen).
+    F = 360,4; adjustiertes R2 von 0,859 auf 0,932 mit 45 Interaktionen).
     Beide Kennzahlen behandeln 3.960 Zeilen als unabhaengig, tatsaechlich
     sind es 30 Stadtteile mit je 132 Monaten - also stellt dieses Skript
     die zweite Frage: UEBERTRAEGT sich die Struktur auf unbekannte

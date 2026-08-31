@@ -89,8 +89,9 @@ ENDE  = 202512
 # zuschneiden. Ohne ihn beginnt die Regression erst 2016-01. 4.752 statt 4.320.
 VORLAUF_MONATE = 12
 
-# Parks ohne Wohnbevoelkerung (#19): 45 bis 507 Einwohner gegen 14.435 im
-# Median. Jede Pro-Kopf-Groesse wird dort beliebig gross.
+# Parks ohne Wohnbevoelkerung (#19): 25 bis 850 Einwohner ueber die genutzten
+# ACS-Jahrgaenge, gegen mindestens 17.916 im Median der uebrigen Stadtteile.
+# Jede Pro-Kopf-Groesse wird dort beliebig gross.
 PARKGEBIETE = ["Golden Gate Park", "Lincoln Park", "Mclaren Park"]
 
 # Erwarteter Analysezuschnitt. Ausgeschlossen sind die drei Parkgebiete ohne

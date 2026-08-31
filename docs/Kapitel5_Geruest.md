@@ -1,5 +1,12 @@
 # Kapitel 5 „Data Preparation" — Stichpunkt-Gerüst
 
+> **ÜBERHOLT (31.08.2026).** Maßgeblich sind `03_STAND.md`, `04_MODELLIERUNG.md`,
+> `06_RISIKEN.md`, `07_BEFUNDE.md` und die eingereichte `main.tex`. Zahlen und
+> Zeilennummern in dieser Datei stammen aus der Zeit VOR der Crosswalk-Korrektur
+> vom 29.08.2026 (35 statt 36 Stadtteile, vollständiger Neulauf) und wurden
+> bewusst NICHT nachgezogen: Die Datei ist als datierter Entwurf Teil der
+> Arbeitsdokumentation.
+
 **24.08.2026.** Umfang **7 Seiten**, davon rund 1,4 Seiten Code. Vier
 Unterabschnitte, Nummerierung unverändert.
 

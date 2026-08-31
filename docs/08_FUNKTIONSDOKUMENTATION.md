@@ -10,6 +10,11 @@
 > ausfuehrliche Fassung: Im Code steht die Kurzform, hier die vollstaendige
 > Begruendung. Ein erneuter Lauf des Erzeugers wuerde die Kurzform liefern
 > und dieses Archiv entwerten — deshalb nicht ueberschreiben.
+>
+> **Nachtrag 31.08.2026.** Die in den Docstrings zitierten Ergebniswerte sind
+> Stand 17.08.2026 und damit VOR der Crosswalk-Korrektur vom 29.08.2026
+> (35 statt 36 Stadtteile, vollständiger Neulauf). Für berichtete Zahlen gilt
+> ausschließlich `results/`; die Begründungen der Funktionen bleiben gültig.
 
 ---
 

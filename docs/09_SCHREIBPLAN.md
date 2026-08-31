@@ -251,7 +251,7 @@ schwächerer Rest, der zu benennen ist — aber es ist kein ungleicher Vergleich
 mehr.
 
 **Der Extrapolationsanteil war zweimal falsch.** Er lautete 31 %; korrekt
-sind 33,7 % (Wiederholung 0), 34,6 % (alle 50 Läufe) und 7,6 % (Hold-out) —
+sind 38,2 % (Wiederholung 0), 36,6 % (alle 50 Läufe) und 34,8 % (Hold-out) —
 mit Bezugsmenge. Und die Behauptung, er treffe Baumverfahren und Ridge
 unterschiedlich, ist durch B-31 gemessen und widerlegt: Der Zusammenhang ist
 bei Ridge am stärksten und beim Random Forest am schwächsten.

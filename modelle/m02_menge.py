@@ -107,10 +107,13 @@ N_JOBS_SUCHE = -1
 # `anzahl_einsaetze` wird mit der Einwohnerzahl zurueckmultipliziert. Genau
 # diese Konstruktion verwendet das Poisson-GLM ueber seinen Offset seit jeher.
 #
-# WARUM GEAENDERT (06.08.2026): Gemessen (B-33) lag der Random Forest bei
-# `anzahl_einsaetze` mit 67,7 gegen 37,4 RMSE hinter der Baseline - ueber die
-# Rate gerechnet sind es 36,4. Der gesamte Rueckstand stammte aus der
-# Spezifikation, nicht aus dem Verfahren. Der Grund fuer die Korrektur ist
+# WARUM GEAENDERT (06.08.2026): Gemessen wurde damals (B-33), dass der Random
+# Forest bei `anzahl_einsaetze` mit 67,7 gegen 37,4 RMSE hinter der Baseline
+# lag - ueber die Rate gerechnet waren es 36,4. Der gesamte Rueckstand stammte
+# aus der Spezifikation, nicht aus dem Verfahren. Im finalen Lauf misst die
+# Ablation denselben Mechanismus mit anderen Zahlen: ohne Expositionsbehandlung
+# 50,85 RMSE gegen 34,97 mit ihr (XGBoost 51,81 gegen 37,39). Die 67,7 sind
+# also der Messwert vom 06.08.2026 und nicht der berichtete Wert. Der Grund fuer die Korrektur ist
 # aber nicht dieses Ergebnis: Die Frage lautet, welches VERFAHREN die hoechste
 # Guete erzielt. Verlieren zwei davon, weil ihnen die Expositionsstruktur
 # vorenthalten wurde, misst der Vergleich die Modellierungsentscheidung. Bei

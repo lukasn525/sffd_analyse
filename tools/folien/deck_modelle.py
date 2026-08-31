@@ -432,7 +432,7 @@ D.folie("modelle/m02_menge.py", "hold_out() und leakage_diagnose()",
                         "Gewählt ist der Satz des Folds mit dem niedrigsten "
                         "RMSE in Wiederholung 0 — deterministisch und "
                         "ausschließlich aus Entwicklungsdaten.",
-                        "<b>Beide Baselines laufen mit:</b> Ein RMSE von 23,7 "
+                        "<b>Beide Baselines laufen mit:</b> Ein RMSE von 25,8 "
                         "ist ohne Bezugspunkt keine Aussage.",
                     ], eng=True), abstand=9)),
                 block("leakage_diagnose(folds, baselines)", stapel(
@@ -738,9 +738,9 @@ D.folie("modelle/m04_shap.py", "Die beiden Ablationen", None,
                         "Entfernt <b>einen</b> Baustein: Die Baumverfahren "
                         "passen direkt auf <code>anzahl_einsaetze</code> an "
                         "statt über die Rate.",
-                        "Gemessen: ohne Expositionsbehandlung <b>RF 67,7</b> "
-                        "und <b>XGBoost 61,7</b> RMSE — mit ihr <b>36,4</b> und "
-                        "<b>35,7</b>.",
+                        "Gemessen: ohne Expositionsbehandlung <b>RF 50,85</b> "
+                        "und <b>XGBoost 51,81</b> RMSE — mit ihr <b>34,97</b> "
+                        "und <b>37,39</b>.",
                         "Der Spezifikationsunterschied ist damit ein "
                         "<b>Vielfaches</b> des Verfahrensunterschieds.",
                     ], eng=True), abstand=9)),
@@ -789,7 +789,7 @@ D.folie("modelle/m04_shap.py", "Die drei übrigen Auswertungen", None,
                     "Absicht war, jede Merkmalskombination <b>einmal</b> zu "
                     "zählen. Ein <code>drop_duplicates()</code> leistet das "
                     "nicht: Seit der Kriminalitätsindex monatlich rolliert, "
-                    "sind 3 757 von 3 828 Zeilen eindeutig.",
+                    "sind 3 883 von 3 960 Zeilen eindeutig.",
                     "<code>stadtteil_jahr</code> ist die Ebene, auf der die "
                     "Merkmale tatsächlich variieren — <b>diese</b> Zahl gehört "
                     "in den Text.",
@@ -840,7 +840,7 @@ D.folie("modelle/m05_abbildungen.py", "Warum gepaart dargestellt wird",
                     "Größe.",
                 ]))),
             kasten("Der zweite, einfachere Fehler des alten Satzes", absatz(
-                "Balken ab null, während sich alles zwischen 33,98 und 36,51 "
+                "Balken ab null, während sich alles zwischen 30,93 und 37,39 "
                 "abspielte. Die Unterschiede lagen in den obersten sechs "
                 "Prozent der Bildhöhe.")),
             abstand=17),
@@ -912,13 +912,13 @@ D.folie("modelle/m05_abbildungen.py", "Die Hilfsfunktionen",
             reihe(
                 block("_komma(...) · _prozent(...) · _sekunden(wert)", punkte([
                     "<code>stellen</code> ist <b>nicht kosmetisch</b>: Macro-F1 "
-                    "liegt zwischen 0,328 und 0,334 — mit zwei "
-                    "Nachkommastellen stünde an allen Achsenmarken „0,33“.",
+                    "liegt zwischen 0,301 und 0,318 — mit zwei "
+                    "Nachkommastellen stünde an allen Achsenmarken „0,30“.",
                     "<code>vorzeichen</code> setzt auf Differenzachsen ein "
                     "explizites Plus; sonst liest sich „2,5“ wie ein "
                     "Absolutwert statt wie ein Abstand.",
                     "<code>_sekunden</code>: zwei Nachkommastellen reichen für "
-                    "die Ensembles (5,83 s), nicht für Ridge (0,011 s).",
+                    "die Ensembles (2,66 s), nicht für Ridge (0,008 s).",
                 ], eng=True)),
                 block("_gepaarte_differenz()", punkte([
                     "Liefert je Verfahren die zehn Wiederholungsmittel der "
