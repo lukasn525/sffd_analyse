@@ -28,6 +28,7 @@ Zahl an sechs Stellen, von denen fünf falsch werden, ohne dass es auffällt.
 | `docs/04_MODELLIERUNG.md` | wenn sich die Modellplanung ändert | Spezifikation für `modelle/`: Verfahren, Validierungsrahmen, Verbote |
 | `docs/06_RISIKEN.md` | wenn ein Risiko eintritt oder wegfällt | Risikoregister der Modellierung, Grundlage für die Sprechstunde |
 | `docs/07_BEFUNDE.md` | wächst während der Implementierung | Was beim Bauen aufgefallen ist: lückenhafte Spezifikation, Ergebnisse gegen Entscheidungen, Annahmen. Grundlage für Kapitel 8 und die kritische Reflexion |
+| `docs/10_FUNKTIONSLANDKARTE.md` | **erzeugt** — `python tools/landkarte.py` | Jede Funktion mit Zeilen, Zweck und Aufrufer; Lernpfad und die drei wiederkehrenden Muster. Tabellen und Größenangaben werden bei jedem Lauf neu gemessen |
 
 Die Schreibanleitung für die Kapitel steht als Kommentarblöcke **in `main.tex`**,
 nicht in `docs/` — sonst laufen zwei Fassungen derselben Anleitung auseinander.
@@ -177,7 +178,12 @@ vorpruefung/  die Messlatte      v0_aufteilung.py  wiederholte Splits
 modelle/      der Vergleich      m02_menge.py · m03_struktur.py · m04_shap.py
               Stufe 3            m05_abbildungen.py · config_modelle.py
 tests/                           test_aufbereitung.py
-tools/        ABGABE (neu)       pruefe_zahlen.py       Doku gegen results/
+tools/        ABGABE (neu)       landkarte.py           Funktionslandkarte
+                                 panelprofil.py         Profil beider Panel-
+                                                        haelften (R-2)
+                                 parametersensitivitaet.py  haengt das Ergebnis
+                                                        am Parametersatz? (R-4)
+                                 pruefe_zahlen.py       Doku gegen results/
                                  codebook.py            Merkmalstabelle Kap. 4
                                  deskriptiv.py          Kap.-4-Deskription
                                  rohbefunde.py          ACS-Rohbefunde
@@ -240,7 +246,7 @@ Zwei Regeln, die dabei gelten:
 |---|---|
 | Business Understanding | ✅ Exposé, Kap. 1/4 |
 | Data Understanding | ✅ Eignungsprüfung gerechnet (`vorpruefung/`), fünf Belege |
-| Data Preparation | ✅ **abgeschlossen** — ein Befehl, zwei Datensätze, 19/19 Prüfungen |
+| Data Preparation | ✅ **abgeschlossen** — ein Befehl, zwei Datensätze, 20/20 Prüfungen |
 | Modeling | ✅ **abgeschlossen** — finaler Lauf **16.08.2026**, Budget 100, Suchräume nach #49 |
 | Evaluation | ✅ **abgeschlossen** — Hold-out einmalig ausgewertet, beide Stränge |
 | Deployment | ⬜ nicht Teil der Arbeit (Limitation, vgl. Schröer et al. 2021) |
@@ -271,16 +277,20 @@ verbindlich, `m05` liest alles Vorherige:
 ```
 python tools/sichere_ergebnisse.py <name>   #    ZUERST: results/ sichern   < 1 min
 python prep/build.py                        # 0  zwei Datensätze            ~2 min
-python tests/test_aufbereitung.py           #    19 Prüfungen               ~1 min
+python tests/test_aufbereitung.py           #    20 Prüfungen               ~1 min
 python vorpruefung/v0_aufteilung.py         # 1  Selbsttest der Aufteilung  < 1 min
 python vorpruefung/v1_baselines.py          #    Messlatte, 10 Wdh.         ~1 min
 python vorpruefung/v2_eignung.py            #    Eignung + Annahmen (§6)    ~1 min
 python vorpruefung/v3_spezifikation.py      #    Gegenprobe                 ~2 min
 python modelle/m02_menge.py holdout         # 2  der lange Teil            ~55 min
 python modelle/m03_struktur.py holdout      #    Klassifikation            ~45 min
+python vorpruefung/v4_decke.py              #    Decken Strukturstrang     < 1 min
+python vorpruefung/v4_decke.py holdout      #    dieselben, mit Hold-out   < 1 min
 python modelle/m04_shap.py                  #    SHAP, Ablation, VIF       ~10 min
 python modelle/m05_abbildungen.py           #    zehn Abbildungen          < 1 min
 python tools/codebook.py                    # 3  Merkmalstabelle Kap. 4    < 1 min
+python tools/panelprofil.py                 #    Belege fuer R-2           < 1 min
+python tools/parametersensitivitaet.py      #    Belege fuer R-4           ~5 min
 python tools/pruefe_zahlen.py               #    Doku gegen results/       < 1 min
 ```
 

@@ -1,7 +1,7 @@
 """
 Wer sind die 30 und wer sind die 6? - Profil beider Panelhaelften.
 
-    python vorpruefung/v5_panelprofil.py
+    python tools/panelprofil.py
 
 Eingang: data/processed/regression.parquet, data/processed/klassifikation.parquet
 Ausgang: results/panelprofil/stadtteile.csv, klassenverteilung.csv,
@@ -199,7 +199,7 @@ def bericht(st: pd.DataFrame, kv: pd.DataFrame, zg: pd.DataFrame) -> str:
     return "\n".join([
         "# Profil der beiden Panelhaelften",
         "",
-        "Erzeugt von `vorpruefung/v5_panelprofil.py`. Rein deskriptiv, kein Modell.",
+        "Erzeugt von `tools/panelprofil.py`. Rein deskriptiv, kein Modell.",
         "",
         "Zuteilung nach #30: absteigend nach brand-dominierten Monaten, bei",
         "Gleichstand nach Bevoelkerung, dann reihum auf sechs Gruppen; Gruppe 0",

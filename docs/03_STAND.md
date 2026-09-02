@@ -153,11 +153,12 @@ die Generalisierbarkeit — sie erklärt aber **nicht** den Verfahrensunterschie
 
 **Sie ist zudem eine Eigenschaft von Stadtteilen, nicht von Zeilen.** Weil die
 Strukturmerkmale innerhalb eines Stadtteils nahezu konstant sind, bricht ein
-Stadtteil ganz aus oder gar nicht: **9 von 29** liegen mit 100 % ihrer Zeilen
-außerhalb (Chinatown, South Of Market, Financial District/South Beach, Marina,
-Haight Ashbury, Sunset/Parkside, Twin Peaks, Seacliff, Presidio), **16 von 29**
-bei 0 %. Kein einzelnes Merkmal dominiert — die Anteile reichen von 10,0 %
-(`anteil_risikogewerbe_pct`) bis 4,1 % (`akademikerquote_pct`), die
+Stadtteil ganz aus oder gar nicht: **11 von 30** liegen mit 100 % ihrer Zeilen
+außerhalb (Financial District/South Beach, Haight Ashbury, Marina, Mission Bay,
+Noe Valley, Presidio, Seacliff, South Of Market, Sunset/Parkside, Tenderloin,
+Twin Peaks), **18 von 30** bei 0 %, ein einziger dazwischen (Excelsior 45,5 %).
+Kein einzelnes Merkmal dominiert — die Anteile reichen von 13,3 %
+(`anteil_risikogewerbe_pct`) bis 3,3 % (`leerstandsquote_pct`), die
 Saisonmerkmale brechen nie aus.
 
 Das Hold-out wird **genau einmal** ausgewertet, nach Abschluss von Modellwahl

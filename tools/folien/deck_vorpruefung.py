@@ -185,7 +185,7 @@ D.folie("vorpruefung/v0_aufteilung.py", "Die vier Funktionen", None,
                     "Und: kein Stadtteil je zugleich Trainings- und Testfall.",
                 ], eng=True))),
             kasten("Kolloquiumsfrage", absatz(
-                "<b>„Warum brauchen Sie zehn Wiederholungen?“</b> — Bei 29 "
+                "<b>„Warum brauchen Sie zehn Wiederholungen?“</b> — Bei 30 "
                 "Entwicklungsstadtteilen schwankt ein einzelner Fold stark. "
                 "Die Wiederholungen dienen der <b>Streuungsschätzung</b>, nicht "
                 "der Modellwahl. Alle drei Aufrufer müssen dieselbe Zuteilung "

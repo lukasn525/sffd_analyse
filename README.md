@@ -16,7 +16,7 @@ pip install -r requirements.txt
 ```bash
 python tools\sichere_ergebnisse.py name #    ZUERST: results/ sichern         < 1 min
 python prep\build.py                    # 1  Aufbereitung -> zwei Datensätze   ~2 min
-python tests\test_aufbereitung.py       #    19 Prüfungen an den Dateien       ~1 min
+python tests\test_aufbereitung.py       #    20 Prüfungen an den Dateien       ~1 min
 python vorpruefung\v0_aufteilung.py     # 2  Selbsttest der Fold-Zuteilung    < 1 min
 python vorpruefung\run.py               #    Messlatte + Eignung (v1 und v2)   ~2 min
 python vorpruefung\v3_spezifikation.py  #    Gegenprobe zur Eignungsprüfung    ~2 min
@@ -24,6 +24,8 @@ python modelle\m02_menge.py holdout     # 3  Regression (der lange Teil)      ~5
 python modelle\m03_struktur.py holdout  #    Klassifikation                   ~45 min
 python vorpruefung\v4_decke.py          #    Obergrenzen des Strukturstrangs  < 1 min
 python vorpruefung\v4_decke.py holdout  #    dieselben, inklusive Hold-out    < 1 min
+python tools\panelprofil.py             #    Belege fuer R-2                  < 1 min
+python tools\parametersensitivitaet.py  #    Belege fuer R-4                  ~5 min
 python modelle\m04_shap.py              #    Faktorgruppen, Ablation, VIF     ~10 min
 python modelle\m05_abbildungen.py       #    zehn Abbildungen (liest nur CSV) < 1 min
 python tools\codebook.py                # 4  Merkmalstabelle für Kapitel 4    < 1 min
@@ -49,6 +51,7 @@ python prep\s1_daten.py join            # nur joinen, ohne Download
 python prep\s2_datensaetze.py splits    # Fold-Zuteilung anzeigen
 python vorpruefung\v1_baselines.py      # nur die Messlatte
 python vorpruefung\v2_eignung.py        # nur die Eignungsprüfung
+python tools\landkarte.py              # Funktionslandkarte neu erzeugen
 python tools\aufraeumen.py              # Vorschau, löscht nichts
 python tools\aufraeumen.py --wirklich   # verwaiste Artefakte entfernen
 ```
@@ -76,7 +79,11 @@ vorpruefung/   die Messlatte    v0_aufteilung   wiederholte Splits, Selbsttest
                                 v4_decke        Obergrenzen der Einsatzart-Prognose
 modelle/       der Vergleich    m02_menge · m03_struktur · m04_shap · m05_abbildungen
 tests/                          test_aufbereitung
-tools/         NICHT ABGABE     pruefe_zahlen      Doku gegen results/
+tools/         NICHT ABGABE     landkarte          Funktionslandkarte erzeugen
+                                panelprofil        Profil beider Panelhaelften
+                                parametersensitivitaet  haengt das Ergebnis am
+                                                   Parametersatz?
+                                pruefe_zahlen      Doku gegen results/
                                 codebook           Merkmalstabelle für Kapitel 4
                                 aufraeumen         verwaiste Artefakte, Vorschau
                                 sichere_ergebnisse results/ nach archiv/ kopieren
@@ -115,6 +122,7 @@ Vier Dateien, geschnitten danach, **wodurch sie veralten**:
 | `docs/03_STAND.md` | jeden Lauf von `build.py` |
 | `docs/04_MODELLIERUNG.md` | Änderungen an der Modellplanung |
 | `docs/06_RISIKEN.md` | eingetretene oder weggefallene Risiken |
+| `docs/10_FUNKTIONSLANDKARTE.md` | erzeugt aus dem Quelltext: `python tools\landkarte.py` |
 
 **Ergebniszahlen stehen ausschließlich in `03_STAND.md`**, alles andere verweist
 darauf. Rahmenplan, Arbeitsregeln und KI-Verzeichnis: `CLAUDE.md`.

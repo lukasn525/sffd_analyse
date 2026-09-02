@@ -95,21 +95,21 @@ PRUEFAUFTRAEGE - nach jedem Lauf abzuarbeiten
      Diese Zahl traegt die Begruendung des Stadtteil-Splits in Kapitel 5.4.
   3  Zeigt die Aufloesungstabelle weiterhin 1 eindeutigen Wert je Stadtteil
      fuer die drei baulichen Merkmale und rund 128 fuer den
-     Kriminalitaetsindex? (Genau: 128,3 auf allen 36 Stadtteilen, 128,6 auf
+     Kriminalitaetsindex? (Genau: 128,1 auf allen 36 Stadtteilen, 127,9 auf
      den 30 Entwicklungsstadtteilen - so steht es in 03_STAND.md. Der
      Unterschied ist die Bezugsmenge, kein Fehler.) Das ist Mechanismus 1 aus 07_BEFUNDE.md B-47 und
      erklaert den Widerspruch zwischen Attribution und Ablation in 7.4.
   4  Haben alle Merkmale weiterhin null fehlende Werte? Sonst ist die Aussage
      "keine fehlenden Werte" in Kapitel 5 falsch.
-  5  Liegt log_kriminalitaetsindex gegen anteil_risikogewerbe_pct auf den 29
-     ENTWICKLUNGSSTADTTEILEN noch bei +0,739? Dieser Wert traegt Mechanismus 2
+  5  Liegt log_kriminalitaetsindex gegen anteil_risikogewerbe_pct auf den 30
+     ENTWICKLUNGSSTADTTEILEN noch bei +0,779? Dieser Wert traegt Mechanismus 2
      in 7.4 und steht so in 03_STAND.md Abschnitt 5.6. Auf den 36 Stadtteilen
-     dieser Datei sind es +0,730, auf den 24 Trainingsstadtteilen von Fold 1
-     +0,656 - drei Bezugsmengen, drei Werte, alle drei richtig.
+     dieser Datei sind es +0,777 - zwei Bezugsmengen, zwei Werte, beide
+     richtig.
      KORRIGIERT AM 22.08.2026: Hier stand zuvor, +0,739 sei der hoechste
      Betrag der Korrelationsmatrix. Das ist er nicht. Hoechster Betrag ist
-     median_haushaltseinkommen gegen median_miete mit +0,913 (36 Stadtteile)
-     bzw. +0,918 (29). 03_STAND.md war nie falsch - dort steht die Aussage
+     median_haushaltseinkommen gegen median_miete mit +0,921 (36 Stadtteile).
+     03_STAND.md war nie falsch - dort steht die Aussage
      "hoechster Betrag" nicht; sie stand nur in diesem Pruefauftrag.
   6  Enthaelt stadtteilprofil.csv weiterhin genau 36 Zeilen, und liegen die
      Extremwerte des Mittels bei 6,4 (Seacliff) und 279,7 (Tenderloin)?
@@ -556,8 +556,8 @@ def main(argv: list[str]) -> int:
         "Fold 1, `03_STAND.md` teilweise auf den 30 Entwicklungsstadtteilen. "
         "Bei denselben Groessen entstehen dadurch leicht abweichende Werte - "
         "alle drei sind korrekt. Beispiel: eindeutige Werte des "
-        "Kriminalitaetsindex je Stadtteil betragen 128,3 hier (36), 128,6 in "
-        "`03_STAND.md` (29) und 128,2 in der Eignungspruefung (23). **Wo eine "
+        "Kriminalitaetsindex je Stadtteil betragen 128,1 hier (36), 127,9 in "
+        "`03_STAND.md` (30) und 127,4 in der Eignungspruefung (24). **Wo eine "
         "Zahl in der Arbeit steht, ist ihre Bezugsmenge zu nennen.**",
         "",
         "---", "",

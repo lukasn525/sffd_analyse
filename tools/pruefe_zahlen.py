@@ -421,6 +421,45 @@ def baue_pruefungen() -> list[Pruefung]:
              "normalverteilte Residuen", "Jarque")):
         add(name, wert(an, "statistik_wert", anforderung=anforderung),
             S, "7", 1, an, anker=anker)
+
+    # ---- Panelprofil und Parametersensitivitaet (06_RISIKEN, §2) --------
+    # Ergaenzt 02.09.2026. Beide Analysen gehen NICHT in die Arbeit
+    # (Entscheidung 02.09., nach Schroeters Regel vom 24.08.), ihre Zahlen
+    # stehen deshalb nicht in 03_STAND.md, sondern in den Risikoeintraegen
+    # R-2 und R-4. Geprueft werden sie trotzdem: Genau weil sie in keiner
+    # Pruefung standen, ist der Stand "29 Entwicklungsstadtteile" ueber die
+    # Crosswalk-Korrektur hinweg stehengeblieben. Fuer Sprechstunde und
+    # Kolloquium muessen die Zahlen stimmen, auch wenn sie ungedruckt bleiben.
+    kv = "panelprofil/klassenverteilung.csv"
+    st_ = "panelprofil/stadtteile.csv"
+    add("R-2 brand-Monate im Hold-out",
+        wert(kv, "n_monate", haelfte="Hold-out", klasse="brand"),
+        R, "2", 0, kv, anker=r"von 70")
+    add("R-2 brand-Monate im Panel gesamt",
+        summe(kv, "n_monate", klasse="brand"),
+        R, "2", 0, kv, anker=r"von 70")
+    add("R-2 brand-Anteil Hold-out (%)",
+        wert(kv, "anteil", haelfte="Hold-out", klasse="brand") * 100,
+        R, "2", 2, kv, anker=r"Brand-Anteil")
+    add("R-2 brand-Anteil Entwicklung (%)",
+        wert(kv, "anteil", haelfte="Entwicklung", klasse="brand") * 100,
+        R, "2", 2, kv, anker=r"Brand-Anteil")
+    add("R-2 brand-Monate von Rang 1",
+        wert(st_, "monate_brand_dominiert", rang_zuteilung=1),
+        R, "2", 0, st_, anker=r"Monaten\. Dadurch|Bayview Hunters Point mit")
+
+    ps = "parametersensitivitaet/zusammenfassung.csv"
+    for strang, verf, ank, stellen in (
+            ("menge", "ridge", r"Ridge \| RMSE", 3),
+            ("menge", "random_forest", r"Random Forest \| RMSE", 3),
+            ("menge", "xgboost", r"XGBoost \| RMSE", 3),
+            ("struktur", "random_forest", r"Random Forest \| Macro-F1", 4),
+            ("struktur", "xgboost", r"XGBoost \| Macro-F1", 4)):
+        for sp, name in (("eigener_satz_mittel", "eigener Satz"),
+                         ("fremder_satz_mittel", "fremder Satz")):
+            add(f"R-4 Parametersensitivitaet {strang} {verf} {name}",
+                wert(ps, sp, strang=strang, verfahren=verf),
+                R, "2", stellen, ps, anker=ank)
     return P
 
 

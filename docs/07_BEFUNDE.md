@@ -2174,6 +2174,15 @@ Stadtteile San Franciscos ist in mindestens einem Strukturmerkmal so
 ungewoehnlich, dass kein anderer Stadtteil sie abdeckt. Das ist eine Aussage
 ueber die Stadt, nicht ueber die Modelle.
 
+> **Nachtrag 02.09.2026 — die Zahlen oben sind der Stand vor der
+> Crosswalk-Korrektur.** Nach dem finalen Lauf (36 statt 35 Stadtteile) lauten
+> sie: **11 von 30** bei 100 %, **18 von 30** bei 0 %, einer dazwischen
+> (Excelsior 45,5 %); Anteil ausbrechender Testzeilen **36,6 %**, Summe der
+> Einzelanteile **64,8 %**. Die Stadtteilliste hat sich mitverschoben —
+> Chinatown liegt jetzt im Hold-out, neu dazu kommen Mission Bay, Noe Valley
+> und Tenderloin. **Der Befund selbst bleibt unveraendert gueltig**, und die in
+> die Arbeit gehoerenden Werte stehen wie immer in `03_STAND.md` §3.
+
 ---
 
 ## Was NICHT verifiziert werden konnte

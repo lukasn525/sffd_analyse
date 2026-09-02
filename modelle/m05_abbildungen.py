@@ -174,12 +174,21 @@ def _sekunden(wert: float) -> str:
     return (f"{wert:.2f}" if wert >= 1 else f"{wert:.3f}").replace(".", ",") + " s"
 
 
-def _matplotlib():
+# Von _matplotlib() belegt. Vorher absichtlich None: Wer eine
+# Abbildungsfunktion ohne vorheriges _matplotlib() ruft, soll sofort scheitern
+# statt mit halb gesetzten rcParams zu zeichnen.
+plt = None
+FuncFormatter = None
+
+
+def _matplotlib() -> None:
     """Setzt Schriftgroessen, Schrift und Rahmen fuer alle Abbildungen.
 
     Ein:  nichts
-    Aus:  nichts; wirkt auf die globalen rcParams
+    Aus:  nichts; belegt die Modulglobalen plt und FuncFormatter und wirkt
+          auf die globalen rcParams
     """
+    global plt, FuncFormatter
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -191,10 +200,9 @@ def _matplotlib():
         "figure.constrained_layout.use": True, "pdf.fonttype": 42,
         "axes.spines.top": False, "axes.spines.right": False,
     })
-    return plt, FuncFormatter
 
 
-def _komma(FuncFormatter, stellen: int = 2, vorzeichen: bool = False):
+def _komma(stellen: int = 2, vorzeichen: bool = False):
     """Deutsches Dezimalkomma auf den Achsen.
 
     Ein:  Zahl, Nachkommastellen, Schalter fuer explizites Vorzeichen
@@ -210,7 +218,7 @@ def _komma(FuncFormatter, stellen: int = 2, vorzeichen: bool = False):
                          .replace(".", ",").replace(" ", "."))
 
 
-def _prozent(FuncFormatter, stellen: int = 0):
+def _prozent(stellen: int = 0):
     """Prozentwert mit deutschem Dezimalkomma.
 
     Ein:  Anteil zwischen 0 und 1
@@ -230,6 +238,22 @@ def _text(pfad: Path) -> pd.DataFrame | None:
 
 
 # ===========================================================================
+def _speichere(fig, datei: str) -> list:
+    """Legt eine Abbildung in results/abbildungen ab und schliesst sie.
+
+    Ein:  die Figur und ihr Dateiname
+    Aus:  einstellige Liste mit dem Pfad - so, wie main() sie erwartet
+
+    - `bbox_inches="tight"` gilt fuer alle Abbildungen dieser Datei bis auf
+      eine: A2 speichert ohne, weil dort constrained_layout die Breite schon
+      exakt setzt. Deshalb ruft A2 diesen Helfer nicht und speichert selbst -
+      die drei Zeilen dort sind Absicht, keine vergessene Umstellung.
+    """
+    fig.savefig(OUT / datei, bbox_inches="tight")
+    plt.close(fig)
+    return [OUT / datei]
+
+
 def _gepaarte_differenz() -> list[dict]:
     """Je Verfahren die 10 Wiederholungsmittel der Differenz zur Baseline.
 
@@ -266,7 +290,7 @@ def _gepaarte_differenz() -> list[dict]:
     return reihen
 
 
-def a1_gegen_baseline(plt, FuncFormatter) -> list:
+def a1_gegen_baseline() -> list:
     """A1: jedes Verfahren gegen seine Stufe-2-Baseline (Primaeraussage).
 
     Ein:  menge_folds.csv, struktur_folds.csv, beide Baseline-Dateien
@@ -311,7 +335,7 @@ def a1_gegen_baseline(plt, FuncFormatter) -> list:
         ax.set_ylim(-0.62, len(verf) - 0.38)
         ax.set_xlabel(reihe["achse"])
         ax.xaxis.set_major_formatter(
-            _komma(FuncFormatter, reihe["stellen"], vorzeichen=True))
+            _komma(reihe["stellen"], vorzeichen=True))
         pfeil = ("← besser" if reihe["besser"] == "links" else "besser →")
         ax.set_title(f"{LABEL.get(reihe['ziel'], reihe['ziel'])}\n{pfeil}",
                      fontsize=SCHRIFT - 1)
@@ -319,13 +343,11 @@ def a1_gegen_baseline(plt, FuncFormatter) -> list:
     fig.supxlabel("Abstand zur Stufe-2-Baseline. Ein Punkt je Wiederholung (10), "
                   "gepaart je Fold — die Fold-Streuung kürzt sich heraus.",
                   fontsize=SCHRIFT - 2)
-    pfad = OUT / "a1_gegen_baseline.pdf"
-    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-    return [pfad]
+    return _speichere(fig, "a1_gegen_baseline.pdf")
 
 
 # ===========================================================================
-def a2_foldstruktur(plt, FuncFormatter) -> list:
+def a2_foldstruktur() -> list:
     """A2: Rohwerte je Fold - Begruendung fuer die Paarung in A1.
 
     Ein:  menge_folds.csv
@@ -359,7 +381,7 @@ def a2_foldstruktur(plt, FuncFormatter) -> list:
     ax.set_xticks(x)
     ax.set_xlabel("Fold (Wiederholung 1)")
     ax.set_ylabel("RMSE")
-    ax.yaxis.set_major_formatter(_komma(FuncFormatter, 0))
+    ax.yaxis.set_major_formatter(_komma(0))
     ax.legend(frameon=False, ncol=2, loc="upper left")
     unten, oben = ax.get_ylim()
     ax.set_ylim(unten, oben + (oben - unten) * 0.30)
@@ -370,9 +392,9 @@ def a2_foldstruktur(plt, FuncFormatter) -> list:
                   f"Streuung der gepaarten Differenz: 2,4 bis 4,3."
                   .replace(".", ",", 1),
                   fontsize=SCHRIFT - 2)
-    pfad = OUT / "a2_foldstruktur.pdf"
-    fig.savefig(pfad); plt.close(fig)
-    return [pfad]
+    fig.savefig(OUT / "a2_foldstruktur.pdf")   # ohne bbox_inches, s. _speichere
+    plt.close(fig)
+    return [OUT / "a2_foldstruktur.pdf"]
 
 
 # ===========================================================================
@@ -415,7 +437,7 @@ def _spezifikationszeilen() -> list[tuple[str, float, str]]:
     return zeilen
 
 
-def a3_spezifikation(plt, FuncFormatter) -> list:
+def a3_spezifikation() -> list:
     """A3: Verfahren gegen Spezifikation (Unterfrage 4).
 
     Ein:  spezifikation_mittel.csv, menge_mittel.csv, baselines_mittel.csv
@@ -449,7 +471,7 @@ def a3_spezifikation(plt, FuncFormatter) -> list:
     ax.set_yticklabels([z[0] for z in zeilen], fontsize=SCHRIFT - 1)
     ax.set_xlabel("RMSE (Anzahl Einsätze), Mittel über 50 Läufe")
     ax.set_xlim(0, max(z[1] for z in zeilen) * 1.16)
-    ax.xaxis.set_major_formatter(_komma(FuncFormatter, 0))
+    ax.xaxis.set_major_formatter(_komma(0))
 
     # Gruppenklammern am rechten Rand - ausserhalb der Balken, damit sie
     # nichts ueberdecken. Die Spannweite je Gruppe ist die eigentliche Aussage.
@@ -467,13 +489,11 @@ def a3_spezifikation(plt, FuncFormatter) -> list:
         ax.text(1.02, (oben + unten + 1.24) / (2 * len(zeilen)),
                 f"{beschriftung}\nbis {spanne:.1f} RMSE".replace(".", ","),
                 transform=ax.transAxes, va="center", fontsize=SCHRIFT - 2)
-    pfad = OUT / "a3_spezifikation.pdf"
-    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-    return [pfad]
+    return _speichere(fig, "a3_spezifikation.pdf")
 
 
 # ===========================================================================
-def a4_laufzeit_guete(plt, FuncFormatter) -> list:
+def a4_laufzeit_guete() -> list:
     """A4: Aufwand gegen Guete, ein Punkt je Verfahren (Unterfrage 3).
 
     Ein:  menge_folds.csv, struktur_folds.csv
@@ -538,7 +558,7 @@ def a4_laufzeit_guete(plt, FuncFormatter) -> list:
         ax.set_xlabel("Trainingszeit (s, log)")
         ax.set_ylabel(g["mass"].iloc[0])
         ax.yaxis.set_major_formatter(
-            _komma(FuncFormatter, int(g["stellen"].iloc[0])))
+            _komma(int(g["stellen"].iloc[0])))
         unten, oben = ax.get_ylim()
         ax.set_ylim(unten, oben + (oben - unten) * 0.22)
         ax.text(0.03, 0.96, LABEL.get(ziel, ziel), transform=ax.transAxes,
@@ -554,13 +574,11 @@ def a4_laufzeit_guete(plt, FuncFormatter) -> list:
     namen.append("Stufe-2-Baseline")
     fig.legend(kennzeichen, namen, loc="lower center", ncol=len(namen),
                frameon=False, bbox_to_anchor=(0.5, -0.08))
-    pfad = OUT / "a4_laufzeit_guete.pdf"
-    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-    return [pfad]
+    return _speichere(fig, "a4_laufzeit_guete.pdf")
 
 
 # ===========================================================================
-def a5_holdout(plt, FuncFormatter) -> list:
+def a5_holdout() -> list:
     """A5: die einmalige Auswertung auf den sechs zurueckgehaltenen Stadtteilen.
 
     Ein:  holdout.csv beider Straenge
@@ -614,14 +632,12 @@ def a5_holdout(plt, FuncFormatter) -> list:
         ax.set_xticklabels(namen, rotation=28, ha="right",
                            fontsize=SCHRIFT - 2)
         ax.set_ylabel(einheit)
-        ax.yaxis.set_major_formatter(_komma(FuncFormatter, stellen))
+        ax.yaxis.set_major_formatter(_komma(stellen))
         ax.set_title(titel, fontsize=SCHRIFT - 1)
     fig.supxlabel("Sechs zurückgehaltene Stadtteile, einmalig ausgewertet — "
                   "hell: Stufe 1, schwarz: Stufe 2, grau: Stufe 3.",
                   fontsize=SCHRIFT - 2)
-    pfad = OUT / "a5_holdout.pdf"
-    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-    return [pfad]
+    return _speichere(fig, "a5_holdout.pdf")
 
 
 # ===========================================================================
@@ -655,7 +671,7 @@ def _faktorgruppen_balken() -> list[tuple[str, str, pd.Series]]:
     return balken
 
 
-def a6_faktorgruppen(plt, FuncFormatter) -> list:
+def a6_faktorgruppen() -> list:
     """A6: Welche Faktorgruppe traegt wie viel? (Unterfrage 1)
 
     Ein:  gruppen.csv, faktorgruppen_menge.csv
@@ -703,7 +719,7 @@ def a6_faktorgruppen(plt, FuncFormatter) -> list:
                        fontsize=SCHRIFT - 1)
     ax.set_xlim(0, 1)
     ax.set_xlabel("Anteil am erklärten Beitrag")
-    ax.xaxis.set_major_formatter(_prozent(FuncFormatter))
+    ax.xaxis.set_major_formatter(_prozent())
     ax.set_ylim(-0.6, len(balken) - 0.4)
 
     felder = [Patch(facecolor=GRUPPEN_STIL[g][0], edgecolor="black",
@@ -715,13 +731,11 @@ def a6_faktorgruppen(plt, FuncFormatter) -> list:
     fig.supxlabel("Menge: standardisierte Koeffizienten des Poisson-GLM. "
                   "Struktur: SHAP-Beiträge. Beide auf Summe 100 % normiert, "
                   "aber nicht dieselbe Größe.", fontsize=SCHRIFT - 2)
-    pfad = OUT / "a6_faktorgruppen.pdf"
-    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-    return [pfad]
+    return _speichere(fig, "a6_faktorgruppen.pdf")
 
 
 # ===========================================================================
-def a7_extrapolation(plt, FuncFormatter) -> list:
+def a7_extrapolation() -> list:
     """A7: Extrapolationsanteil gegen Fehler, 50 Punkte je Verfahren.
 
     Ein:  extrapolation_zusammenhang.csv, menge_folds.csv
@@ -756,9 +770,9 @@ def a7_extrapolation(plt, FuncFormatter) -> list:
                        label=LABEL[v], zorder=3)
         ax.set_xlabel("Anteil extrapolierter Testzeilen")
         ax.set_ylabel("RMSE")
-        ax.xaxis.set_major_formatter(_prozent(FuncFormatter))
+        ax.xaxis.set_major_formatter(_prozent())
         ax.yaxis.set_major_formatter(
-            _komma(FuncFormatter, 0 if d["RMSE"].max() > 10 else 1))
+            _komma(0 if d["RMSE"].max() > 10 else 1))
         ax.grid(True, which="major", linewidth=0.3, alpha=0.5)
         ax.set_title(LABEL.get(ziel, ziel), fontsize=SCHRIFT - 1)
 
@@ -783,9 +797,7 @@ def a7_extrapolation(plt, FuncFormatter) -> list:
                   "bei gleichem x übereinander — der Extrapolationsanteil "
                   "gehört zum Fold, nicht zum Verfahren.",
                   fontsize=SCHRIFT - 2)
-    pfad = OUT / "a7_extrapolation.pdf"
-    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-    return [pfad]
+    return _speichere(fig, "a7_extrapolation.pdf")
 
 
 # ===========================================================================
@@ -859,7 +871,7 @@ def _hyperparameter_lagen() -> pd.DataFrame:
     return pd.DataFrame(zeilen)
 
 
-def a8_hyperparameter(plt, FuncFormatter) -> list:
+def a8_hyperparameter() -> list:
     """A8: Stabilitaet der Modellwahl bei 30 Entwicklungsstadtteilen.
 
     Ein:  tuning.csv beider Straenge
@@ -937,13 +949,11 @@ def a8_hyperparameter(plt, FuncFormatter) -> list:
     fig.supxlabel("Fünf Punkte je Zeile — ein Fold je Punkt, getunt auf "
                   "Wiederholung 0. Kategoriale Räume sind über die Position "
                   "in der Werteliste normiert.", fontsize=SCHRIFT - 2)
-    pfad = OUT / "a8_hyperparameter.pdf"
-    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-    return [pfad]
+    return _speichere(fig, "a8_hyperparameter.pdf")
 
 
 # ===========================================================================
-def a9_parallelisierung(plt, FuncFormatter) -> list:
+def a9_parallelisierung() -> list:
     """A9: Parallelisierungsgewinn je Verfahren (Unterfrage 3, zweite Haelfte).
 
     Ein:  menge_folds.csv, struktur_folds.csv
@@ -1003,7 +1013,7 @@ def a9_parallelisierung(plt, FuncFormatter) -> list:
     ax.set_xlim(0, max(d["gewinn"].max() * 1.42, 1.35))
     ax.set_ylim(-0.6, len(d) - 0.4)
     ax.set_xlabel("Parallelisierungsgewinn (einkernige Zeit ÷ parallele Zeit)")
-    ax.xaxis.set_major_formatter(_komma(FuncFormatter, 1))
+    ax.xaxis.set_major_formatter(_komma(1))
     ax.annotate("kein Gewinn", xy=(1.0, len(d) - 0.45), xytext=(0, 3),
                 textcoords="offset points", ha="center",
                 fontsize=SCHRIFT - 2.5)
@@ -1011,13 +1021,11 @@ def a9_parallelisierung(plt, FuncFormatter) -> list:
     fig.supxlabel("Mittel über 50 Läufe. Werte unter 1 bedeuten: der parallele "
                   "Fit war langsamer. Beschriftung: einkernig → parallel.",
                   fontsize=SCHRIFT - 2)
-    pfad = OUT / "a9_parallelisierung.pdf"
-    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-    return [pfad]
+    return _speichere(fig, "a9_parallelisierung.pdf")
 
 
 # ===========================================================================
-def a10_qq_residuen(plt, FuncFormatter) -> list:
+def a10_qq_residuen() -> list:
     """A10: QQ-Diagramm der Residuen der linearen Spezifikation.
 
     Ein:  qq_residuen.csv aus v2_eignung.annahmen()
@@ -1057,17 +1065,15 @@ def a10_qq_residuen(plt, FuncFormatter) -> list:
         ax.set_aspect("equal", adjustable="box")
         ax.set_xlabel("theoretisches Quantil")
         ax.set_ylabel("beobachtetes Quantil")
-        ax.xaxis.set_major_formatter(_komma(FuncFormatter, 0))
-        ax.yaxis.set_major_formatter(_komma(FuncFormatter, 0))
+        ax.xaxis.set_major_formatter(_komma(0))
+        ax.yaxis.set_major_formatter(_komma(0))
         ax.set_title(LABEL.get(ziel, ziel), fontsize=SCHRIFT - 1)
         ax.grid(True, linewidth=0.3, alpha=0.5)
 
     fig.supxlabel("Standardisierte Residuen der linearen Spezifikation auf "
                   "log(1+y), Trainingsstadtteile von Fold 1. Die Gerade ist "
                   "die Normalverteilung.", fontsize=SCHRIFT - 2)
-    pfad = OUT / "a10_qq_residuen.pdf"
-    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-    return [pfad]
+    return _speichere(fig, "a10_qq_residuen.pdf")
 
 
 # ===========================================================================
@@ -1094,7 +1100,7 @@ def _dez(wert: float, stellen: int = 3) -> str:
     return f"{wert:.{stellen}f}".replace(".", ",")
 
 
-def a11_differenzen(plt, FuncFormatter) -> list:
+def a11_differenzen() -> list:
     """Gepaarte Differenzen mit Konfidenzintervall, je Strang eine Abbildung.
 
     Ein:  results/regression/vergleich.csv, results/klassifikation/vergleich.csv
@@ -1175,7 +1181,7 @@ def a11_differenzen(plt, FuncFormatter) -> list:
         ax.set_ylim(-0.7, n - 0.3)
         ax.set_title(titel, fontsize=SCHRIFT)
         ax.set_xlabel("← schlechter          besser →")
-        ax.xaxis.set_major_formatter(_komma(FuncFormatter, stellen, True))
+        ax.xaxis.set_major_formatter(_komma(stellen, True))
         lo = min(d["lo"] for d in daten)
         hi = max(d["hi"] for d in daten)
         ax.set_xlim(lo - 0.10 * (hi - lo), hi + 0.10 * (hi - lo))
@@ -1189,13 +1195,11 @@ def a11_differenzen(plt, FuncFormatter) -> list:
         for rand in ("top", "right", "left", "bottom"):
             rechts.spines[rand].set_visible(False)
         fig.supxlabel(fussnote, fontsize=SCHRIFT - 2)
-        pfad = OUT / datei
-        fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-        pfade.append(pfad)
+        pfade += _speichere(fig, datei)
     return pfade
 
 
-def a12_decken(plt, FuncFormatter) -> list:
+def a12_decken() -> list:
     """Die beiden Obergrenzen des Strukturstrangs mit den erreichten Werten.
 
     Ein:  results/klassifikation/decke.csv, decke_ausschoepfung.csv,
@@ -1264,7 +1268,7 @@ def a12_decken(plt, FuncFormatter) -> list:
     ax.set_ylim(-1.15, len(reihen) - 0.25)
     ax.set_xlim(0, 1.0)
     ax.set_xlabel("Macro-F1 — 1,0 wäre die fehlerfreie Vorhersage")
-    ax.xaxis.set_major_formatter(_komma(FuncFormatter, 1))
+    ax.xaxis.set_major_formatter(_komma(1))
     ax.spines["left"].set_visible(False)
     ax.tick_params(axis="y", length=0)
 
@@ -1277,12 +1281,10 @@ def a12_decken(plt, FuncFormatter) -> list:
                   f"{_dez(quote_r, 1)} % von Decke B. Auf dem Hold-out liegen "
                   "die Decken bei 0,422 (B) und 0,679 (A).",
                   fontsize=SCHRIFT - 2)
-    pfad = OUT / "a12_decken.pdf"
-    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-    return [pfad]
+    return _speichere(fig, "a12_decken.pdf")
 
 
-def a13_umschlag(plt, FuncFormatter) -> list:
+def a13_umschlag() -> list:
     """Kreuzvalidierung gegen Hold-out im Strukturstrang.
 
     Ein:  results/klassifikation/struktur_folds.csv, baselines_klasse.csv,
@@ -1341,19 +1343,17 @@ def a13_umschlag(plt, FuncFormatter) -> list:
                         "Hold-out\neine Messung, 6 Stadtteile"])
     ax.set_xlim(-0.40, 1.72)
     ax.set_ylabel("Macro-F1")
-    ax.yaxis.set_major_formatter(_komma(FuncFormatter, 2))
+    ax.yaxis.set_major_formatter(_komma(2))
     fig.supxlabel("Linke Seite: jeder Punkt ein Fold-Lauf, der waagerechte "
                   "Strich das Mittel über die 50 Läufe. Rechte Seite: die "
                   "einmalige Hold-out-Messung.\nDie Hold-out-Werte der "
                   "Baumverfahren liegen innerhalb der Spannweite ihrer eigenen "
                   "Kreuzvalidierung — die Umkehr ist keine Anomalie.",
                   fontsize=SCHRIFT - 2)
-    pfad = OUT / "a13_umschlag.pdf"
-    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-    return [pfad]
+    return _speichere(fig, "a13_umschlag.pdf")
 
 
-def a14_ueberanpassung(plt, FuncFormatter) -> list:
+def a14_ueberanpassung() -> list:
     """Trainingsguete gegen Kreuzvalidierungsguete je Verfahren.
 
     Ein:  results/regression/menge_mittel.csv, baselines_mittel.csv,
@@ -1417,7 +1417,7 @@ def a14_ueberanpassung(plt, FuncFormatter) -> list:
         ax.set_xlim(-0.55, len(verf) - 0.45)
         ax.set_title(titel, fontsize=SCHRIFT)
         ax.set_ylabel(ylab)
-        ax.yaxis.set_major_formatter(_komma(FuncFormatter, 1))
+        ax.yaxis.set_major_formatter(_komma(1))
         ax.set_ylim(min(0.2, ax.get_ylim()[0]), 1.12)
     trainmarke, = axes[0].plot([], [], marker="o", ms=6, mfc="white",
                                mec="black", ls="none", label="Training")
@@ -1430,12 +1430,10 @@ def a14_ueberanpassung(plt, FuncFormatter) -> list:
                   "Kreuzvalidierungsgüte.\nFür die Stufe-2-Baselines liegt "
                   "kein Trainingswert vor; sie stehen als waagerechte Referenz "
                   "der Kreuzvalidierungsgüte.", fontsize=SCHRIFT - 2)
-    pfad = OUT / "a14_ueberanpassung.pdf"
-    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-    return [pfad]
+    return _speichere(fig, "a14_ueberanpassung.pdf")
 
 
-def a15_attribution_ablation(plt, FuncFormatter) -> list:
+def a15_attribution_ablation() -> list:
     """Attribution und Ablation je Faktorgruppe, nebeneinander.
 
     Ein:  results/shap/gruppen.csv, faktorgruppen_menge.csv,
@@ -1475,7 +1473,7 @@ def a15_attribution_ablation(plt, FuncFormatter) -> list:
                     fontsize=SCHRIFT - 2)
     ax.set_xlim(0, 0.52)
     ax.set_title("Attribution", fontsize=SCHRIFT)
-    ax.xaxis.set_major_formatter(_prozent(FuncFormatter, 0))
+    ax.xaxis.set_major_formatter(_prozent(0))
     ax.set_ylabel(f"Menge\n{POISSON}", fontsize=SCHRIFT)
 
     ax = axes[0][1]
@@ -1493,7 +1491,7 @@ def a15_attribution_ablation(plt, FuncFormatter) -> list:
     ax.set_xlim(-16, 38)
     ax.set_title("Ablation", fontsize=SCHRIFT)
     ax.set_xlabel("Δ RMSE ohne die Gruppe", fontsize=SCHRIFT - 1)
-    ax.xaxis.set_major_formatter(_komma(FuncFormatter, 0, True))
+    ax.xaxis.set_major_formatter(_komma(0, True))
 
     ax = axes[1][0]
     hoehe = 0.34
@@ -1504,7 +1502,7 @@ def a15_attribution_ablation(plt, FuncFormatter) -> list:
                 color=STIL[v]["grau"], edgecolor="black",
                 hatch=STIL[v]["schraffur"], lw=0.6, label=LABEL[v])
     ax.set_xlim(0, 0.62)
-    ax.xaxis.set_major_formatter(_prozent(FuncFormatter, 0))
+    ax.xaxis.set_major_formatter(_prozent(0))
     ax.set_ylabel("Struktur\nSHAP-Beiträge", fontsize=SCHRIFT)
     ax.set_xlabel("Anteil am erklärten Beitrag", fontsize=SCHRIFT - 1)
     ax.legend(loc="lower right", frameon=False, fontsize=SCHRIFT - 2.5,
@@ -1526,7 +1524,7 @@ def a15_attribution_ablation(plt, FuncFormatter) -> list:
     ax.axvline(0, color="0.25", ls="--", lw=0.9)
     ax.set_xlim(-0.031, 0.032)
     ax.set_xlabel("Δ Macro-F1 ohne die Gruppe", fontsize=SCHRIFT - 1)
-    ax.xaxis.set_major_formatter(_komma(FuncFormatter, 2, True))
+    ax.xaxis.set_major_formatter(_komma(2, True))
     ax.legend(loc="center right", frameon=False, fontsize=SCHRIFT - 2.5,
               handletextpad=0.3, borderpad=0.1)
 
@@ -1544,9 +1542,7 @@ def a15_attribution_ablation(plt, FuncFormatter) -> list:
                   "Rechts: Güteänderung, wenn die Gruppe weggelassen wird; "
                   "positiv heißt schlechter ohne sie. In Klammern die Zahl der "
                   "Wiederholungen mit Verschlechterung.", fontsize=SCHRIFT - 2)
-    pfad = OUT / "a15_attribution_ablation.pdf"
-    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-    return [pfad]
+    return _speichere(fig, "a15_attribution_ablation.pdf")
 
 
 # ===========================================================================
@@ -1570,7 +1566,7 @@ LABEL_MERKMAL = {
 }
 
 
-def a16_einsatzlast(plt, FuncFormatter) -> list:
+def a16_einsatzlast() -> list:
     """A16: Einsatzlast je Stadtteil - Lage und Streuung ueber 132 Monate.
 
     Ein:  results/deskriptiv/stadtteilprofil.csv
@@ -1603,7 +1599,7 @@ def a16_einsatzlast(plt, FuncFormatter) -> list:
     ax.set_ylim(-0.8, len(p) - 0.2)
     ax.set_xlim(left=0)
     ax.set_xlabel("Einsätze je Monat")
-    ax.xaxis.set_major_formatter(_komma(FuncFormatter, 0))
+    ax.xaxis.set_major_formatter(_komma(0))
     ax.spines["left"].set_visible(False)
     ax.tick_params(axis="y", length=0)
     ax.grid(axis="x", color="0.90", lw=0.6, zorder=0)
@@ -1620,11 +1616,9 @@ def a16_einsatzlast(plt, FuncFormatter) -> list:
         f"je Monat — Faktor {gross / klein:.0f}. "
         f"Bezugsmenge: alle {len(p)} Stadtteile, 2015-01 bis 2025-12.",
         fontsize=SCHRIFT - 2)
-    pfad = OUT / "a16_einsatzlast.pdf"
-    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-    return [pfad]
+    return _speichere(fig, "a16_einsatzlast.pdf")
 # ===========================================================================
-def a18_foldstruktur(plt, FuncFormatter) -> list:
+def a18_foldstruktur() -> list:
     """A18: Struktur der Aufteilung - Beleg fuer Kapitel 5.4.
 
     Ein:  data/processed/regression.parquet und klassifikation.parquet
@@ -1674,7 +1668,7 @@ def a18_foldstruktur(plt, FuncFormatter) -> list:
     ax.set_xlim(-0.6, 5.6)
     ax.set_yscale("log")
     ax.set_yticks([2.5, 5, 10, 20, 40, 80])
-    ax.get_yaxis().set_major_formatter(_komma(FuncFormatter, 1))
+    ax.get_yaxis().set_major_formatter(_komma(1))
     ax.set_ylabel("Wohnbevölkerung in Tausend")
     for rand in ("top", "right"):
         ax.spines[rand].set_visible(False)
@@ -1687,16 +1681,13 @@ def a18_foldstruktur(plt, FuncFormatter) -> list:
             f"{'Hold-out' if s == 0 else f'Fold {s}'} {int(je[s])}"
             for s in spalten) + ".", fontsize=SCHRIFT - 2, wrap=True)
     fig.tight_layout()
-    pfad = OUT / "a18_foldstruktur.pdf"
-    fig.savefig(pfad, bbox_inches="tight")
-    plt.close(fig)
-    return [pfad]
+    return _speichere(fig, "a18_foldstruktur.pdf")
 
 
 
 
 
-def a17_panelstruktur(plt, FuncFormatter) -> list:
+def a17_panelstruktur() -> list:
     """A17: Varianzanteile und zeitliche Aufloesung der zwoelf Modellmerkmale.
 
     Ein:  results/deskriptiv/varianzzerlegung.csv, aufloesung.csv
@@ -1754,7 +1745,7 @@ def a17_panelstruktur(plt, FuncFormatter) -> list:
                           "pad": 1.4, "alpha": 0.85})
     ax.set_xlim(0, 1)
     ax.set_xlabel("Anteil an der Gesamtvarianz")
-    ax.xaxis.set_major_formatter(_prozent(FuncFormatter))
+    ax.xaxis.set_major_formatter(_prozent())
     ax.legend(loc="lower left", bbox_to_anchor=(0.0, 1.01), frameon=False,
               ncol=2, fontsize=SCHRIFT - 2.5, handletextpad=0.4)
 
@@ -1789,9 +1780,7 @@ def a17_panelstruktur(plt, FuncFormatter) -> list:
         "Rechts: mittlere Zahl verschiedener Werte je Stadtteil über die 132 "
         "Monate. 132 hieße monatlich neu, 1 heißt zeitkonstant.\n"
         "Bezugsmenge: alle 36 Stadtteile.", fontsize=SCHRIFT - 2)
-    pfad = OUT / "a17_panelstruktur.pdf"
-    fig.savefig(pfad, bbox_inches="tight"); plt.close(fig)
-    return [pfad]
+    return _speichere(fig, "a17_panelstruktur.pdf")
 
 
 # ===========================================================================
@@ -1818,26 +1807,18 @@ def main() -> int:
         print("  Hinweis: results/deskriptiv/ fehlt - A16 und A17 entfallen. "
               "Erst tools/deskriptiv.py laufen lassen.")
     OUT.mkdir(parents=True, exist_ok=True)
-    plt, FuncFormatter = _matplotlib()
+    _matplotlib()
 
-    erzeugt = (a1_gegen_baseline(plt, FuncFormatter)
-               + a2_foldstruktur(plt, FuncFormatter)
-               + a3_spezifikation(plt, FuncFormatter)
-               + a4_laufzeit_guete(plt, FuncFormatter)
-               + a5_holdout(plt, FuncFormatter)
-               + a6_faktorgruppen(plt, FuncFormatter)
-               + a7_extrapolation(plt, FuncFormatter)
-               + a8_hyperparameter(plt, FuncFormatter)
-               + a9_parallelisierung(plt, FuncFormatter)
-               + a10_qq_residuen(plt, FuncFormatter)
-               + a11_differenzen(plt, FuncFormatter)
-               + a12_decken(plt, FuncFormatter)
-               + a13_umschlag(plt, FuncFormatter)
-               + a14_ueberanpassung(plt, FuncFormatter)
-               + a15_attribution_ablation(plt, FuncFormatter)
-               + a16_einsatzlast(plt, FuncFormatter)
-               + a17_panelstruktur(plt, FuncFormatter)
-               + a18_foldstruktur(plt, FuncFormatter))
+    # Die Reihenfolge ist die der Arbeit, nicht die der Nummern: A17 steht
+    # inhaltlich vor A18, deshalb stand es schon vorher so in der Summe.
+    erzeugt = []
+    for zeichne in (a1_gegen_baseline, a2_foldstruktur, a3_spezifikation,
+                    a4_laufzeit_guete, a5_holdout, a6_faktorgruppen,
+                    a7_extrapolation, a8_hyperparameter, a9_parallelisierung,
+                    a10_qq_residuen, a11_differenzen, a12_decken,
+                    a13_umschlag, a14_ueberanpassung, a15_attribution_ablation,
+                    a16_einsatzlast, a17_panelstruktur, a18_foldstruktur):
+        erzeugt += zeichne()
     for pfad in erzeugt:
         try:
             zeigen = pfad.relative_to(ROOT)

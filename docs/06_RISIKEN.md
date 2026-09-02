@@ -233,6 +233,22 @@ mit **mehr** Daten. Mehr Trainingsdaten und trotzdem schlechter: Das ist
    also invertiert. Das Logit erkennt dieselbe Klasse mit AUROC 0,895
    zuverlässig und klassifiziert nur zurückhaltend.
 
+**Zusammensetzung der beiden Panelhälften** (`tools/panelprofil.py` →
+`results/panelprofil/`, nachgetragen 02.09.2026). Die Zuteilungsregel aus #30
+sortiert absteigend nach brand-dominierten Monaten und legt Rang 1
+zwangsläufig in Gruppe 0 — das ist Bayview Hunters Point mit 35 solchen
+Monaten. Dadurch liegen **37 von 70** brand-dominierten Monaten des Panels im
+Hold-out; der Brand-Anteil beträgt dort 4,67 % gegen 0,83 % in der Entwicklung.
+
+Das **ersetzt den Überanpassungsnachweis nicht** — wäre die Testmenge nur
+schwerer, müsste die Baseline mit einbrechen, und sie wird besser. Es erklärt
+aber, warum ausgerechnet die Baumverfahren einbrechen: Sie haben `brand` als
+Ein-Prozent-Klasse gelernt und treffen sie im Hold-out fünfmal so häufig an.
+**Es ist zugleich eine Eigenschaft der selbst gewählten Aufteilungsregel, nicht
+der Daten** — als solche in der kritischen Reflexion zu benennen, falls die
+Klassenlage des Hold-out zur Sprache kommt. Geht nach der Entscheidung vom
+02.09.2026 nicht als eigener Abschnitt in die Arbeit.
+
 **Konsequenz: keine Rangfolge zwischen Logit und Baumverfahren.** Die Aussage
 lautet: Der Mehraufwand von Random Forest und XGBoost ist im Strukturstrang
 nicht belegt. Genau der Fall, den `CLAUDE.md` vorab als berichtbar vorgesehen
@@ -310,10 +326,42 @@ treten mit den Hyperparametern **eines einzigen** Folds an
 (`fold_der_parameter`), obwohl diese über die Folds erheblich streuen — beim
 Random Forest der Struktur `max_depth` 16/24/16/24/24, `n_estimators`
 539/359/306/321/995. Das Logit hat keine Hyperparameter und ist von dieser
-Asymmetrie nicht betroffen. **Wie viel das ausmacht, ist nicht gemessen.** Eine
-saubere Gegenprobe wäre möglich, ohne das Hold-out anzufassen: innerhalb der
-Kreuzvalidierung jedem Fold die Parameter eines anderen geben und den Abfall
-messen. Nicht durchgeführt; Aufwand und Nutzen vor der Abgabe abzuwägen.
+Asymmetrie nicht betroffen.
+
+**Gemessen am 25.08.2026, nachgezogen am 02.09.2026.** Die Gegenprobe ist
+durchgeführt: `tools/parametersensitivitaet.py` bewertet jeden Testfold mit
+jedem der fünf getunten Parametersätze, ohne das Hold-out anzufassen. Die
+Diagonale ist die berichtete Konfiguration, die 20 übrigen Zellen sind Sätze,
+die auf anderen Stadtteilen gefunden wurden. Werte in
+`results/parametersensitivitaet/zusammenfassung.csv`; positives Vorzeichen
+heißt, der eigene Satz war besser:
+
+| Strang | Verfahren | Maß | eigener Satz | fremder Satz | Vorteil eigener | fremd besser |
+|---|---|---|---:|---:|---:|---:|
+| Menge | Ridge | RMSE | 29,299 | 29,754 | **+0,455** | 10 von 20 |
+| Menge | Random Forest | RMSE | 34,993 | 33,139 | **−1,855** | 17 von 20 |
+| Menge | XGBoost | RMSE | 33,589 | 32,543 | **−1,046** | 14 von 20 |
+| Struktur | Random Forest | Macro-F1 | 0,3183 | 0,3199 | **−0,0016** | 11 von 20 |
+| Struktur | XGBoost | Macro-F1 | 0,2973 | 0,3020 | **−0,0047** | 9 von 20 |
+
+**Der auf dem inneren CV gewählte Satz ist nicht systematisch besser als einer,
+der auf anderen Stadtteilen gefunden wurde.** Bei den Baumverfahren ist er
+sogar schlechter; nur Ridge zeigt den erwarteten, kleinen Vorteil. Bei n = 5
+Folds ist das deskriptiv und nicht getestet.
+
+**Was daraus für den Text folgt.** Die Asymmetrie aus B-42 bleibt eine Schwäche
+des Hold-out-Verfahrens, aber sie ist **klein gegen die Fold-Streuung** — die
+Wahl des Parametersatzes trägt weniger als die Wahl der Stadtteile. Das ist die
+dritte unabhängige Bestätigung derselben These neben `v3_spezifikation` und der
+Budgetdiagnose aus #49.
+
+**Entscheidung 02.09.2026: geht nicht in die Arbeit.** Die Messung zahlt auf
+keine Unterfrage ein; nach Schröters Regel vom 24.08. („Analysen, die nicht auf
+eine Forschungsfrage einzahlen, gehören raus oder in den Anhang") bleibt sie
+draußen, und das Skript liegt in `tools/`. **Wird die Asymmetrie in Kapitel 8
+erwähnt, ist der Satz „nicht gemessen" falsch** — dann gehört einer der beiden
+Sätze oben hinein. Für die Sprechstunde und das Kolloquium ist die Zahl damit
+belegt und auffindbar.
 
 ### R-5 · 29 unabhängige Einheiten
 
@@ -364,9 +412,9 @@ unter der finalen Spezifikation erst recht gegenstandslos:
 ist ein stärkerer Beitrag als die ursprüngliche Vermutung, weil er eine
 naheliegende Erklärung ausschließt statt sie weiterzureichen.
 
-**Es ist zudem eine Eigenschaft von Stadtteilen, nicht von Zeilen** (B-32): 9
-von 29 brechen zu 100 % ihrer Zeilen aus, 16 zu 0 %. Die tragfähige
-Formulierung lautet nicht „33,7 % der Testzeilen", sondern: *Rund ein Drittel
+**Es ist zudem eine Eigenschaft von Stadtteilen, nicht von Zeilen** (B-32): 11
+von 30 brechen zu 100 % ihrer Zeilen aus, 18 zu 0 %. Die tragfähige
+Formulierung lautet nicht „36,6 % der Testzeilen", sondern: *Rund ein Drittel
 der Stadtteile San Franciscos ist in mindestens einem Strukturmerkmal so
 ungewöhnlich, dass kein anderer Stadtteil sie abdeckt.* Eine Aussage über die
 Stadt, nicht über die Modelle.

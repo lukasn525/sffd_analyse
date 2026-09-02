@@ -1,9 +1,9 @@
 """
 Wie viel haengt an der Wahl des Hyperparametersatzes? - Kreuzprobe ueber die Folds.
 
-    python vorpruefung/v6_parametersensitivitaet.py            beide Straenge
-    python vorpruefung/v6_parametersensitivitaet.py menge      nur Regression
-    python vorpruefung/v6_parametersensitivitaet.py struktur   nur Klassifikation
+    python tools/parametersensitivitaet.py            beide Straenge
+    python tools/parametersensitivitaet.py menge      nur Regression
+    python tools/parametersensitivitaet.py struktur   nur Klassifikation
 
 Eingang: data/processed/{regression,klassifikation}.parquet
          results/regression/tuning.csv, results/klassifikation/tuning.csv
@@ -61,7 +61,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "prep"))
 sys.path.insert(0, str(ROOT / "modelle"))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(ROOT / "vorpruefung"))
 
 from config import (N_FOLDS, PFAD_KLASSIFIKATION,  # noqa: E402
                     PFAD_REGRESSION, RESULTS_DIR)
@@ -222,7 +222,7 @@ def bericht(teile: list[tuple[pd.DataFrame, pd.DataFrame, str]]) -> str:
         return "\n".join([kopf, linie] + ["| " + " | ".join(str(v) for v in r)
                                           + " |" for r in df.itertuples(index=False)])
     z = ["# Sensitivitaet gegenueber der Wahl des Parametersatzes", "",
-         "Erzeugt von `vorpruefung/v6_parametersensitivitaet.py`. Wiederholung 0,",
+         "Erzeugt von `tools/parametersensitivitaet.py`. Wiederholung 0,",
          "30 Entwicklungsstadtteile, Hold-out unberuehrt.", "",
          "Jeder Testfold wurde mit jedem der fuenf getunten Parametersaetze",
          "bewertet. Die Diagonale ist die berichtete Konfiguration.", ""]

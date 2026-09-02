@@ -1,0 +1,646 @@
+================================================================================
+KAPITEL 2 - GESAMTDOSSIER
+Stand 02.09.2026 - alles, was zu Kapitel 2 vorliegt
+================================================================================
+
+Zusammengestellt aus: Gliederung_Kapitel2_Umbau_2026-08-27, Kapitel2_Fassung_
+2026-08-27, Kapitel2_Abschluss_2026-08-28, Quellenpruefung_Kapitel2_2026-08-27,
+Ersatz_KuhnJohnson_Kapitel2-5_2026-08-28, Arbeitsplan_bis_Abgabe_2026-08-28,
+Seitenbudget_2026-08-26 sowie der Quellenpruefung vom 02.09.2026.
+
+Neu in dieser Fassung: Abschnitt 3 (ISLP-Seitenversatz) und Abschnitt 8
+(Inferenzabschnitt Wilcoxon/Holm).
+
+
+================================================================================
+1  GLIEDERUNG, WIE SIE IN OVERLEAF STEHT
+================================================================================
+
+2      Theoretische Grundlagen und Forschungsstand
+2.1      Feuerwehreinsaetze als Prognosegegenstand
+2.2      Datengetriebene Prognose und Algorithmenvergleiche
+2.3      Referenzmodelle
+2.3.1      Poisson-Regression fuer Zaehldaten mit Exposition
+2.3.2      Multinomiale logistische Regression
+2.4      Untersuchte Verfahren
+2.4.1      Ridge Regression
+2.4.2      Random Forest
+2.4.3      XGBoost
+2.5      Modelloptimierung und Modellbewertung
+2.5.1      Hyperparameter-Tuning, Overfitting und Underfitting
+2.5.2      Guetemasse fuer Regression und Klassifikation
+2.5.3      Validierung bei abhaengigen Daten
+2.6      Interpretierbarkeit von Modellen
+2.7      CRISP-DM als Vorgehensmodell
+2.8      Forschungsluecke und abgeleitete Erwartungen
+
+8 Unterabschnitte, 8 Unterunterabschnitte, 16 Ueberschriften.
+Entscheidungen E1-E4 vom 27.08.: Zielwert 9 Seiten - Grundlagenabschnitt
+gestrichen - Unterunterabschnitte in 2.4 behalten - 2.5.3 umbenannt.
+
+GESTRICHEN: "Grundlagen des ueberwachten Lernens" (E2).
+Grund im Quelltext als Streichvermerk hinterlegt: "in Grundlagenteil sehr
+High-Level anfangen" (Vorgaben), "Ruhig High Level einsteigen - nicht alle
+Basics erklaeren" (Sprechstunde 24.08.). Inhalt aufgegangen in:
+  - Regression gegen Klassifikation, Verlustfunktion -> Eroeffnungsabsatz
+    2.3.1, zwei Saetze (knapp gehalten, damit 6.1 die konkrete Wahl noch
+    belegen kann; dort Hastie2009 S. 349)
+  - Bias-Varianz-Zerlegung, Generalisierung -> 2.5.1
+
+2.5.3 hiess vorher "Zeitbewusste Validierung". Umbenannt, weil seit #29
+stadtteilweise kreuzvalidiert wird, nicht zeitreihengerecht. Das
+Expose-Fragment "Die Evaluation erfolgt zeit-bewusst mittels Time-Series-
+Cross-Validation" ist ueberholt und darf nicht uebernommen werden.
+
+
+================================================================================
+2  ZUSTAND UND KENNZAHLEN (Stand 28.08.2026)
+================================================================================
+
+Fliesstext Kapitel 2          27.344 Zeichen (ohne Kommentarzeilen)
+vorher                         7.040
+Fussnoten                         51, davon 0 ohne Locator
+verschiedene Quellen              25
+James2023-Anteil                  14x, rund 27 Prozent
+Formeln im Formelverzeichnis        6
+Kompilat                      Errors 0, Warnings 0, Info 2
+Dokument gesamt               86 Seiten
+
+Zeichen je Abschnitt (Stand 27.08.):
+  2.1  Prognosegegenstand                2.141
+  2.2  Prognose und Algorithmenvergleiche 3.029
+  2.3.1 Poisson mit Exposition           3.514
+  2.3.2 Multinomiale log. Regression     2.795
+  2.4.1 Ridge Regression                 1.474
+  2.4.2 Random Forest                    1.067
+  2.4.3 XGBoost                            992
+  2.5.1 Tuning, Over-/Underfitting       1.784
+  2.5.2 Guetemasse                       1.736
+  2.5.3 Validierung abhaengige Daten     1.506
+  2.6  Interpretierbarkeit               1.515
+  2.7  CRISP-DM                            936
+  2.8  Forschungsluecke                    830
+
+SEITENUMFANG - offene Abweichung.
+Laut Inhaltsverzeichnis belegt Kapitel 2 die Seiten 5 bis 16, also rund 11
+bis 12 Seiten gegenueber dem Zielwert 9. Kuerzungsdurchgang steht aus.
+Groesster Hebel 2.5.1, danach 2.3 (drei Seiten fuer die beiden
+Referenzmodelle). Im Arbeitsplan ist das Aufgabe 2.6, Zielwert -3,00 Seiten.
+
+Seitenregel (28.08. geklaert): Gesamtdokument inkl. aller Verzeichnisse
+max. 100 Seiten; Kapitel 1 bis 8 abzueglich Grafiken max. 60 Seiten. Code und
+Tabellen zaehlen mit, nur Grafiken sind ausgenommen.
+
+
+================================================================================
+3  ACHTUNG: ISLP-SEITENVERSATZ - ALLE James2023-LOCATOR SIND UM 2 ZU KLEIN
+================================================================================
+
+Der Kommentar in literatur_kapitel2.bib notiert "SEITENVERSATZ: PDF - 11 =
+Druckseite". Richtig ist PDF - 9. Gepruefte Gegenproben an
+Quellen/ISLP_website.pdf (614 Seiten in der Extraktion, nicht 613), jeweils
+die gedruckte Seitenzahl aus der Kopfzeile abgelesen:
+
+  Der woertlich zitierte Satz "One way of extending this model is to include
+  a third predictor, called an interaction term" steht auf Druckseite 95.
+  Die bib nennt S. 93.
+
+  "confusion matrix" erstmals auf Druckseite 152, "ROC curve" auf 154.
+  Die bib nennt S. 150-153 fuer Konfusionsmatrix bis AUC.
+
+  "overdispersion" erstmals auf Druckseite 172. Die bib nennt S. 170.
+
+  "link function" auf Druckseite 172/173, "negative binomial" auf 173.
+  Die bib nennt S. 171.
+
+Damit ist der Fehler dreifach unabhaengig belegt und systematisch. Jeder
+James2023-Locator im Text und in der bib ist um 2 zu erhoehen.
+
+KORREKTURLISTE James2023 (bib/Text -> richtig):
+
+  Bias-Varianz, Generalisierung            30, 33, 37   ->  32, 35, 39
+  Interaktionsterm als Produkt (Zitat)     93           ->  95      GEPRUEFT
+  Polynomregression, Kruemmung             96-97        ->  98-99   GEPRUEFT
+  Multinomiales Logit, Referenzkat., F3    143          ->  145     GEPRUEFT
+  Alle K Klassen, Log-Odds (Softmax)       144          ->  146
+  Konfusionsmatrix, Sens., Spez., ROC, AUC 150-153      ->  152-155 GEPRUEFT
+  Poisson, lambda = E(Y) = Var(Y)          167-168      ->  169-170
+  Ueberdispersion beim Namen genannt       170          ->  172     GEPRUEFT
+  Exponentielle Familie, Linkfunktionen,
+    Formeln 1 und 2, neg. Binomial         171          ->  173     GEPRUEFT
+  Kreuzvalidierung                         199-206      ->  201-208
+  Ridge, L2-Strafterm, Formel 4            237-247      ->  239-249 GEPRUEFT
+  Random Forest                            339-349      ->  341-351
+  Boosting                                 343          ->  345     GEPRUEFT
+  (Nicht-Vorkommen "offset", Alltagswort)  110/163/165  ->  112/165/167
+
+NEU DAZU, bisher nicht zitiert:
+  VIF-Definition, Formel und Schwelle      -            ->  108     GEPRUEFT
+  Woertlich: "As a rule of thumb, a VIF value that exceeds 5 or 10 indicates
+  a problematic amount of collinearity." Dazu VIF = 1/(1 - R^2_{Xj|X-j}),
+  kleinster moeglicher Wert 1.
+
+NICHT betroffen, gegengeprueft:
+  Hastie2009 (ESL), Versatz PDF - 19 stimmt. Der Satz "the value chosen for J
+  should reflect the level of dominant interactions" steht auf Druckseite 363,
+  die bib nennt 362-363. Korrekt.
+  Hoerl1970: PDF-Seite 2 traegt Druckseite 56, Versatz 54. Locator 55-56 und
+  55/65 korrekt.
+
+Der Kommentar zum Seitenversatz in literatur_kapitel2.bib muss ebenfalls
+korrigiert werden, sonst entsteht der Fehler beim naechsten Locator neu.
+
+
+================================================================================
+4  QUELLENBASIS - WAS WELCHEN BAUSTEIN TRAEGT
+================================================================================
+
+Alle Seitenangaben zu James2023 hier BEREITS KORRIGIERT (+2).
+
+2.3.1  Poisson-Regression mit Exposition
+  GLM allgemein, exponentielle Familie, kanonischer Link (Formel 1)
+      James2023 S. 173
+  Poisson mit Log-Link, eta(mu) = log(mu)             James2023 S. 173
+  lambda = E(Y) = Var(Y)                              James2023 S. 169-170
+  Ueberdispersion, beim Namen genannt                 James2023 S. 172
+  Negative Binomial als nicht behandelte Erweiterung  James2023 S. 173
+  Konsistenz des bedingten Mittelwerts trotz
+      Ueberdispersion                                 Gourieroux1981 S. 5
+  Offset (Formel 2): BRAUCHT KEINE QUELLE. Folgt in einer Zeile aus dem
+      Log-Link: log(mu/E) = x'beta  <=>  log(mu) = log(E) + x'beta.
+      Herleitung der Arbeit, kein zitiertes Ergebnis. Die Wahl wird in
+      5.4 bzw. 6.2 begruendet (v1_baselines.py, offset=log(gesamtbevoelkerung)).
+      Fuer das Kolloquium ist eine Tafelherleitung mehr wert als eine Fussnote.
+  Optional, noch nicht entschieden: Winkelmann S. 75, Proportionalitaetstest
+      H0: gamma = 1 fuer den Offset -> gehoerte nach 6.2
+
+2.3.2  Multinomiale logistische Regression
+  Multinomiales Logit, Referenzkategorie K (Formel 3) James2023 S. 145
+  Alle K Klassen, Log-Odds zwischen zwei Klassen      James2023 S. 146
+
+2.4.1  Ridge Regression
+  L2-Strafterm (Formel 4)                             James2023 S. 239-249
+  Nicht-orthogonale Daten, Schaetzer empfindlich und
+      im Betrag zu gross                              Hoerl1970 S. 55, 65
+
+2.4.2  Random Forest
+                                                      James2023 S. 341-351
+                                                      Breiman2001 S. 5
+      ACHTUNG Breiman2001: die Datei in Quellen/ ist der Berkeley-Bericht
+      1-33, nicht die Verlagsfassung Machine Learning 45, 5-32. Locator 5-6
+      nicht abgelesen. Weiter offen.
+
+2.4.3  XGBoost
+  Regularisiertes Boosting-Objective (Formel 5)       Chen2016 S. 786
+                                                      James2023 S. 345
+  Die Kopplung der XGBoost-Stellgroessen im letzten Satz ist eine Aussage
+      DIESER Arbeit, nicht von Chen und Guestrin. Steht ohne Fussnote im
+      Grundlagenteil und wird erst in 6.3/6.4 gezeigt. Entweder streichen
+      oder als Vorausverweis kennzeichnen.
+
+2.5.1  Tuning, Over- und Underfitting
+  Bias-Varianz-Zerlegung                              James2023 S. 32, 35, 39
+                                                  oder Hastie2009 S. 38
+  Zufallssuche gegen Gittersuche                      Bergstra2012 S. 281, 282
+      S. 281 Befund und Mechanismus, S. 282 Gittersuche, S. 295 Theorie
+  Probst2019: Locator 166 ist falsch, richtig ist Abschn. 3.1, und der Satz
+      muss umgedreht werden (bekannt seit 20.08.)
+
+2.5.2  Guetemasse
+  Konfusionsmatrix, Sensitivitaet, Spezifitaet,
+      PPV/NPV, ROC, AUC                               James2023 S. 152-155
+      ISLP hat KEIN F-Mass.
+  F1 und Macro-F1 (Formel 6)                          Opitz2021 S. 1
+      Gleichung 1 je Klasse mit Konvention P=R=F1=0 bei Nenner null;
+      Gleichung 2 "Averaged F1: arithmetic mean over harmonic means"
+  Empfehlung und Auflage                              Opitz2021 S. 6
+      "significantly more robust towards the error type distribution" und
+      "At the very least, researchers should indicate which formula they
+      are using"
+      -> m03_struktur.py:292 rechnet f1_score(average="macro",
+         zero_division=0), Z. 213 tunt mit scoring="f1_macro". Das ist genau
+         Gleichung 2, also die empfohlene Fassung, und zero_division=0
+         entspricht exakt der Konvention auf S. 1. Ein Satz in 2.5.2 erledigt
+         die Auflage. Bei 33 Brandfaellen im Entwicklungspanel greift die
+         Konvention wirklich.
+      NICHT ueberziehen: dass scikit-learn mit average="macro" Gleichung 2
+         rechnet, ist ueber Opitz nicht belegbar - das gehoert nach 6.1 mit
+         Pedregosa2011 bzw. an den Quelltext.
+  Multiclass-AUROC (passend zu macro_auroc im Code)   Hand2001
+      Liegt Lukas im Volltext vor, Locator noch offen.
+  Praezision, Trefferquote, Makro-Mittelung           Manning2008
+
+2.5.3  Validierung bei abhaengigen Daten
+  Arbeitsplan in vier Punkten, in dieser Reihenfolge:
+    1. warum die unabhaengige Zufallsaufteilung hier nicht traegt -
+       Gruppierung in Stadtteilen, Ordnung in der Zeit
+    2. Block- bzw. Leave-Group-Out-Kreuzvalidierung  Roberts2017 S. 913, 925
+    3. Leakage und Verfuegbarkeitsgrundsatz          Kaufman2011 S. 559, 560
+    4. die Zeitkomponente als ZWEITER Punkt, nicht als erster
+  Kreuzvalidierung allgemein                          James2023 S. 201-208
+  Bergmeir2012 nur falls Rolling-/Expanding-Window wirklich dargestellt
+      werden - der Abschnitt kommt ohne ihn aus. Liegt nicht vor.
+
+2.6  Interpretierbarkeit
+  Rudin2019 S. 2, 3 - siehe Inhaltskonflikt K3 unten
+  Shmueli S. 293 - falsches Modell kann besser prognostizieren
+  Molnar2022 fuer Kapitel 2 nicht mehr noetig; nice-to-have fuer 7.4. Das
+      geklonte Git-Repo ist keine zitierfaehige Fassung - zitierbar ist die
+      Online-Ausgabe mit Auflage und Abrufdatum plus PDF-Ausdruck im ZIP.
+
+2.7  CRISP-DM
+  De-facto-Standard                                   Schroeer2021 S. 526
+  Deployment-Luecke des Feldes                        Schroeer2021 S. 531-532
+      S. 531 "17 studies do not perform a deployment phase, although this is
+      part of the process model", S. 532 "the deployment phase is missing in
+      the majority of the studies". Damit ist die Abgrenzung gegen Deployment
+      als dokumentierte Luecke des FELDES belegt, nicht als Auslassung dieser
+      Arbeit. Das eleganteste Zitat in Kapitel 2.
+  CRISP-DM selbst                                     Chapman2000
+
+2.8  Forschungsluecke
+  Grinsztajn2022 S. 1
+  Zwei offene Fragen sauber getrennt: Uebertragbarkeit auf gruppierte
+      Paneldaten / Rechtfertigung gegenueber dem Referenzmodell
+  Eigene Setzungen sind als solche markiert: die Uebertragung von
+      Brandinzidenz auf Einsatzlast und Einsatzartprofil sowie die
+      SHAP-Erwartung werden ausdruecklich "als Vermutung gefuehrt, nicht als
+      abgeleitete Erwartung"
+  Wird laut Schreibplan ZULETZT geschrieben, nach 8.1.
+
+
+================================================================================
+5  DIE VIER INHALTSKONFLIKTE (Stand 27.08., Abarbeitung offen)
+================================================================================
+
+Alle vier sitzen in Expose-Uebernahmen, die 1:1 in Kapitel 2 stehen. Von den
+sechs am 26.08. nachgeladenen Quellen traegt keine einzige den Satz, an dem
+sie haengt, in der Form, in der er dort steht - vier sagen etwas anderes,
+zwei fast das Gegenteil. Alle vier lassen sich mit DERSELBEN Quelle retten,
+teilweise mit einem staerkeren Argument als vorher.
+
+K1  FernandezDelgado2014 - rueckwaerts gelesen
+    Text in 2.2: "kein Algorithmus ist auf allen Problemklassen gleichermassen
+    ueberlegen", belegt mit [3133, 3175].
+    Die Quelle sagt fast das Gegenteil: S. 3175 (Conclusion) - parRF ist ueber
+    121 Datensaetze der beste Klassifikator und "may be considered as a
+    reference (gold-standard) to compare with new classifier proposals". Die
+    Wendung "not dependent on the data set collection" in der Kurzfassung
+    beschreibt das STUDIENDESIGN, nicht einen Befund zur
+    Datensatzabhaengigkeit.
+    BELEGT IST DIE AUSSAGE TROTZDEM, ueber eine andere Zahl: S. 3175 nennt
+    fuer parRF eine mittlere Genauigkeit von 82,0 Prozent, waehrend der
+    jeweils beste Klassifikator je Datensatz 86,9 Prozent erreicht. Diese
+    Luecke von 4,9 Punkten ist der saubere Beleg.
+
+K2  Grinsztajn2022 - fuenf Begriffe, die nicht vorkommen
+    Text in 2.2 nennt "Stichprobengroesse, Feature-Anzahl, Signalstaerke,
+    Multikollinearitaetsstruktur und Interaktionseffekte". Keiner der fuenf
+    steht in der Quelle. Grinsztajn nennt DREI Dateneigenschaften:
+      Finding 1  NN sind zu glatten Loesungen verzerrt, lernen unregelmaessige
+                 Zielfunktionen schlechter                        S. 6
+      Finding 2  uninformative Merkmale schaden MLP-artigen NN staerker als
+                 Baumverfahren                                    S. 7
+      Finding 3  NN sind rotationsinvariant, Tabellendaten nicht  S. 8-9
+      Zusammenfassung                                             S. 9
+    Der Umbau ist inhaltlich ein Gewinn: "uninformative Merkmale" ist genau
+    der Befund der Ablation in 7.4.
+    Voll gedeckt und bisher ohne belastbaren Locator: S. 6 "Tree-based models
+    are superior for every random search budget, and the performance gap
+    stays wide even after a large number of random search iterations" und
+    S. 6 "Categorical variables are not the main weakness of NNs".
+
+K3  Rudin2019 - die Quelle argumentiert dagegen
+    Text in 2.6 endet: "Post-hoc-Erklaerungsmethoden wie SHAP oder Permutation
+    Feature Importance koennen diesen Konflikt teilweise entschaerfen."
+    Rudins gesamtes Argument ist, dass das nicht geht. S. 1: der Versuch,
+    Black Boxes nachtraeglich zu erklaeren statt von vornherein interpretierbar
+    zu modellieren, "is likely to perpetuate bad practices and can potentially
+    cause catastrophic harm to society". S. 4: die Erklaerung benutze andere
+    Merkmale als das erklaerte Modell und sei deshalb "not faithful to the
+    computation of the black box".
+    RUDIN IST DIE STAERKERE QUELLE, ALS DAS EXPOSE SIE BENUTZT. S. 2 haelt
+    fest, dass sich der Zielkonflikt umkehren kann - "the accuracy/
+    interpretability tradeoff is reversed - more interpretability leads to
+    better overall accuracy" -, und S. 3, dass der geglaubte Zielkonflikt
+    viele Forscher davon abhalte, ein interpretierbares Modell ueberhaupt zu
+    versuchen. Das ist der Befund dieser Arbeit, Jahre vor ihr formuliert.
+    S. 3 gehoert zusaetzlich nach 8.1.
+    Die Entschaerfungs-Haelfte faellt ersatzlos weg.
+    ERLEDIGT laut Stand 28.08.: Rudins Praemisse steht jetzt vollstaendig,
+    und ein neuer Absatz loest den Einwand auf, statt ihn zu uebergehen -
+    SHAP wird auf die Black-Box-Verfahren angewandt, "also genau dort, wo
+    Rudins Vorbehalt greift, und mit ihm im Blick".
+
+K4  Schroeer2021 - Gewichtung ist eine Entscheidung, keine Quelle
+    Der Satz "erhalten insbesondere die Phasen Modeling und Evaluation
+    ueberproportionales Gewicht" traegt [526-532]{Schroeer2021}. Das ist eine
+    Entscheidung dieser Arbeit; "overproportional" oder eine Gewichtungsaussage
+    zu Modeling und Evaluation kommen bei Schroeer nicht vor. Fussnote
+    streichen oder auf die zweite Satzhaelfte begrenzen.
+
+
+================================================================================
+6  AENDERUNGEN, DIE IN main.tex ANSTEHEN
+================================================================================
+
+Aus der Quellenpruefung vom 27.08. (Nummern 1-11) plus der Korrektur vom
+02.09. (Nummer 12).
+
+   1  2.1   [7-9]{Jennings1999}                -> [14, 27]
+   2  2.2   [1-2]{Madaio2016}                  -> [185-186]
+             ACHTUNG Madaio2016: die Datei ist die freie KDD-PDF ohne
+             Tagungsbandzahlen, die bib zitiert 185-186. Weiter offen.
+   3  2.2   [3133, 3175]{FernandezDelgado2014} -> Satz umbauen, siehe K1
+   4  2.2   {Grinsztajn2022} ohne Locator      -> [1, 6], dritter Satz
+                                                  umbauen, siehe K2
+   5  2.2   [84-90]{ShwartzZiv2022}            -> [1]{ShwartzZiv2021}
+   6  2.6   {Rudin2019} ohne Locator           -> [2, 3], zweite Satzhaelfte
+                                                  streichen, siehe K3
+   7  2.7   [??]{Schroeer2021}                 -> [526]
+   8  2.7   [526-532]{Schroeer2021}            -> streichen oder [531-532],
+                                                  siehe K4
+   9  2.8   [9]{Grinsztajn2022}                -> [1]
+  10  2.8   [27-28]{Jennings1999}              -> gegen die Pruefung vom
+                                                  22.08. gegenpruefen
+  11  2.5   [166]{Probst2019}                  -> Abschn. 3.1, Satz umdrehen
+  12  2.3-2.5  ALLE James2023-Locator          -> +2, siehe Abschnitt 3
+                                                  (14 Fussnoten)
+
+Weitere Kleinigkeiten:
+  - \footcite[S.~3-21]{USFA2015} in 2.1: das Locator-Format ist aus 4.1
+    uebernommen; ob 4.1 es inzwischen genauso schreibt, wurde nicht
+    abgeglichen. Notiz vom 25.08.: dort fehle das "S.~".
+  - \label{sec:forschungsluecke} kommt zweimal vor (der zweite steht in einem
+    Kommentar - laut Stand 28.08. geklaert, keine doppelten Labels mehr).
+  - \nocite{*} im Preamble: druckt jeden bib-Eintrag ins Literaturverzeichnis,
+    auch nie zitierte (Lundberg2020). Laut Arbeitsplan bereits entfernt -
+    gegenpruefen.
+
+
+================================================================================
+7  SELBSTKRITIK UND KUERZUNGSHEBEL
+================================================================================
+
+FLUGHOEHE
+  2.5.2, erster Absatz erklaert RMSE, MAE und R^2 in vier Saetzen. Stoff, den
+      jeder Leser kennt - KUERZUNGSKANDIDAT NUMMER EINS.
+  2.5.1, zweiter Absatz stellt Gitter- gegen Zufallssuche recht ausfuehrlich
+      dar. Vertretbar, weil er 6.3 traegt.
+  2.4.2, erster Satz (was ein Entscheidungsbaum tut) ist als Sprungbrett
+      noetig, sollte aber der knappste Teil des Abschnitts bleiben.
+
+VERSTAENDLICHKEIT
+  Rahmenabsatz 2.3.1 enthaelt einen Satz mit drei Nebensaetzen.
+  2.4.3, letzter Satz: dreigliedrige Aufzaehlung vor dem Praedikat.
+
+STRUKTURELLE SCHWACHSTELLE
+  James2023 traegt 14 von 51 Fussnoten. ISL ist das ausdruecklich weniger
+  technische Begleitbuch zu ESL. Fuer 2.3 bis 2.5 ist das die Schwachstelle.
+  Kuhn & Johnson, Applied Predictive Modeling, ueber die FOM nicht zugaenglich
+  (Nationallizenz deckt nur Economics + Finance) - Fernleihe oder der
+  recherchierte Ersatz. 2.5 ist der einzige Abschnitt ohne eigenes
+  Standardwerk. Arbeitsplan Aufgabe 3.3.
+
+ROTER FADEN - SITZT
+  2.1 endet mit "Genau auf diese Ebene, den Vergleich von Stadtteilen
+      innerhalb einer Stadt, ist die vorliegende Arbeit angelegt." -> 2.2
+  2.3 endet mit "keine theoretische, sondern eine empirische Frage" -> 2.4
+  2.4.3 endet mit den gekoppelten Stellgroessen -> 2.5.1
+  2.6 Einstieg schlaegt die Bruecke aus 2.5: "Guetemasse und Validierung sagen,
+      wie gut ein Modell trifft. Sie sagen nicht, welche Merkmale das Ergebnis
+      tragen ..."
+
+ROTER FADEN - SITZT NICHT
+  2.2 -> 2.3: 2.2 endet mit Firebird, 2.3 beginnt bei null. Kein Scharnier.
+  2.5 -> 2.6: 2.5.3 endet mit Leakage, 2.6 beginnt mit "In der Literatur
+      intensiv diskutiert wird zudem...". Das "zudem" traegt den Sprung nicht.
+  (Der 2.6-Einstieg ist laut Stand 28.08. neu - der Uebergang 2.2 -> 2.3
+   bleibt offen.)
+
+BEWUSSTE DOPPLUNG
+  2.3 (letzter Absatz von 2.3.2) und 2.4.1 (letzter Satz) sagen dasselbe von
+  zwei Seiten: kein freier Hyperparameter gegen genau einen. Als Klammer
+  gewollt, im Kuerzungsdurchgang ein Kandidat.
+
+ZUFLUSS AUS DEM ARBEITSPLAN (Phase 2, verschiebt Inhalt NACH Kapitel 2)
+  2.2  1.3 umbauen: CRISP-DM-Erklaerung und -Begruendung wandern nach 2.7
+  2.4  Guetemass-Katalog aus 1.2 raus (Gruppe A2/A3)
+  2.5  Grinsztajn kommt zweimal in 2.8 vor (Gruppe C)
+  Netto: Kapitel 2 bekommt Inhalt hinzu UND muss um 3 Seiten kuerzer werden.
+  Diese beiden Bewegungen gehoeren in EINEN Durchgang, nicht in zwei.
+
+
+================================================================================
+8  NEU: DER INFERENZABSCHNITT (Wilcoxon und Holm)
+================================================================================
+
+ENTSCHEIDUNGSGRUNDLAGE
+Von den Tests, die in der Arbeit gerechnet werden, gehoeren nur zwei in
+Kapitel 2 - naemlich die, die die Forschungsfrage BEANTWORTEN:
+
+  IN KAPITEL 2
+    gepaarter Wilcoxon-Vorzeichen-Rang-Test, alpha = 0,05, zweiseitig, auf
+        10 Wiederholungsmitteln
+    Holm-Bonferroni-Korrektur in der sekundaeren Familie
+
+  NICHT IN KAPITEL 2 - erklaert an der Einsatzstelle, je ein Satz
+    RESET nach Ramsey (F = 360,4)                      -> 6.2
+    Breusch-Pagan (LM = 722,7), Jarque-Bera (JB = 98,2) -> 6.2
+    VIF                                                -> 6.2 / 7.4
+    Cohen's d und Trennschaerfesimulation              -> 7.1
+    Ablation (bewusst deskriptiv, #38) und die Fairness-Rangkorrelationen
+        sind keine Tests
+
+Umfang: eine halbe bis dreiviertel Seite. Ort: Ende von 2.7, oder dort, wo
+die Guetemasse eingefuehrt werden. Kein eigenes Unterkapitel.
+
+GEPRUEFTE BELEGE (02.09.2026, an den PDFs in Quellen/ abgelesen)
+  Fahrmeir 2023 S. 434     Guetefunktion, Trennschaerfe/Macht, Einstieg 10.3
+                           Multiple Testprobleme
+  Fahrmeir 2023 S. 435     alpha* = 1 - (1-alpha)^k mit Tabelle
+                           k=3 -> 0,143 | k=5 -> 0,226 | k=10 -> 0,401.
+                           Woertlich: "laesst sich etwa die
+                           Bonferroni-Korrektur anwenden, bei der jeder Test
+                           zum Niveau alpha/k statt zum Niveau alpha
+                           durchgefuehrt wird"
+  Fahrmeir 2023 S. 447-450 Wilcoxon-Vorzeichen-Rang-Test, Ein-Stichproben-Fall
+                           (Kap. 11.2): Differenzen D_i = X_i - delta_0,
+                           Teststatistik W+ als Rangsumme der positiven
+                           Differenzen, Bindungen/Ties mit Durchschnittsraengen,
+                           Normalapproximation (W+ - mu_W)/sigma_W
+  Demsar 2006 S. 8         "more sensible than the t-test", "safer since it
+                           does not assume normal distributions"
+  Demsar 2006 S. 12-13     Holm-Prozedur schrittweise, "more powerful than the
+                           Bonferroni-Dunn's and makes no additional
+                           assumptions about the hypotheses tested"
+  Altman & Bland 1995      S. 485, "absence of evidence of a difference"
+  Nadeau & Bengio 2003     Varianz aus dem Resampling desselben Datensatzes
+
+Der gepaarte Wilcoxon IST der Ein-Stichproben-Test auf die Differenzen.
+Fahrmeir S. 447-450 deckt ihn damit vollstaendig - Wilcoxon 1945 im Original
+wird nicht gebraucht.
+
+WEITER OFFEN
+  Holm 1979     Original liegt nicht vor; Demsar S. 12-13 traegt das
+                Verfahren zwischenzeitlich
+  Wilcoxon 1945 Biometrics Bulletin 1(6), Dezember 1945, S. 80-83,
+                DOI 10.2307/3001968. Volltext ueber JSTOR; frei kursierende
+                Abzuege sind Scans ohne Textebene. Fachlich verzichtbar
+  Cohen 1988    liegt nicht vor, Fussnote ohne Seitenangabe (betrifft 7.1)
+  Ramsey 1969   liegt nicht vor, zwei Fussnoten ohne Seitenangabe
+                (betrifft 6.2)
+
+STICHPUNKTE - VIER ABSAETZE
+
+Absatz 1, warum getestet wird
+  - Ein Kreuzvalidierungsergebnis ist eine Zufallsgroesse: dieselben Daten,
+    andere Fold-Zuteilung, anderer Wert
+  - Ein Gueteunterschied zweier Verfahren ist deshalb ohne Test nicht vom
+    Zufall der Zuteilung zu unterscheiden
+  - Berichtet wird folglich nicht der Punktwert allein, sondern Differenz,
+    Streuung und Testentscheidung
+  - Beleg: Fahrmeir S. 434 (Guetefunktion, Trennschaerfe); Nadeau & Bengio
+    2003 fuer die Streuung aus dem Resampling
+
+Absatz 2, gepaart und nichtparametrisch
+  - gepaart, weil jedes Verfahren dieselben Folds sieht und sich die
+    Fold-Streuung dadurch heraushebt
+  - nichtparametrisch, weil ueber die Verteilung der Differenzen nichts
+    bekannt ist und sie an zehn Werten nicht pruefbar waere
+  - Der Test: Raenge der absoluten Differenzen, Teststatistik W+ als Summe
+    der Raenge zu positiven Differenzen; Bindungen ueber Durchschnittsraenge
+  - Beleg: Fahrmeir S. 447-450 fuer die Definition; Demsar S. 8 fuer die Wahl
+    gegen den t-Test
+  - KEINE Zahl aus dem eigenen Lauf - die Streuungsangaben gehoeren in
+    Kapitel 7
+
+Absatz 3, multiples Testen und Holm
+  - Mehrere Tests auf einem Datensatz: die Wahrscheinlichkeit mindestens eines
+    Fehlers erster Art waechst mit ihrer Zahl, alpha* = 1 - (1-alpha)^k, bei
+    zehn Tests und alpha = 0,05 sind das 0,401
+  - Bonferroni senkt jedes Einzelniveau auf alpha/k und ist damit konservativ
+  - Holm prueft stattdessen schrittweise: p-Werte aufsteigend sortiert, der
+    i-te gegen alpha/(k-i+1); dieselbe Absicherung, mehr Trennschaerfe
+  - Beleg: Fahrmeir S. 435 fuer Problem und Bonferroni; Demsar S. 12-13
+    fuer Holm
+  - Dass hier zwei Testfamilien unterschieden werden und nur eine korrigiert
+    wird, gehoert NICHT hierher - das ist Kapitel 6/7
+
+Absatz 4, Niveau und Nullbefund
+  - alpha = 0,05 ist Konvention; ein inhaltlicher Grund fuer gerade diesen
+    Wert besteht nicht, und genau so ist es zu formulieren
+  - Ein nicht signifikantes Ergebnis zeigt keine Gleichheit, sondern das
+    Fehlen eines Nachweises
+  - Beleg: Altman & Bland 1995, S. 485
+  - Damit steht die Sprachregel bereit, die Kapitel 7 fuer die sekundaeren
+    Vergleiche braucht
+
+DER VORBEHALT, DER MITGESCHRIEBEN WERDEN MUSS
+Demsar 2006 ist fuer den Vergleich von Klassifikatoren UEBER MEHRERE
+DATENSAETZE geschrieben. Hier wird der gepaarte Wilcoxon auf zehn
+Wiederholungsmittel EINES Datensatzes angewandt. Das ist eine legitime, aber
+eine Uebertragung. Nadeau & Bengio 2003 (liegt in Quellen/) ist die Quelle,
+die genau diese Varianzquelle behandelt; sie ist als R-5 notiert und gehoert
+an die Stelle, an der der Test eingefuehrt wird, nicht erst in die
+Limitationen.
+
+NICHT AUFGENOMMENE ERGAENZUNGSKANDIDATEN (Entscheidung liegt bei Lukas)
+  Garcia & Herrera 2008, JMLR 9 - Erweiterung von Demsar auf ALLE paarweisen
+      Vergleiche samt Korrekturverfahren. Passt auf die sekundaere Familie.
+  Benavoli et al. 2016, JMLR 17 - Kritik an Post-hoc-Tests auf Mittelraengen
+  Benavoli et al. 2017, JMLR 18 - Kritik am Signifikanztest fuer
+      Klassifikatorvergleiche insgesamt; taugt als Limitation, nicht als
+      Beleg der Methodenwahl
+  Dietterich 1998 - klassischer Beleg fuer Tests auf EINEM Datensatz mit
+      Resampling; liegt nicht vor
+  Alle drei JMLR-Titel sind Open Access und damit pruefbar.
+
+
+================================================================================
+9  DIE VIF-SCHWELLE - WOHER SIE KOMMT
+================================================================================
+
+Die Schwelle 10 ist Konvention ohne Herleitung, genau wie alpha = 0,05.
+
+  Kanonische Formulierung: Neter et al. 1989, S. 409 - "A maximum VIF value in
+      excess of 10 is often taken as an indication that multicollinearity may
+      be unduly influencing the least squares estimates."
+  Marquardt 1970 wird haeufig als Ursprung genannt, erhebt den Anspruch aber
+      nicht selbst.
+  O'Brien 2007, Quality & Quantity 41, prueft die Zuschreibung und findet
+      keine Quelle, die die Schwelle begruendet.
+  ISLP S. 108 nennt "5 or 10" - das ist der Beleg, der VORLIEGT und dessen
+      Eintrag (James2023) schon in der bib steht.
+
+FOLGE FUER DIE EIGENEN ZAHLEN (VIF, Basis stadtteil_jahr)
+
+  median_haushaltseinkommen   10,64    ueber 10   ueber 5
+  median_miete                 6,97    unter 10   UEBER 5
+  armutsquote_pct              4,76    unter      unter
+  log_kriminalitaetsindex      4,22    unter      unter
+  uebrige                     < 3,6    unter      unter
+
+Die Formulierung "ueber der kritischen Schwelle" ist mit ISLP als Beleg
+ungenau, weil ISLP zwei Werte nennt. Sauber: ein Merkmal ueber beiden
+Schwellen, ein zweites ueber der weicheren - plus der Zusatz, dass die
+Schwelle Konvention ist. Das ist konsistent mit der bereits festgelegten
+Behandlung von alpha = 0,05 ("ein inhaltlicher Grund fuer gerade diesen Wert
+besteht nicht").
+
+Fuer die Prognose ist die Kollinearitaet folgenlos: Ridge ist dafuer gebaut,
+Baumverfahren sind robust, und kein berichtetes Guetemass haengt an einem
+stabilen Einzelkoeffizienten. Was der VIF erklaert, ist der Widerspruch
+zwischen Attribution und Ablation - das Poisson-GLM legt 41,4 Prozent seiner
+Koeffizientenmasse auf die soziooekonomische Gruppe, und ihr Weglassen
+VERBESSERT die Prognose um 4,95 RMSE. Diese Kette (Schwelle -> blockweise
+Interpretation -> Attribution/Ablation-Widerspruch) sollte in 6.2 einmal
+ausdruecklich geschlossen werden; derzeit stehen VIF (6.2) und Widerspruch
+(7.5) unverbunden.
+
+
+================================================================================
+10  OFFENE PUNKTE ZU KAPITEL 2
+================================================================================
+
+  1  Kuerzung um 2-3 Seiten auf den Zielwert 9. Hebel: 2.5.2 Absatz 1,
+     dann 2.5.1, dann 2.3
+  2  Die zwoelf main.tex-Aenderungen aus Abschnitt 6, darunter die 14
+     James2023-Locator
+  3  Die vier Inhaltskonflikte K1, K2, K4 abarbeiten (K3 ist erledigt).
+     Etwa eine Stunde Schreibarbeit; MUSS vor dem Feinschliff von 2.2
+     passieren, nicht danach
+  4  Symbolverzeichnis anlegen - zwingend bei sechs Formeln (Auflage
+     Sprechstunde 24.08.). Symbole aus Kapitel 2: g, y, x, beta, mu, lambda,
+     B, K, P, J, n, p, F1, P_k, R_k, L, Omega, f_k
+  5  Uebergang 2.2 -> 2.3 schreiben
+  6  Kuhn & Johnson entscheiden - Fernleihe oder Ersatz
+  7  Der Inferenzabschnitt aus Abschnitt 8 (halbe bis dreiviertel Seite)
+  8  Pedregosa2011: PDF liegt in Quellen/, bib-Eintrag fehlt - seit 26.08.
+     der einzige undefinierte Schluessel im Kompilat
+  9  Kosmetik: Quellen/winkelmann2009.pdf ist die Erstauflage 2006;
+     Quellen/hubert1984.pdf ist Hurlbert1984 (Tippfehler im Dateinamen)
+ 10  Den Seitenversatz-Kommentar in literatur_kapitel2.bib von "PDF - 11" auf
+     "PDF - 9" korrigieren, sonst entsteht der Locator-Fehler beim naechsten
+     Eintrag neu
+
+
+================================================================================
+11  REGELN, DIE FUER KAPITEL 2 GELTEN
+================================================================================
+
+  Keine fetten Zwischenueberschriften unterhalb der nummerierten Gliederung
+      (\paragraph-Marken abgelehnt).
+  Keine Wegweisersaetze, die am Kapitelanfang ankuendigen, was jetzt passiert.
+      Struktur muss allein daraus entstehen, dass die Absaetze inhaltlich
+      ineinandergreifen.
+  Kein Verweis auf das Expose im gedruckten Fliesstext.
+  Keine internen Verweise (Decision Log, Befundnummern) im gedruckten Text
+      oder in Abbildungen.
+  EIN Stand wird berichtet, keine Entwicklung. Verworfene Varianten, fruehere
+      Fassungen und Entscheidungsdaten kommen mit keiner Silbe vor.
+  Keine Kursivschrift, keine Anfuehrungszeichen, keine Unterstreichungen;
+      Module und Funktionen in Monospace; p-Werte einheitlich.
+  Der Stil von Kapitel 5.1 bis 5.3 (Fassung 25.08.) ist der Massstab.
+  Jede Quelle mit Seitenangabe, nie ungeprueft zitiert.
+================================================================================
