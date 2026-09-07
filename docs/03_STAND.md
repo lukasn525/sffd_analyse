@@ -64,6 +64,24 @@ Accuracy hier wertlos:
 |---|---|---|---|
 | 79,6 % | 15,9 % | 3,1 % | 1,5 % |
 
+**Gleichstände in der Zielklasse.** `dominante_einsatzart` entsteht als `idxmax`
+über die vier Anteilsspalten (`prep/s2_datensaetze.py` Z. 387); bei Gleichstand
+gewinnt die erste Spalte. Die Reihenfolge folgt der fachlichen Ordnung der
+NFIRS-Gruppen (#21) und stand damit vor dem ersten Modelllauf fest — der
+Gleichstand fällt stets zugunsten der selteneren Klasse.
+
+| Klasse | Zeilen | davon durch die Spaltenreihenfolge entschieden |
+|---|---|---|
+| gesamt | 4.751 | **147** (3,1 %) |
+| `brand` | 70 | 13 |
+| `rettung_ems` | 145 | 41 |
+| `technische_hilfe` | 754 | 93 |
+| `fehlalarm` | 3.782 | 0 |
+
+Bei umgekehrter Spaltenreihenfolge: `fehlalarm` +129, `technische_hilfe` −76,
+`rettung_ems` −40, `brand` −13. Nachgerechnet an `klassifikation.parquet`,
+06.09.2026. **Im Text: Abschnitt 5.3.**
+
 **Ausgeschlossen:** 3 Parkgebiete ohne nennenswerte Wohnbevölkerung (#19)
 sowie Lakeshore und Treasure Island, für die das Parzellenverzeichnis kein
 einziges Baujahr führt — der Altbauanteil ist dort nicht bildbar. Bleiben 36 der
@@ -371,6 +389,31 @@ in keinem der 300 Läufe. Tweedie und Poisson haben eine Log-Verknüpfung und
 können nicht unter null fallen — die Zielgröße wird strukturell respektiert
 statt nachträglich geprüft.
 
+**Systematische Unterschätzung.** Mittleres Residuum y − ŷ auf
+`anzahl_einsaetze`, je Lauf gerechnet aus
+`results/regression/menge_vorhersagen.parquet`:
+
+| Verfahren | mittleres Residuum | RMSE-Gewinn, wenn die Verschiebung je Lauf entfernt wird |
+|---|---|---|
+| Ridge | +7,07 | 2,41 (50/50 Läufe) |
+| XGBoost | +5,83 | 2,99 (50/50) |
+| Random Forest | +2,77 | 3,20 (50/50) |
+
+Alle drei unterschätzen; Ridge am stärksten, gewinnt aber am wenigsten aus der
+Korrektur. Die fehlende Smearing-Korrektur der Rücktransformation ist damit
+**kein Ridge-spezifischer Vorteil**, sondern eine Eigenschaft des
+Stadtteil-Splits — und sie wirkt zulasten von Ridge. Nachgerechnet 06.09.2026.
+**Im Text: Abschnitt 6.1.**
+
+**Gewichtung der Anpassung.** `ŷ(Anzahl) = ŷ(Rate) · B/1000` gilt exakt —
+maximale Abweichung 5,7·10⁻¹⁴ über 118.800 Zeilen derselben Datei. Die Zählskala
+ist damit rechnerisch die mit dem **Quadrat der Exposition** gewichtete
+Ratenskala: Die beiden Tabellen oben berichten die ungewichtete und die
+expositionsgewichtete Auswertung, und Vorzeichen, Reihenfolge und
+Testentscheidungen stimmen zwischen ihnen überein. Das ist der Beleg für die
+Aussage, dass die fehlende Expositionsgewichtung der drei Vergleichsverfahren
+die Rangfolge nicht trägt. **Im Text: Abschnitt 6.1 und Tabelle 15.**
+
 ### 5.2 Struktur — nur der Random Forest schlägt die Stufe-2-Baseline
 
 > **Achtung, gilt nur für die Kreuzvalidierung.** Auf dem Hold-out kehrt sich
@@ -397,6 +440,24 @@ Nur der Random Forest schlägt die Referenz, und sein Vorsprung ist mit
 schlägt sie nicht mehr** — die Differenz liegt bei −0,0003 bei p = 1,000. In der
 Macro-AUROC liegt die Referenz mit 0,725 zudem **über beiden** Baumverfahren
 (0,705 und 0,665).
+
+**Klassenweise F1 in der Kreuzvalidierung**, Mittel über die 50 Läufe,
+gerechnet aus `results/klassifikation/struktur_vorhersagen.parquet`; das Mittel
+der vier Werte ergibt exakt das Macro-F1 der Tabelle oben:
+
+| Klasse | Random Forest | XGBoost |
+|---|---|---|
+| `brand` | **0,000** | 0,005 |
+| `rettung_ems` | 0,040 | 0,083 |
+| `technische_hilfe` | 0,373 | 0,317 |
+| `fehlalarm` | 0,860 | 0,798 |
+| **Macro-F1** | **0,3184** | **0,3008** |
+
+Der Random Forest sagt `brand` in **2 von 39.590** Testzeilen vorher und in **49
+der 50 Läufe kein einziges Mal**; XGBoost in 2.178 von 39.590 Zeilen und in 23
+der 50 Läufe kein einziges Mal. Ein Viertel des Leitmaßes ruht damit auf einer
+Klasse, die praktisch nicht vergeben wird. Nachgerechnet 06.09.2026.
+**Im Text: Abschnitt 7.2.**
 
 Keine Korrektur beim Verfahrensvergleich — die Familie besteht aus einem Test
 (#38). Kein Lauf ohne definierte Macro-AUROC. Brand-Testfälle im Mittel 6,6
@@ -746,7 +807,7 @@ ist nicht nachweisbar (B-27).
 > werden … Test laufen lassen: in Tabelle Statistiken mit p-Werten anzeigen."
 >
 > Quelle: `results/eignungspruefung/annahmen.csv`, erzeugt von
-> `vorpruefung/v2_eignung.annahmen()`. Gerechnet auf den 23
+> `vorpruefung/v2_eignung.annahmen()`. Gerechnet auf den 24
 > Trainingsstadtteilen von Fold 1 — die Teststadtteile bleiben unberührt.
 >
 > Nachgestellt und nicht als Abschnitt 5 eingefügt, weil die Abschnittsnummern
@@ -773,6 +834,16 @@ Bereits an anderer Stelle berichtet und hier nur zugeordnet: RESET F = 360,4
 Trainingsstadtteilen von Fold 1 gegenüber 61,8 auf dem vollen Datensatz
 (Abschnitt 2 dieser Datei), Extrapolationsanteil 38,2 %.
 
+### Trennen die Merkmale die Einsatzart?
+
+Kruskal-Wallis je Merkmal über die vier Klassen, auf denselben 24
+Trainingsstadtteilen von Fold 1 (`results/eignungspruefung/eignungspruefung.md`,
+Abschnitt 5): **10 von 10 Strukturmerkmalen** trennen die Klassen signifikant,
+H zwischen **30,6** (`anteil_wohngebaeude_pct`) und **459,6**
+(`leerstandsquote_pct`), größtes p = 1,0·10⁻⁶. Das ist der statistische Nachweis
+für Unterfrage 1 im Strukturstrang; im Mengenstrang verbietet der Designeffekt
+von 122 einen Test auf Zeilenebene. **Im Text: Abschnitt 8.2.**
+
 ### Was daraus folgt — je Verfahren
 
 | Verfahren | Anforderung | Status | Konsequenz |
@@ -785,7 +856,7 @@ Trainingsstadtteilen von Fold 1 gegenüber 61,8 auf dem vollen Datensatz
 | Ridge | Homoskedastizität | **verletzt** | betrifft die Standardfehler, nicht die Punktprognose |
 | Ridge | Normalverteilung der Residuen | *nicht erforderlich* | Voraussetzung für Inferenz, nicht für die Punktprognose eines L2-penalisierten Modells |
 | Random Forest, XGBoost | Verteilungsannahme | *nicht erforderlich* | verteilungsfrei — der Grund, warum beide im Vergleich stehen |
-| Random Forest, XGBoost | Testpunkte im gelernten Wertebereich | **verletzt** | 33,7 % außerhalb; Limitation des Stadtteil-Splits, Kapitel 8.3 (R-3) |
+| Random Forest, XGBoost | Testpunkte im gelernten Wertebereich | **verletzt** | 38,2 % außerhalb (Wiederholung 0), 36,6 % über alle 50 Läufe, 34,8 % im Hold-out; Limitation des Stadtteil-Splits, Kapitel 8.3 (R-3) |
 | Random Forest, XGBoost | Verlustfunktion passend zur Datenform | erfüllt | `criterion="poisson"` bzw. `reg:tweedie` (#42) |
 | Multinomiales Logit | Linearität in den Log-Odds | *angenommen* | genau die Trennlinie zu RF und XGBoost — fehlende Wechselwirkungen sind der zu messende Unterschied |
 | Multinomiales Logit | jede Klasse im Testfold besetzt | erfüllt | doppelte Stratifizierung (#30), Selbsttest `v0_aufteilung` |
