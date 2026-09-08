@@ -42,6 +42,16 @@ import matplotlib.pyplot as plt   # noqa: E402
 import numpy as np                # noqa: E402
 import pandas as pd               # noqa: E402
 
+# Schriftfamilie der Arbeit: der Fliesstext steht in Times New Roman, ohne
+# diese Zeilen zeichnet matplotlib in DejaVu Sans. Die Fallbacks sind metrisch
+# kompatibel und greifen nur auf Systemen ohne Times. Gleiche Festlegung wie in
+# modelle/m05_abbildungen.py.
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.serif": ["Times New Roman", "Liberation Serif", "Nimbus Roman"],
+    "mathtext.fontset": "stix",
+})
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "prep"))
 
 from config import (EXPOSURE_ROH, N_FOLDS, PFAD_KLASSIFIKATION,  # noqa: E402

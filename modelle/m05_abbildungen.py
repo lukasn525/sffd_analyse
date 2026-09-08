@@ -199,6 +199,12 @@ def _matplotlib() -> None:
         "ytick.labelsize": SCHRIFT - 1, "legend.fontsize": SCHRIFT - 1,
         "figure.constrained_layout.use": True, "pdf.fonttype": 42,
         "axes.spines.top": False, "axes.spines.right": False,
+        # Schriftfamilie der Arbeit: der Fliesstext steht in Times New Roman,
+        # ohne diese Zeilen zeichnet matplotlib in DejaVu Sans. Die Fallbacks
+        # sind metrisch kompatibel und greifen nur auf Systemen ohne Times.
+        "font.family": "serif",
+        "font.serif": ["Times New Roman", "Liberation Serif", "Nimbus Roman"],
+        "mathtext.fontset": "stix",
     })
 
 
