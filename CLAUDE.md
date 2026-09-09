@@ -287,7 +287,7 @@ python modelle/m03_struktur.py holdout      #    Klassifikation            ~45 m
 python vorpruefung/v4_decke.py              #    Decken Strukturstrang     < 1 min
 python vorpruefung/v4_decke.py holdout      #    dieselben, mit Hold-out   < 1 min
 python modelle/m04_shap.py                  #    SHAP, Ablation, VIF       ~10 min
-python modelle/m05_abbildungen.py           #    zehn Abbildungen          < 1 min
+python modelle/m05_abbildungen.py           #    19 Abbildungen            < 1 min
 python tools/codebook.py                    # 3  Merkmalstabelle Kap. 4    < 1 min
 python tools/panelprofil.py                 #    Belege fuer R-2           < 1 min
 python tools/parametersensitivitaet.py      #    Belege fuer R-4           ~5 min

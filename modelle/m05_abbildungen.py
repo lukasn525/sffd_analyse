@@ -101,8 +101,16 @@ SPEZ = RESULTS_DIR / "spezifikation"
 SHAP = RESULTS_DIR / "shap"
 DESK = RESULTS_DIR / "deskriptiv"
 
-# Textbreite einer FOM-Arbeit bei A4 und 2,5 cm Raendern: rund 16 cm = 6,3 Zoll.
-BREITE = 6.3
+# Satzspiegel der Arbeit: A4 (21 cm) minus 4 cm links und 2 cm rechts = 15 cm
+# = 5,9055 Zoll = 425,2 pt. Die Abbildungen entstehen in genau dieser Breite und
+# werden in LaTeX unskaliert eingebunden (width=\textwidth ist dann Faktor 1).
+# Wer diesen Wert aendert, aendert den Schriftgrad *aller* Abbildungen im Druck.
+BREITE = 15 / 2.54
+
+# Zwei Grade, mehr nicht: SCHRIFT fuer Achsentitel und Ueberschriften,
+# SCHRIFT - 1 fuer Ticks, Legenden und Wertelabels. SCHRIFT - 1 ist die
+# Untergrenze - die Arbeit setzt ihre kleinste Schrift (Quellenzeile) mit 9 pt,
+# darunter wird es im Druck grenzwertig.
 SCHRIFT = 9
 
 # Graustufentauglich: Grauwert, Schraffur und Marker tragen die Unterscheidung
@@ -250,12 +258,16 @@ def _speichere(fig, datei: str) -> list:
     Ein:  die Figur und ihr Dateiname
     Aus:  einstellige Liste mit dem Pfad - so, wie main() sie erwartet
 
-    - `bbox_inches="tight"` gilt fuer alle Abbildungen dieser Datei bis auf
-      eine: A2 speichert ohne, weil dort constrained_layout die Breite schon
-      exakt setzt. Deshalb ruft A2 diesen Helfer nicht und speichert selbst -
-      die drei Zeilen dort sind Absicht, keine vergessene Umstellung.
+    - bewusst ohne `bbox_inches`: die Datei behaelt exakt die figsize-Breite.
+      `bbox_inches="tight"` berechnet die Seitengroesse aus den gezeichneten
+      Objekten neu - je Abbildung ein anderer Wert und damit unter
+      width=\textwidth je Abbildung ein anderer Schriftgrad. Genau daran lagen
+      die 5,2 bis 8,3 pt der Fassung vom 08.09. constrained_layout haelt alles
+      Verwaltete innerhalb der Leinwand; von Hand nach aussen gesetzte Legenden
+      wuerden jetzt abgeschnitten und sind deshalb alle auf "outside ..."
+      umgestellt.
     """
-    fig.savefig(OUT / datei, bbox_inches="tight")
+    fig.savefig(OUT / datei)
     plt.close(fig)
     return [OUT / datei]
 
@@ -345,10 +357,6 @@ def a1_gegen_baseline() -> list:
         pfeil = ("← besser" if reihe["besser"] == "links" else "besser →")
         ax.set_title(f"{LABEL.get(reihe['ziel'], reihe['ziel'])}\n{pfeil}",
                      fontsize=SCHRIFT - 1)
-
-    fig.supxlabel("Abstand zur Stufe-2-Baseline. Ein Punkt je Wiederholung (10), "
-                  "gepaart je Fold — die Fold-Streuung kürzt sich heraus.",
-                  fontsize=SCHRIFT - 2)
     return _speichere(fig, "a1_gegen_baseline.pdf")
 
 
@@ -392,15 +400,7 @@ def a2_foldstruktur() -> list:
     unten, oben = ax.get_ylim()
     ax.set_ylim(unten, oben + (oben - unten) * 0.30)
 
-    # Die Zerlegung als Zahl dazu - sie ist der eigentliche Grund fuer A1.
-    roh = f.groupby("verfahren")["RMSE"].std().mean()
-    fig.supxlabel(f"Streuung der Rohwerte über die 50 Läufe: {roh:.1f} RMSE. "
-                  f"Streuung der gepaarten Differenz: 2,4 bis 4,3."
-                  .replace(".", ",", 1),
-                  fontsize=SCHRIFT - 2)
-    fig.savefig(OUT / "a2_foldstruktur.pdf")   # ohne bbox_inches, s. _speichere
-    plt.close(fig)
-    return [OUT / "a2_foldstruktur.pdf"]
+    return _speichere(fig, "a2_foldstruktur.pdf")
 
 
 # ===========================================================================
@@ -471,7 +471,7 @@ def a3_spezifikation() -> list:
                 edgecolor="black", linewidth=0.8, hatch=schraffur[gruppe])
         ax.text(wert + max(z[1] for z in zeilen) * 0.015, yy,
                 f"{wert:.1f}".replace(".", ","),
-                va="center", fontsize=SCHRIFT - 1.5)
+                va="center", fontsize=SCHRIFT - 1)
     ax.axvline(referenz, color="black", linewidth=1.0, linestyle="--", zorder=0)
     ax.set_yticks(y)
     ax.set_yticklabels([z[0] for z in zeilen], fontsize=SCHRIFT - 1)
@@ -494,7 +494,7 @@ def a3_spezifikation() -> list:
                     arrowprops={"arrowstyle": "-", "linewidth": 1.0})
         ax.text(1.02, (oben + unten + 1.24) / (2 * len(zeilen)),
                 f"{beschriftung}\nbis {spanne:.1f} RMSE".replace(".", ","),
-                transform=ax.transAxes, va="center", fontsize=SCHRIFT - 2)
+                transform=ax.transAxes, va="center", fontsize=SCHRIFT - 1)
     return _speichere(fig, "a3_spezifikation.pdf")
 
 
@@ -558,6 +558,10 @@ def a4_laufzeit_guete() -> list:
         # und ihre Beschriftungen ueberlappen sich unlesbar.
         ax.set_xlim(g["zeit"].min() / 4, g["zeit"].max() * 4)
         ax.xaxis.set_major_locator(LogLocator(base=10))
+        # Klartext statt 10^n: matplotlib setzt die Hochzahl mit rund 70 % des
+        # Tickgrades, das waeren 5,6 pt - unter jedem Schriftgrad der Arbeit.
+        ax.xaxis.set_major_formatter(
+            FuncFormatter(lambda x, _: f"{x:g}".replace(".", ",")))
         ax.xaxis.set_minor_formatter(NullFormatter())
         # Kurz halten: bei drei Feldern auf Textbreite bleibt je Feld rund
         # 2 Zoll, eine laengere Beschriftung wird am rechten Rand abgeschnitten.
@@ -578,8 +582,10 @@ def a4_laufzeit_guete() -> list:
                 kennzeichen.append(h); namen.append(l)
     kennzeichen.append(Line2D([], [], color="black", linestyle="--"))
     namen.append("Stufe-2-Baseline")
-    fig.legend(kennzeichen, namen, loc="lower center", ncol=len(namen),
-               frameon=False, bbox_to_anchor=(0.5, -0.08))
+    # "outside lower center" statt bbox_to_anchor: constrained_layout reserviert
+    # den Streifen selbst, die Legende bleibt auf der Leinwand.
+    fig.legend(kennzeichen, namen, loc="outside lower center",
+               ncol=len(namen), frameon=False)
     return _speichere(fig, "a4_laufzeit_guete.pdf")
 
 
@@ -636,13 +642,10 @@ def a5_holdout() -> list:
                        linestyle="--", zorder=0)
         ax.set_xticks(x)
         ax.set_xticklabels(namen, rotation=28, ha="right",
-                           fontsize=SCHRIFT - 2)
+                           fontsize=SCHRIFT - 1)
         ax.set_ylabel(einheit)
         ax.yaxis.set_major_formatter(_komma(stellen))
         ax.set_title(titel, fontsize=SCHRIFT - 1)
-    fig.supxlabel("Sechs zurückgehaltene Stadtteile, einmalig ausgewertet — "
-                  "hell: Stufe 1, schwarz: Stufe 2, grau: Stufe 3.",
-                  fontsize=SCHRIFT - 2)
     return _speichere(fig, "a5_holdout.pdf")
 
 
@@ -714,7 +717,7 @@ def a6_faktorgruppen() -> list:
             # laeuft - im Druck sind sie dann nicht mehr sicher lesbar.
             if wert >= 0.10:
                 ax.text(links + wert / 2, yy, f"{wert * 100:.0f} %",
-                        ha="center", va="center", fontsize=SCHRIFT - 2,
+                        ha="center", va="center", fontsize=SCHRIFT - 1,
                         color="black",
                         bbox={"facecolor": "white", "edgecolor": "none",
                               "pad": 1.2, "alpha": 0.9})
@@ -731,12 +734,8 @@ def a6_faktorgruppen() -> list:
     felder = [Patch(facecolor=GRUPPEN_STIL[g][0], edgecolor="black",
                     hatch=GRUPPEN_STIL[g][1] or None, label=LABEL_GRUPPE[g])
               for g in GRUPPEN_ORDNUNG]
-    ax.legend(handles=felder, frameon=False, ncol=3, loc="upper center",
-              bbox_to_anchor=(0.5, -0.28), fontsize=SCHRIFT - 2)
-
-    fig.supxlabel("Menge: standardisierte Koeffizienten des Poisson-GLM. "
-                  "Struktur: SHAP-Beiträge. Beide auf Summe 100 % normiert, "
-                  "aber nicht dieselbe Größe.", fontsize=SCHRIFT - 2)
+    fig.legend(handles=felder, frameon=False, ncol=3,
+               loc="outside lower center", fontsize=SCHRIFT - 1)
     return _speichere(fig, "a6_faktorgruppen.pdf")
 
 
@@ -790,19 +789,15 @@ def a7_extrapolation() -> list:
                      for _, z in rho[rho["zielgroesse"] == ziel].iterrows()]
             if texte:
                 ax.text(0.03, 0.97, "\n".join(texte), transform=ax.transAxes,
-                        va="top", ha="left", fontsize=SCHRIFT - 3,
+                        va="top", ha="left", fontsize=SCHRIFT - 1,
                         bbox={"facecolor": "white", "edgecolor": "0.7",
                               "linewidth": 0.5, "pad": 2.5})
         unten, oben = ax.get_ylim()
         ax.set_ylim(unten, oben + (oben - unten) * 0.18)
 
     kennzeichen, namen = achsen[0].get_legend_handles_labels()
-    fig.legend(kennzeichen, namen, loc="lower center", ncol=len(namen),
-               frameon=False, bbox_to_anchor=(0.5, -0.10))
-    fig.supxlabel("Ein Punkt je Lauf (50 je Verfahren). Die Verfahren liegen "
-                  "bei gleichem x übereinander — der Extrapolationsanteil "
-                  "gehört zum Fold, nicht zum Verfahren.",
-                  fontsize=SCHRIFT - 2)
+    fig.legend(kennzeichen, namen, loc="outside lower center",
+               ncol=len(namen), frameon=False)
     return _speichere(fig, "a7_extrapolation.pdf")
 
 
@@ -928,33 +923,29 @@ def a8_hyperparameter() -> list:
                    edgecolor="black", linewidth=0.5, zorder=3)
         spanne = float(g["lage"].max() - g["lage"].min())
         ax.text(1.03, yy, f"{spanne:.2f}".replace(".", ","), va="center",
-                fontsize=SCHRIFT - 2.5, transform=ax.get_yaxis_transform())
+                fontsize=SCHRIFT - 1, transform=ax.get_yaxis_transform())
 
     straenge = [s for s, _, _ in reihen]
     for strang in dict.fromkeys(straenge):
         erste = straenge.index(strang)
         ax.text(0.5, y[erste] + 0.68, f"Strang: {strang}", ha="center",
-                va="bottom", fontsize=SCHRIFT - 2, color="0.30")
+                va="bottom", fontsize=SCHRIFT - 1, color="0.30")
         if erste:
             ax.axhline((y[erste - 1] + y[erste]) / 2, color="black",
                        linewidth=0.6, zorder=2)
 
     ax.set_yticks(y)
     ax.set_yticklabels([f"{LABEL.get(v, v)} · {LABEL_PARAMETER.get(p, p)}"
-                        for _, v, p in reihen], fontsize=SCHRIFT - 2)
+                        for _, v, p in reihen], fontsize=SCHRIFT - 1)
     ax.set_xlim(-0.03, 1.03)
     ax.set_ylim(y.min() - 0.7, y.max() + 1.25)
     ax.set_xticks([0, 0.5, 1])
     ax.set_xticklabels(["untere Grenze", "Mitte", "obere Grenze"],
-                       fontsize=SCHRIFT - 2)
+                       fontsize=SCHRIFT - 1)
     ax.set_xlabel("Lage des gewählten Werts im eigenen Suchraum")
     ax.text(1.03, 1.005, "Spannweite", transform=ax.transAxes,
-            fontsize=SCHRIFT - 2.5, va="bottom")
+            fontsize=SCHRIFT - 1, va="bottom")
     ax.grid(True, axis="x", linewidth=0.3, alpha=0.5)
-
-    fig.supxlabel("Fünf Punkte je Zeile — ein Fold je Punkt, getunt auf "
-                  "Wiederholung 0. Kategoriale Räume sind über die Position "
-                  "in der Werteliste normiert.", fontsize=SCHRIFT - 2)
     return _speichere(fig, "a8_hyperparameter.pdf")
 
 
@@ -1009,7 +1000,7 @@ def a9_parallelisierung() -> list:
                 linewidth=0.8, hatch=STIL[z["verfahren"]]["schraffur"], zorder=2)
         ax.text(z["gewinn"] + d["gewinn"].max() * 0.02, yy,
                 f"{_sekunden(z['ein'])} → {_sekunden(z['par'])}",
-                va="center", fontsize=SCHRIFT - 2.5)
+                va="center", fontsize=SCHRIFT - 1)
     ax.axvline(1.0, color="black", linewidth=1.2, linestyle="--", zorder=3)
 
     ax.set_yticks(y)
@@ -1022,11 +1013,7 @@ def a9_parallelisierung() -> list:
     ax.xaxis.set_major_formatter(_komma(1))
     ax.annotate("kein Gewinn", xy=(1.0, len(d) - 0.45), xytext=(0, 3),
                 textcoords="offset points", ha="center",
-                fontsize=SCHRIFT - 2.5)
-
-    fig.supxlabel("Mittel über 50 Läufe. Werte unter 1 bedeuten: der parallele "
-                  "Fit war langsamer. Beschriftung: einkernig → parallel.",
-                  fontsize=SCHRIFT - 2)
+                fontsize=SCHRIFT - 1)
     return _speichere(fig, "a9_parallelisierung.pdf")
 
 
@@ -1053,7 +1040,10 @@ def a10_qq_residuen() -> list:
         return []
 
     ziele = list(dict.fromkeys(d["zielgroesse"]))
-    fig, achsen = plt.subplots(1, len(ziele), figsize=(BREITE, 3.0))
+    # Etwas hoeher als die uebrigen Streudiagramme: set_aspect("equal") haelt die
+    # drei Felder quadratisch, constrained_layout kann sie also nicht schmaler
+    # rechnen. Bei 3,0 Zoll stossen Achsentitel oben und unten an den Rand.
+    fig, achsen = plt.subplots(1, len(ziele), figsize=(BREITE, 3.25))
     achsen = np.atleast_1d(achsen)
 
     for ax, ziel in zip(achsen, ziele):
@@ -1075,10 +1065,6 @@ def a10_qq_residuen() -> list:
         ax.yaxis.set_major_formatter(_komma(0))
         ax.set_title(LABEL.get(ziel, ziel), fontsize=SCHRIFT - 1)
         ax.grid(True, linewidth=0.3, alpha=0.5)
-
-    fig.supxlabel("Standardisierte Residuen der linearen Spezifikation auf "
-                  "log(1+y), Trainingsstadtteile von Fold 1. Die Gerade ist "
-                  "die Normalverteilung.", fontsize=SCHRIFT - 2)
     return _speichere(fig, "a10_qq_residuen.pdf")
 
 
@@ -1126,6 +1112,8 @@ def a11_differenzen() -> list:
     - gefuellter Marker heisst signifikant. Die Fuellung, nicht die Farbe,
       traegt die Aussage - im Graustufendruck bleibt sie erhalten
     """
+    from matplotlib.lines import Line2D
+
     dateien = [REG / "vergleich.csv", KLA / "vergleich.csv"]
     if not all(p.exists() for p in dateien):
         return []
@@ -1149,12 +1137,6 @@ def a11_differenzen() -> list:
                     marke="Holm" if holm else "p",
                     sig=bool(r.signifikant), verf=a))
         return out
-
-    fussnote = ("Gepaarter Wilcoxon-Test auf den zehn Wiederholungsmitteln, "
-                "95-%-Intervall. Oberer Block: gegen die Stufe-2-Baseline, "
-                "unkorrigiert.\nUnterer Block: paarweise Verfahrensvergleiche, "
-                "p nach Holm über die Familie. Gefüllter Marker bedeutet "
-                "signifikant, x/10 die Zahl der gewonnenen Wiederholungen.")
 
     pfade = []
     for daten, titel, stellen, datei in (
@@ -1196,11 +1178,27 @@ def a11_differenzen() -> list:
         rechts.set_yticks(ypos)
         rechts.set_yticklabels(
             [f"{d['gew']}/10 · {d['marke']} {_dez(d['p'])}" for d in daten],
-            fontsize=SCHRIFT - 2.5, color="0.30")
+            fontsize=SCHRIFT - 1, color="0.30")
         rechts.tick_params(axis="y", length=0, pad=3)
         for rand in ("top", "right", "left", "bottom"):
             rechts.spines[rand].set_visible(False)
-        fig.supxlabel(fussnote, fontsize=SCHRIFT - 2)
+        rechts.set_ylabel("gewonnene Wiederholungen · p-Wert", rotation=270,
+                          va="bottom", labelpad=10, fontsize=SCHRIFT - 1,
+                          color="0.30")
+
+        # Der Fuellzustand des Markers traegt die Signifikanz - ohne Schluessel
+        # ist er eine unerklaerte Kodierung. Neutraler Kreis, weil die Form im
+        # Bild das Verfahren bezeichnet und nicht die Signifikanz.
+        schluessel = [
+            Line2D([], [], linestyle="none", marker="o", markersize=6,
+                   markerfacecolor="black", markeredgecolor="black",
+                   label="signifikant"),
+            Line2D([], [], linestyle="none", marker="o", markersize=6,
+                   markerfacecolor="white", markeredgecolor="black",
+                   label="nicht signifikant"),
+        ]
+        fig.legend(handles=schluessel, loc="outside lower center", ncol=2,
+                   frameon=False, fontsize=SCHRIFT - 1)
         pfade += _speichere(fig, datei)
     return pfade
 
@@ -1221,14 +1219,15 @@ def a12_decken() -> list:
     - der schraffierte Bereich rechts von Decke A ist bei dieser Zielgroesse
       nicht erreichbar; ohne ihn liest sich die Skala als offen
     """
-    noetig = [KLA / "decke.csv", KLA / "decke_ausschoepfung.csv",
-              KLA / "baselines_klasse_mittel.csv", KLA / "struktur_mittel.csv"]
+    # decke_ausschoepfung.csv wird hier nicht mehr gelesen: die Ausschoepfungs-
+    # quoten standen nur in der weggefallenen Erlaeuterung unter der Abbildung.
+    noetig = [KLA / "decke.csv", KLA / "baselines_klasse_mittel.csv",
+              KLA / "struktur_mittel.csv"]
     if not all(p.exists() for p in noetig):
         return []
     dk = pd.read_csv(noetig[0]).set_index("grenze").macro_f1
-    aus = pd.read_csv(noetig[1]).set_index("verfahren")
-    bl = pd.read_csv(noetig[2])
-    st = pd.read_csv(noetig[3])
+    bl = pd.read_csv(noetig[1])
+    st = pd.read_csv(noetig[2])
 
     reihen = [
         ("Mehrheitsklasse (Stufe 1)",
@@ -1261,14 +1260,14 @@ def a12_decken() -> list:
         ax.axvline(x, color="black", ls="--", lw=1.0, zorder=3)
         ax.annotate(f"{txt}\n{_dez(x)}", xy=(x, len(reihen) - 0.35),
                     xytext=(3, 0), textcoords="offset points",
-                    fontsize=SCHRIFT - 2, va="top", ha="left")
+                    fontsize=SCHRIFT - 1, va="top", ha="left")
     ax.annotate("", xy=(decke_b, -0.72), xytext=(bester, -0.72),
                 arrowprops=dict(arrowstyle="<->", lw=0.9, color="black"))
     ax.annotate(f"Restpotenzial {_dez(decke_b - bester)}",
                 xy=((bester + decke_b) / 2, -0.72), xytext=(0, 4),
-                textcoords="offset points", ha="center", fontsize=SCHRIFT - 2)
+                textcoords="offset points", ha="center", fontsize=SCHRIFT - 1)
     ax.annotate("nicht erreichbar", xy=((decke_a + 1) / 2, 0.6), ha="center",
-                va="center", fontsize=SCHRIFT - 2, color="0.35")
+                va="center", fontsize=SCHRIFT - 1, color="0.35")
     ax.set_yticks(ypos)
     ax.set_yticklabels([r[0] for r in reihen])
     ax.set_ylim(-1.15, len(reihen) - 0.25)
@@ -1278,15 +1277,6 @@ def a12_decken() -> list:
     ax.spines["left"].set_visible(False)
     ax.tick_params(axis="y", length=0)
 
-    quote_x = float(aus.loc["xgboost", "quote_decke_b"]) * 100
-    quote_r = float(aus.loc["random_forest", "quote_decke_b"]) * 100
-    fig.supxlabel("Kreuzvalidierung, Entwicklungspanel. Beide Decken entstehen "
-                  "vor jeder Modellwahl (vorpruefung/v4_decke.py). "
-                  "Ausschöpfung, baselinekorrigiert:\n"
-                  f"XGBoost {_dez(quote_x, 1)} %, Random Forest "
-                  f"{_dez(quote_r, 1)} % von Decke B. Auf dem Hold-out liegen "
-                  "die Decken bei 0,422 (B) und 0,679 (A).",
-                  fontsize=SCHRIFT - 2)
     return _speichere(fig, "a12_decken.pdf")
 
 
@@ -1343,19 +1333,13 @@ def a13_umschlag() -> list:
                     fontsize=SCHRIFT - 1)
         ax.annotate(_dez(cv.mean()), xy=(x0, cv.mean()), xytext=(0, 5),
                     textcoords="offset points", va="bottom", ha="center",
-                    fontsize=SCHRIFT - 2)
+                    fontsize=SCHRIFT - 1)
     ax.set_xticks([0.0, 1.0])
     ax.set_xticklabels(["Kreuzvalidierung\n50 Läufe, 30 Stadtteile",
                         "Hold-out\neine Messung, 6 Stadtteile"])
     ax.set_xlim(-0.40, 1.72)
     ax.set_ylabel("Macro-F1")
     ax.yaxis.set_major_formatter(_komma(2))
-    fig.supxlabel("Linke Seite: jeder Punkt ein Fold-Lauf, der waagerechte "
-                  "Strich das Mittel über die 50 Läufe. Rechte Seite: die "
-                  "einmalige Hold-out-Messung.\nDie Hold-out-Werte der "
-                  "Baumverfahren liegen innerhalb der Spannweite ihrer eigenen "
-                  "Kreuzvalidierung — die Umkehr ist keine Anomalie.",
-                  fontsize=SCHRIFT - 2)
     return _speichere(fig, "a13_umschlag.pdf")
 
 
@@ -1407,17 +1391,17 @@ def a14_ueberanpassung() -> list:
                     mec="black", zorder=3)
             ax.annotate(f"−{_dez(tr - cv)}", xy=(i, (tr + cv) / 2),
                         xytext=(6, 0), textcoords="offset points",
-                        va="center", fontsize=SCHRIFT - 2)
+                        va="center", fontsize=SCHRIFT - 1)
             ax.annotate(_dez(tr), xy=(i, tr), xytext=(0, 6),
                         textcoords="offset points", ha="center",
-                        fontsize=SCHRIFT - 2)
+                        fontsize=SCHRIFT - 1)
             ax.annotate(_dez(cv), xy=(i, cv), xytext=(0, -13),
                         textcoords="offset points", ha="center",
-                        fontsize=SCHRIFT - 2)
+                        fontsize=SCHRIFT - 1)
         ax.axhline(ref, color="black", ls="--", lw=0.9)
         ax.annotate(refname, xy=(len(verf) - 0.47, ref), xytext=(-2, 3),
                     textcoords="offset points", ha="right", va="bottom",
-                    fontsize=SCHRIFT - 2.5)
+                    fontsize=SCHRIFT - 1)
         ax.set_xticks(range(len(verf)))
         ax.set_xticklabels([LABEL[v] for v in verf])
         ax.set_xlim(-0.55, len(verf) - 0.45)
@@ -1431,11 +1415,6 @@ def a14_ueberanpassung() -> list:
                             mec="black", ls="none", label="Kreuzvalidierung")
     axes[0].legend(handles=[trainmarke, cvmarke], loc="upper left",
                    frameon=False, handletextpad=0.3, borderaxespad=0.1)
-    fig.supxlabel("Mittel über die zehn Wiederholungen. Die Zahl an der "
-                  "Verbindungslinie ist der Abstand zwischen Trainings- und "
-                  "Kreuzvalidierungsgüte.\nFür die Stufe-2-Baselines liegt "
-                  "kein Trainingswert vor; sie stehen als waagerechte Referenz "
-                  "der Kreuzvalidierungsgüte.", fontsize=SCHRIFT - 2)
     return _speichere(fig, "a14_ueberanpassung.pdf")
 
 
@@ -1476,7 +1455,7 @@ def a15_attribution_ablation() -> list:
         ax.annotate(f"{_dez(menge_attr.get(g, 0) * 100, 1)} %",
                     xy=(menge_attr.get(g, 0), yy), xytext=(3, 0),
                     textcoords="offset points", va="center",
-                    fontsize=SCHRIFT - 2)
+                    fontsize=SCHRIFT - 1)
     ax.set_xlim(0, 0.52)
     ax.set_title("Attribution", fontsize=SCHRIFT)
     ax.xaxis.set_major_formatter(_prozent(0))
@@ -1493,7 +1472,7 @@ def a15_attribution_ablation() -> list:
         ax.annotate(f"{_dez(v, 2)}  ({w}/10)", xy=(v, yy),
                     xytext=(4 if v >= 0 else -4, 0),
                     textcoords="offset points", va="center",
-                    ha="left" if v >= 0 else "right", fontsize=SCHRIFT - 2)
+                    ha="left" if v >= 0 else "right", fontsize=SCHRIFT - 1)
     ax.set_xlim(-16, 38)
     ax.set_title("Ablation", fontsize=SCHRIFT)
     ax.set_xlabel("Δ RMSE ohne die Gruppe", fontsize=SCHRIFT - 1)
@@ -1511,7 +1490,7 @@ def a15_attribution_ablation() -> list:
     ax.xaxis.set_major_formatter(_prozent(0))
     ax.set_ylabel("Struktur\nSHAP-Beiträge", fontsize=SCHRIFT)
     ax.set_xlabel("Anteil am erklärten Beitrag", fontsize=SCHRIFT - 1)
-    ax.legend(loc="lower right", frameon=False, fontsize=SCHRIFT - 2.5,
+    ax.legend(loc="lower right", frameon=False, fontsize=SCHRIFT - 1,
               handletextpad=0.3, borderpad=0.1)
 
     ax = axes[1][1]
@@ -1531,7 +1510,7 @@ def a15_attribution_ablation() -> list:
     ax.set_xlim(-0.031, 0.032)
     ax.set_xlabel("Δ Macro-F1 ohne die Gruppe", fontsize=SCHRIFT - 1)
     ax.xaxis.set_major_formatter(_komma(2, True))
-    ax.legend(loc="center right", frameon=False, fontsize=SCHRIFT - 2.5,
+    ax.legend(loc="center right", frameon=False, fontsize=SCHRIFT - 1,
               handletextpad=0.3, borderpad=0.1)
 
     for zeile in axes:
@@ -1542,12 +1521,6 @@ def a15_attribution_ablation() -> list:
             feld.tick_params(axis="y", length=0)
         zeile[0].set_yticklabels([LABEL_GRUPPE[g] for g in GRUPPEN_ORDNUNG])
         zeile[1].set_yticklabels([])
-    fig.supxlabel("Links: Anteil am erklärten Beitrag — Menge über "
-                  "standardisierte Koeffizienten, Struktur über SHAP-Werte. "
-                  "Zwei verschiedene Größen, beide auf 100 % normiert.\n"
-                  "Rechts: Güteänderung, wenn die Gruppe weggelassen wird; "
-                  "positiv heißt schlechter ohne sie. In Klammern die Zahl der "
-                  "Wiederholungen mit Verschlechterung.", fontsize=SCHRIFT - 2)
     return _speichere(fig, "a15_attribution_ablation.pdf")
 
 
@@ -1601,7 +1574,7 @@ def a16_einsatzlast() -> list:
             markeredgecolor="black", markeredgewidth=0.9, zorder=3)
 
     ax.set_yticks(y)
-    ax.set_yticklabels(p["stadtteil"], fontsize=SCHRIFT - 2)
+    ax.set_yticklabels(p["stadtteil"], fontsize=SCHRIFT - 1)
     ax.set_ylim(-0.8, len(p) - 0.2)
     ax.set_xlim(left=0)
     ax.set_xlabel("Einsätze je Monat")
@@ -1611,18 +1584,23 @@ def a16_einsatzlast() -> list:
     ax.grid(axis="x", color="0.90", lw=0.6, zorder=0)
     ax.set_axisbelow(True)
 
-    klein, gross = p["mittel"].min(), p["mittel"].max()
-    monate = int(p["monate"].max())
-    # Dezimalkomma je Zahl setzen, nicht ueber den ganzen Satz: ein
-    # str.replace(".", ",") trifft sonst die Satzzeichen mit.
-    fig.supxlabel(
-        f"Punkt: Median über {monate} Monate. Balken: Interquartilsabstand. "
-        f"Feine Linie: Spannweite.\n"
-        f"Stadtteilmittel von {_dez(klein, 1)} bis {_dez(gross, 1)} Einsätzen "
-        f"je Monat — Faktor {gross / klein:.0f}. "
-        f"Bezugsmenge: alle {len(p)} Stadtteile, 2015-01 bis 2025-12.",
-        fontsize=SCHRIFT - 2)
+    # Der Schluessel gehoert ins Bild, nicht in die Bildunterschrift: drei
+    # Elemente, drei Woerter. Unten rechts, weil dort die kleinen Stadtteile
+    # stehen und die Flaeche ohnehin leer ist - kostet keine Bauhoehe.
+    from matplotlib.lines import Line2D
+    schluessel = [
+        Line2D([], [], linestyle="none", marker="o", markersize=4.2,
+               markerfacecolor="white", markeredgecolor="black",
+               markeredgewidth=0.9, label="Median"),
+        Line2D([], [], color="0.45", lw=3.4, label="Interquartilsabstand"),
+        Line2D([], [], color="0.80", lw=0.8, label="Spannweite"),
+    ]
+    ax.legend(handles=schluessel, loc="lower right", frameon=False,
+              fontsize=SCHRIFT - 1)
+
     return _speichere(fig, "a16_einsatzlast.pdf")
+
+
 # ===========================================================================
 def a18_foldstruktur() -> list:
     """A18: Struktur der Aufteilung - Beleg fuer Kapitel 5.4.
@@ -1665,7 +1643,7 @@ def a18_foldstruktur() -> list:
     median = g["bev"].median() / 1000
     ax.axhline(median, color="black", linewidth=0.8, linestyle=":", zorder=2)
     ax.text(5.55, median * 1.06, "Median", va="bottom", ha="right",
-            fontsize=SCHRIFT - 2)
+            fontsize=SCHRIFT - 1)
     ax.axvline(0.5, color="0.6", linewidth=0.8, zorder=1)
 
     ax.set_xticks(spalten)
@@ -1679,14 +1657,22 @@ def a18_foldstruktur() -> list:
     for rand in ("top", "right"):
         ax.spines[rand].set_visible(False)
 
-    je = g.groupby("fold")["brand"].sum()
-    fig.supxlabel(
-        "Ein Punkt ist ein Stadtteil; die Fläche zeigt die Zahl "
-        "brand-dominierter Monate (leer: keiner). Brand-dominierte Monate je "
-        "Gruppe: " + ", ".join(
-            f"{'Hold-out' if s == 0 else f'Fold {s}'} {int(je[s])}"
-            for s in spalten) + ".", fontsize=SCHRIFT - 2, wrap=True)
-    fig.tight_layout()
+    # Ohne diesen Schluessel bleibt unerklaert, was leer gegen gefuellt und was
+    # die Punktflaeche bedeutet. Unter der Zeichnung, weil im Feld selbst kein
+    # Platz frei ist, der nicht Daten verdeckt.
+    from matplotlib.lines import Line2D
+    schluessel = [
+        Line2D([], [], linestyle="none", marker="o", markersize=4.0,
+               markerfacecolor="white", markeredgecolor="0.35",
+               markeredgewidth=0.8, label="kein brand-dominierter Monat"),
+        Line2D([], [], linestyle="none", marker="o", markersize=6.5,
+               markerfacecolor="0.45", markeredgecolor="black",
+               markeredgewidth=0.7, alpha=0.85,
+               label="brand-dominierte Monate (Fläche: Anzahl)"),
+    ]
+    fig.legend(handles=schluessel, loc="outside lower center", ncol=2,
+               frameon=False, fontsize=SCHRIFT - 1)
+
     return _speichere(fig, "a18_foldstruktur.pdf")
 
 
@@ -1746,14 +1732,15 @@ def a17_panelstruktur() -> list:
         # Text bleibt lesbar. Oben stuende er auf einem 100-%-Balken.
         ax.annotate(f"Zielgröße {_dez(w * 100, 1)} %",
                     xy=(w, 0.55), xytext=(-5, 0), textcoords="offset points",
-                    ha="right", va="center", fontsize=SCHRIFT - 2.5,
+                    ha="right", va="center", fontsize=SCHRIFT - 1,
                     bbox={"facecolor": "white", "edgecolor": "none",
                           "pad": 1.4, "alpha": 0.85})
     ax.set_xlim(0, 1)
     ax.set_xlabel("Anteil an der Gesamtvarianz")
     ax.xaxis.set_major_formatter(_prozent())
-    ax.legend(loc="lower left", bbox_to_anchor=(0.0, 1.01), frameon=False,
-              ncol=2, fontsize=SCHRIFT - 2.5, handletextpad=0.4)
+    fig.legend(*ax.get_legend_handles_labels(), loc="outside upper left",
+               frameon=False, ncol=2, fontsize=SCHRIFT - 1,
+               handletextpad=0.4)
 
     # ---- rechts: zeitliche Aufloesung ------------------------------------
     ax = axes[1]
@@ -1762,12 +1749,12 @@ def a17_panelstruktur() -> list:
     ax.set_xscale("log")
     ax.set_xlim(0.85, 420)
     ax.set_xticks([1, 4, 12, 132])
-    ax.set_xticklabels(["1", "4", "12", "132"], fontsize=SCHRIFT - 2)
+    ax.set_xticklabels(["1", "4", "12", "132"], fontsize=SCHRIFT - 1)
     ax.set_xlabel("Werte je Stadtteil (log.)")
     for yi, wert in zip(y, werte):
         ax.annotate(_dez(wert, 1), xy=(wert, yi), xytext=(3, 0),
                     textcoords="offset points", va="center",
-                    fontsize=SCHRIFT - 2.5)
+                    fontsize=SCHRIFT - 1)
     ax.grid(axis="x", color="0.90", lw=0.6, zorder=0)
     ax.set_axisbelow(True)
 
@@ -1777,15 +1764,8 @@ def a17_panelstruktur() -> list:
         feld.spines["left"].set_visible(False)
         feld.tick_params(axis="y", length=0)
     axes[0].set_yticklabels([LABEL_MERKMAL[m] for m in reihen],
-                            fontsize=SCHRIFT - 2)
+                            fontsize=SCHRIFT - 1)
     axes[1].set_yticklabels([])
-
-    fig.supxlabel(
-        "Links: Zerlegung der Varianz jedes Merkmals. Die gestrichelte Linie "
-        "ist der entsprechende Anteil der Zielgröße `anzahl_einsaetze`.\n"
-        "Rechts: mittlere Zahl verschiedener Werte je Stadtteil über die 132 "
-        "Monate. 132 hieße monatlich neu, 1 heißt zeitkonstant.\n"
-        "Bezugsmenge: alle 36 Stadtteile.", fontsize=SCHRIFT - 2)
     return _speichere(fig, "a17_panelstruktur.pdf")
 
 
@@ -1833,7 +1813,8 @@ def main() -> int:
         print(f"  => {zeigen}  ({pfad.stat().st_size / 1024:.0f} kB)")
     print(f"\n  {len(erzeugt)} Abbildung(en). Einbinden mit "
           f"\\includegraphics[width=\\textwidth]{{...}} - die Dateien sind "
-          f"bereits in Endgroesse ({BREITE}\" breit, {SCHRIFT} pt).")
+          f"bereits in Endgroesse ({BREITE:.4f}\" = 15 cm breit, "
+          f"{SCHRIFT}/{SCHRIFT - 1} pt) - width=\\textwidth skaliert nicht.")
     return 0
 
 

@@ -1,0 +1,12 @@
+# Zeilenenden: im Repo immer LF. Ohne diese Datei schreibt Git unter Windows
+# beim Auschecken CRLF zurueck - dann meldet `git status` ganze Dateien als
+# geaendert, obwohl sich kein Zeichen unterscheidet.
+* text=auto eol=lf
+
+# Binaerdateien nie anfassen.
+*.pdf    binary
+*.png    binary
+*.jpg    binary
+*.svg    binary
+*.parquet binary
+*.xlsx   binary

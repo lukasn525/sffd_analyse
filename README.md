@@ -27,7 +27,7 @@ python vorpruefung\v4_decke.py holdout  #    dieselben, inklusive Hold-out    < 
 python tools\panelprofil.py             #    Belege fuer R-2                  < 1 min
 python tools\parametersensitivitaet.py  #    Belege fuer R-4                  ~5 min
 python modelle\m04_shap.py              #    Faktorgruppen, Ablation, VIF     ~10 min
-python modelle\m05_abbildungen.py       #    zehn Abbildungen (liest nur CSV) < 1 min
+python modelle\m05_abbildungen.py       #    19 Abbildungen (liest nur CSV)   < 1 min
 python tools\codebook.py                # 4  Merkmalstabelle für Kapitel 4    < 1 min
 python tools\pruefe_zahlen.py           #    Doku gegen results/ prüfen       < 1 min
 ```

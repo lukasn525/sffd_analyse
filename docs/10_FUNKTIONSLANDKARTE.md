@@ -2,7 +2,7 @@
 
 > **Lebensdauer:** ändert sich, wenn Funktionen dazukommen, wegfallen oder
 > umbenannt werden. Die Tabellen sind aus dem Quelltext erzeugt (AST), die
-> Fließtexte von Hand geschrieben. Stand **02.09.2026**.
+> Fließtexte von Hand geschrieben. Stand **09.09.2026**.
 >
 > **Wozu diese Datei.** Sie beantwortet für jede Funktion des Repos drei
 > Fragen: Wo steht sie, was tut sie, wer ruft sie. Sie ersetzt nicht
@@ -19,21 +19,21 @@
 
 ## 0. Die Zahl, um die es geht
 
-Der Abgabecode umfasst **8.281 Zeilen** in 16 Dateien. Netto, also ohne
-Leerzeilen, Docstrings und Kommentare, sind es **4.089 Zeilen**. Diese Tabelle
+Der Abgabecode umfasst **8.278 Zeilen** in 16 Dateien. Netto, also ohne
+Leerzeilen, Docstrings und Kommentare, sind es **4.052 Zeilen**. Diese Tabelle
 wird bei jedem Lauf des Erzeugers neu gemessen, sie kann nicht veralten:
 
 | Ordner | Dateien | LOC brutto | **netto** | Funktionen |
 |---|---:|---:|---:|---:|
 | `prep/` | 4 | 1.586 | 767 | 28 |
-| `vorpruefung/` | 6 | 1.897 | 892 | 42 |
+| `vorpruefung/` | 6 | 1.907 | 897 | 42 |
 | `modelle/` ohne `m05` | 4 | 2.544 | 1.173 | 49 |
-| `modelle/m05_abbildungen.py` | 1 | 1.835 | 1.068 | 32 |
+| `modelle/m05_abbildungen.py` | 1 | 1.822 | 1.026 | 32 |
 | `tests/` | 1 | 419 | 189 | 23 |
-| **Abgabe gesamt** | **16** | **8.281** | **4.089** | **174** |
+| **Abgabe gesamt** | **16** | **8.278** | **4.052** | **174** |
 | `tools/` (nicht Abgabe) | 16 | 7.534 | 5.373 | 105 |
 
-**26 % des Abgabecodes ist Matplotlib in `m05`.** Diese 32 Funktionen
+**25 % des Abgabecodes ist Matplotlib in `m05`.** Diese 32 Funktionen
 folgen alle demselben Muster (CSV lesen → Achsen → beschriften → speichern);
 wer eine verstanden hat, hat alle verstanden.
 
@@ -50,15 +50,15 @@ Reihenfolge liest, muss nie vorgreifen.
 | 2 | Wie die Daten entstehen | `prep/s1_daten.py`, `s2_datensaetze.py`, `build.py` | 635 | woher jede Spalte kommt und wie die Folds zustande kommen |
 | 3 | Die eine Stelle mit den Folds | `vorpruefung/v0_aufteilung.py` | 82 | warum alle Verfahren dieselben Zeilen sehen |
 | 4 | Die Messlatte | `vorpruefung/v1_baselines.py` | 159 | wogegen gemessen wird und warum diese zwei Stufen |
-| 5 | Warum diese drei Verfahren | `vorpruefung/v2_eignung.py` | 385 | die sechs Belege der Verfahrenswahl |
+| 5 | Warum diese drei Verfahren | `vorpruefung/v2_eignung.py` | 390 | die sechs Belege der Verfahrenswahl |
 | 6 | **Das Muster** | `modelle/m02_menge.py` | 405 | Tuning → Bewertung → Aggregation → Vergleich |
 | 7 | Dasselbe Muster nochmal | `modelle/m03_struktur.py` | 377 | *fast nichts Neues* — siehe Abschnitt 2 |
 | 8 | Die Gegenproben | `v3_spezifikation`, `v4_decke` | 266 | was die Ergebnisse einschränkt |
 | 9 | Die Interpretation | `modelle/m04_shap.py` | 370 | Unterfrage 1: welche Merkmale tragen |
-| 10 | Die Bilder | `modelle/m05_abbildungen.py` | 1.068 | ein Muster, 18-mal angewandt |
+| 10 | Die Bilder | `modelle/m05_abbildungen.py` | 1.026 | ein Muster, 18-mal angewandt |
 | 11 | Die Prüfungen | `tests/test_aufbereitung.py` | 189 | was zugesichert ist |
 
-Etappen 1 bis 6 sind **1.819 Nettozeilen** — der Kern. Alles danach ist
+Etappen 1 bis 6 sind **1.824 Nettozeilen** — der Kern. Alles danach ist
 Wiederholung des Musters, Gegenprobe oder Darstellung.
 
 ---
@@ -320,18 +320,18 @@ Die verschachtelte `Z()` baut je eine Zeile davon.
 
 | Zeilen | Funktion | Z. | Was sie tut | Gerufen von |
 |---|---|---:|---|---|
-| 58–65 | `log(txt)` | 8 | Gibt eine Zeile aus und haengt sie an den Berichtstext an | `annahmen`, `dispersion`, `extrapolation` … |
-| 68–77 | `speichere(fig, name)` | 10 | Legt eine Abbildung im Ergebnisordner ab und vermerkt sie im Bericht | `linearitaet` |
-| 81–129 | `dispersion(train)` | 49 | Beleg 1: Dispersionsindex der beiden Zaehl-Zielgroessen | `main` |
-| 133–225 | `linearitaet(train)` | 93 | Beleg 2: Korrelationen und Residuenbild (Auflage R7) | `main` |
-| 229–278 | `spezifikation(train)` | 50 | Beleg 3: RESET-Test und Interaktionsterme | `main` |
-| 282–314 | `extrapolation(panel)` | 33 | Beleg 4: Anteil der Teststadtteile ausserhalb des Gelernten | `main` |
-| 318–391 | `klassifikation(kl)` | 74 | Beleg 5: Trennen dieselben Merkmale auch die Einsatzart? | `main` |
-| 395–401 | `_z(wert, stellen)` | 7 | Teststatistik mit deutschem Dezimalkomma | `annahmen` |
-| 404–418 | `_p(wert)` | 15 | p-Wert deutsch; unter 0,001 wird begrenzt statt beziffert | `annahmen` |
-| 421–606 | `annahmen(train, befunde)` | 186 | Beleg 6: Anforderungen je Verfahren mit formalen Tests | `main` |
-| 484–499 | `Z(verfahren, anforderung, pruefung, statistik, p, status, konsequenz, wert)` | 16 | Baut eine Zeile der Anforderungstabelle | `annahmen` |
-| 610–663 | `main()` | 54 | Rechnet die sechs Belege und schreibt Bericht, Tabellen und Abbildungen | **extern:** `run:main` |
+| 68–75 | `log(txt)` | 8 | Gibt eine Zeile aus und haengt sie an den Berichtstext an | `annahmen`, `dispersion`, `extrapolation` … |
+| 78–87 | `speichere(fig, name)` | 10 | Legt eine Abbildung im Ergebnisordner ab und vermerkt sie im Bericht | `linearitaet` |
+| 91–139 | `dispersion(train)` | 49 | Beleg 1: Dispersionsindex der beiden Zaehl-Zielgroessen | `main` |
+| 143–235 | `linearitaet(train)` | 93 | Beleg 2: Korrelationen und Residuenbild (Auflage R7) | `main` |
+| 239–288 | `spezifikation(train)` | 50 | Beleg 3: RESET-Test und Interaktionsterme | `main` |
+| 292–324 | `extrapolation(panel)` | 33 | Beleg 4: Anteil der Teststadtteile ausserhalb des Gelernten | `main` |
+| 328–401 | `klassifikation(kl)` | 74 | Beleg 5: Trennen dieselben Merkmale auch die Einsatzart? | `main` |
+| 405–411 | `_z(wert, stellen)` | 7 | Teststatistik mit deutschem Dezimalkomma | `annahmen` |
+| 414–428 | `_p(wert)` | 15 | p-Wert deutsch; unter 0,001 wird begrenzt statt beziffert | `annahmen` |
+| 431–616 | `annahmen(train, befunde)` | 186 | Beleg 6: Anforderungen je Verfahren mit formalen Tests | `main` |
+| 494–509 | `Z(verfahren, anforderung, pruefung, statistik, p, status, konsequenz, wert)` | 16 | Baut eine Zeile der Anforderungstabelle | `annahmen` |
+| 620–673 | `main()` | 54 | Rechnet die sechs Belege und schreibt Bericht, Tabellen und Abbildungen | **extern:** `run:main` |
 
 
 ### `vorpruefung/v3_spezifikation.py`
@@ -550,7 +550,7 @@ ihr Auseinanderfallen ist B-47.
 ### `modelle/m05_abbildungen.py`
 
 > Alle Abbildungen der Kapitel 4 und 7 - aus den CSV-Dateien, nicht von Hand.  
-> **32 Funktionen, 1569 Zeilen in Funktionsrümpfen.**
+> **32 Funktionen, 1546 Zeilen in Funktionsrümpfen.**
 
 **Rechnet nichts.** Liest ausschließlich die CSV-Dateien der vorherigen
 Schritte und zeichnet daraus 21 PDF. Deshalb steht sie am Ende der Laufordnung
@@ -567,38 +567,38 @@ anderen Spalten.
 
 | Zeilen | Funktion | Z. | Was sie tut | Gerufen von |
 |---|---|---:|---|---|
-| 164–174 | `_sekunden(wert)` | 11 | Beschriftet Sekundenwerte lesbar | `a9_parallelisierung` |
-| 184–202 | `_matplotlib()` | 19 | Setzt Schriftgroessen, Schrift und Rahmen fuer alle Abbildungen | `main` |
-| 205–218 | `_komma(stellen, vorzeichen)` | 14 | Deutsches Dezimalkomma auf den Achsen | `a10_qq_residuen`, `a11_differenzen`, `a12_decken` … |
-| 221–228 | `_prozent(stellen)` | 8 | Prozentwert mit deutschem Dezimalkomma | `a15_attribution_ablation`, `a17_panelstruktur`, `a6_faktorgruppen` … |
-| 231–237 | `_text(pfad)` | 7 | Setzt einen Textblock unter die Abbildung | `_faktorgruppen_balken`, `_gepaarte_differenz`, `_hyperparameter_lagen` … |
-| 241–254 | `_speichere(fig, datei)` | 14 | Legt eine Abbildung in results/abbildungen ab und schliesst sie | `a10_qq_residuen`, `a11_differenzen`, `a12_decken` … |
-| 257–290 | `_gepaarte_differenz()` | 34 | Je Verfahren die 10 Wiederholungsmittel der Differenz zur Baseline | `a1_gegen_baseline` |
-| 293–346 | `a1_gegen_baseline()` | 54 | A1: jedes Verfahren gegen seine Stufe-2-Baseline (Primaeraussage) | *Einstiegspunkt* |
-| 350–397 | `a2_foldstruktur()` | 48 | A2: Rohwerte je Fold - Begruendung fuer die Paarung in A1 | *Einstiegspunkt* |
-| 401–437 | `_spezifikationszeilen()` | 37 | Sammelt die Balkenwerte fuer A3 aus drei Ergebnisdateien | `a3_spezifikation` |
-| 440–492 | `a3_spezifikation()` | 53 | A3: Verfahren gegen Spezifikation (Unterfrage 4) | *Einstiegspunkt* |
-| 496–577 | `a4_laufzeit_guete()` | 82 | A4: Aufwand gegen Guete, ein Punkt je Verfahren (Unterfrage 3) | *Einstiegspunkt* |
-| 581–640 | `a5_holdout()` | 60 | A5: die einmalige Auswertung auf den sechs zurueckgehaltenen Stadtteilen | *Einstiegspunkt* |
-| 644–671 | `_faktorgruppen_balken()` | 28 | Anteile je Faktorgruppe fuer einen Strang | `a6_faktorgruppen` |
-| 674–734 | `a6_faktorgruppen()` | 61 | A6: Welche Faktorgruppe traegt wie viel? (Unterfrage 1) | *Einstiegspunkt* |
-| 738–800 | `a7_extrapolation()` | 63 | A7: Extrapolationsanteil gegen Fehler, 50 Punkte je Verfahren | *Einstiegspunkt* |
-| 804–835 | `_lage_im_suchraum(name, parameter, wert)` | 32 | Relative Lage eines gefundenen Wertes in seinem Suchraum, 0 bis 1 | `_hyperparameter_lagen` |
-| 838–871 | `_hyperparameter_lagen()` | 34 | Bereitet die Fold-Parametersaetze fuer A8 auf | `a8_hyperparameter` |
-| 874–952 | `a8_hyperparameter()` | 79 | A8: Stabilitaet der Modellwahl bei 30 Entwicklungsstadtteilen | *Einstiegspunkt* |
-| 956–1024 | `a9_parallelisierung()` | 69 | A9: Parallelisierungsgewinn je Verfahren (Unterfrage 3, zweite Haelfte) | *Einstiegspunkt* |
-| 1028–1076 | `a10_qq_residuen()` | 49 | A10: QQ-Diagramm der Residuen der linearen Spezifikation | *Einstiegspunkt* |
-| 1091–1100 | `_dez(wert, stellen)` | 10 | Deutsches Dezimalkomma fuer Beschriftungen im Bild | `a11_differenzen`, `a12_decken`, `a13_umschlag` … |
-| 1103–1199 | `a11_differenzen()` | 97 | Gepaarte Differenzen mit Konfidenzintervall, je Strang eine Abbildung | *Einstiegspunkt* |
-| 1132–1145 | `_zeilen(df, ersatz)` | 14 | **— kein Docstring —** | `a11_differenzen` |
-| 1202–1284 | `a12_decken()` | 83 | Die beiden Obergrenzen des Strukturstrangs mit den erreichten Werten | *Einstiegspunkt* |
-| 1287–1353 | `a13_umschlag()` | 67 | Kreuzvalidierung gegen Hold-out im Strukturstrang | *Einstiegspunkt* |
-| 1356–1433 | `a14_ueberanpassung()` | 78 | Trainingsguete gegen Kreuzvalidierungsguete je Verfahren | *Einstiegspunkt* |
-| 1436–1545 | `a15_attribution_ablation()` | 110 | Attribution und Ablation je Faktorgruppe, nebeneinander | *Einstiegspunkt* |
-| 1569–1619 | `a16_einsatzlast()` | 51 | A16: Einsatzlast je Stadtteil - Lage und Streuung ueber 132 Monate | *Einstiegspunkt* |
-| 1621–1684 | `a18_foldstruktur()` | 64 | A18: Struktur der Aufteilung - Beleg fuer Kapitel 5.4 | *Einstiegspunkt* |
-| 1690–1783 | `a17_panelstruktur()` | 94 | A17: Varianzanteile und zeitliche Aufloesung der zwoelf Modellmerkmale | *Einstiegspunkt* |
-| 1787–1831 | `main()` | 45 | Erzeugt alle siebzehn Abbildungen nacheinander | *Einstiegspunkt* |
+| 172–182 | `_sekunden(wert)` | 11 | Beschriftet Sekundenwerte lesbar | `a9_parallelisierung` |
+| 192–216 | `_matplotlib()` | 25 | Setzt Schriftgroessen, Schrift und Rahmen fuer alle Abbildungen | `main` |
+| 219–232 | `_komma(stellen, vorzeichen)` | 14 | Deutsches Dezimalkomma auf den Achsen | `a10_qq_residuen`, `a11_differenzen`, `a12_decken` … |
+| 235–242 | `_prozent(stellen)` | 8 | Prozentwert mit deutschem Dezimalkomma | `a15_attribution_ablation`, `a17_panelstruktur`, `a6_faktorgruppen` … |
+| 245–251 | `_text(pfad)` | 7 | Setzt einen Textblock unter die Abbildung | `_faktorgruppen_balken`, `_gepaarte_differenz`, `_hyperparameter_lagen` … |
+| 255–272 | `_speichere(fig, datei)` | 18 | Legt eine Abbildung in results/abbildungen ab und schliesst sie | `a10_qq_residuen`, `a11_differenzen`, `a12_decken` … |
+| 275–308 | `_gepaarte_differenz()` | 34 | Je Verfahren die 10 Wiederholungsmittel der Differenz zur Baseline | `a1_gegen_baseline` |
+| 311–360 | `a1_gegen_baseline()` | 50 | A1: jedes Verfahren gegen seine Stufe-2-Baseline (Primaeraussage) | *Einstiegspunkt* |
+| 364–403 | `a2_foldstruktur()` | 40 | A2: Rohwerte je Fold - Begruendung fuer die Paarung in A1 | *Einstiegspunkt* |
+| 407–443 | `_spezifikationszeilen()` | 37 | Sammelt die Balkenwerte fuer A3 aus drei Ergebnisdateien | `a3_spezifikation` |
+| 446–498 | `a3_spezifikation()` | 53 | A3: Verfahren gegen Spezifikation (Unterfrage 4) | *Einstiegspunkt* |
+| 502–589 | `a4_laufzeit_guete()` | 88 | A4: Aufwand gegen Guete, ein Punkt je Verfahren (Unterfrage 3) | *Einstiegspunkt* |
+| 593–649 | `a5_holdout()` | 57 | A5: die einmalige Auswertung auf den sechs zurueckgehaltenen Stadtteilen | *Einstiegspunkt* |
+| 653–680 | `_faktorgruppen_balken()` | 28 | Anteile je Faktorgruppe fuer einen Strang | `a6_faktorgruppen` |
+| 683–739 | `a6_faktorgruppen()` | 57 | A6: Welche Faktorgruppe traegt wie viel? (Unterfrage 1) | *Einstiegspunkt* |
+| 743–801 | `a7_extrapolation()` | 59 | A7: Extrapolationsanteil gegen Fehler, 50 Punkte je Verfahren | *Einstiegspunkt* |
+| 805–836 | `_lage_im_suchraum(name, parameter, wert)` | 32 | Relative Lage eines gefundenen Wertes in seinem Suchraum, 0 bis 1 | `_hyperparameter_lagen` |
+| 839–872 | `_hyperparameter_lagen()` | 34 | Bereitet die Fold-Parametersaetze fuer A8 auf | `a8_hyperparameter` |
+| 875–949 | `a8_hyperparameter()` | 75 | A8: Stabilitaet der Modellwahl bei 30 Entwicklungsstadtteilen | *Einstiegspunkt* |
+| 953–1017 | `a9_parallelisierung()` | 65 | A9: Parallelisierungsgewinn je Verfahren (Unterfrage 3, zweite Haelfte) | *Einstiegspunkt* |
+| 1021–1068 | `a10_qq_residuen()` | 48 | A10: QQ-Diagramm der Residuen der linearen Spezifikation | *Einstiegspunkt* |
+| 1083–1092 | `_dez(wert, stellen)` | 10 | Deutsches Dezimalkomma fuer Beschriftungen im Bild | `a11_differenzen`, `a12_decken`, `a13_umschlag` … |
+| 1095–1203 | `a11_differenzen()` | 109 | Gepaarte Differenzen mit Konfidenzintervall, je Strang eine Abbildung | *Einstiegspunkt* |
+| 1126–1139 | `_zeilen(df, ersatz)` | 14 | **— kein Docstring —** | `a11_differenzen` |
+| 1206–1280 | `a12_decken()` | 75 | Die beiden Obergrenzen des Strukturstrangs mit den erreichten Werten | *Einstiegspunkt* |
+| 1283–1343 | `a13_umschlag()` | 61 | Kreuzvalidierung gegen Hold-out im Strukturstrang | *Einstiegspunkt* |
+| 1346–1418 | `a14_ueberanpassung()` | 73 | Trainingsguete gegen Kreuzvalidierungsguete je Verfahren | *Einstiegspunkt* |
+| 1421–1524 | `a15_attribution_ablation()` | 104 | Attribution und Ablation je Faktorgruppe, nebeneinander | *Einstiegspunkt* |
+| 1548–1601 | `a16_einsatzlast()` | 54 | A16: Einsatzlast je Stadtteil - Lage und Streuung ueber 132 Monate | *Einstiegspunkt* |
+| 1605–1676 | `a18_foldstruktur()` | 72 | A18: Struktur der Aufteilung - Beleg fuer Kapitel 5.4 | *Einstiegspunkt* |
+| 1682–1769 | `a17_panelstruktur()` | 88 | A17: Varianzanteile und zeitliche Aufloesung der zwoelf Modellmerkmale | *Einstiegspunkt* |
+| 1773–1818 | `main()` | 46 | Erzeugt alle siebzehn Abbildungen nacheinander | *Einstiegspunkt* |
 
 
 ---
