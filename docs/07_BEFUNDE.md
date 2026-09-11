@@ -1907,7 +1907,7 @@ Arbeit.
 
 **Fundstelle:** `results/regression/vergleich.csv`,
 `results/klassifikation/vergleich.csv`, dazu eine Simulation des gepaarten
-Wilcoxon. **Die Trennschaerfewerte stehen NICHT in `results/`** — Reproduktion:
+Wilcoxon. **Seit 10.09.2026 in `results/trennschaerfe/`** (`python tools/trennschaerfe.py`; Werte des Laufs vom 31.08. dort, die Tabelle unten ist der aeltere Stand) — Rechenweg:
 Effektstaerke d aus Mittelwert und KI-Breite ueber SE = Breite / (2 · t(0,975;9)),
 sd = SE · √10; Trennschaerfe per Monte Carlo mit 4.000 Ziehungen.
 

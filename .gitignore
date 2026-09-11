@@ -32,3 +32,5 @@ __pycache__/
 .DS_Store
 Thumbs.db
 Quellen/Aas20221.pdf
+
+Claude outputs/

@@ -230,9 +230,9 @@ def linearitaet(train: pd.DataFrame) -> None:
             f"{guete[(ziel, 'log(1+y)')]:.3f} |")
 
     log("")
-    log("**Folgt daraus:** Ridge wird auf `log(1+y)` geschaetzt, Guetemasse")
-    log("nach expm1-Ruecktransformation auf der Originalskala - fuer die")
-    log("Zielgroesse, bei der die Transformation die Anpassung verbessert.")
+    log("Die Tabelle misst ein Zaehlmodell auf zwei Skalen und ist so nicht")
+    log("vergleichbar; seit #43 schaetzt Ridge die Rate. Der Vergleich auf")
+    log("derselben Skala steht direkt darunter (ridge_rate).")
 
 
 # ---------------------------------------------------------------------------
@@ -617,6 +617,54 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
+def ridge_rate(train: pd.DataFrame) -> None:
+    """Beleg 2b: Zieltransformation fuer Ridge, so wie Ridge tatsaechlich rechnet.
+
+    Ein:  Trainingsstadtteile von Fold 1
+    Aus:  Tabelle in eignungspruefung.md, direkt unter Abschnitt 2
+
+    - seit #43 schaetzt Ridge die RATE und rechnet ueber die Wohnbevoelkerung
+      auf die Anzahl zurueck; verglichen wird deshalb dieses Modell, nicht das
+      Zaehlmodell der Tabelle darueber
+    - beide Varianten auf derselben Skala, der berichteten Anzahl: ein R2 auf
+      log(1+y) ist mit einem R2 auf der Rohskala nicht vergleichbar
+    - dasselbe Modell wie in linearitaet() (StandardScaler, Ridge alpha=1)
+    - steht bewusst hinter Zeile 470: Code 21 der Arbeit zitiert die Zeilen
+      458-470 dieser Datei, sie duerfen sich nicht verschieben
+    """
+    from sklearn.linear_model import Ridge
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    X = train[MERKMALE].astype(float)
+    rate = train[RATE].astype(float).to_numpy()
+    anzahl = train[ZIELGROESSE].astype(float).to_numpy()
+    bev = train[EXPOSURE_ROH].astype(float).to_numpy() / 1000.0
+    ohne = (make_pipeline(StandardScaler(), Ridge(alpha=1.0))
+            .fit(X, rate).predict(X))
+    mit = np.expm1(make_pipeline(StandardScaler(), Ridge(alpha=1.0))
+                   .fit(X, np.log1p(rate)).predict(X))
+
+    def r2(y: np.ndarray, f: np.ndarray) -> float:
+        return float(1 - ((y - f) ** 2).sum() / ((y - y.mean()) ** 2).sum())
+
+    log("")
+    log("Ridge auf der Rate (#43), auf die Anzahl zurueckgerechnet - beide")
+    log("Varianten auf derselben Skala:\n")
+    log("| Variante | R2 Anzahl | R2 Rate | negative Vorhersagen |")
+    log("|---|---|---|---|")
+    for name, f in (("ohne Transformation", ohne), ("log(1+y), expm1", mit)):
+        log(f"| {name} | {r2(anzahl, f * bev):.3f} | {r2(rate, f):.3f} | "
+            f"{int((f < 0).sum())} von {len(f):,} |")
+    log("")
+    log("**Folgt daraus:** Ridge wird auf `log(1+y)` der Rate geschaetzt,")
+    log("Guetemasse nach expm1-Ruecktransformation auf der Originalskala. Der")
+    log("Grund ist die Form (multiplikativ wie die Referenz, keine negativen")
+    log("Vorhersagen), nicht die Anpassung - die aendert sich auf derselben")
+    log("Skala kaum.")
+
+
+# ---------------------------------------------------------------------------
 def main() -> None:
     """Rechnet die sechs Belege und schreibt Bericht, Tabellen und Abbildungen.
 
@@ -648,6 +696,7 @@ def main() -> None:
     # gerechnet hiesse zwei Zahlen, die auseinanderlaufen koennen.
     befunde = {"dispersion": dispersion(train)}
     linearitaet(train)
+    ridge_rate(train)
     befunde["reset"] = spezifikation(train)
     befunde["extrapolation"] = extrapolation(panel)
     klassifikation(kl)

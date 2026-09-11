@@ -154,14 +154,16 @@ LABEL_GRUPPE = {"soziooekonomisch": "sozioökonomisch",
                 "groessenkontrolle": "Größenkontrolle",
                 "saison": "Saison"}
 
-# Kurzformen fuer A8. Die Rohnamen sind sklearn-/XGBoost-Bezeichner und als
-# Achsenbeschriftung zu lang; die Bildunterschrift nennt sie einmal vollstaendig.
+# Deutsche Namen fuer A8. Die Rohnamen sind sklearn-/XGBoost-Bezeichner; die
+# Beschriftung folgt woertlich Tabelle 9 (tab:suchraeume) in main.tex, damit
+# Abbildung und Tabelle dieselben Begriffe tragen.
 LABEL_PARAMETER = {
-    "alpha": "alpha", "n_estimators": "n_estimators", "max_depth": "max_depth",
-    "min_samples_leaf": "min_samples_leaf", "max_features": "max_features",
-    "learning_rate": "learning_rate", "subsample": "subsample",
-    "colsample_bytree": "colsample_bytree", "reg_lambda": "reg_lambda",
-    "tweedie_variance_power": "tweedie_power",
+    "alpha": "Strafterm", "n_estimators": "Zahl der Bäume",
+    "max_depth": "Baumtiefe", "min_samples_leaf": "Beobachtungen je Blatt",
+    "max_features": "Merkmale je Split", "learning_rate": "Lernrate",
+    "subsample": "Zeilenanteil je Baum",
+    "colsample_bytree": "Merkmalsanteil je Baum", "reg_lambda": "Strafterm",
+    "tweedie_variance_power": "Varianzexponent",
 }
 
 # Reihenfolge der Verfahren in A8 und A9 - die der Arbeit, nicht die
@@ -228,8 +230,10 @@ def _komma(stellen: int = 2, vorzeichen: bool = False):
       "2,5" wie ein Absolutwert statt wie ein Abstand
     """
     fmt = "{:+,." + str(stellen) + "f}" if vorzeichen else "{:,." + str(stellen) + "f}"
+    # Typografisches Minus (U+2212) statt Bindestrich - wie die Standardachsen
+    # von matplotlib und wie $-$ im Fliesstext.
     return FuncFormatter(lambda x, _: fmt.format(x).replace(",", " ")
-                         .replace(".", ",").replace(" ", "."))
+                         .replace(".", ",").replace(" ", ".").replace("-", "\u2212"))
 
 
 def _prozent(stellen: int = 0):
@@ -1087,9 +1091,10 @@ def _dez(wert: float, stellen: int = 3) -> str:
     Aus:  Zeichenkette
 
     - die Achsen benutzen _komma ueber den FuncFormatter; fuer Text IM Bild
-      braucht es dieselbe Schreibweise ohne Formatter
+      braucht es dieselbe Schreibweise ohne Formatter, auch dasselbe
+      typografische Minus (U+2212) statt des Bindestrichs
     """
-    return f"{wert:.{stellen}f}".replace(".", ",")
+    return f"{wert:.{stellen}f}".replace(".", ",").replace("-", "\u2212")
 
 
 def a11_differenzen() -> list:
@@ -1479,10 +1484,16 @@ def a15_attribution_ablation() -> list:
     ax.xaxis.set_major_formatter(_komma(0, True))
 
     ax = axes[1][0]
-    hoehe = 0.34
-    for k, v in enumerate(["random_forest", "xgboost"]):
+    # Nur Verfahren, fuer die SHAP-Werte vorliegen - derzeit allein der Random
+    # Forest (gruppen.csv). Ein fest verdrahtetes XGBoost stand sonst in der
+    # Legende ohne Balken. Die gemeinsame Legende unter der Zeile ordnet die
+    # Balken ueber Grauwert und Schraffur zu.
+    mit_shap = [v for v in ("random_forest", "xgboost")
+                if (gr.verfahren == v).any()]
+    hoehe = 0.6 / max(len(mit_shap), 1)
+    for k, v in enumerate(mit_shap):
         teil = gr[gr.verfahren == v].set_index("gruppe").anteil
-        ax.barh(y + (0.5 - k) * hoehe,
+        ax.barh(y + ((len(mit_shap) - 1) / 2 - k) * hoehe,
                 [teil.get(g, 0) for g in GRUPPEN_ORDNUNG], height=hoehe,
                 color=STIL[v]["grau"], edgecolor="black",
                 hatch=STIL[v]["schraffur"], lw=0.6, label=LABEL[v])
@@ -1490,28 +1501,34 @@ def a15_attribution_ablation() -> list:
     ax.xaxis.set_major_formatter(_prozent(0))
     ax.set_ylabel("Struktur\nSHAP-Beiträge", fontsize=SCHRIFT)
     ax.set_xlabel("Anteil am erklärten Beitrag", fontsize=SCHRIFT - 1)
-    ax.legend(loc="lower right", frameon=False, fontsize=SCHRIFT - 1,
-              handletextpad=0.3, borderpad=0.1)
 
     ax = axes[1][1]
     hoehe = 0.24
+    alle = []
     for k, (v, beschriftung) in enumerate([("Logit", "Logit"),
                                            ("random_forest", "Random Forest"),
                                            ("xgboost", "XGBoost")]):
         teil = ab[(ab.strang == "struktur")
                   & (ab.verfahren == v)].set_index("weggelassen")
         stil = STIL.get(v, {"grau": "0.85", "schraffur": ".."})
-        ax.barh(y + (1 - k) * hoehe,
-                [float(teil.loc[g, "verschlechterung_mittel"])
-                 for g in GRUPPEN_ORDNUNG], height=hoehe, color=stil["grau"],
+        werte = [float(teil.loc[g, "verschlechterung_mittel"])
+                 for g in GRUPPEN_ORDNUNG]
+        alle += werte
+        ax.barh(y + (1 - k) * hoehe, werte, height=hoehe, color=stil["grau"],
                 edgecolor="black", hatch=stil["schraffur"], lw=0.5,
                 label=beschriftung)
     ax.axvline(0, color="0.25", ls="--", lw=0.9)
-    ax.set_xlim(-0.031, 0.032)
+    # Achsengrenzen aus den Daten statt fest gesetzt: mit (-0,031; 0,032)
+    # waren die Balken bei -0,0385 und +0,0439 abgeschnitten.
+    rand = 0.1 * (max(max(alle), 0) - min(min(alle), 0))
+    ax.set_xlim(min(min(alle), 0) - rand, max(max(alle), 0) + rand)
     ax.set_xlabel("Δ Macro-F1 ohne die Gruppe", fontsize=SCHRIFT - 1)
     ax.xaxis.set_major_formatter(_komma(2, True))
-    ax.legend(loc="center right", frameon=False, fontsize=SCHRIFT - 1,
-              handletextpad=0.3, borderpad=0.1)
+    # Legende ausserhalb der Felder: "outside lower center" laesst
+    # constrained_layout den Streifen unter der Zeile reservieren, statt die
+    # Legende auf die Balken zu legen.
+    fig.legend(*ax.get_legend_handles_labels(), loc="outside lower center",
+               ncol=3, frameon=False, fontsize=SCHRIFT - 1)
 
     for zeile in axes:
         for feld in zeile:
