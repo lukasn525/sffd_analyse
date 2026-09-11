@@ -73,13 +73,14 @@ ABSCHNITTE = [
     ("tools", "Werkzeuge (nicht Abgabe)"),
 ]
 REIHENFOLGE = {
-    "prep": ["config.py", "s1_daten.py", "s2_datensaetze.py", "build.py"],
+    "prep": ["config.py", "s1_daten.py", "s2_datensaetze.py", "build.py",
+             "codebook.py"],
     "vorpruefung": ["run.py", "v0_aufteilung.py", "v1_baselines.py",
                     "v2_eignung.py", "v3_spezifikation.py", "v4_decke.py"],
     "modelle": ["config_modelle.py", "m02_menge.py", "m03_struktur.py",
-                "m04_shap.py", "m05_abbildungen.py"],
+                "m04_shap.py", "m05_abbildungen.py", "suchdiagnose.py"],
     "tests": ["test_aufbereitung.py"],
-    "tools": ["codebook.py", "suchdiagnose.py", "pruefe_zahlen.py",
+    "tools": ["pruefe_zahlen.py",
               "sichere_ergebnisse.py", "aufraeumen.py", "funktionsdoku.py"],
 }
 PDF_ABSCHNITTE = ["prep", "vorpruefung", "modelle"]

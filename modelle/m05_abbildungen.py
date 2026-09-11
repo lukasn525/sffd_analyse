@@ -14,7 +14,7 @@ Ausgang: results/abbildungen/a1..a17.pdf
     Darstellung aendern, ohne die Modelle neu zu rechnen
   - A16 und A17 sind am 22.08.2026 fuer KAPITEL 4 ergaenzt worden - die
     einzigen beiden Abbildungen, die nicht zu Kapitel 7 gehoeren. Sie lesen
-    aus results/deskriptiv/, erzeugt von tools/deskriptiv.py, und zeigen
+    aus results/deskriptiv/, erzeugt von prep/deskriptiv.py, und zeigen
     ausschliesslich BEFUNDE ueber die Daten. Keine Verfahrensaussage, keine
     Fold-Zuordnung, kein Hold-out: beides waere ein Vorgriff auf Kapitel 5
     und verstiesse gegen den Abgrenzungsblock in main.tex (steht seit dem
@@ -1790,7 +1790,7 @@ def a17_panelstruktur() -> list:
 def main() -> int:
     """Erzeugt alle siebzehn Abbildungen nacheinander.
 
-    Ein:  die CSV-Dateien aus m02, m03, m04, v1, v2, v3 und tools/deskriptiv.py
+    Ein:  die CSV-Dateien aus m02, m03, m04, v1, v2, v3 und prep/deskriptiv.py
     Aus:  results/abbildungen/a1..a17.pdf; Exitcode
 
     - fehlt eine Eingangsdatei, wird die betroffene Abbildung uebersprungen und
@@ -1808,7 +1808,7 @@ def main() -> int:
               "Erst m04_shap.py laufen lassen.")
     if not (DESK / "stadtteilprofil.csv").exists():
         print("  Hinweis: results/deskriptiv/ fehlt - A16 und A17 entfallen. "
-              "Erst tools/deskriptiv.py laufen lassen.")
+              "Erst prep/deskriptiv.py laufen lassen.")
     OUT.mkdir(parents=True, exist_ok=True)
     _matplotlib()
 

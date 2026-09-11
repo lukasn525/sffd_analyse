@@ -225,7 +225,7 @@ def _md(df: pd.DataFrame) -> str:
     Hier war der Aufruf besonders tueckisch, weil er ganz am Ende steht - die
     CSV-Dateien sind dann schon geschrieben, nur decke.md fehlt, und der Lauf
     endet mit einem Traceback statt mit einem Ergebnis. Gleiche Loesung wie in
-    `tools/suchdiagnose.py`, mit einem Zusatz: Gleitkommazahlen werden auf vier
+    `modelle/suchdiagnose.py`, mit einem Zusatz: Gleitkommazahlen werden auf vier
     Nachkommastellen ausgeschrieben. `str(0.26)` ergaebe "0.26", und diese
     Tabelle wird abgeschrieben - eine verschluckte Null ist genau die Sorte
     Fehler, gegen die `tools/pruefe_zahlen.py` antritt.

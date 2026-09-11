@@ -8,36 +8,44 @@ Ridge Regression, Random Forest und XGBoost auf Stadtteildaten.
 ```bash
 python -m venv venv
 venv\Scripts\activate          # Windows
-pip install -r requirements.txt
+pip install -r requirements_lauf.txt   # gemessene Laufumgebung (Kap. 3 der Arbeit)
 ```
 
 ## Ausführen
 
 ```bash
-python tools\sichere_ergebnisse.py name #    ZUERST: results/ sichern         < 1 min
-python prep\build.py                    # 1  Aufbereitung -> zwei Datensätze   ~2 min
-python tests\test_aufbereitung.py       #    20 Prüfungen an den Dateien       ~1 min
-python vorpruefung\v0_aufteilung.py     # 2  Selbsttest der Fold-Zuteilung    < 1 min
-python vorpruefung\run.py               #    Messlatte + Eignung (v1 und v2)   ~2 min
-python vorpruefung\v3_spezifikation.py  #    Gegenprobe zur Eignungsprüfung    ~2 min
-python modelle\m02_menge.py holdout     # 3  Regression (der lange Teil)      ~55 min
-python modelle\m03_struktur.py holdout  #    Klassifikation                   ~45 min
-python vorpruefung\v4_decke.py          #    Obergrenzen des Strukturstrangs  < 1 min
-python vorpruefung\v4_decke.py holdout  #    dieselben, inklusive Hold-out    < 1 min
-python tools\panelprofil.py             #    Belege fuer R-2                  < 1 min
-python tools\parametersensitivitaet.py  #    Belege fuer R-4                  ~5 min
-python modelle\m04_shap.py              #    Faktorgruppen, Ablation, VIF     ~10 min
-python modelle\m05_abbildungen.py       #    19 Abbildungen (liest nur CSV)   < 1 min
-python tools\codebook.py                # 4  Merkmalstabelle für Kapitel 4    < 1 min
-python tools\pruefe_zahlen.py           #    Doku gegen results/ prüfen       < 1 min
+python tools\sichere_ergebnisse.py name     #    ZUERST: results/ sichern         < 1 min
+python prep\build.py                        # 1  Aufbereitung -> zwei Datensätze   ~2 min
+python tests\test_aufbereitung.py           #    20 Prüfungen an den Dateien       ~1 min
+python prep\rohbefunde.py                   #    Rohquellen beschreiben (Kap. 4)   < 1 min*
+python prep\deskriptiv.py                   #    Panel beschreiben (Kap. 4)        < 1 min*
+python prep\codebook.py                     #    Merkmalstabelle für Kapitel 4     < 1 min
+python vorpruefung\v0_aufteilung.py         # 2  Selbsttest der Fold-Zuteilung    < 1 min
+python vorpruefung\panelprofil.py           #    Profil beider Panelhälften        < 1 min
+python vorpruefung\run.py                   #    Messlatte + Eignung (v1 und v2)   ~2 min
+python vorpruefung\v3_spezifikation.py      #    Gegenprobe zur Eignungsprüfung    ~2 min
+python modelle\m02_menge.py holdout         # 3  Regression (der lange Teil)      ~55 min
+python modelle\m03_struktur.py holdout      #    Klassifikation                   ~45 min
+python vorpruefung\v4_decke.py              #    Obergrenzen des Strukturstrangs  < 1 min
+python vorpruefung\v4_decke.py holdout      #    dieselben, inklusive Hold-out    < 1 min
+python modelle\suchdiagnose.py              #    war die Suche am Limit?          ~2 h*
+python modelle\parametersensitivitaet.py    #    Kreuzprobe der Parametersätze    ~5 min
+python modelle\trennschaerfe.py             #    Trennschärfe der Tests           < 1 min*
+python modelle\m04_shap.py                  #    Faktorgruppen, Ablation, VIF     ~10 min
+python modelle\fairness.py                  #    Fehler gegen Sozialprofil        < 1 min*
+python modelle\m05_abbildungen.py           #    19 Abbildungen (liest nur CSV)   < 1 min
+python tools\pruefe_zahlen.py               #    Doku gegen results/ prüfen       < 1 min
 ```
 
-Ein vollständiger Durchlauf dauert rund **zwei Stunden**. Das Argument
+Die mit * markierten Zeiten sind geschätzt, nicht gemessen; `suchdiagnose`
+wiederholt die gesamte Hyperparametersuche. Ohne sie dauert ein vollständiger
+Durchlauf rund **zwei Stunden**, seit der Budgeterhöhung (#49/#50) eher drei
+(`CLAUDE.md`, Abschnitt 5). Das Argument
 `holdout` gehört nur in einen bewusst als Schlussbewertung gefahrenen Lauf —
 ohne es sind die sechs zurückgehaltenen Stadtteile für den Code unerreichbar.
 
 Die Reihenfolge ist verbindlich: `m05` rechnet nichts, es liest nur die CSV der
-vorherigen Schritte. `tools\pruefe_zahlen.py` gehört **nicht zur Abgabe** und
+vorherigen Schritte. `tools\pruefe_zahlen.py` erzeugt keine Zahl der Arbeit und
 meldet mit Exit-Code 1, welche Stelle der Dokumentation nicht mehr zu
 `results/` passt.
 
@@ -72,22 +80,22 @@ Drei Arbeitsschritte, drei Ordner:
 
 ```
 prep/          die Daten        config · s1_daten · s2_datensaetze · build
+               beschreiben      rohbefunde · deskriptiv · codebook (Kapitel 4)
 vorpruefung/   die Messlatte    v0_aufteilung   wiederholte Splits, Selbsttest
-               und die Eignung  v1_baselines    Stufe 1 + Stufe 2
+               und die Eignung  panelprofil     Profil beider Panelhaelften
+                                v1_baselines    Stufe 1 + Stufe 2
                                 v2_eignung      welche Verfahrensklasse passt?
                                 v3_spezifikation  haelt die Nichtlinearitaet?
                                 v4_decke        Obergrenzen der Einsatzart-Prognose
 modelle/       der Vergleich    m02_menge · m03_struktur · m04_shap · m05_abbildungen
+                                suchdiagnose · parametersensitivitaet
+                                trennschaerfe · fairness
 tests/                          test_aufbereitung
-tools/         NICHT ABGABE     landkarte          Funktionslandkarte erzeugen
-                                panelprofil        Profil beider Panelhaelften
-                                parametersensitivitaet  haengt das Ergebnis am
-                                                   Parametersatz?
-                                pruefe_zahlen      Doku gegen results/
-                                codebook           Merkmalstabelle für Kapitel 4
-                                aufraeumen         verwaiste Artefakte, Vorschau
+tools/         Werkzeuge        landkarte          Funktionslandkarte erzeugen
+               (ohne Zahl in    pruefe_zahlen      Doku gegen results/
+               der Arbeit)      aufraeumen         verwaiste Artefakte, Vorschau
                                 sichere_ergebnisse results/ nach archiv/ kopieren
-                                suchdiagnose       war die Hyperparametersuche am Limit?
+                                funktionsdoku      Docstring-Archiv
 archiv/        NICHT ABGABE     gesicherte Ergebnisstände, je mit Manifest
 entwuerfe/     NICHT ABGABE     E-Mails, Erklärungen
 data/          raw · processed

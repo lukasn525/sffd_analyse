@@ -316,8 +316,8 @@ Abbildung datenseitig vor.
 
 ### Muster C — Bericht-Skripte
 
-`vorpruefung/v4_decke`, `tools/panelprofil` und
-`tools/parametersensitivitaet` haben denselben Bauplan: rechnende Funktionen →
+`vorpruefung/v4_decke`, `vorpruefung/panelprofil` und
+`modelle/parametersensitivitaet` haben denselben Bauplan: rechnende Funktionen →
 `_md`/`md` (Datenrahmen zu Markdown) → `bericht` (Tabellen zusammensetzen) →
 `main` (schreibt CSV plus `.md`). Gleiche Funktionsnamen, drei verschiedene
 Dateien — nicht verwechseln.
@@ -544,10 +544,14 @@ A("""
 
 ## 8. `tools/` — nicht Abgabe, aber Teil des ZIP
 
-Seit dem 31.08.2026 geht `tools/` mit ins Abgabe-ZIP: `fairness.py` erzeugt die
-Zahlen von R-24 und Kapitel 8.3, `suchdiagnose.py` die Budgetdiagnose in 6.4,
-`deskriptiv.py` und `codebook.py` die Tabellen aus Kapitel 4,
-`pruefe_zahlen.py` die Zusicherung, dass Text und `results/` zusammenpassen.
+Seit dem 31.08.2026 geht `tools/` mit ins Abgabe-ZIP. Am 11.09.2026 sind die
+acht Skripte, deren Zahlen in der Arbeit stehen, nach Phase einsortiert worden:
+`rohbefunde`, `deskriptiv` und `codebook` nach `prep/`, `panelprofil` nach
+`vorpruefung/`, `suchdiagnose`, `parametersensitivitaet`, `trennschaerfe` und
+`fairness` nach `modelle/`. Die beiden Blöcke zu `panelprofil` und
+`parametersensitivitaet` stehen weiter hier. In `tools/` bleiben die Werkzeuge
+ohne Zahl in der Arbeit, darunter `pruefe_zahlen.py`, die Zusicherung, dass
+Text und `results/` zusammenpassen.
 
 Für das Verständnis der Arbeit sind sie zweitrangig — **mit einer Ausnahme:**
 
@@ -563,7 +567,7 @@ nicht mehr passt.
 
 """)
 
-A(block("tools/panelprofil.py", """Rein deskriptiv, kein Modell: Wer sind die 30 und wer sind die 6?
+A(block("vorpruefung/panelprofil.py", """Rein deskriptiv, kein Modell: Wer sind die 30 und wer sind die 6?
 `stadtteile` liefert eine Zeile je Stadtteil mit Zuteilungsrang, Größe,
 Einsatzlast und Modalklasse; `klassenverteilung` und `zielgroessen` vergleichen
 beide Panelhälften.
@@ -575,11 +579,11 @@ nach der Regel aus #30 zwangsläufig in Gruppe 0.
 
 **Geht nicht in die Arbeit** (Entscheidung 02.09.2026, nach Schröters Regel
 vom 24.08.: Analysen ohne Bezug zu einer Forschungsfrage gehören raus oder in
-den Anhang). Deshalb liegt die Datei in `tools/` und ihre Zahlen stehen in
+den Anhang). Ihre Zahlen stehen deshalb in
 `06_RISIKEN.md` unter R-2, nicht in `03_STAND.md`. Der Zahlenwächter prüft sie
 trotzdem — sie sind einmal unbemerkt über eine Korrektur hinweg veraltet."""))
 
-A(block("tools/parametersensitivitaet.py", """Die Kreuzprobe: `kreuzprobe` bewertet **jeden Testfold mit jedem der fünf
+A(block("modelle/parametersensitivitaet.py", """Die Kreuzprobe: `kreuzprobe` bewertet **jeden Testfold mit jedem der fünf
 getunten Parametersätze**. Die Diagonale ist die berichtete Konfiguration, die
 20 übrigen Zellen sind Sätze, die auf anderen Stadtteilen gefunden wurden.
 `zusammenfassung` stellt eigenen gegen fremden Satz, `_kontrolle` prüft, ob die
@@ -595,15 +599,10 @@ aber die in B-42 benannte offene Frage; ihr Ergebnis steht deshalb in
 erwähnt, ist „nicht gemessen" falsch** — dann gehört eine Zeile aus R-4 hinein."""))
 
 A("""
-Die übrigen elf Dateien im Überblick:
+Die übrigen Dateien in `tools/` im Überblick:
 
 | Datei | Zweck | Fkt. |
 |---|---|---:|
-| `codebook.py` | Merkmalstabelle mit Skalenniveau für Kapitel 4 | 8 |
-| `deskriptiv.py` | deskriptiver Befundteil von Kapitel 4 | 10 |
-| `rohbefunde.py` | Qualitätsteil von Kapitel 4, ACS-Rohbefunde | 2 |
-| `fairness.py` | hängt die Prognosegüte am Sozialprofil? (R-24) | 4 |
-| `suchdiagnose.py` | war die Hyperparametersuche am Limit? | 8 |
 | `sichere_ergebnisse.py` | `results/` nach `archiv/` kopieren, mit Manifest | 5 |
 | `aufraeumen.py` | verwaiste Artefakte finden (Vorschau, löscht nichts) | 7 |
 | `funktionsdoku.py` | erzeugt das Docstring-Archiv | 5 |

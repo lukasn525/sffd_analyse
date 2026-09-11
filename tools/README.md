@@ -1,9 +1,10 @@
-# tools/ — Arbeitswerkzeuge, **nicht Teil der Abgabe**
+# tools/ — Arbeitswerkzeuge
 
-Dieser Ordner wird vor dem Packen des Abgabe-ZIP **gelöscht**. Er erzeugt keine
-Ergebnisse und wird von keinem Skript in `prep/`, `vorpruefung/` oder
-`modelle/` importiert. Nichts in `results/` und nichts in der Thesis hängt
-davon ab.
+Seit dem 31.08.2026 Teil des Abgabe-ZIP (`CLAUDE.md`, Abschnitt 4). Die
+Skripte, deren Zahlen in der Arbeit stehen, liegen seit dem 11.09.2026 nicht
+mehr hier, sondern nach Phase in `prep/`, `vorpruefung/` und `modelle/`. Was
+hier bleibt, erzeugt keine Zahl der Arbeit und wird von keinem Skript in
+`prep/`, `vorpruefung/` oder `modelle/` importiert.
 
 ```
 python tools/pruefe_zahlen.py        # Zahlenwächter, Exit-Code 0 = sauber
@@ -12,14 +13,11 @@ python tools/pruefe_zahlen.py -v     # zusätzlich die bestandenen Prüfungen
 python tools/aufraeumen.py           # Aufräumer, VORSCHAU — löscht nichts
 python tools/aufraeumen.py --wirklich
 
-python tools/codebook.py             # Merkmalstabelle für Kapitel 4
-python tools/codebook.py -v          # zusätzlich die Spalten je Datensatz
 ```
 
-> **Ausnahme bei `codebook.py`:** Das Skript gehört nicht zur Abgabe, seine
-> **Ausgabe schon** — `results/codebook/merkmale.md` ist die große Tabelle aus
-> Kapitel 4. Sie ist deshalb selbsttragend geschrieben und braucht das Skript
-> nicht, um lesbar zu sein.
+> **`codebook.py`** liegt seit dem 11.09.2026 in `prep/`
+> (`python prep/codebook.py`, `-v` zusätzlich mit den Spalten je Datensatz).
+> Seine Beschreibung steht weiter unten in dieser Datei.
 
 ---
 
@@ -151,7 +149,7 @@ Abbildungen neu an; die `__pycache__` entstehen beim nächsten Import von selbst
 
 ---
 
-# `codebook.py` — die Merkmalstabelle
+# `prep/codebook.py` — die Merkmalstabelle
 
 Erzeugt `results/codebook/merkmale.md` und `merkmale.csv`: eine große Tabelle
 mit allen 34 Spalten beider Datensätze — Skalenniveau, Einheit, Wertebereich,

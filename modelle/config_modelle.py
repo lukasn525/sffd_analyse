@@ -33,7 +33,7 @@ Bezug: docs/04_MODELLIERUNG.md
 # verbreitete Angabe "60 Ziehungen" steht nicht in dem Papier. Anlass war #49:
 # Ein weiterer Suchraum verduennt die gute Region.
 #
-# GEMESSEN (tools/suchdiagnose.py): Die Verdopplung allein ist bei vier von
+# GEMESSEN (modelle/suchdiagnose.py): Die Verdopplung allein ist bei vier von
 # fuenf Verfahren wirkungslos - nur XGBoost in der Regression gewinnt
 # spuerbar. Genau so gehoert es in Kapitel 6.
 TUNING_BUDGET = 100

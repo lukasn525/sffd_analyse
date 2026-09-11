@@ -166,6 +166,8 @@ Drei Arbeitsschritte, drei Ordner, drei Stufen:
 ```
 prep/         die Daten          config.py · s1_daten.py · s2_datensaetze.py
               Stufe 0            build.py
+                                 rohbefunde.py · deskriptiv.py · codebook.py
+                                                   beschreiben die Daten (Kap. 4)
 vorpruefung/  die Messlatte      v0_aufteilung.py  wiederholte Splits
               und die Eignung    v1_baselines.py   Stufe 1 + 2
               Stufe 1 + 2        v2_eignung.py     welche Verfahrensklasse passt?
@@ -174,21 +176,19 @@ vorpruefung/  die Messlatte      v0_aufteilung.py  wiederholte Splits
                                  v4_decke.py       Obergrenzen des Struktur-
                                                    strangs: Label-Rauschen und
                                                    Stadtteilwissen (B-48)
+                                 panelprofil.py    Profil beider Panel-
+                                                   haelften (R-2)
                                  run.py
 modelle/      der Vergleich      m02_menge.py · m03_struktur.py · m04_shap.py
               Stufe 3            m05_abbildungen.py · config_modelle.py
+                                 suchdiagnose.py   war die Suche am Limit?
+                                 parametersensitivitaet.py  haengt das Ergebnis
+                                                   am Parametersatz? (R-4)
+                                 trennschaerfe.py  Trennschaerfe der Tests
+                                 fairness.py       R-24, Kap. 8.3
 tests/                           test_aufbereitung.py
 tools/        ABGABE (neu)       landkarte.py           Funktionslandkarte
-                                 panelprofil.py         Profil beider Panel-
-                                                        haelften (R-2)
-                                 parametersensitivitaet.py  haengt das Ergebnis
-                                                        am Parametersatz? (R-4)
                                  pruefe_zahlen.py       Doku gegen results/
-                                 codebook.py            Merkmalstabelle Kap. 4
-                                 deskriptiv.py          Kap.-4-Deskription
-                                 rohbefunde.py          ACS-Rohbefunde
-                                 fairness.py            R-24, Kap. 8.3
-                                 suchdiagnose.py        war die Suche am Limit?
                                  aufraeumen.py          verwaiste Artefakte
                                  sichere_ergebnisse.py  results/ nach archiv/
                                  funktionsdoku.py       Docstring-Archiv
@@ -205,9 +205,19 @@ Tabellen aus Kapitel 4, `pruefe_zahlen.py` die Zusicherung, dass Text und
 Erzeuger — gegen die Reproduzierbarkeitsauflage. Die Ausgabe von `codebook.py`
 (`results/codebook/merkmale.md`) bleibt selbsttragend geschrieben.
 
+**Geändert am 11.09.2026: acht Skripte nach Phase einsortiert.** Kapitel 3 der
+Arbeit führt den Ablauf als Tabelle Schritt → Skript. Die Skripte, deren
+Zahlen in der Arbeit stehen, liegen deshalb im Ordner ihrer CRISP-DM-Phase:
+`rohbefunde`, `deskriptiv` und `codebook` in `prep/`, `panelprofil` in
+`vorpruefung/`, `suchdiagnose`, `parametersensitivitaet`, `trennschaerfe` und
+`fairness` in `modelle/`. In `tools/` bleibt, was keine Zahl der Arbeit
+erzeugt.
+
 **Faustregel:** Erzeugt ein Schritt *Daten*, gehört er nach `prep/`. Legt er
 fest, *was ein Modell mindestens leisten muss und warum diese Verfahren*, nach
-`vorpruefung/`. Vergleicht er Verfahren, nach `modelle/`.
+`vorpruefung/`. Vergleicht er Verfahren, nach `modelle/`. Beschreibt ein Skript
+die Daten nur, ohne sie zu verändern, steht es seit dem 11.09.2026 ebenfalls
+in `prep/`.
 
 Schröters Auflage „Baseline gehört in die Data Preparation" (27.07.2026) bleibt
 gewahrt — die Baselines stehen weiterhin vor der Modellierung und werden in
@@ -219,7 +229,9 @@ Fold-Zuordnung steht als Spalte in der Parquet-Datei. Modellspezifische
 Transformationen laufen innerhalb der sklearn-Pipeline je Fold.
 
 **`prep/` ist abgeschlossen** und wird nicht mehr angefasst. Die Modellskripte
-lesen ausschließlich die fertigen Parquet-Dateien.
+lesen ausschließlich die fertigen Parquet-Dateien. Einzige Ausnahme: Am
+11.09.2026 sind `rohbefunde.py`, `deskriptiv.py` und `codebook.py`
+hinzugekommen; sie lesen nur und verändern keine Datei der Aufbereitung.
 
 ### Arbeitsregel für die Implementierung
 
@@ -278,7 +290,11 @@ verbindlich, `m05` liest alles Vorherige:
 python tools/sichere_ergebnisse.py <name>   #    ZUERST: results/ sichern   < 1 min
 python prep/build.py                        # 0  zwei Datensätze            ~2 min
 python tests/test_aufbereitung.py           #    20 Prüfungen               ~1 min
+python prep/rohbefunde.py                   #    Rohquellen, Kap. 4         < 1 min*
+python prep/deskriptiv.py                   #    Panel, Kap. 4              < 1 min*
+python prep/codebook.py                     #    Merkmalstabelle Kap. 4     < 1 min
 python vorpruefung/v0_aufteilung.py         # 1  Selbsttest der Aufteilung  < 1 min
+python vorpruefung/panelprofil.py           #    Belege fuer R-2            < 1 min
 python vorpruefung/v1_baselines.py          #    Messlatte, 10 Wdh.         ~1 min
 python vorpruefung/v2_eignung.py            #    Eignung + Annahmen (§6)    ~1 min
 python vorpruefung/v3_spezifikation.py      #    Gegenprobe                 ~2 min
@@ -286,11 +302,12 @@ python modelle/m02_menge.py holdout         # 2  der lange Teil            ~55 m
 python modelle/m03_struktur.py holdout      #    Klassifikation            ~45 min
 python vorpruefung/v4_decke.py              #    Decken Strukturstrang     < 1 min
 python vorpruefung/v4_decke.py holdout      #    dieselben, mit Hold-out   < 1 min
+python modelle/suchdiagnose.py              #    Budgetdiagnose            ~2 h*
+python modelle/parametersensitivitaet.py    #    Belege fuer R-4           ~5 min
+python modelle/trennschaerfe.py             #    Trennschaerfe der Tests   < 1 min*
 python modelle/m04_shap.py                  #    SHAP, Ablation, VIF       ~10 min
+python modelle/fairness.py                  #    Fehlergleichheit, R-24    < 1 min*
 python modelle/m05_abbildungen.py           #    19 Abbildungen            < 1 min
-python tools/codebook.py                    # 3  Merkmalstabelle Kap. 4    < 1 min
-python tools/panelprofil.py                 #    Belege fuer R-2           < 1 min
-python tools/parametersensitivitaet.py      #    Belege fuer R-4           ~5 min
 python tools/pruefe_zahlen.py               #    Doku gegen results/       < 1 min
 ```
 
@@ -301,7 +318,8 @@ dabei: **erst sichern, dann die Konfiguration ändern** — das Manifest liest
 `config_modelle.py` live und kann nicht wissen, womit die Dateien entstanden
 sind.
 
-Rund **zwei Stunden**, seit #49/#50 eher **drei** — die Tuningphase steigt von
+Mit * markierte Zeiten sind geschätzt, nicht gemessen. Ohne `suchdiagnose`
+rund **zwei Stunden**, seit #49/#50 eher **drei** — die Tuningphase steigt von
 66 auf rund 139 Minuten. `v1` und `v2` lassen sich auch als `python
 vorpruefung/run.py` in einem Zug starten — die Reihenfolge ist dort zwingend,
 weil `v2` die Baseline-Werte liest.
