@@ -157,20 +157,20 @@ def verfahren(name: str, n_jobs: int = N_JOBS_MODELL):
     from sklearn.preprocessing import StandardScaler
 
     if name == "ridge":
-        return make_pipeline(
-            StandardScaler(),
-            TransformedTargetRegressor(regressor=Ridge(),
-                                       func=np.log1p, inverse_func=np.expm1))
+        return make_pipeline(StandardScaler(),TransformedTargetRegressor(regressor=Ridge(),func=np.log1p, inverse_func=np.expm1))
     if name == "random_forest":
-        return RandomForestRegressor(random_state=RANDOM_STATE, n_jobs=n_jobs,
-                                     criterion="poisson")
+        return RandomForestRegressor(random_state=RANDOM_STATE, n_jobs=n_jobs, criterion="poisson")
     if name == "xgboost":
         from xgboost import XGBRegressor
-        return XGBRegressor(random_state=RANDOM_STATE, n_jobs=n_jobs,
-                            objective="reg:tweedie")
+        return XGBRegressor(random_state=RANDOM_STATE, n_jobs=n_jobs,objective="reg:tweedie")
     raise ValueError(f"Unbekanntes Verfahren: {name}")
 
 
+
+
+
+
+#173
 def suchraum(name: str) -> dict:
     """Uebersetzt SUCHRAEUME aus der Config in scipy-Verteilungen.
 

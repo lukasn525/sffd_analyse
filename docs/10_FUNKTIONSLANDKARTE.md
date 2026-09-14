@@ -2,7 +2,7 @@
 
 > **Lebensdauer:** ändert sich, wenn Funktionen dazukommen, wegfallen oder
 > umbenannt werden. Die Tabellen sind aus dem Quelltext erzeugt (AST), die
-> Fließtexte von Hand geschrieben. Stand **09.09.2026**.
+> Fließtexte von Hand geschrieben. Stand **11.09.2026**.
 >
 > **Wozu diese Datei.** Sie beantwortet für jede Funktion des Repos drei
 > Fragen: Wo steht sie, was tut sie, wer ruft sie. Sie ersetzt nicht
@@ -19,21 +19,21 @@
 
 ## 0. Die Zahl, um die es geht
 
-Der Abgabecode umfasst **8.278 Zeilen** in 16 Dateien. Netto, also ohne
-Leerzeilen, Docstrings und Kommentare, sind es **4.052 Zeilen**. Diese Tabelle
+Der Abgabecode umfasst **10.912 Zeilen** in 24 Dateien. Netto, also ohne
+Leerzeilen, Docstrings und Kommentare, sind es **5.397 Zeilen**. Diese Tabelle
 wird bei jedem Lauf des Erzeugers neu gemessen, sie kann nicht veralten:
 
 | Ordner | Dateien | LOC brutto | **netto** | Funktionen |
 |---|---:|---:|---:|---:|
-| `prep/` | 4 | 1.586 | 767 | 28 |
-| `vorpruefung/` | 6 | 1.907 | 897 | 42 |
-| `modelle/` ohne `m05` | 4 | 2.544 | 1.173 | 49 |
-| `modelle/m05_abbildungen.py` | 1 | 1.822 | 1.026 | 32 |
+| `prep/` | 7 | 2.884 | 1.493 | 48 |
+| `vorpruefung/` | 7 | 2.245 | 1.056 | 51 |
+| `modelle/` ohne `m05` | 8 | 3.525 | 1.629 | 71 |
+| `modelle/m05_abbildungen.py` | 1 | 1.839 | 1.030 | 32 |
 | `tests/` | 1 | 419 | 189 | 23 |
-| **Abgabe gesamt** | **16** | **8.278** | **4.052** | **174** |
-| `tools/` (nicht Abgabe) | 16 | 7.534 | 5.373 | 105 |
+| **Abgabe gesamt** | **24** | **10.912** | **5.397** | **225** |
+| `tools/` (nicht Abgabe) | 9 | 5.067 | 4.096 | 59 |
 
-**25 % des Abgabecodes ist Matplotlib in `m05`.** Diese 32 Funktionen
+**19 % des Abgabecodes ist Matplotlib in `m05`.** Diese 32 Funktionen
 folgen alle demselben Muster (CSV lesen → Achsen → beschriften → speichern);
 wer eine verstanden hat, hat alle verstanden.
 
@@ -50,15 +50,15 @@ Reihenfolge liest, muss nie vorgreifen.
 | 2 | Wie die Daten entstehen | `prep/s1_daten.py`, `s2_datensaetze.py`, `build.py` | 635 | woher jede Spalte kommt und wie die Folds zustande kommen |
 | 3 | Die eine Stelle mit den Folds | `vorpruefung/v0_aufteilung.py` | 82 | warum alle Verfahren dieselben Zeilen sehen |
 | 4 | Die Messlatte | `vorpruefung/v1_baselines.py` | 159 | wogegen gemessen wird und warum diese zwei Stufen |
-| 5 | Warum diese drei Verfahren | `vorpruefung/v2_eignung.py` | 390 | die sechs Belege der Verfahrenswahl |
+| 5 | Warum diese drei Verfahren | `vorpruefung/v2_eignung.py` | 417 | die sechs Belege der Verfahrenswahl |
 | 6 | **Das Muster** | `modelle/m02_menge.py` | 405 | Tuning → Bewertung → Aggregation → Vergleich |
 | 7 | Dasselbe Muster nochmal | `modelle/m03_struktur.py` | 377 | *fast nichts Neues* — siehe Abschnitt 2 |
 | 8 | Die Gegenproben | `v3_spezifikation`, `v4_decke` | 266 | was die Ergebnisse einschränkt |
 | 9 | Die Interpretation | `modelle/m04_shap.py` | 370 | Unterfrage 1: welche Merkmale tragen |
-| 10 | Die Bilder | `modelle/m05_abbildungen.py` | 1.026 | ein Muster, 18-mal angewandt |
+| 10 | Die Bilder | `modelle/m05_abbildungen.py` | 1.030 | ein Muster, 18-mal angewandt |
 | 11 | Die Prüfungen | `tests/test_aufbereitung.py` | 189 | was zugesichert ist |
 
-Etappen 1 bis 6 sind **1.824 Nettozeilen** — der Kern. Alles danach ist
+Etappen 1 bis 6 sind **1.851 Nettozeilen** — der Kern. Alles danach ist
 Wiederholung des Musters, Gegenprobe oder Darstellung.
 
 ---
@@ -97,8 +97,8 @@ Abbildung datenseitig vor.
 
 ### Muster C — Bericht-Skripte
 
-`vorpruefung/v4_decke`, `tools/panelprofil` und
-`tools/parametersensitivitaet` haben denselben Bauplan: rechnende Funktionen →
+`vorpruefung/v4_decke`, `vorpruefung/panelprofil` und
+`modelle/parametersensitivitaet` haben denselben Bauplan: rechnende Funktionen →
 `_md`/`md` (Datenrahmen zu Markdown) → `bericht` (Tabellen zusammensetzen) →
 `main` (schreibt CSV plus `.md`). Gleiche Funktionsnamen, drei verschiedene
 Dateien — nicht verwechseln.
@@ -209,7 +209,7 @@ und werden von außen mitbenutzt.
 | Zeilen | Funktion | Z. | Was sie tut | Gerufen von |
 |---|---|---:|---|---|
 | 63–95 | `ergaenze_aufteilung(daten, versatz, selten)` | 33 | Schreibt `fold` (0..N_FOLDS) und `ist_holdout` in den Datensatz | `run` **extern:** `test_aufbereitung:test_aufteilungsspalten_konsistent` |
-| 98–112 | `fold_masken(daten, k)` | 15 | Liefert Trainings- und Testmaske des Folds k aus den Spalten der Datei | **extern:** `m02_menge:phase_bewertung`, `m02_menge:phase_tuning` … |
+| 98–112 | `fold_masken(daten, k)` | 15 | Liefert Trainings- und Testmaske des Folds k aus den Spalten der Datei | **extern:** `fairness:foldprofil`, `m02_menge:phase_bewertung` … |
 | 115–136 | `beschreibe_splits(daten)` | 22 | Fasst die Aufteilung lesbar zusammen, fuer Kapitel 5.2 und 5.4 | *Einstiegspunkt* |
 | 142–150 | `_monat_minus(jahr_monat, monate)` | 9 | Verschiebt einen jahr_monat-Schluessel um n Monate zurueck | `baue_regression` **extern:** `test_aufbereitung:test_lags_gegen_rohdaten` |
 | 153–178 | `_setze_datentypen(d, merkmale)` | 26 | Vereinheitlicht die Datentypen auf modelltaugliche NumPy-Typen | `baue_klassifikation`, `baue_regression` |
@@ -264,8 +264,8 @@ verschiedene Partitionen, kein Stadtteil gleichzeitig Trainings- und Testfall.
 
 | Zeilen | Funktion | Z. | Was sie tut | Gerufen von |
 |---|---|---:|---|---|
-| 49–62 | `selten_je_stadtteil(klassifikation)` | 14 | Zahl der brand-dominierten Monate je Stadtteil | `_selbsttest` **extern:** `m02_menge:main`, `m03_struktur:main` … |
-| 65–115 | `wiederholte_aufteilung(daten, wiederholung, selten)` | 51 | Belegt die fold-Spalte fuer eine Wiederholung neu | `_selbsttest` **extern:** `m02_menge:phase_bewertung`, `m02_menge:phase_tuning` … |
+| 49–62 | `selten_je_stadtteil(klassifikation)` | 14 | Zahl der brand-dominierten Monate je Stadtteil | `_selbsttest` **extern:** `fairness:main`, `m02_menge:main` … |
+| 65–115 | `wiederholte_aufteilung(daten, wiederholung, selten)` | 51 | Belegt die fold-Spalte fuer eine Wiederholung neu | `_selbsttest` **extern:** `fairness:foldprofil`, `m02_menge:phase_bewertung` … |
 | 118–128 | `entwicklung_und_holdout(daten)` | 11 | Masken der Schlussbewertung: 30 Entwicklungs- gegen 6 Hold-out-Stadtteile | **extern:** `m02_menge:hold_out`, `m03_struktur:hold_out` |
 | 134–197 | `_selbsttest()` | 64 | Selbsttest ueber alle 10 Wiederholungen | *Einstiegspunkt* |
 
@@ -300,7 +300,7 @@ Code**, nicht nur nach derselben Formel.
 ### `vorpruefung/v2_eignung.py`
 
 > Eignungspruefung: Passen die gewaehlten Verfahren zu den Zielgroessen?  
-> **12 Funktionen, 595 Zeilen in Funktionsrümpfen.**
+> **14 Funktionen, 643 Zeilen in Funktionsrümpfen.**
 
 Sechs Belege, warum genau diese Verfahren. Jeder ist eine eigene Funktion und
 schreibt in denselben Berichtstext (`log`, `speichere`):
@@ -331,7 +331,9 @@ Die verschachtelte `Z()` baut je eine Zeile davon.
 | 414–428 | `_p(wert)` | 15 | p-Wert deutsch; unter 0,001 wird begrenzt statt beziffert | `annahmen` |
 | 431–616 | `annahmen(train, befunde)` | 186 | Beleg 6: Anforderungen je Verfahren mit formalen Tests | `main` |
 | 494–509 | `Z(verfahren, anforderung, pruefung, statistik, p, status, konsequenz, wert)` | 16 | Baut eine Zeile der Anforderungstabelle | `annahmen` |
-| 620–673 | `main()` | 54 | Rechnet die sechs Belege und schreibt Bericht, Tabellen und Abbildungen | **extern:** `run:main` |
+| 620–664 | `ridge_rate(train)` | 45 | Beleg 2b: Zieltransformation fuer Ridge, so wie Ridge tatsaechlich rechnet | `main` |
+| 648–649 | `r2(y, f)` | 2 | **— kein Docstring —** | `ridge_rate` |
+| 668–722 | `main()` | 55 | Rechnet die sechs Belege und schreibt Bericht, Tabellen und Abbildungen | **extern:** `run:main` |
 
 
 ### `vorpruefung/v3_spezifikation.py`
@@ -550,7 +552,7 @@ ihr Auseinanderfallen ist B-47.
 ### `modelle/m05_abbildungen.py`
 
 > Alle Abbildungen der Kapitel 4 und 7 - aus den CSV-Dateien, nicht von Hand.  
-> **32 Funktionen, 1546 Zeilen in Funktionsrümpfen.**
+> **32 Funktionen, 1561 Zeilen in Funktionsrümpfen.**
 
 **Rechnet nichts.** Liest ausschließlich die CSV-Dateien der vorherigen
 Schritte und zeichnet daraus 21 PDF. Deshalb steht sie am Ende der Laufordnung
@@ -567,38 +569,38 @@ anderen Spalten.
 
 | Zeilen | Funktion | Z. | Was sie tut | Gerufen von |
 |---|---|---:|---|---|
-| 172–182 | `_sekunden(wert)` | 11 | Beschriftet Sekundenwerte lesbar | `a9_parallelisierung` |
-| 192–216 | `_matplotlib()` | 25 | Setzt Schriftgroessen, Schrift und Rahmen fuer alle Abbildungen | `main` |
-| 219–232 | `_komma(stellen, vorzeichen)` | 14 | Deutsches Dezimalkomma auf den Achsen | `a10_qq_residuen`, `a11_differenzen`, `a12_decken` … |
-| 235–242 | `_prozent(stellen)` | 8 | Prozentwert mit deutschem Dezimalkomma | `a15_attribution_ablation`, `a17_panelstruktur`, `a6_faktorgruppen` … |
-| 245–251 | `_text(pfad)` | 7 | Setzt einen Textblock unter die Abbildung | `_faktorgruppen_balken`, `_gepaarte_differenz`, `_hyperparameter_lagen` … |
-| 255–272 | `_speichere(fig, datei)` | 18 | Legt eine Abbildung in results/abbildungen ab und schliesst sie | `a10_qq_residuen`, `a11_differenzen`, `a12_decken` … |
-| 275–308 | `_gepaarte_differenz()` | 34 | Je Verfahren die 10 Wiederholungsmittel der Differenz zur Baseline | `a1_gegen_baseline` |
-| 311–360 | `a1_gegen_baseline()` | 50 | A1: jedes Verfahren gegen seine Stufe-2-Baseline (Primaeraussage) | *Einstiegspunkt* |
-| 364–403 | `a2_foldstruktur()` | 40 | A2: Rohwerte je Fold - Begruendung fuer die Paarung in A1 | *Einstiegspunkt* |
-| 407–443 | `_spezifikationszeilen()` | 37 | Sammelt die Balkenwerte fuer A3 aus drei Ergebnisdateien | `a3_spezifikation` |
-| 446–498 | `a3_spezifikation()` | 53 | A3: Verfahren gegen Spezifikation (Unterfrage 4) | *Einstiegspunkt* |
-| 502–589 | `a4_laufzeit_guete()` | 88 | A4: Aufwand gegen Guete, ein Punkt je Verfahren (Unterfrage 3) | *Einstiegspunkt* |
-| 593–649 | `a5_holdout()` | 57 | A5: die einmalige Auswertung auf den sechs zurueckgehaltenen Stadtteilen | *Einstiegspunkt* |
-| 653–680 | `_faktorgruppen_balken()` | 28 | Anteile je Faktorgruppe fuer einen Strang | `a6_faktorgruppen` |
-| 683–739 | `a6_faktorgruppen()` | 57 | A6: Welche Faktorgruppe traegt wie viel? (Unterfrage 1) | *Einstiegspunkt* |
-| 743–801 | `a7_extrapolation()` | 59 | A7: Extrapolationsanteil gegen Fehler, 50 Punkte je Verfahren | *Einstiegspunkt* |
-| 805–836 | `_lage_im_suchraum(name, parameter, wert)` | 32 | Relative Lage eines gefundenen Wertes in seinem Suchraum, 0 bis 1 | `_hyperparameter_lagen` |
-| 839–872 | `_hyperparameter_lagen()` | 34 | Bereitet die Fold-Parametersaetze fuer A8 auf | `a8_hyperparameter` |
-| 875–949 | `a8_hyperparameter()` | 75 | A8: Stabilitaet der Modellwahl bei 30 Entwicklungsstadtteilen | *Einstiegspunkt* |
-| 953–1017 | `a9_parallelisierung()` | 65 | A9: Parallelisierungsgewinn je Verfahren (Unterfrage 3, zweite Haelfte) | *Einstiegspunkt* |
-| 1021–1068 | `a10_qq_residuen()` | 48 | A10: QQ-Diagramm der Residuen der linearen Spezifikation | *Einstiegspunkt* |
-| 1083–1092 | `_dez(wert, stellen)` | 10 | Deutsches Dezimalkomma fuer Beschriftungen im Bild | `a11_differenzen`, `a12_decken`, `a13_umschlag` … |
-| 1095–1203 | `a11_differenzen()` | 109 | Gepaarte Differenzen mit Konfidenzintervall, je Strang eine Abbildung | *Einstiegspunkt* |
-| 1126–1139 | `_zeilen(df, ersatz)` | 14 | **— kein Docstring —** | `a11_differenzen` |
-| 1206–1280 | `a12_decken()` | 75 | Die beiden Obergrenzen des Strukturstrangs mit den erreichten Werten | *Einstiegspunkt* |
-| 1283–1343 | `a13_umschlag()` | 61 | Kreuzvalidierung gegen Hold-out im Strukturstrang | *Einstiegspunkt* |
-| 1346–1418 | `a14_ueberanpassung()` | 73 | Trainingsguete gegen Kreuzvalidierungsguete je Verfahren | *Einstiegspunkt* |
-| 1421–1524 | `a15_attribution_ablation()` | 104 | Attribution und Ablation je Faktorgruppe, nebeneinander | *Einstiegspunkt* |
-| 1548–1601 | `a16_einsatzlast()` | 54 | A16: Einsatzlast je Stadtteil - Lage und Streuung ueber 132 Monate | *Einstiegspunkt* |
-| 1605–1676 | `a18_foldstruktur()` | 72 | A18: Struktur der Aufteilung - Beleg fuer Kapitel 5.4 | *Einstiegspunkt* |
-| 1682–1769 | `a17_panelstruktur()` | 88 | A17: Varianzanteile und zeitliche Aufloesung der zwoelf Modellmerkmale | *Einstiegspunkt* |
-| 1773–1818 | `main()` | 46 | Erzeugt alle siebzehn Abbildungen nacheinander | *Einstiegspunkt* |
+| 174–184 | `_sekunden(wert)` | 11 | Beschriftet Sekundenwerte lesbar | `a9_parallelisierung` |
+| 194–218 | `_matplotlib()` | 25 | Setzt Schriftgroessen, Schrift und Rahmen fuer alle Abbildungen | `main` |
+| 221–236 | `_komma(stellen, vorzeichen)` | 16 | Deutsches Dezimalkomma auf den Achsen | `a10_qq_residuen`, `a11_differenzen`, `a12_decken` … |
+| 239–246 | `_prozent(stellen)` | 8 | Prozentwert mit deutschem Dezimalkomma | `a15_attribution_ablation`, `a17_panelstruktur`, `a6_faktorgruppen` … |
+| 249–255 | `_text(pfad)` | 7 | Setzt einen Textblock unter die Abbildung | `_faktorgruppen_balken`, `_gepaarte_differenz`, `_hyperparameter_lagen` … |
+| 259–276 | `_speichere(fig, datei)` | 18 | Legt eine Abbildung in results/abbildungen ab und schliesst sie | `a10_qq_residuen`, `a11_differenzen`, `a12_decken` … |
+| 279–312 | `_gepaarte_differenz()` | 34 | Je Verfahren die 10 Wiederholungsmittel der Differenz zur Baseline | `a1_gegen_baseline` |
+| 315–364 | `a1_gegen_baseline()` | 50 | A1: jedes Verfahren gegen seine Stufe-2-Baseline (Primaeraussage) | *Einstiegspunkt* |
+| 368–407 | `a2_foldstruktur()` | 40 | A2: Rohwerte je Fold - Begruendung fuer die Paarung in A1 | *Einstiegspunkt* |
+| 411–447 | `_spezifikationszeilen()` | 37 | Sammelt die Balkenwerte fuer A3 aus drei Ergebnisdateien | `a3_spezifikation` |
+| 450–502 | `a3_spezifikation()` | 53 | A3: Verfahren gegen Spezifikation (Unterfrage 4) | *Einstiegspunkt* |
+| 506–593 | `a4_laufzeit_guete()` | 88 | A4: Aufwand gegen Guete, ein Punkt je Verfahren (Unterfrage 3) | *Einstiegspunkt* |
+| 597–653 | `a5_holdout()` | 57 | A5: die einmalige Auswertung auf den sechs zurueckgehaltenen Stadtteilen | *Einstiegspunkt* |
+| 657–684 | `_faktorgruppen_balken()` | 28 | Anteile je Faktorgruppe fuer einen Strang | `a6_faktorgruppen` |
+| 687–743 | `a6_faktorgruppen()` | 57 | A6: Welche Faktorgruppe traegt wie viel? (Unterfrage 1) | *Einstiegspunkt* |
+| 747–805 | `a7_extrapolation()` | 59 | A7: Extrapolationsanteil gegen Fehler, 50 Punkte je Verfahren | *Einstiegspunkt* |
+| 809–840 | `_lage_im_suchraum(name, parameter, wert)` | 32 | Relative Lage eines gefundenen Wertes in seinem Suchraum, 0 bis 1 | `_hyperparameter_lagen` |
+| 843–876 | `_hyperparameter_lagen()` | 34 | Bereitet die Fold-Parametersaetze fuer A8 auf | `a8_hyperparameter` |
+| 879–953 | `a8_hyperparameter()` | 75 | A8: Stabilitaet der Modellwahl bei 30 Entwicklungsstadtteilen | *Einstiegspunkt* |
+| 957–1021 | `a9_parallelisierung()` | 65 | A9: Parallelisierungsgewinn je Verfahren (Unterfrage 3, zweite Haelfte) | *Einstiegspunkt* |
+| 1025–1072 | `a10_qq_residuen()` | 48 | A10: QQ-Diagramm der Residuen der linearen Spezifikation | *Einstiegspunkt* |
+| 1087–1097 | `_dez(wert, stellen)` | 11 | Deutsches Dezimalkomma fuer Beschriftungen im Bild | `a11_differenzen`, `a12_decken`, `a13_umschlag` … |
+| 1100–1208 | `a11_differenzen()` | 109 | Gepaarte Differenzen mit Konfidenzintervall, je Strang eine Abbildung | *Einstiegspunkt* |
+| 1131–1144 | `_zeilen(df, ersatz)` | 14 | **— kein Docstring —** | `a11_differenzen` |
+| 1211–1285 | `a12_decken()` | 75 | Die beiden Obergrenzen des Strukturstrangs mit den erreichten Werten | *Einstiegspunkt* |
+| 1288–1348 | `a13_umschlag()` | 61 | Kreuzvalidierung gegen Hold-out im Strukturstrang | *Einstiegspunkt* |
+| 1351–1423 | `a14_ueberanpassung()` | 73 | Trainingsguete gegen Kreuzvalidierungsguete je Verfahren | *Einstiegspunkt* |
+| 1426–1541 | `a15_attribution_ablation()` | 116 | Attribution und Ablation je Faktorgruppe, nebeneinander | *Einstiegspunkt* |
+| 1565–1618 | `a16_einsatzlast()` | 54 | A16: Einsatzlast je Stadtteil - Lage und Streuung ueber 132 Monate | *Einstiegspunkt* |
+| 1622–1693 | `a18_foldstruktur()` | 72 | A18: Struktur der Aufteilung - Beleg fuer Kapitel 5.4 | *Einstiegspunkt* |
+| 1699–1786 | `a17_panelstruktur()` | 88 | A17: Varianzanteile und zeitliche Aufloesung der zwoelf Modellmerkmale | *Einstiegspunkt* |
+| 1790–1835 | `main()` | 46 | Erzeugt alle siebzehn Abbildungen nacheinander | *Einstiegspunkt* |
 
 
 ---
@@ -651,10 +653,14 @@ Es sind **Zusicherungen über die Daten**, keine Unit-Tests der Funktionen.
 
 ## 8. `tools/` — nicht Abgabe, aber Teil des ZIP
 
-Seit dem 31.08.2026 geht `tools/` mit ins Abgabe-ZIP: `fairness.py` erzeugt die
-Zahlen von R-24 und Kapitel 8.3, `suchdiagnose.py` die Budgetdiagnose in 6.4,
-`deskriptiv.py` und `codebook.py` die Tabellen aus Kapitel 4,
-`pruefe_zahlen.py` die Zusicherung, dass Text und `results/` zusammenpassen.
+Seit dem 31.08.2026 geht `tools/` mit ins Abgabe-ZIP. Am 11.09.2026 sind die
+acht Skripte, deren Zahlen in der Arbeit stehen, nach Phase einsortiert worden:
+`rohbefunde`, `deskriptiv` und `codebook` nach `prep/`, `panelprofil` nach
+`vorpruefung/`, `suchdiagnose`, `parametersensitivitaet`, `trennschaerfe` und
+`fairness` nach `modelle/`. Die beiden Blöcke zu `panelprofil` und
+`parametersensitivitaet` stehen weiter hier. In `tools/` bleiben die Werkzeuge
+ohne Zahl in der Arbeit, darunter `pruefe_zahlen.py`, die Zusicherung, dass
+Text und `results/` zusammenpassen.
 
 Für das Verständnis der Arbeit sind sie zweitrangig — **mit einer Ausnahme:**
 
@@ -670,7 +676,7 @@ nicht mehr passt.
 
 
 
-### `tools/panelprofil.py`
+### `vorpruefung/panelprofil.py`
 
 > Wer sind die 30 und wer sind die 6? - Profil beider Panelhaelften.  
 > **7 Funktionen, 200 Zeilen in Funktionsrümpfen.**
@@ -687,7 +693,7 @@ nach der Regel aus #30 zwangsläufig in Gruppe 0.
 
 **Geht nicht in die Arbeit** (Entscheidung 02.09.2026, nach Schröters Regel
 vom 24.08.: Analysen ohne Bezug zu einer Forschungsfrage gehören raus oder in
-den Anhang). Deshalb liegt die Datei in `tools/` und ihre Zahlen stehen in
+den Anhang). Ihre Zahlen stehen deshalb in
 `06_RISIKEN.md` unter R-2, nicht in `03_STAND.md`. Der Zahlenwächter prüft sie
 trotzdem — sie sind einmal unbemerkt über eine Korrektur hinweg veraltet.
 
@@ -702,7 +708,7 @@ trotzdem — sie sind einmal unbemerkt über eine Korrektur hinweg veraltet.
 | 235–285 | `main(argv)` | 51 | Schreibt drei CSV-Dateien und die Lesefassung | *Einstiegspunkt* |
 
 
-### `tools/parametersensitivitaet.py`
+### `modelle/parametersensitivitaet.py`
 
 > Wie viel haengt an der Wahl des Hyperparametersatzes? - Kreuzprobe ueber die Folds.  
 > **7 Funktionen, 181 Zeilen in Funktionsrümpfen.**
@@ -733,15 +739,10 @@ erwähnt, ist „nicht gemessen" falsch** — dann gehört eine Zeile aus R-4 hi
 | 234–267 | `main(argv)` | 34 | Rechnet die Kreuzprobe und schreibt drei Dateien | *Einstiegspunkt* |
 
 
-Die übrigen elf Dateien im Überblick:
+Die übrigen Dateien in `tools/` im Überblick:
 
 | Datei | Zweck | Fkt. |
 |---|---|---:|
-| `codebook.py` | Merkmalstabelle mit Skalenniveau für Kapitel 4 | 8 |
-| `deskriptiv.py` | deskriptiver Befundteil von Kapitel 4 | 10 |
-| `rohbefunde.py` | Qualitätsteil von Kapitel 4, ACS-Rohbefunde | 2 |
-| `fairness.py` | hängt die Prognosegüte am Sozialprofil? (R-24) | 4 |
-| `suchdiagnose.py` | war die Hyperparametersuche am Limit? | 8 |
 | `sichere_ergebnisse.py` | `results/` nach `archiv/` kopieren, mit Manifest | 5 |
 | `aufraeumen.py` | verwaiste Artefakte finden (Vorschau, löscht nichts) | 7 |
 | `funktionsdoku.py` | erzeugt das Docstring-Archiv | 5 |
