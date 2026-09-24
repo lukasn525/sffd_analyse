@@ -1,19 +1,16 @@
 """
-Codebook - die eine grosse Merkmalstabelle fuer Kapitel 4.
+Codebook - die eine grosse Merkmalstabelle.
 
     python prep/codebook.py            erzeugt die Tabelle
     python prep/codebook.py -v         zusaetzlich die Spalten je Datensatz
 
 Ausgang: results/codebook/merkmale.csv · merkmale.md
 
-TEIL DER ABGABE - seit dem 11.09.2026 in prep/ (vorher tools/). Die erzeugte
-Tabelle gehoert in Kapitel 4; die Ausgabe ist bewusst selbsttragend und
-enthaelt alles, was die Tabelle im Text braucht.
+Die Ausgabe ist bewusst selbsttragend und enthaelt alles, was die Tabelle
+braucht.
 
-Auflage Schroeter vom 10.08.2026, woertlich: "Codebook und Variablenbuch:
-Skalenniveau ... Jedes Merkmal in einer Tabelle auflisten (Wertebereich etc.)
-eine grosse Tabelle. Was, wie, wofuer" - und ausdruecklich: NICHT fuer jedes
-Merkmal eine eigene deskriptive Statistik.
+Eine grosse Tabelle fuer alle Merkmale (Skalenniveau, Wertebereich, Was,
+wie, wofuer) - ausdruecklich OHNE eigene deskriptive Statistik je Merkmal.
 
 --------------------------------------------------------------------------
 DIE AUFTEILUNG, AUF DER DAS SKRIPT BERUHT
@@ -39,7 +36,7 @@ Das Skript bricht mit Exit-Code 1 ab, wenn
   - eine Spalte in den Parquet-Dateien steht, aber nicht in META
     -> ein neues Merkmal waere sonst stillschweigend undokumentiert
   - ein META-Eintrag auf keine Spalte passt
-    -> ein entferntes Merkmal wuerde sonst weiter in Kapitel 4 stehen
+    -> ein entferntes Merkmal wuerde sonst weiter in der Tabelle stehen
 
 Damit ist die Tabelle nicht nur einmal richtig, sondern bleibt es.
 
@@ -52,8 +49,11 @@ Namen liest statt den Wertebereich, berichtet den Faktor 100 falsch. Die
 Spalte "Einheit" weist das deshalb ausdruecklich aus.
 
 Umbenannt wird nichts - die Namen stehen in den fertigen Parquet-Dateien und
-in allen bisherigen Ergebnissen. Dokumentiert wird es.
+in allen Ergebnissen. Dokumentiert wird es.
 """
+
+
+
 from __future__ import annotations
 
 import sys
@@ -171,7 +171,7 @@ META: dict[str, Meta] = {
         "intervall (logarithmiert)", "ln(Personen)", "ACS 5-Jahres, B01003_001E",
         "logarithmierte Wohnbevoelkerung des Stadtteils",
         "ln(gesamtbevoelkerung)",
-        "Praediktor, Groessenkontrolle (Decision Log #13)"),
+        "Praediktor, Groessenkontrolle"),
     "log_kriminalitaetsindex": M(
         "intervall (logarithmiert)", "ln(Index), 0 = Stadtdurchschnitt",
         "SFPD Incident Reports",
@@ -222,24 +222,24 @@ META: dict[str, Meta] = {
         "Rohwert zu log_kriminalitaetsindex",
         "Delikte je Einwohner im Stadtteil / Delikte je Einwohner der Stadt, "
         "rollierendes 12-Monats-Fenster endend im Vormonat",
-        f"Deskription in Kapitel 4; {ROLLE_KEIN}"),
+        f"Deskription; {ROLLE_KEIN}"),
 
     # ---- Vergangenheitswerte, bewusst NICHT im Modell ---------------------
     "lag_1": M(
         "absolut, Zaehldaten", "Einsaetze je Monat", "abgeleitet",
         "Einsatzzahl des Vormonats im selben Stadtteil",
         "shift(1) je Stadtteil, strikt rueckwaertsgerichtet",
-        f"Deskription der zeitlichen Struktur; {ROLLE_KEIN} (Decision Log #29)"),
+        f"Deskription der zeitlichen Struktur; {ROLLE_KEIN}"),
     "lag_12": M(
         "absolut, Zaehldaten", "Einsaetze je Monat", "abgeleitet",
         "Einsatzzahl des Vorjahresmonats im selben Stadtteil",
         "shift(12) je Stadtteil, strikt rueckwaertsgerichtet",
-        f"Deskription der zeitlichen Struktur; {ROLLE_KEIN} (Decision Log #29)"),
+        f"Deskription der zeitlichen Struktur; {ROLLE_KEIN}"),
     "rolling_mean_3": M(
         "verhaeltnis", "Einsaetze je Monat", "abgeleitet",
         "Mittel der drei Vormonate im selben Stadtteil",
         "shift(1) VOR rolling(3).mean() - nie der eigene Monat",
-        f"Deskription der zeitlichen Struktur; {ROLLE_KEIN} (Decision Log #29)"),
+        f"Deskription der zeitlichen Struktur; {ROLLE_KEIN}"),
 
     # ---- Aufteilung -------------------------------------------------------
     "fold": M(
@@ -328,7 +328,7 @@ def gemessen(datensaetze: dict[str, pd.DataFrame]) -> pd.DataFrame:
 
     Steht eine Spalte in beiden Dateien, wird der REGRESSIONS-Datensatz
     ausgewiesen - er ist die Obermenge (die Klassifikation ist eine echte
-    Teilmenge, Decision Log #31). Die Spalte "Datensatz" haelt fest, wo sie
+    Teilmenge). Die Spalte "Datensatz" haelt fest, wo sie
     ueberhaupt vorkommt, damit der Unterschied sichtbar bleibt.
     """
     zeilen = []
@@ -391,7 +391,7 @@ def baue() -> pd.DataFrame:
 
 
 def als_markdown(df: pd.DataFrame) -> str:
-    """Eine grosse Tabelle, wie verlangt - plus zwei Saetze Lesehilfe."""
+    """Eine grosse Tabelle - plus zwei Saetze Lesehilfe."""
     kopf = ["Merkmal", "Skalenniveau", "Einheit", "Wertebereich", "Quelle",
             "Was", "Wie", "Wofuer"]
     spalten = ["merkmal", "skalenniveau", "einheit", "wertebereich", "quelle",

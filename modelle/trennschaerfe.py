@@ -1,5 +1,5 @@
 """
-Trennschaerfe des gepaarten Wilcoxon bei zehn Wiederholungsmitteln (B-51).
+Trennschaerfe des gepaarten Wilcoxon bei zehn Wiederholungsmitteln.
 
     python modelle/trennschaerfe.py
 
@@ -10,7 +10,7 @@ Ausgang: results/trennschaerfe/trennschaerfe.csv   je Vergleich: d, Trennschaerf
   - m02 und m03 pruefen auf n = 10 Wiederholungsmitteln. Ein nicht
     signifikanter Vergleich traegt erst dann eine Aussage, wenn feststeht,
     welche Effekte dieses Design ueberhaupt aufloesen kann. Diese Zahl
-    liefert das Skript; bis zum 10.09.2026 war sie eine einmalige Rechnung
+    liefert das Skript
   - Effektstaerke d = mittlere Differenz / Standardabweichung der zehn
     Differenzen. Die Standardabweichung wird aus dem Konfidenzintervall in
     vergleich.csv zurueckgerechnet, mit derselben Formel, mit der

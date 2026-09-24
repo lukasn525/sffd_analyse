@@ -10,20 +10,20 @@ Ausgang: keine Datei - liefert Datenrahmen an v1_baselines.py, m02_menge.py
 
   - Die Grundaufteilung aus der Datei reicht fuer die 10 Wiederholungen
     nicht: ein Versatz rotiert nur die Beschriftung der Gruppen, nicht ihre
-    Zusammensetzung - und rotiert dabei das Hold-out mit (B-1, B-2)
+    Zusammensetzung - und rotiert dabei das Hold-out mit
   - Gemischt wird deshalb INNERHALB der Rangbloecke. Jeder Fold behaelt
     genau einen Stadtteil je Block, die Foldgroessen bleiben 6/6/6/6/6,
     aber die Zusammensetzung aendert sich wirklich
   - Drei Zusagen: das Hold-out bleibt fest, die doppelte Stratifizierung
-    (#30) bleibt erhalten, und Wiederholung 0 reproduziert die fold-Spalte
+    bleibt erhalten, und Wiederholung 0 reproduziert die fold-Spalte
     der Datei bitgenau - per assert geprueft, nicht behauptet
   - Kein Leakage: gemischt wird ausschliesslich, WELCHE Stadtteile
     gemeinsam getestet werden. Kein Modell sieht dadurch eine Zeile mehr
   - Alle drei Aufrufer muessen dieselbe Zuteilung sehen, sonst vergleicht
     der gepaarte Wilcoxon-Test still auf verschiedenen Zeilen
-
-Ausfuehrliche Fassung: docs/08_FUNKTIONSDOKUMENTATION.md
 """
+
+
 from __future__ import annotations
 
 import sys
@@ -41,7 +41,7 @@ from config import (EXPOSURE_ROH, N_FOLDS, PFAD_KLASSIFIKATION,  # noqa: E402
 from config_modelle import RANDOM_STATE, WIEDERHOLUNGEN  # noqa: E402
 from s2_datensaetze import ZIELKLASSE, fold_masken  # noqa: E402
 
-# Die seltenste Klasse, nach der stratifiziert wird (Decision Log #30). Der
+# Die seltenste Klasse, nach der stratifiziert wird. Der
 # Wert steht so in der Zielspalte der Klassifikation.
 SELTENE_KLASSE = "brand"
 
@@ -52,7 +52,7 @@ def selten_je_stadtteil(klassifikation: pd.DataFrame) -> pd.Series:
     Ein:  klassifikation.parquet als Datenrahmen
     Aus:  Reihe stadtteil -> Anzahl
 
-    - Stratifizierungsmass der Fold-Zuteilung (#30)
+    - Stratifizierungsmass der Fold-Zuteilung
     - identisch zur Berechnung in prep/s2_datensaetze.run()
     - der Wert steht in keiner Datei; deshalb liest auch der Regressionsstrang
       klassifikation.parquet mit

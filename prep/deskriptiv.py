@@ -1,5 +1,5 @@
 """
-Deskriptive Attributuebersicht - der Befundteil von Kapitel 4.
+Deskriptive Attributuebersicht.
 
     python prep/deskriptiv.py          erzeugt alle Tabellen
     python prep/deskriptiv.py -v       zusaetzlich die Rohwerte je Stadtteil
@@ -9,49 +9,42 @@ Ausgang: results/deskriptiv/verteilung.csv
          results/deskriptiv/aufloesung.csv
          results/deskriptiv/korrelation_zielgroesse.csv
          results/deskriptiv/korrelation_pearson.csv · _spearman.csv
-         results/deskriptiv/stadtteilprofil.csv  <- Datenquelle von A16
-         results/deskriptiv/befunde.md           <- die Lesefassung fuer 4.2
+         results/deskriptiv/stadtteilprofil.csv
+         results/deskriptiv/befunde.md           <- die Lesefassung
          results/deskriptiv/je_stadtteil.csv     nur mit -v
 
-TEIL DER ABGABE - seit dem 11.09.2026 in prep/ (vorher tools/). Wie bei
-`codebook.py` ist die Ausgabe selbsttragend geschrieben: Die Tabellen in
-`results/` sind auch ohne das Skript lesbar.
+Wie bei `codebook.py` ist die Ausgabe selbsttragend geschrieben: Die Tabellen
+in `results/` sind auch ohne das Skript lesbar.
 
 --------------------------------------------------------------------------
 ABGRENZUNG ZU codebook.py - DIE BEIDEN TUN VERSCHIEDENES
 --------------------------------------------------------------------------
   codebook.py    WAS ist ein Merkmal?   Skalenniveau, Einheit, Quelle,
-                 Was/Wie/Wofuer. Eine grosse Tabelle, Auflage Schroeter vom
-                 10.08.2026 - und dort ausdruecklich OHNE deskriptive
-                 Statistik je Merkmal.
+                 Was/Wie/Wofuer. Eine grosse Tabelle, ausdruecklich OHNE
+                 deskriptive Statistik je Merkmal.
 
   deskriptiv.py  WIE SIEHT es aus?      Lage, Streuung, Form, Varianzanteile,
                  zeitliche Aufloesung, Zusammenhaenge.
 
-Die Auflage vom 10.08. verbietet die deskriptive Statistik IM CODEBOOK, nicht
-in der Arbeit. Kapitel 4 ist die Phase Data Understanding und ohne
-Verteilungsbefunde leer. Getrennte Skripte, getrennte Ausgaben, kein Wert an
-zwei Stellen.
+Die Phase Data Understanding ist ohne Verteilungsbefunde leer. Getrennte
+Skripte, getrennte Ausgaben, kein Wert an zwei Stellen.
 
 --------------------------------------------------------------------------
 ABGRENZUNG ZU vorpruefung/v2_eignung.py - DIE WICHTIGERE GRENZE
 --------------------------------------------------------------------------
-Der Abgrenzungsblock in `main.tex` vor Kapitel 5 regelt den Grenzfall (a):
-
-  4.2  WIE DIE DATEN BESCHAFFEN SIND    "rechtsschief, Dispersionsindex 62,8"
-  6.2  OB EIN VERFAHREN DAZU PASST      "deshalb Ridge auf log(1+y);
-                                         der RESET-Test verwirft die lineare
-                                         Spezifikation"
+  WIE DIE DATEN BESCHAFFEN SIND    "rechtsschief, hoher Dispersionsindex"
+  OB EIN VERFAHREN DAZU PASST      "deshalb Ridge auf log(1+y);
+                                    der RESET-Test verwirft die lineare
+                                    Spezifikation"
 
 Dieses Skript rechnet AUSSCHLIESSLICH die linke Spalte. Kein RESET-Test, kein
 VIF, keine Residuenanalyse, keine Breusch-Pagan- oder Jarque-Bera-Statistik -
-die stehen in `v2_eignung.py` und gehoeren nach 6.2. Wer sie hier ergaenzt,
-erzeugt genau die Doppelung, die Schroeter am 27.07.2026 angemerkt hat.
+die stehen in `v2_eignung.py`.
 
 Eine Ausnahme mit Absicht: Pearson UND Spearman werden beide berechnet. Ihr
 ABSTAND ist ein Befund ueber die Daten (monotoner, aber gekruemmter
-Zusammenhang) und gehoert nach 4.2. Die Schlussfolgerung daraus - dass ein
-lineares Modell die Kruemmung nicht abbildet - gehoert nach 6.2.
+Zusammenhang) und gehoert hierher. Die Schlussfolgerung daraus - dass ein
+lineares Modell die Kruemmung nicht abbildet - gehoert in `v2_eignung.py`.
 
 --------------------------------------------------------------------------
 DIE GESAMTMENGE, AUF DER GERECHNET WIRD
@@ -59,7 +52,7 @@ DIE GESAMTMENGE, AUF DER GERECHNET WIRD
 ALLE 36 Stadtteile, Entwicklung UND Hold-out. Das ist hier richtig und in der
 Eignungspruefung falsch:
 
-  Kapitel 4 beschreibt den DATENBESTAND. Wer ihn nur auf 30 Stadtteilen
+  Dieses Skript beschreibt den DATENBESTAND. Wer ihn nur auf 30 Stadtteilen
   beschriebe, beschriebe nicht den Datensatz, sondern eine Teilmenge davon.
   Es wird nichts geschaetzt und nichts entschieden - eine Verteilungsangabe
   ueber den vollen Bestand kann kein Leakage erzeugen.
@@ -67,64 +60,71 @@ Eignungspruefung falsch:
   Die Eignungspruefung dagegen ENTSCHEIDET ueber Verfahren. Sie rechnet
   deshalb auf den 24 Trainingsstadtteilen von Fold 1.
 
-Beide Bezugsmengen kommen in der Arbeit vor. Wo eine Zahl steht, ist sie zu
-nennen - deshalb traegt jede erzeugte Tabelle ihre Bezugsmenge in der
-Kopfzeile. Der Dispersionsindex ist das stehende Beispiel: 62,8 auf dem vollen
-Datensatz, 54,2 auf den Trainingsstadtteilen von Fold 1. Beide korrekt.
+Beide Bezugsmengen kommen vor. Wo eine Zahl steht, ist sie zu nennen -
+deshalb traegt jede erzeugte Tabelle ihre Bezugsmenge in der Kopfzeile.
 
 --------------------------------------------------------------------------
 WARUM DIE VARIANZZERLEGUNG DER KERN DIESES SKRIPTS IST
 --------------------------------------------------------------------------
 Der Datensatz hat 4.752 Zeilen, aber nur 36 Stadtteile. Fast alle Merkmale
 sind innerhalb eines Stadtteils nahezu konstant. Die Zerlegung zwischen /
-innerhalb macht das messbar statt behauptet und traegt drei Stellen der
-Arbeit gleichzeitig:
+innerhalb macht das messbar statt behauptet und traegt drei Aussagen
+gleichzeitig:
 
-  4.2   Befund ueber die Daten
-  5.4   Begruendung des Stadtteil-Splits (ein Zeitschnitt pruefte nichts)
-  8.3   effektive Stichprobe, Designeffekt, warum mehr Jahre nicht helfen
-
---------------------------------------------------------------------------
-PRUEFAUFTRAEGE - nach jedem Lauf abzuarbeiten
---------------------------------------------------------------------------
-  1  Stimmt der Dispersionsindex von `anzahl_einsaetze` mit dem Wert in
-     docs/03_STAND.md Abschnitt 2 ueberein (62,8)? Wenn nicht, hat sich die
-     Aufbereitung geaendert und 03_STAND.md ist nachzuziehen, nicht diese
-     Datei.
-  2  Liegt der Zwischen-Varianzanteil von `anzahl_einsaetze` bei 92,5 %?
-     Diese Zahl traegt die Begruendung des Stadtteil-Splits in Kapitel 5.4.
-  3  Zeigt die Aufloesungstabelle weiterhin 1 eindeutigen Wert je Stadtteil
-     fuer die drei baulichen Merkmale und rund 128 fuer den
-     Kriminalitaetsindex? (Genau: 128,1 auf allen 36 Stadtteilen, 127,9 auf
-     den 30 Entwicklungsstadtteilen - so steht es in 03_STAND.md. Der
-     Unterschied ist die Bezugsmenge, kein Fehler.) Das ist Mechanismus 1 aus 07_BEFUNDE.md B-47 und
-     erklaert den Widerspruch zwischen Attribution und Ablation in 7.4.
-  4  Haben alle Merkmale weiterhin null fehlende Werte? Sonst ist die Aussage
-     "keine fehlenden Werte" in Kapitel 5 falsch.
-  5  Liegt log_kriminalitaetsindex gegen anteil_risikogewerbe_pct auf den 30
-     ENTWICKLUNGSSTADTTEILEN noch bei +0,779? Dieser Wert traegt Mechanismus 2
-     in 7.4 und steht so in 03_STAND.md Abschnitt 5.6. Auf den 36 Stadtteilen
-     dieser Datei sind es +0,777 - zwei Bezugsmengen, zwei Werte, beide
-     richtig.
-     KORRIGIERT AM 22.08.2026: Hier stand zuvor, +0,739 sei der hoechste
-     Betrag der Korrelationsmatrix. Das ist er nicht. Hoechster Betrag ist
-     median_haushaltseinkommen gegen median_miete mit +0,921 (36 Stadtteile).
-     03_STAND.md war nie falsch - dort steht die Aussage
-     "hoechster Betrag" nicht; sie stand nur in diesem Pruefauftrag.
-  6  Enthaelt stadtteilprofil.csv weiterhin genau 36 Zeilen, und liegen die
-     Extremwerte des Mittels bei 6,4 (Seacliff) und 279,7 (Tenderloin)?
-     Die Datei ist die Eingangsgroesse von Abbildung A16; aendert sie sich,
-     aendert sich die Abbildung stillschweigend mit.
-  7  Stehen in verteilung.csv die beiden ZIELGROESSEN als eigene Zeilen, und
-     stimmen ihre Werte mit Tabelle 2 in Kapitel 4 ueberein?
-     anzahl_einsaetze     75,9 | 53   | 451   | Schiefe 1,89 | Woelbung 3,43
-     einsaetze_je_1000_ew  5,71 | 3,54 | 67,66 | Schiefe 4,16 | Woelbung 20,72
-     Sie sind am 24.08.2026 dazugekommen. Vorher standen Schiefe und Woelbung
-     der Rate NIRGENDS in einer Ausgabedatei, obwohl Kapitel 4 sie berichtet.
-     Gegenprobe: aufloesung.csv hat weiterhin 17 Zeilen und
-     varianzzerlegung.csv 19 ohne Dubletten - beide speisen A17 und duerfen
-     sich durch die Ergaenzung NICHT veraendert haben.
+  - Befund ueber die Daten
+  - Begruendung des Stadtteil-Splits (ein Zeitschnitt pruefte nichts)
+  - effektive Stichprobe, Designeffekt, warum mehr Jahre nicht helfen
 """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 from __future__ import annotations
 
 import sys
@@ -144,7 +144,7 @@ DATEN = WURZEL / "data" / "processed"
 ZIEL = WURZEL / "results" / "deskriptiv"
 
 # Faktorgruppen wie in modelle/m04_shap.py - dieselbe Einteilung, damit die
-# Gruppenaussagen in Kapitel 4 und 7 dieselbe Bedeutung haben.
+# Gruppenaussagen beider Skripte dieselbe Bedeutung haben.
 GRUPPEN = {
     "soziooekonomisch": ["median_haushaltseinkommen", "armutsquote_pct",
                          "akademikerquote_pct", "median_miete",
@@ -177,7 +177,7 @@ def verteilung(d: pd.DataFrame, spalten: list[str]) -> pd.DataFrame:
       Groessen um null herum ist er nicht interpretierbar und bleibt leer.
       Betrifft log_kriminalitaetsindex und die beiden Saisonmerkmale.
     - Schiefe und Woelbung als Befund ueber die FORM, nicht als Test. Ein
-      formaler Normalitaetstest gehoert nach 6.2 (Jarque-Bera).
+      formaler Normalitaetstest gehoert in die Eignungspruefung (Jarque-Bera).
     """
     zeilen = []
     for c in spalten:
@@ -219,9 +219,9 @@ def varianzzerlegung(d: pd.DataFrame, spalten: list[str]) -> pd.DataFrame:
       Klassifikationsdatensatz einen Monat weniger hat.
     - Der DESIGNEFFEKT 1 + (m - 1) * ICC beziffert, um welchen Faktor die
       effektive Stichprobe unter der Zeilenzahl liegt. n_eff = n / Designeffekt.
-      Das ist die Zahl, die in Kapitel 8.3 steht - hier wird sie erzeugt, nicht
-      abgeschrieben.
     """
+
+
     zeilen = []
     for c in spalten:
         s = pd.to_numeric(d[c], errors="coerce")
@@ -268,15 +268,15 @@ def aufloesung(d: pd.DataFrame, spalten: list[str]) -> pd.DataFrame:
     Ein:  Datensatz, Spaltenliste
     Aus:  je Merkmal der Mittelwert der eindeutigen Werte je Stadtteil
 
-    Die vielleicht aussagekraeftigste Tabelle des Kapitels. Ein Merkmal mit
+    Die vielleicht aussagekraeftigste Tabelle dieses Skripts. Ein Merkmal mit
     einem einzigen Wert je Stadtteil traegt ueber 132 Monate keine einzige
     zusaetzliche Information - es ist ein Stadtteilmerkmal, das 132-mal
     wiederholt in der Tabelle steht. Genau das gilt fuer die drei baulichen
     Merkmale (Land-Use-Snapshot 2020) und naeherungsweise fuer die
     ACS-Merkmale (fuenf Jahrgaenge mit Publikationsversatz).
 
-    Der Befund gehoert nach 4.2; seine Konsequenz - dass Ablation und
-    Attribution deshalb auseinanderfallen - nach 7.4 und 8.2.
+    Hier steht nur der Befund; seine Konsequenz - dass Ablation und
+    Attribution deshalb auseinanderfallen - nicht.
     """
     zeilen = []
     for c in spalten:
@@ -295,7 +295,7 @@ def aufloesung(d: pd.DataFrame, spalten: list[str]) -> pd.DataFrame:
 
 
 # ==========================================================================
-# 3b  STADTTEILPROFIL - die Eingangsgroesse von Abbildung A16
+# 3b  STADTTEILPROFIL
 # ==========================================================================
 def stadtteilprofil(d: pd.DataFrame) -> pd.DataFrame:
     """Lage und Streuung der Einsatzlast je Stadtteil ueber alle Monate.
@@ -304,16 +304,16 @@ def stadtteilprofil(d: pd.DataFrame) -> pd.DataFrame:
     Aus:  eine Zeile je Stadtteil mit Median, Quartilen, Mittel, Maximum,
           Rate, Bevoelkerung und Hold-out-Kennzeichen
 
-    Warum als eigene Datei und nicht nur als Zahl in befunde.md:
-    `modelle/m05_abbildungen.py` rechnet nichts, es liest ausschliesslich
-    CSV-Dateien aus results/. Abbildung A16 braucht die Verteilung je
-    Stadtteil, also muss sie hier entstehen und nicht dort. Dieselbe
-    Arbeitsteilung wie bei allen uebrigen Abbildungen.
-
     Abgegrenzt von `je_stadtteil.csv` (Schalter -v): Das ist eine
     Diagnoseausgabe zum Nachschauen, diese Datei ist ein Artefakt der Arbeit
     und wird immer geschrieben.
     """
+
+
+
+
+
+
     g = d.groupby("stadtteil")
     profil = pd.DataFrame({
         "monate":        g["jahr_monat"].count(),
@@ -341,14 +341,14 @@ def zielgroessen(reg: pd.DataFrame, kls: pd.DataFrame) -> list[str]:
     Aus:  Liste von Textzeilen
 
     - Der DISPERSIONSINDEX Var/Mean ist der zentrale Befund des Mengenstrangs:
-      Bei einer Poisson-verteilten Groesse waere er 1. Er begruendet in
-      Kapitel 4 NICHTS - er ist ein Befund. Die Wahl der Baseline gehoert
-      nach 5.4, die Frage der Verteilungsannahme nach 6.2.
+      Bei einer Poisson-verteilten Groesse waere er 1. Er begruendet hier
+      NICHTS - er ist ein Befund.
     - Der Nullanteil ist bei Zaehldaten mitzuberichten, weil ein hoher Anteil
       eine andere Modellklasse verlangte (Hurdle, Zero-Inflated). Hier ist er
       praktisch null - und genau das ist der Grund, warum diese Modellklassen
-      in der Arbeit nicht vorkommen. Das gehoert in einen Satz.
+      im Vergleich nicht vorkommen.
     """
+
     t: list[str] = []
     y = reg["anzahl_einsaetze"]
     disp = y.var(ddof=1) / y.mean()
@@ -387,8 +387,8 @@ def zielgroessen(reg: pd.DataFrame, kls: pd.DataFrame) -> list[str]:
         f"-> Faktor {z(je_st.max() / je_st.min(), 0)}",
         "- Der Faktor ist der Grund, warum R2 auf der Rate kein tragfaehiges "
         "Hauptmass ist: R2 misst gegen den Mittelwert der Testdaten, und der "
-        "liegt je nach Fold weit vom Trainingsmittelwert entfernt "
-        "(Begruendung in 5.4, Zahlen in 03_STAND.md Abschnitt 4).",
+        "liegt je nach Fold weit vom Trainingsmittelwert entfernt"
+        ".",
         "",
     ]
 
@@ -410,7 +410,7 @@ def zielgroessen(reg: pd.DataFrame, kls: pd.DataFrame) -> list[str]:
         "",
     ]
 
-    # Marge zwischen Platz eins und zwei - der Befund, der Decke A in 7.2
+    # Marge zwischen Platz eins und zwei - der Befund, der Decke A
     # spaeter erst lesbar macht. Hier NUR als Eigenschaft der Zielgroesse.
     anteile = kls[ANTEILE].to_numpy()
     sortiert = np.sort(anteile, axis=1)
@@ -425,13 +425,13 @@ def zielgroessen(reg: pd.DataFrame, kls: pd.DataFrame) -> list[str]:
         "- BEFUND, kein Argument: Die Zielgroesse ist an vielen Stellen knapp "
         "entschieden. Was daraus folgt - die Obergrenze des Strukturstrangs -, "
         "wird in `vorpruefung/v4_decke.py` gerechnet und gehoert vor die "
-        "Ergebnistabelle in 7.2.",
+        "Ergebnistabelle.",
         "- BEZUGSMENGE BEACHTEN: `v4_decke.py` rechnet auf dem "
         "Entwicklungspanel (30 Stadtteile) und berichtet deshalb einen "
         "mittleren Siegeranteil von 0,509 und einen Margenanteil unter 0,20 "
         "von 41,6 %. Die Werte hier gelten fuer alle 36 Stadtteile. Beide "
-        "sind korrekt - in der Arbeit ist die Zahl aus `v4_decke.py` zu "
-        "verwenden, weil sie zur Ergebnistabelle in 7.2 gehoert.",
+        "sind korrekt - zu verwenden ist die Zahl aus `v4_decke.py`, "
+        "weil sie zur Ergebnistabelle gehoert.",
         "",
     ]
     return t
@@ -449,7 +449,7 @@ def zusammenhaenge(d: pd.DataFrame, spalten: list[str],
 
     Der ABSTAND ist der Befund: Ein grosser Unterschied bei gleichzeitig
     substanzieller Korrelation zeigt einen monotonen, aber gekruemmten
-    Zusammenhang. Wichtig fuer den Text - und leicht falsch zu machen: Liegt
+    Zusammenhang. Wichtig - und leicht falsch zu machen: Liegt
     die Korrelation nahe null, ist der Abstand Rauschen und KEIN Befund.
     Die Spalte `belastbar` markiert das, damit die Zeile nicht mitgelesen wird.
     """
@@ -475,8 +475,8 @@ def zusammenhaenge(d: pd.DataFrame, spalten: list[str],
 def z(wert: float, n: int = 1) -> str:
     """Zahl in deutscher Schreibweise: Komma als Dezimaltrenner, Punkt als
     Tausendertrenner. Eigene Funktion, weil ein globales replace(",", ".")
-    auch die Satzkommas der Fliesstexte trifft - genau der Fehler, der in der
-    ersten Fassung dieses Skripts drin war."""
+    auch die Satzkommas der Fliesstexte trifft."""
+
     if pd.isna(wert):
         return ""
     return f"{wert:,.{n}f}".replace(",", "#").replace(".", ",").replace("#", ".")
@@ -507,13 +507,13 @@ def main(argv: list[str]) -> int:
     beschreibend = merkmale + [EXPOSURE_ROH, CRIME_ROH] + list(LAGS)
     vorhanden = [c for c in beschreibend if c in reg.columns]
 
-    # Die beiden Mengenzielgroessen kommen NUR in verteilung.csv dazu
-    # (24.08.2026). Vorher liefen sie allein durch zielgroessen() in die
-    # Lesefassung; ihre Schiefe und Woelbung standen damit in keiner
-    # maschinenlesbaren Datei, obwohl Tabelle 2 in Kapitel 4 beide
-    # gegenueberstellt. NICHT in `vorhanden` aufnehmen: varianzzerlegung()
-    # bekommt sie unten ohnehin explizit, sie stuenden sonst doppelt, und
-    # aufloesung() speist A17, das ausschliesslich die zwoelf Merkmale zeigt.
+
+
+
+    # Die beiden Mengenzielgroessen kommen NUR in verteilung.csv dazu, damit
+    # ihre Schiefe und Woelbung auch in einer maschinenlesbaren Datei stehen.
+    # NICHT in `vorhanden` aufnehmen: varianzzerlegung() bekommt sie unten
+    # ohnehin explizit, sie stuenden sonst doppelt.
     mit_zielen = vorhanden + [c for c in ("anzahl_einsaetze",
                                           "einsaetze_je_1000_ew")
                               if c in reg.columns]
@@ -544,7 +544,7 @@ def main(argv: list[str]) -> int:
                             "n_effektiv"].iloc[0])
 
     t = [
-        "# Deskriptive Befunde - Grundlage von Kapitel 4",
+        "# Deskriptive Befunde",
         "",
         f"Erzeugt von `prep/deskriptiv.py` aus "
         f"`data/processed/regression.parquet` und `klassifikation.parquet`.",
@@ -553,12 +553,12 @@ def main(argv: list[str]) -> int:
         f"{zeitraum}, {z(len(reg), 0)} Zeilen.",
         "",
         "Die Eignungspruefung rechnet auf den 24 Trainingsstadtteilen von "
-        "Fold 1, `03_STAND.md` teilweise auf den 30 Entwicklungsstadtteilen. "
+        "Fold 1, andere Auswertungen teilweise auf den 30 Entwicklungsstadtteilen. "
         "Bei denselben Groessen entstehen dadurch leicht abweichende Werte - "
         "alle drei sind korrekt. Beispiel: eindeutige Werte des "
-        "Kriminalitaetsindex je Stadtteil betragen 128,1 hier (36), 127,9 in "
-        "`03_STAND.md` (30) und 127,4 in der Eignungspruefung (24). **Wo eine "
-        "Zahl in der Arbeit steht, ist ihre Bezugsmenge zu nennen.**",
+        "Kriminalitaetsindex je Stadtteil betragen 128,1 hier (36), 127,9 auf "
+        "dem Entwicklungspanel (30) und 127,4 in der Eignungspruefung (24). "
+        "**Wo eine Zahl steht, ist ihre Bezugsmenge zu nennen.**",
         "",
         "---", "",
         "## 1  Verteilung je Merkmal", "",
@@ -578,15 +578,15 @@ def main(argv: list[str]) -> int:
         f"betraegt {z(y_deff, 0)}, die effektive Stichprobe damit rund "
         f"{z(y_neff, 0)} Einheiten bei {z(len(reg), 0)} Zeilen.",
         "",
-        "Daraus folgen drei Stellen der Arbeit:",
+        "Daraus folgt:",
         "",
-        "- **5.4** Ein Zeitschnitt pruefte die Forschungsfrage nicht - jeder "
+        "- Ein Zeitschnitt pruefte die Forschungsfrage nicht - jeder "
         "Stadtteil stuende in Training und Test, das Modell kennte sein "
         "Niveau bereits. Deshalb der Stadtteil-Split.",
-        "- **8.3** Die Beschraenkung liegt bei der Zahl der Stadtteile, nicht "
+        "- Die Beschraenkung liegt bei der Zahl der Stadtteile, nicht "
         "bei der Zahl der Beobachtungen. Ein zusaetzliches Jahr braechte "
         f"{n_st} x 12 Zeilen und null zusaetzliche Stadtteile.",
-        "- **7.1** Getestet wird auf den zehn Wiederholungsmitteln, nicht auf "
+        "- Getestet wird auf den zehn Wiederholungsmitteln, nicht auf "
         "den 50 Einzellaeufen - letztere waeren Pseudoreplikation.",
         "",
         "---", "",
@@ -610,7 +610,7 @@ def main(argv: list[str]) -> int:
         "`belastbar = True`. Wo beide Korrelationen nahe null liegen, ist der "
         "Abstand Rauschen und kein Befund.",
         "",
-        "Was daraus fuer die Verfahrenswahl folgt, steht in 6.2 und wird dort "
+        "Was daraus fuer die Verfahrenswahl folgt, wird in der Eignungspruefung "
         "mit dem RESET-Test formal geprueft. Hier steht nur, wie die Daten "
         "beschaffen sind.",
         "",
@@ -639,7 +639,7 @@ def main(argv: list[str]) -> int:
     print(f"Dispersionsindex anzahl_einsaetze       : "
           f"{reg['anzahl_einsaetze'].var(ddof=1) / reg['anzahl_einsaetze'].mean():.1f}")
     print()
-    print("Pruefauftraege im Docstring abarbeiten.")
+    print("Fertig.")
     return 0
 
 

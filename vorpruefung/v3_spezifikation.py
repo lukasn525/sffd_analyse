@@ -7,7 +7,7 @@ Eingang: data/processed/regression.parquet
 Ausgang: results/spezifikation/spezifikation_{folds,mittel}.csv
 
   - v2_eignung.py verwirft die lineare Spezifikation IN-SAMPLE (RESET
-    F = 360,4; adjustiertes R2 von 0,859 auf 0,932 mit 45 Interaktionen).
+    F-Test; adjustiertes R2 steigt mit 45 Interaktionen).
     Beide Kennzahlen behandeln 3.960 Zeilen als unabhaengig, tatsaechlich
     sind es 30 Stadtteile mit je 132 Monaten - also stellt dieses Skript
     die zweite Frage: UEBERTRAEGT sich die Struktur auf unbekannte
@@ -24,11 +24,11 @@ Ausgang: results/spezifikation/spezifikation_{folds,mittel}.csv
   - Nicht konvergierte Anpassungen werden GEZAEHLT und berichtet, nicht
     entfernt: Sie sind Teil des Befundes, dass die Spezifikation nicht passt
   - Kein Modellvorschlag - keine der drei Erweiterungen tritt im
-    Verfahrensvergleich an, sie dienen der Interpretation von B-41
+    Verfahrensvergleich an
   - Das Hold-out bleibt unberuehrt
-
-Ausfuehrliche Fassung: docs/08_FUNKTIONSDOKUMENTATION.md
 """
+
+
 import sys
 import warnings
 from pathlib import Path
@@ -157,7 +157,7 @@ def zweistufig(df: pd.DataFrame) -> pd.DataFrame:
     Ein:  Datenrahmen der 200 Einzellaeufe
     Aus:  je Spezifikation eine Zeile mit Mittel und beiden Streuungen
 
-    - dieselbe Regel wie ueberall sonst (R-5): massgeblich ist die Streuung der
+    - dieselbe Regel wie ueberall sonst: massgeblich ist die Streuung der
       10 Wiederholungsmittel, nicht die der 50 Einzellaeufe
     """
     masse = ["RMSE", "MAE", "R2"]
@@ -205,9 +205,9 @@ def run() -> int:
     Aus:  spezifikation_folds.csv, spezifikation_mittel.csv; Exitcode
 
     - laeuft einzeln, nicht ueber vorpruefung/run.py
-    - die Zahl der nicht konvergierten Anpassungen wird ausgegeben und gehoert in
-      den Text
+    - die Zahl der nicht konvergierten Anpassungen wird ausgegeben
     """
+
     if not PFAD_REGRESSION.exists():
         raise SystemExit("regression.parquet fehlt - erst 'python prep/build.py'.")
 

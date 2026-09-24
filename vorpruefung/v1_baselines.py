@@ -14,17 +14,17 @@ Ausgang: results/regression/baselines_{folds,mittel}.csv
   - STUFE 2, einfachste Form, die zur DATENFORM passt: Poisson-GLM mit
     Offset fuer Zaehldaten mit Exposition, multinomiales Logit fuer nominale
     Klassen. Beide mit kanonischem Link, unpenalisiert und ohne freien
-    Hyperparameter - deshalb ohne Tuning (#45)
+    Hyperparameter - deshalb ohne Tuning
   - Die Vergleichsverfahren in modelle/ muessen STUFE 2 schlagen, nicht die
-    triviale Referenz (#33)
+    triviale Referenz
   - Gerechnet wird ueber alle 10 Wiederholungen x 5 Folds. Der gepaarte Test
-    (#34) braucht je Lauf einen Gegenwert auf DENSELBEN Testzeilen; die
-    Baseline ist damit Mitbewerber unter identischem Protokoll (Auflage C),
+    braucht je Lauf einen Gegenwert auf DENSELBEN Testzeilen; die
+    Baseline ist damit Mitbewerber unter identischem Protokoll,
     nicht bloss ein Referenzwert
   - Derselbe Stadtteil-Split wie die Modelle, das Hold-out bleibt unberuehrt
-
-Ausfuehrliche Fassung: docs/08_FUNKTIONSDOKUMENTATION.md
 """
+
+
 import sys
 import warnings
 from pathlib import Path
@@ -80,11 +80,11 @@ def poisson_glm(train: pd.DataFrame, test: pd.DataFrame,
 
     - kanonischer log-Link, unpenalisierte Maximum-Likelihood
     - log(Bevoelkerung) als OFFSET, Koeffizient fest auf 1: geschaetzt wird die
-      Rate, hochgerechnet wird am Ende (#13)
+      Rate, hochgerechnet wird am Ende
     - kein freier Hyperparameter, deshalb kein Tuning
     - `merkmale` existiert allein fuer die Faktorgruppen-Ablation in m04_shap;
       der Offset bleibt in jeder Variante bestehen, er ist keine Merkmalsspalte
-    - Poisson statt Negative Binomial (#45): Die Ueberdispersion (Index 62,8)
+    - Poisson statt Negative Binomial: Die Ueberdispersion
       beschaedigt die Standardfehler, nicht die Konsistenz des bedingten
       Mittelwerts (Gourieroux, Monfort & Trognon 1984). Diese Baseline liefert
       nur Punktvorhersagen und ist davon nicht betroffen
@@ -98,7 +98,7 @@ def poisson_glm(train: pd.DataFrame, test: pd.DataFrame,
     y_tr = train[ZIELGROESSE].astype(float)
 
     # log(Bevoelkerung) als OFFSET, Koeffizient fest auf 1: geschaetzt wird
-    # die Rate, hochgerechnet wird erst in der Vorhersage (#13).
+    # die Rate, hochgerechnet wird erst in der Vorhersage.
     off_tr = np.log(train[EXPOSURE_ROH].astype(float))
     off_te = np.log(test[EXPOSURE_ROH].astype(float))
 
@@ -114,16 +114,16 @@ def logit_glm(train: pd.DataFrame, merkmale: list[str] | None = None):
     Ein:  Trainingsrahmen, optional ein reduzierter Merkmalssatz
     Aus:  das angepasste Modell, nicht die Vorhersage
 
-    - linear in den Log-Odds, unpenalisiert (C = inf), kein Tuning (#45)
+    - linear in den Log-Odds, unpenalisiert (C = inf), kein Tuning
     - class_weight="balanced" statt Resampling: kein SMOTE, keine duplizierte
       oder geloeschte Zeile
     - Rueckgabe ist das Modell, weil beide Aufrufer aus derselben Anpassung
       Klassenvorhersage, Wahrscheinlichkeiten und Klassenreihenfolge brauchen
     - Konvergenzwarnungen werden nicht abgefangen; der Aufrufer zaehlt sie
-    - einzige Stelle, an der dieses Modell spezifiziert ist (seit 10.08.2026).
-      Zuvor baute m03_struktur.hold_out() es ein zweites Mal nach; eine Aenderung
-      an einem der beiden Orte blieb unbemerkt
+    - einzige Stelle, an der dieses Modell spezifiziert ist; m03_struktur
+      nutzt dieselbe Funktion
     """
+
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
@@ -188,7 +188,7 @@ def _zweistufig(df: pd.DataFrame, schluessel: list[str],
     - Stufe 1: je Wiederholung ueber die 5 Folds mitteln
     - Stufe 2: Streuung dieser 10 Werte berichten -> `std_wiederholungen`
     - `std_folds` ueber alle 50 Laeufe ist zu optimistisch: dieselben 30
-      Stadtteile in zehn Gruppierungen (R-5)
+      Stadtteile in zehn Gruppierungen
     - beide Spalten wandern mit, damit der Unterschied sichtbar bleibt
     - eine Datei beschreibt genau einen Durchgang; Einzellaeufe stehen in
       baselines_folds.csv
@@ -197,7 +197,7 @@ def _zweistufig(df: pd.DataFrame, schluessel: list[str],
     z = g[masse].mean().add_suffix("_mean")
     z = z.join(g[masse].std().add_suffix("_std_folds"))
     # Streuung der 10 Wiederholungsmittel, nicht der 50 Laeufe: dieselben 30
-    # Stadtteile in zehn Gruppierungen waeren zu optimistisch (R-5).
+    # Stadtteile in zehn Gruppierungen waeren zu optimistisch.
     je_wdh = df.groupby(schluessel + ["wiederholung"], sort=False)[masse].mean()
     z = z.join(je_wdh.groupby(schluessel, sort=False).std()
                      .add_suffix("_std_wiederholungen"))
@@ -216,7 +216,7 @@ def klassifikation(kl: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     - Stufe 1: haeufigste Klasse des Trainings. Accuracy hoch, Macro-F1 niedrig -
       deshalb ist Macro-F1 das massgebliche Guetemass
     - Stufe 2: logit_glm(). Anderes Modell als das Poisson-GLM des Mengenstrangs;
-      RF und XGBoost muessen SIE schlagen (#33)
+      RF und XGBoost muessen SIE schlagen
     - Macro-AUROC nur fuer Stufe 2. Fuer die Mehrheitsklasse nicht definiert -
       eine konstante Vorhersage hat keine Rangfolge - und bleibt leer statt 0,5
     - Konvergenzwarnungen werden gezaehlt und zurueckgegeben, nicht unterdrueckt
@@ -274,7 +274,7 @@ def _macro_auroc(y_true, proba: np.ndarray, klassen_modell: list,
 
     - kein Ersatzwert 0,5 oder 0: ein erfundener Wert zieht den Mittelwert nach
       unten und sieht wie ein Messergebnis aus
-    - durch die doppelte Stratifizierung (#30) sollte der Fall nicht eintreten
+    - durch die doppelte Stratifizierung sollte der Fall nicht eintreten
     """
     from sklearn.metrics import roc_auc_score
 

@@ -1,136 +1,129 @@
 # Vorhersage von Feuerwehreinsätzen in San Francisco
 
-Bachelorarbeit (FOM, B.Sc. Wirtschaftsinformatik): Verfahrensvergleich von
-Ridge Regression, Random Forest und XGBoost auf Stadtteildaten.
+Code zur Bachelorarbeit „Vorhersage von Feuerwehreinsätzen mittels Machine
+Learning, ein Verfahrensvergleich am Beispiel der Stadtteile San Franciscos“
+(FOM Hochschule, B.Sc. Wirtschaftsinformatik).
 
-## Setup
+Verglichen werden Ridge Regression, Random Forest und XGBoost auf
+Stadtteildaten. Analyseeinheit ist der Stadtteil je Monat: 36 Stadtteile über
+132 Monate (Januar 2015 bis Dezember 2025). Zwei Stränge werden untersucht:
+
+- **Menge:** Zahl der Einsätze und Einsätze je 1.000 Einwohner (Regression,
+  alle drei Verfahren)
+- **Struktur:** überwiegende Einsatzart (Klassifikation, Random Forest und
+  XGBoost)
+
+Referenz sind in beiden Strängen zwei Baselines: ein Modell ohne Merkmale und
+ein verallgemeinertes lineares Modell ohne Hyperparameter (Poisson-GLM mit
+Offset bzw. multinomiale logistische Regression).
+
+## Umgebung
+
+Gerechnet wurde unter Windows mit Python 3.14. `requirements_lauf.txt` hält
+die Versionen aller Pakete fest, mit denen die Ergebnisse entstanden sind.
 
 ```bash
 python -m venv venv
-venv\Scripts\activate          # Windows
-pip install -r requirements_lauf.txt   # gemessene Laufumgebung (Kap. 3 der Arbeit)
+venv\Scripts\activate
+pip install -r requirements_lauf.txt
 ```
 
-## Ausführen
+## Daten
+
+`data/raw/` enthält die Rohdaten in dem Stand, in dem sie abgerufen wurden:
+aus DataSF die Einsätze der Feuerwehr, die Kriminalität, die Flächennutzung,
+die Stadtteilgrenzen und die Zuordnung der Census Tracts zu den Stadtteilen,
+vom Census Bureau die American Community Survey.
+
+Die Aufbereitung rechnet ohne Netzzugang allein aus diesem Stand. Geladen wird
+nur, wenn ein `DOWNLOAD_*`-Schalter in `prep/config.py` auf `True` steht. Die
+Abfrage der American Community Survey erwartet dann einen Census-API-Schlüssel
+in der Umgebungsvariable `CENSUS_API_KEY`.
+
+`data/processed/` entsteht durch `prep/build.py`.
+
+## Ablauf
+
+Die Reihenfolge ist verbindlich, weil spätere Schritte die Ergebnisse
+früherer lesen.
 
 ```bash
-python tools\sichere_ergebnisse.py name     #    ZUERST: results/ sichern         < 1 min
-python prep\build.py                        # 1  Aufbereitung -> zwei Datensätze   ~2 min
-python tests\test_aufbereitung.py           #    20 Prüfungen an den Dateien       ~1 min
-python prep\rohbefunde.py                   #    Rohquellen beschreiben (Kap. 4)   < 1 min*
-python prep\deskriptiv.py                   #    Panel beschreiben (Kap. 4)        < 1 min*
-python prep\codebook.py                     #    Merkmalstabelle für Kapitel 4     < 1 min
-python vorpruefung\v0_aufteilung.py         # 2  Selbsttest der Fold-Zuteilung    < 1 min
-python vorpruefung\panelprofil.py           #    Profil beider Panelhälften        < 1 min
-python vorpruefung\run.py                   #    Messlatte + Eignung (v1 und v2)   ~2 min
-python vorpruefung\v3_spezifikation.py      #    Gegenprobe zur Eignungsprüfung    ~2 min
-python modelle\m02_menge.py holdout         # 3  Regression (der lange Teil)      ~55 min
-python modelle\m03_struktur.py holdout      #    Klassifikation                   ~45 min
-python vorpruefung\v4_decke.py              #    Obergrenzen des Strukturstrangs  < 1 min
-python vorpruefung\v4_decke.py holdout      #    dieselben, inklusive Hold-out    < 1 min
-python modelle\suchdiagnose.py              #    war die Suche am Limit?          ~2 h*
-python modelle\parametersensitivitaet.py    #    Kreuzprobe der Parametersätze    ~5 min
-python modelle\trennschaerfe.py             #    Trennschärfe der Tests           < 1 min*
-python modelle\m04_shap.py                  #    Faktorgruppen, Ablation, VIF     ~10 min
-python modelle\fairness.py                  #    Fehler gegen Sozialprofil        < 1 min*
-python modelle\m05_abbildungen.py           #    19 Abbildungen (liest nur CSV)   < 1 min
-python tools\pruefe_zahlen.py               #    Doku gegen results/ prüfen       < 1 min
+python prep/build.py                        # Aufbereitung: zwei Analysedatensaetze
+python tests/test_aufbereitung.py           # Pruefungen an den erzeugten Dateien
+python prep/rohbefunde.py                   # Befunde zu den Rohquellen
+python prep/deskriptiv.py                   # Beschreibung des Panels
+python prep/codebook.py                     # Merkmalstabelle
+python vorpruefung/v0_aufteilung.py         # Selbsttest der wiederholten Aufteilung
+python vorpruefung/panelprofil.py           # Profil der Entwicklungs- und Hold-out-Stadtteile
+python vorpruefung/run.py                   # Baselines und Eignungspruefung
+python vorpruefung/v3_spezifikation.py      # Gegenprobe zur Eignungspruefung
+python modelle/m02_menge.py holdout         # Regression: Tuning, Kreuzvalidierung, Schlussbewertung
+python modelle/m03_struktur.py holdout      # Klassifikation: Tuning, Kreuzvalidierung, Schlussbewertung
+python vorpruefung/v4_decke.py              # Obergrenzen des Strukturstrangs
+python vorpruefung/v4_decke.py holdout      # dieselben Obergrenzen inklusive Hold-out
+python modelle/suchdiagnose.py              # Diagnose der Hyperparametersuche
+python modelle/parametersensitivitaet.py    # Kreuzprobe der Parametersaetze ueber die Folds
+python modelle/trennschaerfe.py             # Trennschaerfe der gepaarten Tests
+python modelle/m04_shap.py                  # Faktorgruppen, Ablation, VIF
 ```
 
-Die mit * markierten Zeiten sind geschätzt, nicht gemessen; `suchdiagnose`
-wiederholt die gesamte Hyperparametersuche. Ohne sie dauert ein vollständiger
-Durchlauf rund **zwei Stunden**, seit der Budgeterhöhung (#49/#50) eher drei
-(`CLAUDE.md`, Abschnitt 5). Das Argument
-`holdout` gehört nur in einen bewusst als Schlussbewertung gefahrenen Lauf —
-ohne es sind die sechs zurückgehaltenen Stadtteile für den Code unerreichbar.
+Hinweise zum Ablauf:
 
-Die Reihenfolge ist verbindlich: `m05` rechnet nichts, es liest nur die CSV der
-vorherigen Schritte. `tools\pruefe_zahlen.py` erzeugt keine Zahl der Arbeit und
-meldet mit Exit-Code 1, welche Stelle der Dokumentation nicht mehr zu
-`results/` passt.
-
-`prep\build.py` läuft ohne Internet aus `data\raw`. Rohdaten werden nur geladen,
-wenn der jeweilige `DOWNLOAD_*`-Schalter in `prep\config.py` auf `True` steht.
+- **`holdout`:** Sechs Stadtteile sind als Hold-out zurückgehalten. Ohne das
+  Argument `holdout` sind sie für den Code unerreichbar. Es gehört nur in den
+  Lauf, der die Schlussbewertung einmalig ausführt.
+- **`vorpruefung/run.py`** startet `v1_baselines.py` und `v2_eignung.py`
+  nacheinander. Die Eignungsprüfung liest die Werte der Baselines.
+- **Laufzeit:** Ein vollständiger Lauf ohne `suchdiagnose.py` dauert auf der
+  in der Arbeit genannten Maschine rund drei Stunden, den größten Teil davon
+  `m02_menge.py` und `m03_struktur.py`. `suchdiagnose.py` wiederholt die
+  gesamte Hyperparametersuche und dauert zusätzlich mehrere Stunden. Mit
+  `--test` läuft sie als kurzer Probelauf.
+- **Wiederaufnahme:** `m02_menge.py holdout --weiter` und
+  `m03_struktur.py holdout --weiter` übernehmen Tuning und Kreuzvalidierung
+  aus `results/`, statt sie neu zu rechnen.
 
 Einzelschritte:
 
 ```bash
-python prep\s1_daten.py join            # nur joinen, ohne Download
-python prep\s2_datensaetze.py splits    # Fold-Zuteilung anzeigen
-python vorpruefung\v1_baselines.py      # nur die Messlatte
-python vorpruefung\v2_eignung.py        # nur die Eignungsprüfung
-python tools\landkarte.py              # Funktionslandkarte neu erzeugen
-python tools\aufraeumen.py              # Vorschau, löscht nichts
-python tools\aufraeumen.py --wirklich   # verwaiste Artefakte entfernen
+python prep/s1_daten.py join            # nur die Zusammenfuehrung, ohne Download
+python prep/s2_datensaetze.py splits    # Aufteilung in Folds und Hold-out anzeigen
+python vorpruefung/v1_baselines.py      # nur die Baselines
+python vorpruefung/v2_eignung.py        # nur die Eignungspruefung
 ```
 
-Spezifikation der Modellierung in `docs/04_MODELLIERUNG.md`, Ergebniszahlen
-ausschließlich in `docs/03_STAND.md`.
+## Reproduzierbarkeit
 
-**Was sich bei einem Wiederholungslauf reproduzieren muss:** Gütemaße,
-Hyperparameter, Baselines, SHAP-Beiträge — alles läuft auf `RANDOM_STATE = 42`.
-Was sich zwangsläufig ändert: sämtliche Laufzeiten sowie `parallel_gewinn` und
-`parallel_abweichung`, weil XGBoost nicht threaddeterministisch ist
-(`docs/07_BEFUNDE.md`, B-24). Der Zahlenwächter meldet die Laufzeitzahlen
-danach als Fehler; sie sind in `03_STAND.md` §5.4 nachzuziehen.
+Alle Zufallsschritte verwenden den Startwert `RANDOM_STATE = 42` aus
+`modelle/config_modelle.py`. Ein Wiederholungslauf reproduziert Gütemaße,
+Hyperparameter, Baselines, SHAP-Beiträge und die Spezifikationsgegenprobe
+exakt. Nicht reproduzierbar sind die Laufzeiten und der Vergleich zwischen
+einkernigem und parallelem Rechnen, weil XGBoost über mehrere Kerne nicht in
+jedem Lauf dieselbe Vorhersage liefert. Bewertet wird deshalb auf einem Kern.
+
+Alle Verfahren erhalten dieselben Zeilen, dieselben Merkmale und dieselbe
+Aufteilung. Die Zuordnung zu Folds und Hold-out steht als Spalte `fold` bzw.
+`ist_holdout` in den Analysedateien.
 
 ## Aufbau
 
-Drei Arbeitsschritte, drei Ordner:
-
 ```
-prep/          die Daten        config · s1_daten · s2_datensaetze · build
-               beschreiben      rohbefunde · deskriptiv · codebook (Kapitel 4)
-vorpruefung/   die Messlatte    v0_aufteilung   wiederholte Splits, Selbsttest
-               und die Eignung  panelprofil     Profil beider Panelhaelften
-                                v1_baselines    Stufe 1 + Stufe 2
-                                v2_eignung      welche Verfahrensklasse passt?
-                                v3_spezifikation  haelt die Nichtlinearitaet?
-                                v4_decke        Obergrenzen der Einsatzart-Prognose
-modelle/       der Vergleich    m02_menge · m03_struktur · m04_shap · m05_abbildungen
-                                suchdiagnose · parametersensitivitaet
-                                trennschaerfe · fairness
-tests/                          test_aufbereitung
-tools/         Werkzeuge        landkarte          Funktionslandkarte erzeugen
-               (ohne Zahl in    pruefe_zahlen      Doku gegen results/
-               der Arbeit)      aufraeumen         verwaiste Artefakte, Vorschau
-                                sichere_ergebnisse results/ nach archiv/ kopieren
-                                funktionsdoku      Docstring-Archiv
-archiv/        NICHT ABGABE     gesicherte Ergebnisstände, je mit Manifest
-entwuerfe/     NICHT ABGABE     E-Mails, Erklärungen
-data/          raw · processed
-results/       regression · klassifikation · eignungspruefung · shap ·
-               spezifikation · abbildungen · codebook
-main.tex                        Gliederung und Schreibanleitung als Kommentare
-docs/          01_VORGABEN · 02_ENTSCHEIDUNGEN · 03_STAND · 04_MODELLIERUNG ·
-               06_RISIKEN · 07_BEFUNDE
+prep/              Aufbereitung und Beschreibung der Daten
+  config.py          Konstanten der Aufbereitung
+  s1_daten.py        Rohdaten zusammenfuehren, ein Einsatz je Zeile
+  s2_datensaetze.py  Aggregation auf Stadtteil x Monat, Aufteilung
+  build.py           fuehrt s1 und s2 in einem Befehl aus
+  rohbefunde.py, deskriptiv.py, codebook.py   beschreiben die Daten
+vorpruefung/       Aufteilung, Baselines, Eignungspruefung, Obergrenzen
+modelle/           Hyperparametersuche, Kreuzvalidierung, Tests,
+                   Schlussbewertung und Interpretation
+  config_modelle.py  Suchraeume, Budget, Wiederholungen, Startwert
+tests/             Pruefungen der Aufbereitung
+data/raw/          Rohdaten
+data/processed/    erzeugte Analysedateien
+results/           Ergebnisse als Tabellen und Berichte
 ```
 
-**Faustregel:** Erzeugt ein Schritt *Daten*, gehört er nach `prep/`. Legt er
-fest, *was ein Modell mindestens leisten muss und warum diese Verfahren*, nach
-`vorpruefung/`. Vergleicht er Verfahren, nach `modelle/`.
-
-## Die zwei finalen Datensätze
-
-`data/processed/regression.parquet` und `klassifikation.parquet`, beide auf der
-Analyseeinheit **Stadtteil × Monat**, ohne fehlende Werte, Merkmale durchgehend
-`float64`. Die Spalten `fold` und `ist_holdout` enthalten die Aufteilung —
-dadurch sehen alle Verfahren zwangsläufig dieselben Folds.
-
-**Steckbrief, Spaltenbeschreibung und Baseline-Werte: `docs/03_STAND.md`.**
-
-## Dokumentation
-
-Vier Dateien, geschnitten danach, **wodurch sie veralten**:
-
-| Datei | Ändert sich durch |
-|---|---|
-| `docs/01_VORGABEN.md` | Ansagen von Schröter |
-| `docs/02_ENTSCHEIDUNGEN.md` | neue Entscheidungen — wächst, wird nie umgeschrieben |
-| `docs/03_STAND.md` | jeden Lauf von `build.py` |
-| `docs/04_MODELLIERUNG.md` | Änderungen an der Modellplanung |
-| `docs/06_RISIKEN.md` | eingetretene oder weggefallene Risiken |
-| `docs/10_FUNKTIONSLANDKARTE.md` | erzeugt aus dem Quelltext: `python tools\landkarte.py` |
-
-**Ergebniszahlen stehen ausschließlich in `03_STAND.md`**, alles andere verweist
-darauf. Rahmenplan, Arbeitsregeln und KI-Verzeichnis: `CLAUDE.md`.
+Die beiden Analysedateien sind `data/processed/regression.parquet` und
+`data/processed/klassifikation.parquet`. Beide liegen auf der Einheit
+Stadtteil je Monat vor, ohne fehlende Werte.

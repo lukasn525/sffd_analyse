@@ -1,33 +1,28 @@
 """
-Rohdatenbefunde - der Qualitaetsteil von Kapitel 4.
+Rohdatenbefunde.
 
     python prep/rohbefunde.py
 
 Ausgang: results/deskriptiv/rohbefunde.md
 
 Gegenstueck zu deskriptiv.py: Jenes beschreibt den AUFBEREITETEN Datensatz,
-dieses die ROHQUELLEN, so wie sie vom Portal kommen. Zusammen decken beide
-jede Datenzahl in Kapitel 4 ab - danach steht keine Zahl mehr in der Arbeit,
-die nicht aus einem Skript stammt.
-
-TEIL DER ABGABE - seit dem 11.09.2026 in prep/ (vorher tools/), weil die
-erzeugte Tabelle Zahlen fuer Kapitel 4 liefert.
+dieses die ROHQUELLEN, so wie sie vom Portal kommen.
 
 --------------------------------------------------------------------------
 WAS HIER STEHT UND WAS NICHT
 --------------------------------------------------------------------------
-Aufgenommen ist nur, was in Kapitel 5 eine FOLGE hat. Jede der sieben
+Aufgenommen ist nur, was in der Aufbereitung eine FOLGE hat. Jede der sieben
 Groessen traegt einen Eingriff:
 
-  Meldungen gesamt / im Analysezeitraum -> Umfang, Zeitraumwahl (5.1)
-  Dubletten nach Einsatznummer          -> Dedup (5.1)
+  Meldungen gesamt / im Analysezeitraum -> Umfang, Zeitraumwahl
+  Dubletten nach Einsatznummer          -> Dedup
   Parzellen ohne Baujahr                -> Nenner yrbuilt_count statt
-                                           parcel_count (5.3)
-  ACS-Jahrgang 2009 ohne B15003         -> Analysebeginn 2015 (5.1)
-  Tracts je Jahrgang gegen Crosswalk    -> Trefferquoten (5.2)
-  Einwohner der Parkgebiete             -> Ausschluss der drei Parks (5.1)
+                                           parcel_count
+  ACS-Jahrgang 2009 ohne B15003         -> Analysebeginn 2015
+  Tracts je Jahrgang gegen Crosswalk    -> Trefferquoten
+  Einwohner der Parkgebiete             -> Ausschluss der drei Parks
   erster Jahrgang mit Mission Bay       -> Ausschluss der drei Stadtteile
-                                           ohne durchgaengige Abdeckung (5.1)
+                                           ohne durchgaengige Abdeckung
 
 NICHT aufgenommen, bewusst:
   - Die Antwortzeit. Sie ist eine ERGEBNISvariable und faellt erst nach dem
@@ -38,34 +33,39 @@ NICHT aufgenommen, bewusst:
 --------------------------------------------------------------------------
 WARUM DIE PARKGEBIETE ALS SPANNE BERICHTET WERDEN
 --------------------------------------------------------------------------
-Die Einwohnerzahl des Golden Gate Park haengt am ACS-Jahrgang: 45 im
-Jahrgang 2014, 63 in 2019, 25 in 2021, 49 in 2023. Eine einzelne Zahl waere
-nicht reproduzierbar - wer nachrechnet, bekommt je nach Jahrgang etwas
-anderes. Kapitel 4 nannte bis zum 24.08.2026 die 45 aus dem Jahrgang 2014,
-ohne den Jahrgang zu nennen. Berichtet wird deshalb das MAXIMUM ueber die
+Die Einwohnerzahl des Golden Gate Park haengt am ACS-Jahrgang. Eine einzelne
+Zahl waere nicht reproduzierbar - wer nachrechnet, bekommt je nach Jahrgang
+etwas anderes. Berichtet wird deshalb das MAXIMUM ueber die
 genutzten Jahrgaenge gegen das MINIMUM des Medians der uebrigen Stadtteile.
 Diese Aussage gilt in jedem genutzten Jahrgang und traegt das Argument
 staerker als eine Einzelzahl.
-
---------------------------------------------------------------------------
-PRUEFAUFTRAEGE - nach jedem Lauf abzuarbeiten
---------------------------------------------------------------------------
-  1  Stimmen Meldungen gesamt (720.258) und im Analysezeitraum (371.316)
-     mit Abschnitt 4.1 ueberein? Weichen sie ab, wurde neu geladen, und
-     Kapitel 4 ist nachzuziehen.
-  2  269 Dubletten, 0,04 %? Die Differenz zu 03_STAND.md Abschnitt 2
-     (719.989 Zeilen nach Dedup) muss genau diese 269 sein.
-  3  16.962 von 155.395 Parzellen ohne Baujahr, 10,9 %? Gezaehlt wird NACH
-     der Plausibilitaetsregel aus s1_daten.py (Baujahr in 1800..2025).
-  4  Traegt der Jahrgang 2009 weiterhin in KEINEM seiner 176 Tracts eine
-     Bildungsangabe? Das ist der Grund fuer den Analysebeginn 2015.
-  5  Steigt die Tract-Zahl weiterhin 176 -> 197 -> 244, und umfasst der
-     Crosswalk 242 Tracts? Daraus entstehen die Trefferquoten in 5.2.
-  6  Bleiben die beiden Spannen fuer die Parkgebiete gueltig - Golden Gate
-     Park hoechstens 63 Einwohner, Median der uebrigen mindestens 14.444?
-     Genau diese beiden Zahlen stehen in 4.2; eine einzelne Jahrgangszahl
-     darf dort NICHT stehen.
 """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 from __future__ import annotations
 
 import sys
@@ -192,7 +192,7 @@ def main() -> int:
           f"{z(g['golden_gate_park'].min(), 0)} bis "
           f"{z(g['golden_gate_park'].max(), 0)} Einwohner")
     print()
-    print("Pruefauftraege im Docstring abarbeiten.")
+    print("Fertig.")
     return 0
 
 

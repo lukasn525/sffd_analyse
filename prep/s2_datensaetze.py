@@ -9,15 +9,15 @@ Ausgang: data/processed/regression.parquet       Stadtteil x Monat, Menge
          data/processed/klassifikation.parquet   Stadtteil x Monat, Struktur
 
 - Beide Dateien liegen auf derselben Analyseeinheit. Die eine misst die MENGE
-  der Einsatzlast, die andere ihre ZUSAMMENSETZUNG (Decision Log #29).
+  der Einsatzlast, die andere ihre ZUSAMMENSETZUNG.
 - Der Validierungsrahmen steht hier, weil die Aufteilung als SPALTEN in die
   Dateien geht. "Alle Verfahren sehen identische Folds" ist damit eine Zusage
   ueber den DATENSATZ, nicht ueber die Algorithmen.
 - Drei Teile: A Stadtteil-Split, B Menge, C Struktur.
-- Kennzahlen der erzeugten Dateien: docs/03_STAND.md
-
-Ausfuehrlich: docs/08_FUNKTIONSDOKUMENTATION.md
 """
+
+
+
 from __future__ import annotations
 
 import sys
@@ -38,7 +38,7 @@ ZIELGROESSE  = "anzahl_einsaetze"
 RATE         = "einsaetze_je_1000_ew"   # zweite Zielgroesse der Menge
 ZIELKLASSE   = "dominante_einsatzart"   # Zielgroesse der Klassifikation
 SCHLUESSEL   = ["stadtteil", "jahr", "monat", "jahr_monat"]
-R_NEBEN      = [EXPOSURE_ROH, CRIME_ROH]   # Poisson-Offset, Deskription 5.1
+R_NEBEN      = [EXPOSURE_ROH, CRIME_ROH]   # Poisson-Offset, Deskription
 AUFTEILUNG   = ["fold", "ist_holdout"]
 
 # NFIRS-Gruppe -> Spaltensuffix. Die Reihenfolge folgt KLASSEN aus config.py.
@@ -58,7 +58,7 @@ _UEBERNOMMEN = ([c for c in PRAEDIKTOREN if c not in _ABGELEITET]
 # Geprueft wird, indem ganze Stadtteile zurueckgehalten werden: 6 ins Hold-out,
 # die uebrigen 30 auf 5 Folds (6/6/6/6/6), jeder genau einmal Testfall. Ein
 # Zeitschnitt wuerde die Forschungsfrage nicht pruefen - dort steht jeder
-# Stadtteil in Training UND Test (Decision Log #29).
+# Stadtteil in Training UND Test.
 # ==========================================================================
 def ergaenze_aufteilung(daten: pd.DataFrame, versatz: int = 0,
                         selten: pd.Series | None = None) -> pd.DataFrame:
@@ -70,14 +70,14 @@ def ergaenze_aufteilung(daten: pd.DataFrame, versatz: int = 0,
 
     - die Stadtteile werden reihum auf N_FOLDS + 1 Gruppen verteilt; Gruppe 0 ist
       das Hold-out
-    - doppelte Stratifizierung (#30): erst nach `selten`, sonst hat ein Fold
+    - doppelte Stratifizierung: erst nach `selten`, sonst hat ein Fold
       keinen Brand-Testfall und Macro-F1 mittelt ueber eine fehlende Klasse
     - bei Gleichstand nach Bevoelkerung, sonst waere die Fold-Streuung ein
       Groesseneffekt
     - kein Leakage: festgelegt wird nur, welche Stadtteile gemeinsam getestet
       werden, wie bei StratifiedGroupKFold
     """
-    # Doppelte Stratifizierung (#30): zuerst nach brand-dominierten Monaten,
+    # Doppelte Stratifizierung: zuerst nach brand-dominierten Monaten,
     # bei Gleichstand nach Bevoelkerung.
     bev = daten.groupby("stadtteil")[EXPOSURE_ROH].mean()
     if selten is None:
@@ -113,7 +113,7 @@ def fold_masken(daten: pd.DataFrame, k: int) -> tuple[pd.Series, pd.Series]:
 
 
 def beschreibe_splits(daten: pd.DataFrame) -> str:
-    """Fasst die Aufteilung lesbar zusammen, fuer Kapitel 5.2 und 5.4.
+    """Fasst die Aufteilung lesbar zusammen.
 
     Ein:  Datensatz mit Fold-Spalten
     Aus:  nichts, reine Konsolenausgabe
@@ -159,10 +159,10 @@ def _setze_datentypen(d: pd.DataFrame, merkmale: list[str]) -> pd.DataFrame:
 
     - notwendig, weil EINE nullable Int64-Spalte genuegt, damit X.to_numpy() ein
       object-Array liefert
-    - sklearn faengt das still ab, XGBoost lehnt es ab (#24)
+    - sklearn faengt das still ab, XGBoost lehnt es ab
     """
     # Eine einzige nullable Int64-Spalte genuegt, damit X.to_numpy() ein
-    # object-Array liefert: sklearn faengt das still ab, XGBoost nicht (#24).
+    # object-Array liefert: sklearn faengt das still ab, XGBoost nicht.
     d = d.copy()
     for c in merkmale:
         d[c] = pd.to_numeric(d[c], errors="coerce").astype("float64")
@@ -201,7 +201,7 @@ def aggregiere(von: int, bis: int, mit_parkgebieten: bool = False,
     df["jahr_monat"] = df["jahr"] * 100 + df["monat"]
 
     if verbose:
-        # Warnung vor angebrochenen Randmonaten (Decision Log #12). Massgeblich
+        # Warnung vor angebrochenen Randmonaten. Massgeblich
         # bleibt ENDE aus config.py - die Warnung korrigiert nichts, sie meldet.
         je_monat = df.groupby("jahr_monat").size()
         median = je_monat.median()
@@ -230,15 +230,15 @@ def aggregiere(von: int, bis: int, mit_parkgebieten: bool = False,
 
     # Nur VORWAERTS fuellen. KEIN bfill: Rueckwaertsfuellen wuerde fehlende Werte
     # (z. B. akademikerquote vor ACS 2014) still mit ZUKUNFTSWERTEN imputieren -
-    # Leakage (Decision Log #10). Echte NaN bleiben sichtbar.
+    # Leakage. Echte NaN bleiben sichtbar.
     raster[_UEBERNOMMEN] = (raster.groupby("stadtteil")[_UEBERNOMMEN]
                                   .transform(lambda s: s.ffill()))
     raster["jahr_monat"] = raster["jahr"] * 100 + raster["monat"]
     raster = raster[raster["jahr_monat"].between(von, bis)]
 
-    # Exposure (Decision Log #13); log1p sichert gegen Bevoelkerung 0 ab.
+    # Exposure; log1p sichert gegen Bevoelkerung 0 ab.
     raster["log_bevoelkerung"] = np.log1p(raster[EXPOSURE_ROH].astype(float))
-    # Kriminalitaetsindex logarithmieren (#17/#19): 0 = Stadtdurchschnitt.
+    # Kriminalitaetsindex logarithmieren: 0 = Stadtdurchschnitt.
     # Nullwerte wuerden -inf erzeugen und werden zu NaN, damit sie sichtbar
     # bleiben statt still zum Extremwert zu werden.
     index_roh = raster[CRIME_ROH].astype(float)
@@ -261,7 +261,7 @@ def baue_regression(vorlauf: int = VORLAUF_MONATE,
     Aus:  4.752 Zeilen x 25 Spalten - Merkmale, beide Mengen-Zielgroessen,
           Exposition, Saison, Lags
 
-    - Lag-Vorlauf (#23): aggregiert wird ab START minus `vorlauf` Monaten, damit
+    - Lag-Vorlauf: aggregiert wird ab START minus `vorlauf` Monaten, damit
       lag_12 schon fuer den ersten Analysemonat definiert ist
     - danach Zuschnitt auf START
     - die Vorlaufmonate gehen ausschliesslich ueber shift() ein, nie als eigene
@@ -293,7 +293,7 @@ def baue_regression(vorlauf: int = VORLAUF_MONATE,
         print(f"  Lag-Vorlauf: {vor_schnitt - len(d):,} Vorlaufzeilen "
               f"({von}-{_monat_minus(START, 1)}) nach der Lag-Bildung entfernt")
 
-    # Balanciertes Panel (Decision Log #15): Stadtteile ohne durchgaengige
+    # Balanciertes Panel: Stadtteile ohne durchgaengige
     # ACS-Abdeckung fliegen GANZ raus. Zeilenweises dropna erzeugte sonst ein
     # unbalanciertes Panel - ein Stadtteil tritt mitten in der Zeitreihe hinzu.
     luecken = (d.groupby("stadtteil")[PRAEDIKTOREN]
@@ -315,14 +315,14 @@ def baue_regression(vorlauf: int = VORLAUF_MONATE,
     # Zweite Zielgroesse: Einsaetze je 1.000 Einwohner. Fuer den Vergleich
     # zwischen unterschiedlich grossen Stadtteilen ist die Rate die
     # aussagekraeftigere Groesse - die absolute Zahl bildet vor allem die
-    # Einwohnerzahl ab (Decision Log #29).
+    # Einwohnerzahl ab.
     d[RATE] = d[ZIELGROESSE] / d[EXPOSURE_ROH].astype(float) * 1000
+
 
     # REPRODUZIERBARKEITSVERTRAG - diese Sortierung darf nicht veraendert
     # werden: Random Forest und XGBoost ziehen ihre Bootstrap- bzw.
     # Subsample-Stichproben ueber Zeilenpositionen. Eine andere Reihenfolge
-    # liefert trotz identischem random_state leicht andere Baeume (gemessen
-    # am 07.08.2026: 17,2587 statt 17,2974 RMSE in Fold 1). Ridge ist
+    # liefert trotz identischem random_state leicht andere Baeume. Ridge ist
     # reihenfolgeinvariant.
     d = d.sort_values(["jahr_monat", "stadtteil"]).reset_index(drop=True)
     merkmale = FEATURE_SETS["S"] + LAGS
@@ -342,13 +342,13 @@ def baue_klassifikation(regression: pd.DataFrame,
           die vier Anteile
 
     - Zielgroesse ist die ZUSAMMENSETZUNG der Einsatzlast, nicht die Art des
-      einzelnen Einsatzes (#29)
+      einzelnen Einsatzes
     - Grund: Innerhalb eines Stadtteil-Monats tragen alle Einsaetze identische
-      Strukturmerkmale; auf Einzeleinsatz-Ebene war nichts zu holen (49,9 % gegen
-      48,2 % fuer blosses Raten)
+      Strukturmerkmale; auf Einzeleinsatz-Ebene ist nichts zu holen
     - Zeilen, Zeitraum, Merkmale und Folds werden dem Regressionsdatensatz
       entnommen; beide Straenge beruhen zwingend auf derselben Aufteilung
     """
+
     von, bis = int(regression["jahr_monat"].min()), int(regression["jahr_monat"].max())
     stadtteile = set(regression["stadtteil"])
 
@@ -388,7 +388,7 @@ def baue_klassifikation(regression: pd.DataFrame,
                                                           regex=False)
 
     # Keine Ergebnisvariable darf im Datensatz landen - diese Spalten stehen
-    # erst nach dem Einsatz fest (Decision Log #20).
+    # erst nach dem Einsatz fest.
     verboten = [c for c in ERGEBNISVARIABLEN if c in d.columns]
     assert not verboten, f"Ergebnisvariablen im Datensatz: {verboten}"
 
@@ -475,9 +475,9 @@ def run(verbose: bool = True) -> tuple[pd.DataFrame, pd.DataFrame]:
             print(f"\n  => {pfad.relative_to(ROOT)}  "
                   f"({len(d):,} Zeilen | {len(d.columns)} Spalten)")
         # Einzige Kennzahl, die hier gedruckt wird: die Brand-Testfaelle je Fold.
-        # Sie ist der Grund fuer die doppelte Stratifizierung (#30) und der
+        # Sie ist der Grund fuer die doppelte Stratifizierung und der
         # einzige Wert, der beim Lauf tatsaechlich kontrolliert werden muss.
-        # Alles Weitere steht in docs/03_STAND.md und wird von den Tests geprueft.
+        # Alles Weitere wird von den Tests geprueft.
         brand = [int((k.loc[k["fold"] == j, ZIELKLASSE] == "brand").sum())
                  for j in range(1, N_FOLDS + 1)]
         print(f"\n  Brand-Testfaelle je Fold: {' | '.join(map(str, brand))}"

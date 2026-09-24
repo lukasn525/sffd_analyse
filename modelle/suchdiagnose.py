@@ -14,10 +14,6 @@ ganzen Rechenzeit auffaellt.
 
 Ausgang: results/suchdiagnose/kurve.csv · raender.csv · zusammenfassung.md
 
-TEIL DER ABGABE - seit dem 11.09.2026 in modelle/ (vorher tools/). Die
-Befunde beantworten eine Auflage aus der Sprechstunde vom 10.08.2026 mit
-einer Messung statt mit einem Argument.
-
 --------------------------------------------------------------------------
 DIE ZWEI FRAGEN
 --------------------------------------------------------------------------
@@ -34,22 +30,20 @@ DIE ZWEI FRAGEN
 --------------------------------------------------------------------------
 ZWEI SORTEN RAND - der Unterschied entscheidet
 --------------------------------------------------------------------------
-Gemessen am Lauf vom 07.08. (Budget 50, fuenf Folds):
-
   NATUERLICH, nichts zu tun
-    random_forest max_features       4/5 waehlen 1,0 - das sind ALLE Merkmale
-    random_forest min_samples_leaf   3/5 waehlen 1  - weniger als eine
+    random_forest max_features       1,0 - das sind ALLE Merkmale
+    random_forest min_samples_leaf   1  - weniger als eine
                                      Beobachtung je Blatt gibt es nicht
     Das ist ein BEFUND, kein Mangel: Der Wald will maximale Flexibilitaet.
 
   WILLKUERLICH, hier kann etwas fehlen
-    xgboost max_depth (Struktur)     4/5 waehlen 3 - die UNTERGRENZE
-    xgboost max_depth (Menge)        3/5 am Rand, beide Enden getroffen
-    ridge alpha, xgboost reg_lambda  je 1/5 am Rand
+    xgboost max_depth (Struktur)     3 - die UNTERGRENZE
+    xgboost max_depth (Menge)        am Rand, beide Enden getroffen
+    ridge alpha, xgboost reg_lambda  am Rand
 
 Der erste Fall ist der wichtigste des Projekts: In der Klassifikation will
 XGBoost den flachsten Baum, den es darf. Genau dort widersprechen sich
-Kreuzvalidierung und Hold-out (R-2, B-42) - das Muster von Ueberanpassung.
+Kreuzvalidierung und Hold-out - das Muster von Ueberanpassung.
 Wird die Untergrenze geoeffnet und XGBoost waehlt dann Tiefe 1 oder 2, war der
 Suchraum die Ursache.
 
@@ -86,6 +80,12 @@ WAS SIE NICHT ANFASST
     irgendetwas rechnet
   - `config_modelle.SUCHRAEUME` wird nicht veraendert, nur lokal ueberlagert
 """
+
+
+
+
+
+
 from __future__ import annotations
 
 import sys
@@ -117,27 +117,27 @@ BUDGET = 100
 # colsample_bytree: Deren Grenzen sind natuerlich (alle Merkmale, eine
 # Beobachtung, der ganze Datensatz). Dahinter existiert nichts.
 #
-# Ebenfalls NICHT erweitert: n_estimators. Nur ein Fold lag nahe der Grenze,
-# und mehr Baeume sind der groesste Laufzeittreiber. Bewusste Auslassung.
+# Ebenfalls NICHT erweitert: n_estimators. Mehr Baeume sind der groesste
+# Laufzeittreiber. Bewusste Auslassung.
 WEITER = {
     "ridge": {
-        "alpha": ("loguniform", 1e-5, 1e5),          # war 1e-3 bis 1e3
+        "alpha": ("loguniform", 1e-5, 1e5),          # alter Raum 1e-3 bis 1e3
     },
     "random_forest": {
-        # ZWEI Aenderungen. Erstens nach oben erweitert. Zweitens die
-        # REIHENFOLGE korrigiert: `None` heisst unbegrenzte Tiefe, ist also
-        # faktisch der TIEFSTE Wert - stand in der alten Liste aber an erster
-        # Stelle. Jede Auswertung, die die Listenposition als Tiefe liest,
-        # bekam damit ein verdrehtes Bild (betrifft auch Abbildung A8).
+
+        # Erstens nach oben erweitert. Zweitens steht `None` am ENDE: Es
+        # heisst unbegrenzte Tiefe, ist also faktisch der TIEFSTE Wert. Jede
+        # Auswertung, die die Listenposition als Tiefe liest, bekaeme sonst
+        # ein verdrehtes Bild.
         "max_depth": ("choice", [8, 12, 16, 24, 32, 48, None]),
     },
     "xgboost": {
-        "max_depth": ("int", 1, 14),                 # war 3 bis 10
-        "reg_lambda": ("loguniform", 1e-4, 1e4),     # war 1e-2 bis 1e2
+        "max_depth": ("int", 1, 14),                 # alter Raum 3 bis 10
+        "reg_lambda": ("loguniform", 1e-4, 1e4),     # alter Raum 1e-2 bis 1e2
     },
 }
 
-# Laufzeit je Suchlauf bei Budget 50, gemessen am 07.08. Verdoppelt sich mit
+# Gemessene Laufzeit je Suchlauf bei Budget 50. Verdoppelt sich mit
 # dem Budget. Dient nur der Vorabschaetzung.
 SEKUNDEN_50 = {("menge", "ridge"): 3, ("menge", "random_forest"): 210,
                ("menge", "xgboost"): 154, ("struktur", "random_forest"): 184,
@@ -149,7 +149,7 @@ SEKUNDEN_50 = {("menge", "ridge"): 3, ("menge", "random_forest"): 210,
 # ihn - ein Sechstel des Budgets ginge auf eine wirkungslose Dimension, und die
 # Suchkurve des Strukturstrangs fiele dadurch zu flach aus.
 # `m03_struktur.suchraum()` entfernt ihn aus demselben Grund; ohne diese Zeile
-# weicht die Diagnose vom Hauptlauf ab (gefunden im Rauchtest am 13.08.2026).
+# weicht die Diagnose vom Hauptlauf ab.
 NUR_REGRESSION = {"tweedie_variance_power"}
 
 

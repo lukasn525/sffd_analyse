@@ -7,14 +7,14 @@ Eingang: data/processed/regression.parquet, data/processed/klassifikation.parque
 Ausgang: results/panelprofil/stadtteile.csv, klassenverteilung.csv,
          zielgroessen.csv, panelprofil.md
 
-  - Der Validierungsrahmen haelt ganze Stadtteile zurueck (#14/#29). Eine
+  - Der Validierungsrahmen haelt ganze Stadtteile zurueck. Eine
     Schlussbewertung auf sechs Einheiten ist ohne diese sechs Einheiten keine
     Aussage, sondern eine Zahl ohne Bezugsmenge. Deshalb steht die
     Zusammensetzung beider Haelften in einer eigenen Datei, erzeugt VOR der
     Auswertung und unabhaengig von jedem Modellergebnis
   - Die Zuteilung ist deterministisch: absteigend nach brand-dominierten
     Monaten, bei Gleichstand nach Bevoelkerung, dann reihum auf N_FOLDS + 1
-    Gruppen; Gruppe 0 ist das Hold-out (#30). Der auf dem
+    Gruppen; Gruppe 0 ist das Hold-out. Der auf dem
     Stratifizierungskriterium rangerste Stadtteil liegt damit ZWANGSLAEUFIG
     im Hold-out - keine Zufallsziehung, sondern eine Eigenschaft der Regel,
     und als solche zu berichten
@@ -22,7 +22,7 @@ Ausgang: results/panelprofil/stadtteile.csv, klassenverteilung.csv,
     ist: die Klassenverteilung, weil Macro-F1 ueber vier Klassen mittelt
     von denen eine selten ist - und die Verteilung der Zielgroessen auf der
     RATE, weil das die Skala ist, auf der alle drei Verfahren angepasst
-    werden (#43)
+    werden
   - Rein deskriptiv. Kein Modell, kein Test, kein Zufall: zwei Laeufe
     liefern dieselbe Datei. Haengt bewusst nicht an vorpruefung/run.py,
     weil es keine Voraussetzung fuer die Baselines ist
@@ -34,7 +34,7 @@ FALLSTRICKE
      Zahlen nebeneinanderzustellen ohne das zu sagen waere ein stiller
      Bezugsmengenwechsel
   2  Anteile IMMER innerhalb der jeweiligen Haelfte bilden, nie am
-     Gesamtpanel. Sonst liest sich "4,7 % brand" als Aussage ueber die
+     Gesamtpanel. Sonst liest sich der Brandanteil als Aussage ueber die
      Stadt statt ueber die Testmenge
   3  Der Dispersionsindex gehoert zur Anzahl, nicht zur Rate - er ist auf
      Zaehldaten definiert. Fuer die Rate steht die Standardabweichung da
@@ -44,9 +44,9 @@ FALLSTRICKE
   5  Die Spalte ist_holdout kommt aus der DATEI, nicht aus einer Rechnung
      in diesem Skript. Wer sie hier neu bestimmte, koennte still von der
      Aufteilung abweichen, gegen die m02 und m03 gesperrt sind
-
-Ausfuehrliche Fassung: docs/08_FUNKTIONSDOKUMENTATION.md
 """
+
+
 
 from __future__ import annotations
 
@@ -78,7 +78,7 @@ def lade() -> tuple[pd.DataFrame, pd.DataFrame]:
     Aus:  (regression, klassifikation)
 
     - beide Dateien tragen fold und ist_holdout aus EINEM Aufruf von
-      ergaenze_aufteilung() (#22). Weichen sie ab, ist die Aufbereitung
+      ergaenze_aufteilung(). Weichen sie ab, ist die Aufbereitung
       neu zu laufen - dieses Skript darf das nicht stillschweigend heilen
     """
     reg = pd.read_parquet(PFAD_REGRESSION)
@@ -98,7 +98,7 @@ def stadtteile(reg: pd.DataFrame, kl: pd.DataFrame) -> pd.DataFrame:
     Ein:  beide Datensaetze
     Aus:  Datenrahmen, absteigend nach brand-dominierten Monaten sortiert
 
-    - die Sortierung bildet die Zuteilungsregel aus #30 nach. Wer die Datei
+    - die Sortierung bildet die Zuteilungsregel nach. Wer die Datei
       liest, sieht der Reihenfolge an, warum welcher Stadtteil in Gruppe 0
       steht
     - FALLSTRICK 4: Modalklasse ueber alle Monate des Stadtteils
@@ -153,7 +153,7 @@ def zielgroessen(reg: pd.DataFrame) -> pd.DataFrame:
     Aus:  Datenrahmen mit einer Zeile je Haelfte und Zielgroesse
 
     - FALLSTRICK 3: Dispersionsindex nur fuer die Anzahl
-    - die Rate steht mit dabei, weil auf ihr angepasst wird (#43): eine
+    - die Rate steht mit dabei, weil auf ihr angepasst wird: eine
       Testmenge ohne die Extremwerte des Trainings ist eine andere Aufgabe
     """
     zeilen = []
@@ -201,7 +201,7 @@ def bericht(st: pd.DataFrame, kv: pd.DataFrame, zg: pd.DataFrame) -> str:
         "",
         "Erzeugt von `vorpruefung/panelprofil.py`. Rein deskriptiv, kein Modell.",
         "",
-        "Zuteilung nach #30: absteigend nach brand-dominierten Monaten, bei",
+        "Zuteilung: absteigend nach brand-dominierten Monaten, bei",
         "Gleichstand nach Bevoelkerung, dann reihum auf sechs Gruppen; Gruppe 0",
         "ist das Hold-out.",
         "",
@@ -258,7 +258,7 @@ def main(argv: list[str]) -> int:
     zg.to_csv(OUT / "zielgroessen.csv", index=False)
     (OUT / "panelprofil.md").write_text(bericht(st, kv, zg), encoding="utf-8")
 
-    # PRUEFAUFTRAEGE maschinell.
+    # Kontrollen:
     #   1  6 Stadtteile im Hold-out, 30 in der Entwicklung
     #   2  Klassenanteile summieren je Haelfte auf 1
     #   3  Zeilenzahlen 4.752 (Regression) und 4.751 (Klassifikation)

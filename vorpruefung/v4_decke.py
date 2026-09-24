@@ -13,8 +13,8 @@ Ausgang: results/klassifikation/decke.csv, decke_marge.csv,
          decke_ausschoepfung.csv, decke.md - mit Argument "holdout" dieselben
          Dateien mit Endung _holdout
 
-  - Der Strukturstrang erreicht Macro-F1 um 0,33. Gegen 1,0 gehalten sieht
-    das misslungen aus; diese Lesart vergleicht mit einer Obergrenze, die
+  - Gegen 1,0 gehalten sieht der Macro-F1 des Strukturstrangs
+    misslungen aus; diese Lesart vergleicht mit einer Obergrenze, die
     bei DIESER Zielgroesse und DIESEM Merkmalssatz nicht erreichbar ist
   - DECKE A, Label-Rauschen: `dominante_einsatzart` ist kein beobachtetes
     Merkmal, sondern der argmax ueber vier Anteilsspalten. Liegen zwei
@@ -23,17 +23,17 @@ Ausgang: results/klassifikation/decke.csv, decke_marge.csv,
     Guete eines Modells, das die wahren Wahrscheinlichkeiten exakt kennt
   - DECKE B, Grenze des Stadtteilwissens: Alle Praediktoren sind
     stadtteilgebunden (baulich konstant, sozial je Stadtteil-Jahr,
-    Kriminalitaet zu 90 % zwischen den Stadtteilen). Mehr als die
+    Kriminalitaet ueberwiegend zwischen den Stadtteilen). Mehr als die
     Modalklasse SEINES Stadtteils kann ein Modell daraus nicht ableiten.
     Diese Decke liegt deutlich unter A, weil fast alle Stadtteile dieselbe
     Modalklasse haben
   - Berichtet wird die baselinekorrigierte Ausschoepfung
     (Modell - Mehrheitsklasse) / (Decke - Mehrheitsklasse). Der
-    Rohquotient waere geschoent: Der Sockel von Macro-F1 0,22 ist keine
+    Rohquotient waere geschoent: Der Sockel der Mehrheitsklasse ist keine
     Leistung des Modells
   - Beide Decken entstehen VOR jeder Modellwahl. Sie zu beziffern ist keine
-    nachtraegliche Entlastung, sondern die Voraussetzung dafuer, 0,33
-    ueberhaupt einordnen zu koennen (B-48)
+    nachtraegliche Entlastung, sondern die Voraussetzung dafuer, den erreichten
+    Macro-F1 ueberhaupt einordnen zu koennen
 
 FALLSTRICKE
   1  Ohne Argument "holdout" wird auf ist_holdout == 0 gefiltert wie in m02
@@ -43,19 +43,19 @@ FALLSTRICKE
      rng.multinomial lieferte stumm einen Nullvektor, dessen argmax immer
      auf die erste Klasse zeigt - eine erfundene Beobachtung
   3  Der Bootstrap braucht RANDOM_STATE aus config_modelle.py, sonst
-     schwankt Decke A zwischen zwei Laeufen und die Zahl in der Arbeit passt
+     schwankt Decke A zwischen zwei Laeufen und eine berichtete Zahl passt
      nicht mehr zur Zahl in der CSV
   4  Decke A ist eine Obergrenze, kein Zielwert. Bindend ist Decke B
-  5  Modellwerte und Decken muessen aus DERSELBEN Bewertung stammen. Bis zum
-     20.08.2026 las auch der Hold-out-Lauf die Quoten aus
-     struktur_mittel.csv - also Kreuzvalidierungsmittel gegen
-     Hold-out-Decken. Die Zahlen in decke_ausschoepfung_holdout.csv waren
-     dadurch nicht interpretierbar und wichen weit von den richtigen ab
-     (Random Forest 44,7 % statt 18,1 %). Seither waehlt _modellwerte() die
-     Quelle anhand des Laufs und decke.md nennt sie
-
-Ausfuehrliche Fassung: docs/08_FUNKTIONSDOKUMENTATION.md
+  5  Modellwerte und Decken muessen aus DERSELBEN Bewertung stammen - also
+     keine Kreuzvalidierungsmittel gegen Hold-out-Decken. _modellwerte()
+     waehlt die Quelle anhand des Laufs und decke.md nennt sie
 """
+
+
+
+
+
+
 
 from __future__ import annotations
 
@@ -222,13 +222,13 @@ def _md(df: pd.DataFrame) -> str:
 
     NICHT `DataFrame.to_markdown()`: Das braucht `tabulate`, und das steht
     weder in `requirements.txt` noch im gemessenen `requirements_lauf.txt`.
-    Hier war der Aufruf besonders tueckisch, weil er ganz am Ende steht - die
+    Hier waere der Aufruf besonders tueckisch, weil er ganz am Ende steht - die
     CSV-Dateien sind dann schon geschrieben, nur decke.md fehlt, und der Lauf
     endet mit einem Traceback statt mit einem Ergebnis. Gleiche Loesung wie in
     `modelle/suchdiagnose.py`, mit einem Zusatz: Gleitkommazahlen werden auf vier
     Nachkommastellen ausgeschrieben. `str(0.26)` ergaebe "0.26", und diese
     Tabelle wird abgeschrieben - eine verschluckte Null ist genau die Sorte
-    Fehler, gegen die `tools/pruefe_zahlen.py` antritt.
+    Fehler, die dabei entsteht.
     """
     def zelle(x) -> str:
         return f"{x:.4f}" if isinstance(x, float) else str(x)
@@ -356,10 +356,10 @@ def main(argv: list[str]) -> int:
     mrg = marge(panel)
     print(mrg.to_string(index=False), "\n")
 
+
     # Der Hold-out-Lauf schreibt in EIGENE Dateien. Sonst ueberschriebe die
-    # Schlussbewertung die Zahlen des Entwicklungspanels, auf die sich
-    # Kapitel 7.2 bezieht - derselbe Fehler, den m02 und m03 mit einer
-    # getrennten holdout.csv vermeiden.
+    # Schlussbewertung die Zahlen des Entwicklungspanels - derselbe Fehler,
+    # den m02 und m03 mit einer getrennten holdout.csv vermeiden.
     endung = "_holdout" if mit_holdout else ""
     tab.to_csv(OUT / f"decke{endung}.csv", index=False)
     mrg.to_csv(OUT / f"decke_marge{endung}.csv", index=False)
@@ -370,7 +370,7 @@ def main(argv: list[str]) -> int:
                 panel["stadtteil"].nunique(), quelle_modelle if modelle else ""),
         encoding="utf-8")
 
-    # PRUEFAUFTRAG 1 und 2 maschinell.
+    # Kontrolle: Mehrheitsklasse < Decke B < Decke A.
     if not basis < b < a:
         print("  WARNUNG: Erwartete Ordnung Mehrheitsklasse < Decke B < Decke A "
               "verletzt - Rechenweg pruefen.")

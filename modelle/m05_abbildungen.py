@@ -1464,7 +1464,7 @@ def a15_attribution_ablation() -> list:
     ax.set_xlim(0, 0.52)
     ax.set_title("Attribution", fontsize=SCHRIFT)
     ax.xaxis.set_major_formatter(_prozent(0))
-    ax.set_ylabel(f"Menge\n{POISSON}", fontsize=SCHRIFT)
+    ax.set_ylabel(f"Menge\n{POISSON}", fontsize=SCHRIFT - 1, labelpad=8)
 
     ax = axes[0][1]
     am = ab[ab.strang == "menge"].set_index("weggelassen")
@@ -1480,7 +1480,7 @@ def a15_attribution_ablation() -> list:
                     ha="left" if v >= 0 else "right", fontsize=SCHRIFT - 1)
     ax.set_xlim(-16, 38)
     ax.set_title("Ablation", fontsize=SCHRIFT)
-    ax.set_xlabel("Δ RMSE ohne die Gruppe", fontsize=SCHRIFT - 1)
+    ax.set_xlabel("RMSE-Anstieg ohne die Gruppe", fontsize=SCHRIFT - 1)
     ax.xaxis.set_major_formatter(_komma(0, True))
 
     ax = axes[1][0]
@@ -1499,7 +1499,7 @@ def a15_attribution_ablation() -> list:
                 hatch=STIL[v]["schraffur"], lw=0.6, label=LABEL[v])
     ax.set_xlim(0, 0.62)
     ax.xaxis.set_major_formatter(_prozent(0))
-    ax.set_ylabel("Struktur\nSHAP-Beiträge", fontsize=SCHRIFT)
+    ax.set_ylabel("Struktur\nSHAP-Beiträge", fontsize=SCHRIFT - 1, labelpad=8)
     ax.set_xlabel("Anteil am erklärten Beitrag", fontsize=SCHRIFT - 1)
 
     ax = axes[1][1]
@@ -1522,7 +1522,7 @@ def a15_attribution_ablation() -> list:
     # waren die Balken bei -0,0385 und +0,0439 abgeschnitten.
     rand = 0.1 * (max(max(alle), 0) - min(min(alle), 0))
     ax.set_xlim(min(min(alle), 0) - rand, max(max(alle), 0) + rand)
-    ax.set_xlabel("Δ Macro-F1 ohne die Gruppe", fontsize=SCHRIFT - 1)
+    ax.set_xlabel("Macro-F1-Verlust ohne die Gruppe", fontsize=SCHRIFT - 1)
     ax.xaxis.set_major_formatter(_komma(2, True))
     # Legende ausserhalb der Felder: "outside lower center" laesst
     # constrained_layout den Streifen unter der Zeile reservieren, statt die

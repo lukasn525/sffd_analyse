@@ -12,39 +12,39 @@ Ausgang: results/regression/menge_folds.csv, menge_mittel.csv, tuning.csv,
   - Zwei Zielgroessen (anzahl_einsaetze, einsaetze_je_1000_ew) x drei
     Verfahren (Ridge, Random Forest, XGBoost) x 10 Wiederholungen x 5 Folds
     = 300 Laeufe
-  - Vier Phasen: tunen (nur auf Wiederholung 0, #34), bewerten, zweistufig
+  - Vier Phasen: tunen (nur auf Wiederholung 0), bewerten, zweistufig
     aggregieren, gepaart vergleichen
   - Gegner ist die STUFE-2-BASELINE aus v1_baselines.py, nicht die triviale
-    Referenz (#33). Schlaegt ein Verfahren sie nicht, ist das ein Befund
-  - Die in docs/04_MODELLIERUNG.md genannten Fallstricke sind im Code
-    markiert - wer eine dieser Stellen aendert, sollte den Abschnitt lesen
-
-PRUEFAUFTRAEGE nach JEDEM Lauf (CLAUDE.md, B-9)
-  1  Schlaegt jedes Verfahren die Stufe-2-Baseline, je Zielgroesse einzeln?
-  2  Ueberlappen sich zwei Streuungsbereiche? Dann "nicht unterscheidbar"
-     berichten, keine Rangfolge (R-1, R-6)
-  3  Wie oft sind Vorhersagen negativ (n_negativ)? Nicht kappen, ausweisen.
-     Erwartet: keine, seit Tweedie und Poisson log-verknuepft sind (#42)
-  4  Zeilenzahl: 30 in tuning.csv (15 Suchen, zwischen den Zielgroessen
-     geteilt, #43), 300 in menge_folds.csv
-  5  Hold-out unberuehrt? Ohne Argument filtert main() es unwiderruflich
-     heraus, bevor irgendetwas rechnet
-  6  std_wiederholungen deutlich kleiner als std_folds? Waere es null,
-     waeren die Wiederholungen Dubletten (B-3)
-  7  Extrapolationsanteil um 36,6 %? Starke Abweichung heisst, die
-     Aufteilung ist nicht die dokumentierte
-  8  Laufzeiten einkernig gemessen, Parallelisierungsgewinn getrennt
-     (#39/#40); Kernzahl der Maschine protokollieren
-  9  parallel_abweichung_max: bei XGBoost erwartet (B-24), bei Ridge und RF
-     nicht
- 10  ueberanpassung_RMSE je Verfahren (#51) - bei Ridge klein, bei Baeumen
-     gross. ZWISCHEN Konfigurationen vergleichen, nicht zwischen Verfahren
- 11  Ist ueberanpassung_RMSE gegenueber archiv/2026-08-14_budget50/
-     gesunken? Nur fuer 07_BEFUNDE.md - berichtet wird nach #52 allein der
-     neue Lauf, kein Vorher-Nachher
-
-Ausfuehrliche Fassung: docs/08_FUNKTIONSDOKUMENTATION.md
+    Referenz
+  - Die Fallstricke sind im Code markiert
 """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import json
 import sys
 import time
@@ -71,14 +71,14 @@ MERKMALE = PRAEDIKTOREN + SAISON
 ZIELE = (ZIELGROESSE, RATE)
 VERFAHREN = ("ridge", "random_forest", "xgboost")
 
-# Die Stufe-2-Baseline, gegen die die Primaeraussage laeuft (#34). Der Name
+# Die Stufe-2-Baseline, gegen die die Primaeraussage laeuft. Der Name
 # muss zu vorpruefung/v1_baselines.POISSON passen - er wird zum Filtern der
 # Spalte `modell` in baselines_folds.csv benutzt, ein Tippfehler liefert also
 # stillschweigend eine leere Vergleichsmenge.
 BASELINE_STUFE2 = "Poisson-GLM"
 
 # Der gepaarte Test laeuft auf RMSE. Begruendung: Bei der Rate ist R2 kein
-# tragfaehiges Mass (docs/03_STAND.md, Abschnitt 4) - der Mittelwert wird
+# tragfaehiges Mass - der Mittelwert wird
 # negativ, obwohl die Baseline in jedem Fold besser ist als die Nullmarke. Zwei
 # verschiedene Testmetriken fuer zwei Zielgroessen waeren schwerer zu
 # verteidigen als eine. MAE und R2 wandern als Spalten mit und werden
@@ -91,8 +91,8 @@ ALPHA = 0.05
 # ==========================================================================
 # Die Modelle laufen EINKERNIG, parallelisiert wird nur die Suche.
 # Praktisch: RandomizedSearchCV(n_jobs=-1) um einen Schaetzer mit n_jobs=-1
-# startet Prozesse ueber alle Kerne, die sich gegenseitig blockieren (B-16).
-# Inhaltlich und wichtiger: Unterfrage 3 fragt nach dem Aufwand. Ridge hat als
+# startet Prozesse ueber alle Kerne, die sich gegenseitig blockieren.
+# Inhaltlich und wichtiger: Verglichen wird auch der Aufwand. Ridge hat als
 # geschlossene Loesung nichts zu parallelisieren, RF und XGBoost skalieren -
 # in unterschiedlichen Betriebsarten gemessen haengt die Zahl an der Kernzahl
 # der Maschine statt am Verfahren. Der Parallelisierungsgewinn ist eine eigene
@@ -100,21 +100,21 @@ ALPHA = 0.05
 N_JOBS_MODELL = 1
 N_JOBS_SUCHE = -1
 
+
+
+
+
+
+
+
 # ==========================================================================
-# EXPOSITION - jedes Verfahren modelliert die RATE (#43)
+# EXPOSITION - jedes Verfahren modelliert die RATE
 # ==========================================================================
 # Ein Satz fuer alle vier Modelle: geschaetzt wird `einsaetze_je_1000_ew`, fuer
 # `anzahl_einsaetze` wird mit der Einwohnerzahl zurueckmultipliziert. Genau
-# diese Konstruktion verwendet das Poisson-GLM ueber seinen Offset seit jeher.
+# diese Konstruktion verwendet das Poisson-GLM ueber seinen Offset.
 #
-# WARUM GEAENDERT (06.08.2026): Gemessen wurde damals (B-33), dass der Random
-# Forest bei `anzahl_einsaetze` mit 67,7 gegen 37,4 RMSE hinter der Baseline
-# lag - ueber die Rate gerechnet waren es 36,4. Der gesamte Rueckstand stammte
-# aus der Spezifikation, nicht aus dem Verfahren. Im finalen Lauf misst die
-# Ablation denselben Mechanismus mit anderen Zahlen: ohne Expositionsbehandlung
-# 50,85 RMSE gegen 34,97 mit ihr (XGBoost 51,81 gegen 37,39). Die 67,7 sind
-# also der Messwert vom 06.08.2026 und nicht der berichtete Wert. Der Grund fuer die Korrektur ist
-# aber nicht dieses Ergebnis: Die Frage lautet, welches VERFAHREN die hoechste
+# Grund: Die Frage lautet, welches VERFAHREN die hoechste
 # Guete erzielt. Verlieren zwei davon, weil ihnen die Expositionsstruktur
 # vorenthalten wurde, misst der Vergleich die Modellierungsentscheidung. Bei
 # Zaehldaten mit Expositionsgroesse ist deren explizite Behandlung Standard.
@@ -141,23 +141,22 @@ def verfahren(name: str, n_jobs: int = N_JOBS_MODELL):
     - die Baumverfahren bekommen keine Zieltransformation: sie sind
       skalenunempfindlich, und eine transformierte Zielgroesse machte die
       Guetemasse unvergleichbar
-    - Verlustfunktion (#42): XGBoost reg:tweedie mit getuntem Exponenten, Random
+    - Verlustfunktion: XGBoost reg:tweedie mit getuntem Exponenten, Random
       Forest criterion="poisson", Ridge unveraendert auf log(1+y)
     - Grund: Der quadratische Fehler auf rohen Zaehldaten gewichtet bei
-      Einsatzzahlen von 6 bis 280 und Dispersionsindex 62,8 einen Fehler von 20
-      in Tenderloin wie in Seacliff. Das war eine Ungleichbehandlung in der
+      Einsatzzahlen von 6 bis 280 einen Fehler von 20
+      in Tenderloin wie in Seacliff. Das waere eine Ungleichbehandlung in der
       Spezifikation, kein Ergebnis ueber die Verfahren
-    - scikit-learn kennt kein Tweedie fuer Waelder; diese Einschraenkung ist
-      selbst ein berichtbarer Befund
+    - scikit-learn kennt kein Tweedie fuer Waelder
     """
+
     from sklearn.compose import TransformedTargetRegressor
     from sklearn.ensemble import RandomForestRegressor
     from sklearn.linear_model import Ridge
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
 
-    if name == "ridge":
-        return make_pipeline(StandardScaler(),TransformedTargetRegressor(regressor=Ridge(),func=np.log1p, inverse_func=np.expm1))
+    if name == "ridge": return make_pipeline(StandardScaler(),TransformedTargetRegressor(regressor=Ridge(),func=np.log1p, inverse_func=np.expm1))
     if name == "random_forest":
         return RandomForestRegressor(random_state=RANDOM_STATE, n_jobs=n_jobs, criterion="poisson")
     if name == "xgboost":
@@ -170,7 +169,8 @@ def verfahren(name: str, n_jobs: int = N_JOBS_MODELL):
 
 
 
-#173
+
+
 def suchraum(name: str) -> dict:
     """Uebersetzt SUCHRAEUME aus der Config in scipy-Verteilungen.
 
@@ -220,8 +220,8 @@ def tune(name: str, train: pd.DataFrame, ziel: str) -> dict:
       Validierung. Den Zahlen sieht man das nicht an - sie waeren nur zu gut
     - Rueckgabe sind die Parameter, nicht best_estimator_: der ist auf dem inneren
       Trainingsanteil gefittet und verschenkte ein Viertel der Daten
-    - der Schaetzer laeuft einkernig, parallelisiert wird allein die Suche; zuvor
-      blockierten sich die Prozesse gegenseitig (B-16)
+    - der Schaetzer laeuft einkernig, parallelisiert wird allein die Suche; sonst
+      blockieren sich die Prozesse gegenseitig
     """
     from sklearn.model_selection import GroupKFold, RandomizedSearchCV
 
@@ -257,7 +257,7 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
       Funktion; sonst steckt die Metrikberechnung mit in der Zahl
     - gemessen wird einkernig, fuer alle drei Verfahren gleich
     - auch_parallel=True misst denselben Fit zusaetzlich ueber alle Kerne; die
-      Differenz ist der Parallelisierungsgewinn fuer Unterfrage 4
+      Differenz ist der Parallelisierungsgewinn
     - im Lauf steht das Argument in jedem Aufruf auf True; ein Mass aus nur einem
       Teil der Laeufe waere eine Ausnahme im Lauf
     - n_negativ und y_hat_min erfassen, dass Ridge auf log(1+y) nach expm1 Werte
@@ -269,7 +269,7 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
     X_tr, X_te = train[MERKMALE].astype(float), test[MERKMALE].astype(float)
     y_te = test[ziel].astype(float)
 
-    # EXPOSITION (#43): Geschaetzt wird immer die Rate; fuer die absolute Zahl
+    # EXPOSITION: Geschaetzt wird immer die Rate; fuer die absolute Zahl
     # wird mit der Einwohnerzahl zurueckmultipliziert. Dieselbe Konstruktion
     # wie beim Poisson-GLM. Die Zeitmessung bleibt unberuehrt - die
     # Ruecktransformation ist eine Multiplikation und steht ausserhalb.
@@ -298,33 +298,33 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
         t = time.perf_counter()
         y_par = parallel.predict(X_te) * zurueck
         inferenz_par = time.perf_counter() - t
+
         # Aendert die Kernzahl das ERGEBNIS? Gemessen statt behauptet - und
         # gemessen statt abgebrochen, ein Diagnosewert darf keinen
         # mehrstuendigen Lauf beenden. Die berichteten Guetemasse stammen aus
         # dem einkernigen Fit.
-        # BEFUND (B-24): Bei XGBoost erhebliche Abweichung (bis 34,7 bei
-        # Mittelwert 76), bei Ridge und RF null. Ursache ist die parallele
-        # Reduktion der Histogramme - eine andere Summierungsreihenfolge kippt
-        # knapp benachbarte Split-Kandidaten und schaukelt sich ueber hunderte
-        # Baeume auf. Eine Aussage ueber Reproduzierbarkeit, gehoert in Kap. 6.
+        # Bei XGBoost erhebliche Abweichung, bei Ridge und RF null. Ursache ist
+        # die parallele Reduktion der Histogramme - eine andere Summierungs-
+        # reihenfolge kippt knapp benachbarte Split-Kandidaten und schaukelt
+        # sich ueber hunderte Baeume auf. Eine Aussage ueber Reproduzierbarkeit.
         abweichung = float(np.max(np.abs(y_hat - y_par)))
         # Das Maximum sagt, wie weit EINE Zeile auseinanderlaeuft. Ob die
         # berichteten Guetemasse davon beruehrt waeren, entscheidet der
         # Abstand ueber ALLE Zeilen auf der Skala des Guetemasses.
         abweichung_rmse = float(np.sqrt(np.mean((y_hat - y_par) ** 2)))
 
-    # UEBERANPASSUNGSNACHWEIS (#51): dieselbe Guete auf den TRAININGS-
+    # UEBERANPASSUNGSNACHWEIS: dieselbe Guete auf den TRAININGS-
     # stadtteilen. Der Abstand ist der Standardnachweis fuer Ueberanpassung -
     # ohne ihn bleibt die Diagnose eine Auslegung der Hold-out-Abweichung.
     # KEIN zweiter Fit, nur eine zusaetzliche Vorhersage, und NACH der
-    # Zeitmessung, damit Unterfrage 3 unberuehrt bleibt. Verglichen wird auf
+    # Zeitmessung, damit die Laufzeit unberuehrt bleibt. Verglichen wird auf
     # der BERICHTETEN Skala, nicht auf der Rate, auf der angepasst wurde.
     #
     # WIE DIE ZAHL ZU LESEN IST: Ein Random Forest mit min_samples_leaf = 1
     # interpoliert seine Trainingsdaten KONSTRUKTIONSBEDINGT - ein
-    # Trainings-R2 von 0,98 ist dort erwartbar und kein Beweis. Der Abstand ist
-    # also NICHT als "A ueberanpasst 16-mal staerker als B" zu lesen, sondern
-    # zwischen KONFIGURATIONEN desselben Verfahrens (#49) und als
+    # Trainings-R2 nahe 1 ist dort erwartbar und kein Beweis. Der Abstand ist
+    # also NICHT als "A ueberanpasst staerker als B" zu lesen, sondern
+    # zwischen KONFIGURATIONEN desselben Verfahrens und als
     # Groessenordnung gegen die linearen Modelle. Der saubere Wert fuer Baeume
     # waere die Out-of-Bag-Schaetzung; sie gibt es nur beim RF und waere
     # gegenueber Ridge und XGBoost asymmetrisch. Bewusst nicht erhoben.
@@ -371,7 +371,7 @@ def extrapolationsanteil(train: pd.DataFrame, test: pd.DataFrame) -> float:
 
     - erklaert spaeter, warum ein Fold aus der Reihe faellt
     - erfasst nur die Spanne je Merkmal, nicht unbekannte Kombinationen; das echte
-      Extrapolationsproblem ist eher groesser (R-3)
+      Extrapolationsproblem ist eher groesser
     """
     lo, hi = train[MERKMALE].min(), train[MERKMALE].max()
     aussen = ((test[MERKMALE] < lo) | (test[MERKMALE] > hi)).any(axis=1)
@@ -394,23 +394,23 @@ def phase_tuning(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
       uebernehmen(). Er muss auf der Kommandozeile stehen und bricht ab, wenn
       Daten oder Konfiguration neuer sind als tuning.csv. Damit bleibt das
       Verbot dort bestehen, wo es gemeint war: beim unbemerkten Weiterrechnen
-    - getunt wird nur auf Wiederholung 0; die Parameter gelten fuer alle zehn
-      (#34). Bewusste Vereinfachung, im Text zu benennen
+    - getunt wird nur auf Wiederholung 0; die Parameter gelten fuer alle zehn.
+      Bewusste Vereinfachung
     - gesucht wird ueber (Verfahren x Fold) = 15 Durchgaenge; beide Zielgroessen
-      erhalten denselben Satz (#43)
+      erhalten denselben Satz
     - `tuning_sekunden` steht deshalb bei beiden Zielgroessen gleich; eine Summe
       ueber alle 30 Zeilen zaehlt doppelt
     """
     d = wiederholte_aufteilung(panel, wiederholung=0, selten=selten)
 
-    # EXPOSITION (#43): Alle Modelle werden auf der RATE angepasst, es gibt
+
+
+
+    # EXPOSITION: Alle Modelle werden auf der RATE angepasst, es gibt
     # also nur EIN Modell je Verfahren und Fold und damit nur eine Suche.
     # Beide Zielgroessen erhalten denselben Parametersatz, wie bei der
     # Baseline. Die Suche laeuft ueber (Verfahren x Fold) = 15 Durchgaenge; die
-    # 30 Zeilen der tuning.csv entstehen erst danach durch Zuordnung. Frueher
-    # lief die Schleife ueber die Zielgroessen und die zweite "uebernahm" - das
-    # Protokoll wies die Suche dann unter `anzahl_einsaetze` aus, obwohl auf
-    # der Rate gesucht wurde (B-37).
+    # 30 Zeilen der tuning.csv entstehen erst danach durch Zuordnung.
     gefunden = {}
     for name in VERFAHREN:
         for k in range(1, N_FOLDS + 1):
@@ -448,7 +448,7 @@ def _rein_python(p: dict) -> dict:
     - mit default=str wuerde aus 287 die Zeichenkette "287", und
       set_params(n_estimators="287") braeche nach dem Tuning ab
     - ob es auftritt, haengt an der Paketversion; deshalb explizit wandeln und
-      ohne default=, damit ein unbekannter Typ auffaellt (B-23)
+      ohne default=, damit ein unbekannter Typ auffaellt
     """
     return {schluessel: (wert.item() if isinstance(wert, np.generic) else wert)
             for schluessel, wert in p.items()}
@@ -521,7 +521,7 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
     Aus:  menge_mittel.csv mit std_folds und std_wiederholungen
 
     - die 50 Fold-Ergebnisse sind nicht unabhaengig: dieselben 30 Stadtteile in
-      zehn Gruppierungen. Ein Intervall aus std_folds/sqrt(50) waere zu eng (R-5)
+      zehn Gruppierungen. Ein Intervall aus std_folds/sqrt(50) waere zu eng
     - massgeblich ist std_wiederholungen
     - beide Spalten wandern mit, damit der Unterschied sichtbar bleibt
     """
@@ -535,13 +535,13 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
     z = z.join(g[MASSE_PARALLEL].mean().add_suffix("_mean"))
     # Parallelisierungsgewinn: Faktor, um den der Fit ueber alle Kerne
     # schneller ist. Bei Ridge zu erwarten: rund 1 - eine geschlossene Loesung
-    # hat nichts zu verteilen. Das ist selbst eine Aussage fuer UF4.
+    # hat nichts zu verteilen.
     # Beide Zeiten stammen aus denselben 50 Laeufen.
     z["parallel_gewinn"] = (z["train_sekunden_mean"]
                             / z["train_sekunden_parallel_mean"])
     # Groesste Abweichung zwischen einkernigem und parallelem Modell. Null
     # heisst threadunabhaengig; alles darueber ist ein Reproduzierbarkeits-
-    # befund und gehoert berichtet (B-24).
+    # befund.
     z["parallel_abweichung_max"] = g["parallel_abweichung"].max()
     z = z.join(g[["extrapolationsanteil"]].mean())
     z = z.join(g[["n_negativ"]].sum().rename(columns={"n_negativ": "n_negativ_gesamt"}))
@@ -550,7 +550,7 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
     # positiver Wert heisst, das Modell erklaert die Trainingsstadtteile viel
     # besser als unbekannte - genau das ist Ueberanpassung. Beim Poisson-GLM
     # und bei Ridge ist ein kleiner Abstand zu erwarten, bei den Baumverfahren
-    # ein grosser (docs/06_RISIKEN.md, R-2).
+    # ein grosser.
     z = z.join(g[["RMSE_train", "R2_train"]].mean())
     z["ueberanpassung_RMSE"] = z["RMSE_mean"] - z["RMSE_train"]
     z["ueberanpassung_R2"] = z["R2_train"] - z["R2_mean"]
@@ -567,7 +567,7 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# FALLSTRICK 2  Mehrfachvergleiche (R-10)
+# FALLSTRICK 2  Mehrfachvergleiche
 # ---------------------------------------------------------------------------
 def _holm(p: np.ndarray) -> np.ndarray:
     """Holm-Bonferroni ueber eine Testfamilie.
@@ -622,12 +622,12 @@ def vergleiche(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
     Aus:  vergleich.csv
 
     - Rolle `primaer`: jedes Verfahren gegen die Stufe-2-Baseline (6 Tests). Keine
-      Familie, weil jede Frage nach #34 vorab einzeln formuliert ist; keine
+      Familie, weil jede Frage vorab einzeln formuliert ist; keine
       Korrektur
     - Rolle `sekundaer`: jedes Verfahrenspaar (6 Tests). Eine Familie, darauf
       Holm-Bonferroni
     - Teststufe `wiederholung` (n = 10) ist der Primaertest; die 50 Einzellaeufe
-      sind Pseudoreplikation und liefern zu kleine p-Werte (B-5)
+      sind Pseudoreplikation und liefern zu kleine p-Werte
     - Teststufe `lauf` (n = 50) laeuft als gekennzeichnete Sensitivitaet mit
     - auch die zehn Wiederholungsmittel sind nicht unabhaengig; das Intervall ist
       enger als die wahre Unsicherheit (Nadeau & Bengio 2003)
@@ -689,7 +689,7 @@ def vergleiche(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
 
     # Holm je Teststufe getrennt, nur innerhalb der sekundaeren Familie.
     # ZWEI FAMILIEN, nicht sieben Tests: Regression und Klassifikation
-    # beantworten verschiedene Teilfragen (Entscheidung 05.08.2026, B-6).
+    # beantworten verschiedene Teilfragen.
     # m03_struktur.py hat genau einen Test und wird nicht korrigiert.
     df["p_holm"] = np.nan
     for stufe in df["teststufe"].unique():
@@ -703,7 +703,7 @@ def vergleiche(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
 
 
 def leakage_diagnose(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
-    """Beziffert, was das Tuning auf Wiederholung 0 kostet (B-21).
+    """Beziffert, was das Tuning auf Wiederholung 0 kostet.
 
     Ein:  menge_folds.csv, Baseline-Laeufe
     Aus:  Datenrahmen mit dem Vorsprung in W0 gegen W1-9
@@ -750,15 +750,15 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
     Aus:  holdout.csv mit Spalte fold_der_parameter
 
     - das Tuning liefert fuenf Parametersaetze je Zielgroesse und Verfahren; die
-      Spezifikation legt nicht fest, welcher gilt (B-14)
+      Spezifikation legt nicht fest, welcher gilt
     - gewaehlt ist der Satz des Folds mit dem niedrigsten RMSE in Wiederholung 0:
       deterministisch und ausschliesslich aus Entwicklungsdaten
-    - beide Baselines laufen mit; ohne Bezugspunkt ist ein RMSE von 28,5 keine
-      Aussage (B-38)
-    - zu berichten ist, dass dies EINE Messung an SECHS Einheiten ist: kein
-      Mittelwert, keine Streuung, deutlich unsicherer als die
-      Kreuzvalidierungswerte (R-4)
+    - beide Baselines laufen mit; ohne Bezugspunkt ist ein RMSE keine Aussage
+    - dies ist EINE Messung an SECHS Einheiten: kein Mittelwert, keine
+      Streuung, deutlich unsicherer als die Kreuzvalidierungswerte
     """
+
+
     param = _parameter_je_fold(parameter)
     dev, ho = entwicklung_und_holdout(panel)
     train, test = panel[dev], panel[ho]
@@ -766,8 +766,8 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
           f"({len(train):,} Zeilen), Bewertung auf "
           f"{test['stadtteil'].nunique()} ({len(test):,} Zeilen)")
 
-    # DIE BASELINES GEHOEREN DAZU: Ein RMSE von 28,5 ist ohne Referenz keine
-    # Aussage (B-38), und die Primaeraussage nach #34 lautet "Verfahren gegen
+    # DIE BASELINES GEHOEREN DAZU: Ein RMSE ist ohne Referenz keine
+    # Aussage, und die Primaeraussage lautet "Verfahren gegen
     # Stufe-2-Baseline". Sie haben keine Hyperparameter - es gibt nichts zu
     # waehlen und damit nichts, was der Hold-out beeinflussen koennte.
     from v1_baselines import (NULLMARKE, POISSON, bewerte_regression,
@@ -815,12 +815,10 @@ def uebernehmen(panel: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     Aus:  dieselben zwei Datenrahmen, die Phase 1 und Phase 2 zurueckgeben
 
     - NUR ueber den Schalter --weiter erreichbar. Ohne ihn rechnet das Skript
-      unveraendert alles neu; ein stiller Cache waere genau der Fehler vom
-      30.08.2026 (crime_index_monatlich.csv aus einem Lauf mit falscher
-      Wohnbevoelkerung)
+      unveraendert alles neu
     - WOZU: "holdout" rechnet die Phasen 1 bis 4 mit, obwohl nur Phase 5 fehlt.
-      Bei unveraenderten Daten und unveraenderter Konfiguration sind das 149
-      von 150 Minuten fuer ein Ergebnis, das fertig auf der Platte liegt
+      Bei unveraenderten Daten und unveraenderter Konfiguration ist das fast
+      die ganze Rechenzeit fuer ein Ergebnis, das fertig auf der Platte liegt
     - die Uebernahme ist an fuenf Bedingungen geknuepft; jede bricht ab, statt
       mit fremden Zahlen weiterzurechnen. Die wichtigste ist der Zeitstempel:
       Ist regression.parquet oder config_modelle.py neuer als tuning.csv,
@@ -830,6 +828,8 @@ def uebernehmen(panel: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
       Zeilenzahl faellt nicht auf. Der Schalter ist fuer den Anschlusslauf
       desselben Tages gedacht, nicht als Dauereinrichtung
     """
+
+
     konfig = Path(__file__).resolve().parent / "config_modelle.py"
     fehlend = [d for d in ("tuning.csv", "menge_folds.csv")
                if not (OUT / d).exists()]
@@ -910,7 +910,7 @@ def main(argv: list[str]) -> int:
         print("\n  HINWEIS zur Reproduzierbarkeit: Bei folgenden Verfahren "
               "haengt die Vorhersage von der Kernzahl ab.")
         print("  Die berichteten Werte stammen aus dem einkernigen Fit und "
-              "sind davon unberuehrt (docs/07_BEFUNDE.md, B-24).")
+              "sind davon unberuehrt.")
         for _, z in auffaellig.iterrows():
             print(f"    {z['verfahren']:<14} {z['zielgroesse']:<21} "
                   f"groesste Abweichung {z['parallel_abweichung_max']:.3g}")
@@ -922,7 +922,7 @@ def main(argv: list[str]) -> int:
             "gewonnene", "wilcoxon_p", "p_holm", "signifikant"]]
           .to_string(index=False))
 
-    print("\n  Diagnose zum Tuning auf Wiederholung 0 (B-21):")
+    print("\n  Diagnose zum Tuning auf Wiederholung 0:")
     print(leakage_diagnose(folds, basislinien).to_string(index=False))
 
     if "holdout" in argv:

@@ -15,9 +15,9 @@ Ausgang: data/processed/regression.parquet      4.752 x 25, modellfertig
   laeuft alles aus data/raw, ohne Internet und ohne API-Key.
 - Modellfertig heisst: identische Zeilen, Merkmale und Folds fuer alle
   Verfahren.
-
-Ausfuehrlich: docs/08_FUNKTIONSDOKUMENTATION.md
 """
+
+
 import subprocess
 import sys
 import time

@@ -6,9 +6,9 @@ Ausgang: Konstanten fuer prep/, vorpruefung/ und modelle/.
 - Hier steht, was in die Parquet-Dateien GESCHRIEBEN wird. Was nur beim
   RECHNEN gilt, steht in modelle/config_modelle.py.
 - N_FOLDS steht deshalb hier: es belegt die Spalte `fold`.
-
-Ausfuehrlich: docs/08_FUNKTIONSDOKUMENTATION.md
 """
+
+import os
 from pathlib import Path
 
 # ==========================================================================
@@ -38,10 +38,10 @@ DOWNLOAD_CRIME_HISTORISCH = False   # SFPD 2014-2017 (tmnf-yvry), fuer den Index
 DOWNLOAD_LAND_USE         = False
 DOWNLOAD_NEIGHBORHOODS    = False
 
-CENSUS_API_KEY   = "f5cb8b553da8a01e351b3804e56e7fe664e12c98"
+CENSUS_API_KEY   = os.environ.get("CENSUS_API_KEY")   # nur fuer DOWNLOAD_ACS
 DATASF_APP_TOKEN = None   # optional, nur fuer hoehere Rate-Limits
 
-# ACS-Jahrgaenge. Frueher doppelt gepflegt - jetzt nur noch hier.
+# ACS-Jahrgaenge. Nur hier gepflegt.
 ACS_YEARS = [2009, 2014, 2019, 2021, 2023]
 
 ACS_VARIABLES = {
@@ -63,10 +63,10 @@ CRIME_HISTORISCH_BIS = "2018-01-01"   # exklusiv; ab hier greift e3si-785i
 # ==========================================================================
 # 3  JOINS  (Schritt: prep/s1_daten.py)
 # ==========================================================================
-# ACS-Jahrgang y erscheint erst um Dezember y+1 (Decision Log #11).
+# ACS-Jahrgang y erscheint erst um Dezember y+1.
 ACS_PUBLIKATIONS_LAG = 1
 
-# Indexfenster, endend im Vormonat - strikt rueckwaerts, kein Leakage (#17).
+# Indexfenster, endend im Vormonat - strikt rueckwaerts, kein Leakage.
 CRIME_FENSTER_MONATE = 12
 
 # Land-Use-Kategorien (Snapshot 2020, einziger verfuegbarer Jahrgang).
@@ -79,17 +79,17 @@ ANTWORTZEIT_MIN, ANTWORTZEIT_MAX = 0, 60
 # ==========================================================================
 # 4  ANALYSEZEITRAUM UND ANALYSEEINHEITEN
 # ==========================================================================
-# Hart fixiert, nicht aus den Daten abgeleitet (#18).
-#   START  frueheste Periode mit vollstaendigen ACS-Merkmalen (#5, #11)
-#   ENDE   letztes vollstaendiges Kalenderjahr (#12)
+# Hart fixiert, nicht aus den Daten abgeleitet.
+#   START  frueheste Periode mit vollstaendigen ACS-Merkmalen
+#   ENDE   letztes vollstaendiges Kalenderjahr
 START = 201501
 ENDE  = 202512
 
-# Lag-Vorlauf (#23): ab START-VORLAUF aggregieren, Lags bilden, auf START
+# Lag-Vorlauf: ab START-VORLAUF aggregieren, Lags bilden, auf START
 # zuschneiden. Ohne ihn beginnt die Regression erst 2016-01. 4.752 statt 4.320.
 VORLAUF_MONATE = 12
 
-# Parks ohne Wohnbevoelkerung (#19): 25 bis 850 Einwohner ueber die genutzten
+# Parks ohne Wohnbevoelkerung: 25 bis 850 Einwohner ueber die genutzten
 # ACS-Jahrgaenge, gegen mindestens 17.916 im Median der uebrigen Stadtteile.
 # Jede Pro-Kopf-Groesse wird dort beliebig gross.
 PARKGEBIETE = ["Golden Gate Park", "Lincoln Park", "Mclaren Park"]
@@ -112,9 +112,9 @@ VOLLSTAENDIGKEITS_SCHWELLE = 0.5
 # ==========================================================================
 # 5  MERKMALE DER REGRESSION
 # ==========================================================================
-# Praediktoren gemaess Expose: soziooekonomisch, kriminalitaetsbezogen, baulich.
-# log_bevoelkerung als Groessenkontrolle (#13), log_kriminalitaetsindex weil der
-# Index multiplikativ ist (#17/#19). Beide Logarithmen gelten fuer ALLE Modelle
+# Praediktoren: soziooekonomisch, kriminalitaetsbezogen, baulich.
+# log_bevoelkerung als Groessenkontrolle, log_kriminalitaetsindex weil der
+# Index multiplikativ ist. Beide Logarithmen gelten fuer ALLE Modelle
 # gleich (Fairness-Regel).
 PRAEDIKTOREN = [
     "median_haushaltseinkommen", "armutsquote_pct", "akademikerquote_pct",
@@ -124,16 +124,16 @@ PRAEDIKTOREN = [
     "anteil_risikogewerbe_pct",
 ]
 
-# Rohwerte: keine Merkmale, aber Offset des Poisson-GLM und Deskription 4.1.
+# Rohwerte: keine Merkmale, aber Offset des Poisson-GLM und Deskription.
 EXPOSURE_ROH = "gesamtbevoelkerung"
 CRIME_ROH    = "kriminalitaetsindex"
 
 # Saison als sin/cos - der Monat als Zahl gaebe Dezember und Januar Abstand 11.
 SAISON = ["monat_sin", "monat_cos"]
 
-# Lags bleiben im Datensatz, sind aber KEIN Modellmerkmal (#29): sonst
+# Lags bleiben im Datensatz, sind aber KEIN Modellmerkmal: sonst
 # erklaerte die Historie das Ergebnis statt der Struktur. Nur fuer die
-# Deskription in Kapitel 4. Strikt rueckwaerts, shift() VOR rolling().
+# Deskription. Strikt rueckwaerts, shift() VOR rolling().
 LAGS = ["lag_1", "lag_12", "rolling_mean_3"]
 
 # Ein Merkmalssatz fuer alle drei Verfahren. Ohne rohes `jahr` und
@@ -147,7 +147,7 @@ FEATURE_SETS = {
 # 6  MERKMALE UND ZIELGROESSEN DER KLASSIFIKATION
 # ==========================================================================
 # NFIRS: die fuehrende Ziffer bezeichnet die Serie. Zusammengefasst nach
-# fachlicher Bedeutung, nicht nach Haeufigkeit (#21).
+# fachlicher Bedeutung, nicht nach Haeufigkeit.
 #   100 Brand · 300 Rettungsdienst · 600/700 Fehlalarm
 #   200/400/500/800/900 technische Hilfe und Gefahrenlagen
 NFIRS_GRUPPEN = {
@@ -164,7 +164,7 @@ NFIRS_GRUPPEN = {
 KLASSEN    = ["Brand", "Rettung/EMS", "Technische Hilfe/Gefahr", "Fehlalarm/Good Intent"]
 RESTKLASSE = "Technische Hilfe/Gefahr"
 
-# Zielgroesse ist die ZUSAMMENSETZUNG der Einsatzlast je Stadtteil-Monat (#29).
+# Zielgroesse ist die ZUSAMMENSETZUNG der Einsatzlast je Stadtteil-Monat.
 # Auf Einzeleinsatz-Ebene waeren es nur 4.751 Profile fuer 357.553 Einsaetze.
 ANTEILE = [f"anteil_{k}" for k in
            ["brand", "rettung_ems", "technische_hilfe", "fehlalarm"]]
@@ -175,10 +175,10 @@ ANZAHLEN = [f"anzahl_{k}" for k in
             ["brand", "rettung_ems", "technische_hilfe", "fehlalarm"]]
 
 # Die Merkmale sind identisch mit denen der Regression - dieselbe Analyseeinheit,
-# dieselben Folds, dieselben Verfahren (Fairness-Regel, Gutachten R1).
+# dieselben Folds, dieselben Verfahren (Fairness-Regel).
 MERKMALE_STRUKTUR = list(PRAEDIKTOREN)
 
-# Ergebnisvariablen - NIEMALS Merkmal. Stehen erst nach dem Einsatz fest (#20).
+# Ergebnisvariablen - NIEMALS Merkmal. Stehen erst nach dem Einsatz fest.
 ERGEBNISVARIABLEN = [
     "schaetzung_sachschaden_usd", "loeschfahrzeuge", "loeschkraefte",
     "rettungsdienst_einheiten", "alarmstufe", "antwortzeit_min",
@@ -190,7 +190,7 @@ ERGEBNISVARIABLEN = [
 # ==========================================================================
 # 7  VALIDIERUNG  (Schritt: prep/s2_datensaetze.py, Teil A)
 # ==========================================================================
-# STADTTEIL-SPLIT (#29): ein Stadtteil wird komplett zurueckgehalten. Bei einem
+# STADTTEIL-SPLIT: ein Stadtteil wird komplett zurueckgehalten. Bei einem
 # Zeitschnitt stuende jeder Stadtteil in Training UND Test und das Modell
 # kennte sein Niveau bereits.
 #     30 Stadtteile -> 5 Folds (6/6/6/6/6)   6 -> Hold-out
@@ -241,7 +241,7 @@ spalten_deutsch = {
     # ── SFPD Kriminalitaet ────────────────────────────────────────────────────
     # Relativer Index je Stadtteil x Monat (Location Quotient gegen den
     # Stadtdurchschnitt desselben Monats, rollierendes 12-Monats-Fenster endend
-    # im Vormonat). Ersetzt die frueheren statischen Anteile.
+    # im Vormonat).
     "crime_index":                   "kriminalitaetsindex",
     "crime_rate_raw":                "kriminalitaetsrate_pro_1000_ew_roh",
     # ── Land Use (Rohdaten) ───────────────────────────────────────────────────

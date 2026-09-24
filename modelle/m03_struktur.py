@@ -11,14 +11,14 @@ Ausgang: results/klassifikation/struktur_folds.csv, struktur_mittel.csv,
 
   - Eine Zielgroesse (dominante_einsatzart, vier ungeordnete Klassen) x zwei
     Verfahren (Random Forest, XGBoost) x 10 Wiederholungen x 5 Folds = 100
-    Laeufe. Ridge hat auf einer nominalen Zielgroesse keine Entsprechung (#31)
+    Laeufe. Ridge hat auf einer nominalen Zielgroesse keine Entsprechung
   - AUFBAU: spiegelt m02_menge.py - dieselben Funktionen, dieselbe
     Reihenfolge, dieselben Fallstricke. Hier stehen nur die Unterschiede
   - Guetemasse Macro-F1 (Hauptmass) und Macro-AUROC, Accuracy nachrichtlich;
     getunt wird auf f1_macro. Stufe-2-Baseline ist die multinomiale
-    logistische Regression (#33), nicht die Mehrheitsklasse
+    logistische Regression, nicht die Mehrheitsklasse
   - Holm entfaellt: Es gibt genau EINEN sekundaeren Test (RF gegen XGBoost),
-    und Regression und Klassifikation sind getrennte Testfamilien (B-6)
+    und Regression und Klassifikation sind getrennte Testfamilien
 
 DREI FALLSTRICKE, die es in m02 nicht gibt
   1  KLASSENGEWICHTE statt Resampling - class_weight="balanced" beim RF,
@@ -29,24 +29,24 @@ DREI FALLSTRICKE, die es in m02 nicht gibt
      zeigen auf die falschen Klassen
   3  MACRO-AUROC KANN UNDEFINIERT SEIN. Dann als FEHLEND fuehren, nicht durch
      null ersetzen. zero_division=0 bei Macro-F1 muss gesetzt bleiben
-
-PRUEFAUFTRAEGE nach jedem Lauf
-  - Schlaegt ueberhaupt ein Verfahren Stufe 2? Wenn nein, ist das ein
-    berichtbares Ergebnis und kein Fehler (R-2)
-  - Hat jeder Fold Brand-Testfaelle? In Wiederholung 0 erwartet 13/9/6/3/2
-  - Accuracy deutlich ueber Macro-F1? Normal, und selbst ein Argument fuer
-    die Metrikwahl
-  - Laeufe ohne definierte Macro-AUROC? Erwartet keiner
-  - Zeilenzahl: 10 in tuning.csv, 100 in struktur_folds.csv
-  - Hold-out unberuehrt, wenn ohne Argument gestartet?
-  - ueberanpassung_macro_f1 (#51): Dieser Strang ist der, in dem
-    Kreuzvalidierung und Hold-out sich widersprechen (R-2, B-42) - hier
-    entscheidet sich, ob Ueberanpassung die Erklaerung ist
-  - Gegenueber archiv/2026-08-14_budget50/ gesunken? Nur fuer 07_BEFUNDE.md;
-    nach #52 wird kein Vorher-Nachher berichtet
-
-Ausfuehrliche Fassung: docs/08_FUNKTIONSDOKUMENTATION.md
 """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import json
 import sys
 import time
@@ -86,7 +86,7 @@ TESTMASS = "macro_f1"
 ALPHA = 0.05
 
 # Wie in m02: Modelle einkernig, nur die Suche parallel. Begruendung dort im
-# Block PARALLELISIERUNG (docs/07_BEFUNDE.md, B-16). Der berichtete Aufwand
+# Block PARALLELISIERUNG. Der berichtete Aufwand
 # muss zwischen den Verfahren vergleichbar sein, und der Parallelisierungs-
 # gewinn ist eine eigene Groesse.
 N_JOBS_MODELL = 1
@@ -104,7 +104,7 @@ def verfahren(name: str, n_jobs: int = N_JOBS_MODELL):
 
     - n_jobs steuert nur die Parallelisierung, nicht das Ergebnis; voreingestellt
       einkernig
-    - Fallstrick 1: Die Klassenverteilung ist stark schief (79 % Fehlalarm).
+    - Fallstrick 1: Die Klassenverteilung ist stark schief (Fehlalarm dominiert).
       Statt zu resampeln bekommen beide Verfahren Gewichte
     - Random Forest ueber den Hyperparameter class_weight="balanced", XGBoost
       ueber sample_weight beim Fit - das Verfahren kennt keinen solchen Parameter
@@ -134,7 +134,7 @@ def suchraum(name: str) -> dict:
     - die Raeume sind dieselben wie in der Regression: es wechselt nur die
       Verlustfunktion, nicht der Ensemble-Mechanismus
     - Ausnahme: tweedie_variance_power steuert die Verlustfunktion der REGRESSION
-      (#42) und ist bei multi:softprob bedeutungslos. XGBoost naehme ihn an und
+      und ist bei multi:softprob bedeutungslos. XGBoost naehme ihn an und
       ignorierte ihn - ein Sechstel des Budgets auf einer wirkungslosen Dimension
       und eine bedeutungslose Zahl in tuning.csv
     """
@@ -198,7 +198,7 @@ def tune(name: str, train: pd.DataFrame) -> dict:
     - der Fallstrick aus m02 gilt unveraendert: Der innere CV muss nach Stadtteil
       gruppieren, sonst stehen dieselben 132 Zeilen in innerem Training und
       innerer Validierung
-    - f1_macro statt Accuracy, weil die Mehrheitsklasse allein ueber 0,8 Accuracy
+    - f1_macro statt Accuracy, weil die Mehrheitsklasse allein eine hohe Accuracy
       erreicht; ein darauf optimiertes Tuning waehlte Modelle, die die drei
       seltenen Klassen ignorieren
     """
@@ -274,16 +274,16 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
         _, y_par, train_par, inferenz_par = fitte(-1)
         # Anteil der Zeilen, die einkernig und parallel verschieden
         # klassifiziert werden. KEIN Abbruch - gemessen und berichtet: Bei
-        # XGBoost ist die Vorhersage threadabhaengig (docs/07_BEFUNDE.md,
-        # B-24). Die berichteten Guetemasse stammen aus dem einkernigen Fit.
+        # XGBoost ist die Vorhersage threadabhaengig.
+        # Die berichteten Guetemasse stammen aus dem einkernigen Fit.
         abweichung = float(np.mean(y_hat != y_par))
 
-    # UEBERANPASSUNGSNACHWEIS, ergaenzt 14.08.2026 - wie in m02, siehe dort.
+
+
+
+    # UEBERANPASSUNGSNACHWEIS - wie in m02, siehe dort.
     # Eine zusaetzliche Vorhersage auf den Trainingsstadtteilen, kein zweiter
-    # Fit, nach der Zeitmessung. Hier ist der Wert besonders wichtig: Der
-    # Strukturstrang ist der, in dem Kreuzvalidierung und Hold-out sich
-    # widersprechen (R-2, B-42), und die Baseline auf dem Hold-out BESSER wird,
-    # waehrend beide Baumverfahren einbrechen.
+    # Fit, nach der Zeitmessung.
     y_hat_tr = modell.predict(X_tr)
 
     ergebnis = {
@@ -419,7 +419,7 @@ def _rein_python(p: dict) -> dict:
     Aus:  dasselbe dict mit int/float
 
     - np.int64 erbt nicht von int; ohne die Wandlung wuerde aus 287 die
-      Zeichenkette "287" und set_params braeche nach dem Tuning ab (B-23)
+      Zeichenkette "287" und set_params braeche nach dem Tuning ab
     """
     return {schluessel: (wert.item() if isinstance(wert, np.generic) else wert)
             for schluessel, wert in p.items()}
@@ -486,7 +486,7 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
     Ein:  struktur_folds.csv als Datenrahmen
     Aus:  struktur_mittel.csv
 
-    - massgeblich ist std_wiederholungen, nicht std_folds (R-5)
+    - massgeblich ist std_wiederholungen, nicht std_folds
     - die 50 Fold-Ergebnisse sind dieselben 30 Stadtteile in zehn Gruppierungen
     """
     schluessel = ["zielgroesse", "verfahren"]
@@ -529,12 +529,12 @@ def vergleiche(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
       XGBoost)
     - kein Holm: eine Korrektur ueber einen einzigen Test ist die Identitaet.
       p_holm bleibt leer, n_tests_familie steht auf 1
-    - Regression und Klassifikation sind getrennte Testfamilien (B-6); in
-      Kapitel 7 zu benennen, weil dieser Vergleich ungekorrigiert gegen
-      alpha = 0,05 laeuft
+    - Regression und Klassifikation sind getrennte Testfamilien; dieser
+      Vergleich laeuft deshalb ungekorrigiert gegen alpha = 0,05
     - Teststufen wie in m02: `wiederholung` (n = 10) primaer, `lauf` (n = 50) als
-      gekennzeichnete Sensitivitaet (B-5)
+      gekennzeichnete Sensitivitaet
     """
+
     basis = baselines[baselines["modell"] == BASELINE_STUFE2]
     zeilen = []
 
@@ -617,12 +617,12 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
 
     - gewaehlt wird der Parametersatz des Folds mit dem hoechsten Macro-F1 in
       Wiederholung 0
-    - das Baseline-Modell stammt aus v1_baselines.logit_glm(); seit 10.08.2026
-      nicht mehr hier nachgebaut
-    - ohne Bezugspunkt ist ein Macro-F1 von 0,33 keine Aussage (B-38)
-    - zu berichten ist, dass dies EINE Messung an SECHS Einheiten ist: kein
-      Mittelwert, keine Streuung (R-4)
+    - das Baseline-Modell stammt aus v1_baselines.logit_glm()
+    - ohne Bezugspunkt ist ein Macro-F1 keine Aussage
+    - dies ist EINE Messung an SECHS Einheiten: kein Mittelwert, keine Streuung
     """
+
+
     param = _parameter_je_fold(parameter)
     dev, ho = entwicklung_und_holdout(panel)
     train, test = panel[dev], panel[ho]
@@ -630,15 +630,15 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
           f"({len(train):,} Zeilen), Bewertung auf "
           f"{test['stadtteil'].nunique()} ({len(test):,} Zeilen)")
 
+
+
     # Wie in m02 gehoeren beide Baselines dazu - ohne Bezugspunkt ist ein
-    # Macro-F1 von 0,33 keine Aussage (docs/07_BEFUNDE.md, B-38).
+    # Macro-F1 keine Aussage.
     #
-    # EINE SPEZIFIKATION, ZWEI AUFRUFER (10.08.2026). Bis dahin baute diese
-    # Funktion das Logit selbst nach - dieselben vier Argumente, an zwei Orten
-    # aufgeschrieben. Aendert jemand eines davon, misst die Kreuzvalidierung
-    # still gegen ein anderes Modell als die Schlussbewertung, und keine
-    # Pruefung schlaegt an. m02 war immer richtig gebaut und holt `poisson_glm`
-    # aus derselben Datei; hier fehlte genau das.
+    # EINE SPEZIFIKATION, ZWEI AUFRUFER. Wie m02 `poisson_glm` holt diese
+    # Funktion das Logit aus v1_baselines, statt es nachzubauen. Stuende die
+    # Spezifikation an zwei Orten, maesse die Kreuzvalidierung nach einer
+    # Aenderung still gegen ein anderes Modell als die Schlussbewertung.
     from sklearn.metrics import accuracy_score, f1_score
     from v1_baselines import LOGREG, logit_glm
 
@@ -662,7 +662,7 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
             # logistischen Regression stehen in alphabetischer Reihenfolge
             # ihrer Klassennamen, nicht in der von KLASSEN. Erst umsortieren,
             # dann bewerten - `roc_auc_score` verlangt aufsteigend sortierte
-            # Labels und liefert sonst gar nichts (B-38).
+            # Labels und liefert sonst gar nichts.
             "macro_auroc": (np.nan if proba is None else _macro_auroc(
                 kodiere(y_te),
                 proba[:, [list(logreg.classes_).index(c) for c in KLASSEN]],
@@ -777,8 +777,8 @@ def main(argv: list[str]) -> int:
     auffaellig = mittel[mittel["parallel_abweichung_max"] > 0]
     if len(auffaellig):
         print("\n  HINWEIS zur Reproduzierbarkeit: Bei folgenden Verfahren "
-              "haengt die Klassenvorhersage von der Kernzahl ab "
-              "(docs/07_BEFUNDE.md, B-24).")
+              "haengt die Klassenvorhersage von der Kernzahl ab"
+              ".")
         for _, z in auffaellig.iterrows():
             print(f"    {z['verfahren']:<14} "
                   f"{z['parallel_abweichung_max']:.1%} abweichende Zeilen")
@@ -789,7 +789,7 @@ def main(argv: list[str]) -> int:
           [["paarung", "rolle", "differenz_mittel", "gewonnene",
             "wilcoxon_p", "signifikant"]].to_string(index=False))
 
-    print("\n  Diagnose zum Tuning auf Wiederholung 0 (B-21):")
+    print("\n  Diagnose zum Tuning auf Wiederholung 0:")
     print(leakage_diagnose(folds, basislinien).to_string(index=False))
 
     if "holdout" in argv:

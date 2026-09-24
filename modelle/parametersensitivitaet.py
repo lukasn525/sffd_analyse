@@ -14,41 +14,41 @@ Ausgang: results/parametersensitivitaet/matrix.csv, zusammenfassung.csv,
 
   - Die Schlussbewertung laesst die Baumverfahren mit den Hyperparametern
     EINES Folds antreten (`fold_der_parameter`), obwohl die Saetze ueber die
-    Folds erheblich streuen - beim Random Forest der Struktur `max_depth`
-    16/24/16/24/24, `n_estimators` 539/359/306/321/995. Die Baselines haben
-    keine Hyperparameter und sind von dieser Asymmetrie nicht betroffen
-  - Bislang war unbekannt, wie viel das ausmacht (R-4, B-14). Dieses Skript
-    misst es: Jeder Testfold wird mit JEDEM der fuenf Parametersaetze bewertet.
-    Die Diagonale ist die berichtete Konfiguration, die uebrigen 20 Zellen
-    sind fremde Saetze
+    Folds erheblich streuen. Die Baselines haben keine Hyperparameter und
+    sind von dieser Asymmetrie nicht betroffen
+  - Dieses Skript misst, wie viel das ausmacht: Jeder Testfold wird mit
+    JEDEM der fuenf Parametersaetze bewertet. Die Diagonale ist die
+    berichtete Konfiguration, die uebrigen 20 Zellen sind fremde Saetze
   - Die Frage, die damit beantwortet wird: Ist der Abstand zwischen eigenem
-    und fremdem Parametersatz klein gegen den Abstand zwischen den Verfahren
-    (2,2 RMSE bzw. 0,004 Macro-F1)? Dann traegt die Schlussbewertung. Ist er
-    gross, ist sie zu einem erheblichen Teil eine Parameterlotterie
+    und fremdem Parametersatz klein gegen den Abstand zwischen den Verfahren?
+    Dann traegt die Schlussbewertung. Ist er gross, ist sie zu einem
+    erheblichen Teil eine Parameterlotterie
   - Beruehrt das Hold-out NICHT. Die Gegenprobe laeuft vollstaendig innerhalb
-    der Kreuzvalidierung auf den 30 Entwicklungsstadtteilen - genau so in R-4
-    entworfen. Es entsteht keine zweite Schlussbewertung
+    der Kreuzvalidierung auf den 30 Entwicklungsstadtteilen. Es entsteht
+    keine zweite Schlussbewertung
 
 FALLSTRICKE
   1  Hold-out-Sperre steht vor allem anderen, wie in m02, m03 und v4. Dieses
      Skript hat keinen Schalter, der sie loest - es gibt hier nichts zu sehen
-  2  Nur Wiederholung 0. Dort wurde getunt (#43-Rahmen, phase_tuning), also
+  2  Nur Wiederholung 0. Dort wurde getunt (phase_tuning), also
      ist nur dort definiert, welcher Satz zu welchem Fold gehoert. In
      Wiederholung 1 bis 9 ist die Fold-Zusammensetzung eine andere, ein
      "Satz des Folds 3" existiert dort nicht
   3  Die Parametersaetze gelten fuer BEIDE Zielgroessen der Menge: getunt
-     wurde einmal auf der Rate (#43). `tuning.csv` fuehrt sie trotzdem je
+     wurde einmal auf der Rate. `tuning.csv` fuehrt sie trotzdem je
      Zielgroesse - vor dem Einlesen auf eine Zielgroesse filtern, sonst
      zaehlt jeder Satz doppelt
-  4  Gemessen wird ohne `auch_parallel`. Die Laufzeiten aus Unterfrage 3
-     stammen aus dem Hauptlauf und werden hier nicht neu erhoben; ein
-     zweiter Zeitwert aus einem anderen Lauf waere eine zweite Wahrheit
+  4  Gemessen wird ohne `auch_parallel`. Die Laufzeiten stammen aus dem
+     Hauptlauf und werden hier nicht neu erhoben; ein zweiter Zeitwert aus
+     einem anderen Lauf waere eine zweite Wahrheit
   5  Die Diagonale MUSS die Fold-Werte des Hauptlaufs reproduzieren. Weicht
-     sie ab, ist entweder die Aufteilung oder die Spezifikation seit dem
-     16.08. veraendert worden - das Skript prueft es und warnt
-
-Ausfuehrliche Fassung: docs/08_FUNKTIONSDOKUMENTATION.md
+     sie ab, ist entweder die Aufteilung oder die Spezifikation veraendert
+     worden - das Skript prueft es und warnt
 """
+
+
+
+
 
 from __future__ import annotations
 
@@ -187,12 +187,12 @@ def zusammenfassung(matrix: pd.DataFrame, strang: str) -> pd.DataFrame:
 
 
 def _kontrolle(matrix: pd.DataFrame, strang: str) -> None:
-    """PRUEFAUFTRAG 3: Diagonale gegen den Hauptlauf.
+    """Kontrolle: Diagonale gegen den Hauptlauf.
 
-    - weicht sie ab, hat sich Aufteilung oder Spezifikation seit dem
-      16.08.2026 veraendert; dann ist nicht diese Datei zu korrigieren,
-      sondern die Ursache zu suchen
+    - weicht sie ab, hat sich Aufteilung oder Spezifikation veraendert; dann
+      ist nicht diese Datei zu korrigieren, sondern die Ursache zu suchen
     """
+
     mass = STRAENGE[strang]["mass"]
     quelle = (RESULTS_DIR / "regression" / "menge_folds.csv" if strang == "menge"
               else RESULTS_DIR / "klassifikation" / "struktur_folds.csv")
@@ -252,10 +252,10 @@ def main(argv: list[str]) -> int:
                                                index=False)
     (OUT / "bericht.md").write_text(bericht(teile), encoding="utf-8")
 
-    # PRUEFAUFTRAEGE
-    #   1  je Verfahren N_FOLDS x N_FOLDS Zeilen
-    #   2  keine Zeile aus dem Hold-out (konstruktiv, hier nur bestaetigt)
-    #   3  Diagonale reproduziert den Hauptlauf (siehe _kontrolle)
+
+
+
+    # Kontrolle: je Verfahren N_FOLDS x N_FOLDS Zeilen
     alle = pd.concat(matrizen)
     for (strang, name), g in alle.groupby(["strang", "verfahren"]):
         if len(g) != N_FOLDS * N_FOLDS:

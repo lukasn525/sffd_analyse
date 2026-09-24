@@ -16,9 +16,9 @@ Ausgang: results/{regression,klassifikation}/baselines_*.csv
   - v0_aufteilung.py (Selbsttest), v3_spezifikation.py und v4_decke.py
     laufen einzeln und haengen nicht an diesem Befehl
   - Voraussetzung ist ein Lauf von prep/build.py
-
-Ausfuehrliche Fassung: docs/08_FUNKTIONSDOKUMENTATION.md
 """
+
+
 import sys
 import time
 from pathlib import Path

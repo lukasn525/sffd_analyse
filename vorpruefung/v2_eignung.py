@@ -5,21 +5,20 @@ Eignungspruefung: Passen die gewaehlten Verfahren zu den Zielgroessen?
 
 Eingang: data/processed/{regression,klassifikation}.parquet
          results/klassifikation/baselines_klasse.csv (aus v1_baselines.py)
-Ausgang: results/eignungspruefung/eignungspruefung.md + 2 Abbildungen
+Ausgang: results/eignungspruefung/eignungspruefung.md
          results/eignungspruefung/annahmen.csv     Abschnitt 6, maschinenlesbar
-         results/eignungspruefung/qq_residuen.csv  Rohdaten fuer Abbildung A10
 
   - Sechs Belege, mehr nicht: (1) Zaehldaten ueberdispers -> zaehldaten-
-    gerechte Verlustfunktionen (#42), (2) Zusammenhaenge nicht linear ->
+    gerechte Verlustfunktionen, (2) Zusammenhaenge nicht linear ->
     Ridge auf log(1+y), (3) lineare Spezifikation reicht nicht -> RF und
     XGBoost, (4) Teststadtteile liegen oft ausserhalb -> Limitation, keine
     Verfahrensfrage, (5) Merkmale trennen auch die Einsatzart -> zweiter
     Strang, (6) Anforderungen je Verfahren mit Teststatistik und p-Wert
-  - Abschnitt 6 ist Auflage Schroeter (10.08.2026) und fuehrt auch die
-    Zeilen, in denen eine Anforderung GAR NICHT besteht: Dass Baumverfahren
-    keine Verteilungsannahme haben, ist eine Aussage und keine Auslassung
-  - Abschnitt 2 ist Auflage R7 - erst plotten, dann ueber lineare Modelle
-    reden. Deshalb Streudiagramme und Residuenanalyse als Abbildung
+  - Abschnitt 6 fuehrt auch die Zeilen, in denen eine Anforderung GAR NICHT
+    besteht: Dass Baumverfahren keine Verteilungsannahme haben, ist eine
+    Aussage und keine Auslassung
+  - Abschnitt 2 vergleicht Pearson und Spearman und passt Ridge einmal auf
+    der Rohskala und einmal auf log(1+y) an
   - Abschnitt 5 ist noetig, weil die Regression den Klassifikationsstrang
     nicht mitbeantwortet: Kruemmung bei der ANZAHL sagt nichts darueber, ob
     dieselben Merkmale die ART trennen
@@ -27,30 +26,31 @@ Ausgang: results/eignungspruefung/eignungspruefung.md + 2 Abbildungen
     Forest und XGBoost - das ist die empirische Forschungsfrage der Arbeit
   - Gerechnet wird nur auf den TRAININGSSTADTTEILEN VON FOLD 1; ausgenommen
     sind Abschnitt 4 und die aus v1 gelesenen Referenzwerte
-  - Der Bericht ist ein Befundblatt, keine Kapitelvorlage
+  - Der Bericht ist ein Befundblatt
 
-Setzt v1_baselines.py voraus. Ausfuehrliche Fassung:
-docs/08_FUNKTIONSDOKUMENTATION.md
+Setzt v1_baselines.py voraus.
 """
+
+
 import sys
 from pathlib import Path
 
-import matplotlib
 
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt   # noqa: E402
-import numpy as np                # noqa: E402
-import pandas as pd               # noqa: E402
 
-# Schriftfamilie der Arbeit: der Fliesstext steht in Times New Roman, ohne
-# diese Zeilen zeichnet matplotlib in DejaVu Sans. Die Fallbacks sind metrisch
-# kompatibel und greifen nur auf Systemen ohne Times. Gleiche Festlegung wie in
-# modelle/m05_abbildungen.py.
-plt.rcParams.update({
-    "font.family": "serif",
-    "font.serif": ["Times New Roman", "Liberation Serif", "Nimbus Roman"],
-    "mathtext.fontset": "stix",
-})
+
+
+import numpy as np
+import pandas as pd
+
+
+
+
+
+
+
+
+
+
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "prep"))
 
@@ -75,16 +75,16 @@ def log(txt: str = "") -> None:
     bericht.append(txt)
 
 
-def speichere(fig, name: str) -> None:
-    """Legt eine Abbildung im Ergebnisordner ab und vermerkt sie im Bericht.
 
-    Ein:  Matplotlib-Figur, Dateiname
-    Aus:  Datei in results/eignungspruefung/; die Figur wird geschlossen
-    """
-    fig.tight_layout()
-    fig.savefig(OUT / name, dpi=140)
-    plt.close(fig)
-    log(f"-> {name}")
+
+
+
+
+
+
+
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -98,13 +98,13 @@ def dispersion(train: pd.DataFrame) -> None:
       Var = mu
     - Folge 1, Verlustfunktion: ein quadratischer Fehler auf rohen Zaehldaten ist
       bei diesem Index unangemessen -> reg:tweedie fuer XGBoost,
-      criterion="poisson" fuer den Random Forest (#42)
+      criterion="poisson" fuer den Random Forest
     - Folge 2, Baseline: beschaedigt sind die Standardfehler, nicht die
       Konsistenz des bedingten Mittelwerts (Gourieroux u.a. 1984). Das
-      Poisson-GLM bleibt Stufe 2 (#45)
-    - bis 10.08.2026 schloss dieser Abschnitt das Gegenteil und widersprach der
-      eigenen Umsetzung; der gemessene Index ist unveraendert geblieben
+      Poisson-GLM bleibt Stufe 2
     """
+
+
     y = train[ZIELGROESSE].astype(float)
     index = y.var() / y.mean()
 
@@ -121,43 +121,43 @@ def dispersion(train: pd.DataFrame) -> None:
     log("einem grossen Stadtteil genauso wie in einem kleinen, wo er ein")
     log("Vielfaches des Gesamtwerts ausmacht. Random Forest und XGBoost rechnen")
     log("deshalb mit zaehldatengerechten Verlustfunktionen - `criterion=")
-    log("\"poisson\"` und `reg:tweedie` (Decision Log #42).")
+    log("\"poisson\"` und `reg:tweedie`.")
     log("")
     log("**Fuer die Stufe-2-Baseline:** Die verletzte Varianzannahme")
     log("beschaedigt die Standardfehler des Poisson-Schaetzers, nicht die")
     log("Konsistenz des bedingten Mittelwerts (Gourieroux, Monfort & Trognon")
     log("1984). Die Baseline liefert ausschliesslich Punktvorhersagen und")
     log("verwendet keine Standardfehler - sie ist davon nicht betroffen. Das")
-    log("**Poisson-GLM mit Offset bleibt Stufe 2** (Decision Log #45). Die")
-    log("Negative Binomial ist damit **nicht mehr** die Stufe-2-Baseline: Sie")
+    log("**Poisson-GLM mit Offset bleibt Stufe 2**. Die")
+    log("Negative Binomial ist damit **nicht** die Stufe-2-Baseline: Sie")
     log("waere die Erweiterung fuer korrekte Inferenz und loest ein Problem,")
     log("das hier nicht besteht.")
     log("")
     log("Der FORMALE Test dazu - die Hilfsregression nach Cameron und Trivedi")
     log("(1990) - steht in Abschnitt 6. Der Dispersionsindex ist eine")
-    log("Kennzahl, kein Test; die Auflage vom 10.08.2026 verlangt beides.")
+    log("Kennzahl, kein Test.")
     return float(index)
 
 
 # ---------------------------------------------------------------------------
 def linearitaet(train: pd.DataFrame) -> None:
-    """Beleg 2: Korrelationen und Residuenbild (Auflage R7).
+    """Beleg 2: Korrelationen und Ridge auf zwei Skalen.
 
     Ein:  Trainingszeilen von Fold 1
-    Aus:  Textabschnitt, Abbildungen 01_streudiagramme.png und 02_residuen.png
+    Aus:  Textabschnitt
 
     - Pearson misst den linearen, Spearman den monotonen Zusammenhang; ein
       Auseinanderklaffen zeigt Kruemmung an
     - bewertet wird nur, wo die Korrelation substanziell ist - nahe null ist der
       Abstand Rauschen
-    - Ridge einmal auf der Rohskala, einmal auf log(1+y), mit Residuenbild
-    - ein Trichter im Residuenbild zeigt, dass der Fehler mit dem Niveau waechst
+    - Ridge einmal auf der Rohskala, einmal auf log(1+y)
     """
+
     from sklearn.linear_model import Ridge
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
 
-    log("\n## 2  Die Zusammenhaenge sind nicht linear (R7)\n")
+    log("\n## 2  Die Zusammenhaenge sind nicht linear\n")
 
     log("Beide Mengen-Zielgroessen, weil sie unterschiedliche Groessen sind:")
     log("`anzahl_einsaetze` ist eine Zaehlung, `einsaetze_je_1000_ew` eine Quote.\n")
@@ -193,33 +193,33 @@ def linearitaet(train: pd.DataFrame) -> None:
         log(f"`{ziel}`: {len(stark[ziel])} Merkmale bewertet, groesster Abstand "
             f"**`{m}`** ({p:+.3f} gegen {s:+.3f}, {d:.3f}) - {art}.")
 
-    fig, achsen = plt.subplots(2, 5, figsize=(16, 6.5))
-    for ax, merkmal in zip(achsen.ravel(), PRAEDIKTOREN):
-        ax.scatter(train[merkmal], np.log1p(train[ZIELGROESSE]), s=4, alpha=0.25)
-        ax.set_xlabel(merkmal, fontsize=8)
-        ax.set_ylabel("log(1+y)", fontsize=8)
-        ax.tick_params(labelsize=7)
-    fig.suptitle("Strukturmerkmale gegen log(1 + Anzahl Einsaetze), "
-                 "Trainingsstadtteile Fold 1")
-    speichere(fig, "01_streudiagramme.png")
 
-    # Residuen fuer BEIDE Zielgroessen, je roh und logarithmiert.
+
+
+
+
+
+
+
+
+
+    # Ridge fuer BEIDE Zielgroessen, je roh und logarithmiert.
     X = train[MERKMALE].astype(float)
     guete = {}
-    fig, achsen = plt.subplots(2, 2, figsize=(12, 8))
-    for zeile, ziel in enumerate((ZIELGROESSE, RATE)):
+
+    for ziel in (ZIELGROESSE, RATE):
         roh = train[ziel].astype(float)
-        for spalte, (name, y) in enumerate([("Rohskala", roh),
-                                            ("log(1+y)", np.log1p(roh))]):
+        for name, y in [("Rohskala", roh),
+                        ("log(1+y)", np.log1p(roh))]:
             modell = make_pipeline(StandardScaler(), Ridge(alpha=1.0)).fit(X, y)
             guete[(ziel, name)] = modell.score(X, y)
-            ax = achsen[zeile, spalte]
-            ax.scatter(modell.predict(X), y - modell.predict(X), s=4, alpha=0.25)
-            ax.axhline(0, color="black", lw=0.8)
-            ax.set_title(f"{ziel} - {name}", fontsize=9)
-            ax.set_xlabel("Vorhersage", fontsize=8)
-            ax.set_ylabel("Residuum", fontsize=8)
-    speichere(fig, "02_residuen.png")
+
+
+
+
+
+
+
 
     log("")
     log("Ridge im Training (Anpassung, NICHT Prognoseguete):\n")
@@ -231,7 +231,7 @@ def linearitaet(train: pd.DataFrame) -> None:
 
     log("")
     log("Die Tabelle misst ein Zaehlmodell auf zwei Skalen und ist so nicht")
-    log("vergleichbar; seit #43 schaetzt Ridge die Rate. Der Vergleich auf")
+    log("vergleichbar; Ridge schaetzt die Rate. Der Vergleich auf")
     log("derselben Skala steht direkt darunter (ridge_rate).")
 
 
@@ -316,7 +316,7 @@ def extrapolation(panel: pd.DataFrame) -> None:
 
     log("")
     log("**Folgt daraus:** Keine Verfahrensfrage, sondern eine Limitation des")
-    log("Stadtteil-Splits - sie gehoert in Kapitel 8.3. Die Verfahren sind")
+    log("Stadtteil-Splits. Die Verfahren sind")
     log("unterschiedlich betroffen: Ridge rechnet ausserhalb linear weiter,")
     log("Baumverfahren ordnen dem letzten bekannten Blatt zu. Die Spanne von")
     log(f"{min(anteile) * 100:.1f} bis {max(anteile) * 100:.1f} % erklaert einen")
@@ -362,7 +362,7 @@ def klassifikation(kl: pd.DataFrame) -> None:
     log(f"**{signifikant} von {len(PRAEDIKTOREN)} Merkmalen** unterscheiden sich")
     log("signifikant zwischen den Klassen. Die Zielgroesse ist mit diesen")
     log("Praediktoren also grundsaetzlich vorhersagbar - Voraussetzung fuer jedes")
-    log("Verfahren und keine Frage, die erst Kapitel 7 beantwortet.")
+    log("Verfahren und keine Frage, die erst der Vergleich beantwortet.")
 
     # Stufe 1 und 2 aus der Baseline-Datei lesen, nicht neu rechnen.
     pfad = RESULTS_DIR / "klassifikation" / "baselines_klasse.csv"
@@ -432,24 +432,24 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
     """Beleg 6: Anforderungen je Verfahren mit formalen Tests.
 
     Ein:  Trainingszeilen von Fold 1, Klassifikationspanel
-    Aus:  Textabschnitt, annahmen.csv, qq_residuen.csv
+    Aus:  Textabschnitt, annahmen.csv
 
-    - Auflage Schroeter vom 10.08.2026: Anforderungen je Verfahren, formale Tests
-      statt Augenmass, Tabelle mit Teststatistik und p-Wert
+    - Anforderungen je Verfahren, formale Tests statt Augenmass, Tabelle mit
+      Teststatistik und p-Wert
     - drei Sorten von Zeilen: erfuellt, verletzt (mit Spalte "Konsequenz") und
       NICHT ERFORDERLICH
     - die dritte Sorte ist die wichtigste: Dass Baumverfahren keine
       Verteilungsannahme haben, ist eine Aussage ueber das Verfahren
-    - drei Tests kommen hier neu hinzu: Cameron & Trivedi (1990) auf
+    - drei Tests kommen hier hinzu: Cameron & Trivedi (1990) auf
       Ueberdispersion, Breusch-Pagan auf Varianzgleichheit, Jarque-Bera auf
       Normalitaet samt Schiefe und Woelbung
-    - die Rohdaten fuer Abbildung A10 gehen nach qq_residuen.csv; gezeichnet wird
-      in m05
     - der VIF steht bewusst nicht hier, sondern in m04_shap._vif(): dieselbe Zahl
-      an zwei Orten ist die Fehlerquelle, die tools/pruefe_zahlen.py bewacht
+      an zwei Orten ist eine Fehlerquelle
     """
+
+
     import statsmodels.api as sm
-    from scipy import stats
+
     from statsmodels.stats.diagnostic import het_breuschpagan
     from statsmodels.stats.stattools import jarque_bera
 
@@ -473,7 +473,7 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
     # Geprueft wird das lineare Modell, fuer das Ridge steht: OLS auf log(1+y)
     # mit denselben zwoelf Merkmalen - gleicher Erwartungswert, nur ohne
     # Strafterm.
-    diagnose, qq = {}, []
+    diagnose = {}
     for ziel in (ZIELGROESSE, RATE):
         ols = sm.OLS(np.log1p(train[ziel].astype(float)), X).fit()
         bp = het_breuschpagan(ols.resid, ols.model.exog)
@@ -481,12 +481,12 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
         diagnose[ziel] = {"bp_lm": float(bp[0]), "bp_p": float(bp[1]),
                           "jb": float(jb[0]), "jb_p": float(jb[1]),
                           "schiefe": float(jb[2]), "woelbung": float(jb[3])}
-        r = np.sort((ols.resid - ols.resid.mean()) / ols.resid.std(ddof=1))
-        theo = stats.norm.ppf((np.arange(1, len(r) + 1) - 0.5) / len(r))
-        qq += [{"zielgroesse": ziel, "theoretisch": float(t),
-                "beobachtet": float(b)} for t, b in zip(theo, r)]
 
-    pd.DataFrame(qq).round(5).to_csv(OUT / "qq_residuen.csv", index=False)
+
+
+
+
+
 
     reset = befunde["reset"]
     d_anz = diagnose[ZIELGROESSE]
@@ -500,8 +500,8 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
 
         - `statistik` ist die lesbare Fassung mit Dezimalkomma, `wert` dieselbe Zahl
           maschinenlesbar
-        - beides, weil tools/pruefe_zahlen.py den Sollwert aus dieser Datei zieht und
-          eine geparste Zeichenkette beim naechsten Formatwechsel anders parst
+        - beides, weil eine geparste Zeichenkette beim naechsten Formatwechsel
+          anders parst
         """
         return {"verfahren": verfahren, "anforderung": anforderung,
                 "pruefung": pruefung, "statistik": statistik,
@@ -513,23 +513,23 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
           "Panelstruktur: 132 Monate je Stadtteil", "–", float("nan"),
           "verletzt",
           "Stadtteil-Split statt zufaelliger Aufteilung; Streuung ueber die "
-          "10 Wiederholungsmittel statt ueber 50 Laeufe (R-5)"),
+          "10 Wiederholungsmittel statt ueber 50 Laeufe"),
         Z("alle Verfahren", "identische Merkmale, Zeilen und Folds",
           "fold-Spalte in der Parquet-Datei", "–", float("nan"), "erfuellt",
-          "konstruktiv abgesichert, Auflage C vom 04.08.2026"),
+          "konstruktiv abgesichert"),
 
         Z("Poisson-GLM (Stufe 2)", "Equidispersion, Var = mu",
           "Cameron & Trivedi (1990), Hilfsregression", f"t = {_z(ct_t)}",
           ct_p, "verletzt",
           "folgenlos fuer diese Baseline: sie liefert nur Punktvorhersagen, "
-          "der Schaetzer bleibt konsistent (Gourieroux et al. 1984, #45)",
+          "der Schaetzer bleibt konsistent (Gourieroux et al. 1984)",
           wert=ct_t),
         Z("Poisson-GLM (Stufe 2)", "Linearitaet im Log-Link",
           "RESET, Abschnitt 3", f"F = {_z(reset[2][0])}", reset[2][1],
           "verletzt",
           "bewusst in Kauf genommen; die Gegenprobe v3_spezifikation zeigt, "
           "dass die nichtlinearen Erweiterungen out-of-sample SCHLECHTER "
-          "sind (B-41)", wert=reset[2][0]),
+          "sind", wert=reset[2][0]),
 
         Z("Ridge", "Linearitaet der Zusammenhaenge",
           "RESET und Pearson gegen Spearman, Abschnitte 2 und 3",
@@ -543,7 +543,7 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
           "betrifft die Standardfehler, nicht die Punktprognose - und "
           "Standardfehler werden hier nicht berichtet", wert=d_anz["bp_lm"]),
         Z("Ridge", "normalverteilte Residuen",
-          "Jarque-Bera, Abbildung A10", f"JB = {_z(d_anz['jb'])}",
+          "Jarque-Bera", f"JB = {_z(d_anz['jb'])}",
           d_anz["jb_p"], "nicht erforderlich",
           f"Normalitaet ist Voraussetzung fuer INFERENZ, nicht fuer die "
           f"Punktprognose eines L2-penalisierten Modells. Schiefe "
@@ -558,12 +558,12 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
           "Extrapolationsanteil, Abschnitt 4",
           f"{_z(befunde['extrapolation'] * 100)} %", float("nan"), "verletzt",
           "Baeume ordnen ausserhalb dem letzten bekannten Blatt zu - "
-          "Limitation des Stadtteil-Splits, Kapitel 8.3 (R-3)",
+          "Limitation des Stadtteil-Splits",
           wert=befunde["extrapolation"] * 100),
         Z("Random Forest", "Verlustfunktion passend zur Datenform",
           "Dispersionsindex, Abschnitt 1", f"{_z(befunde['dispersion'])}",
           float("nan"), "erfuellt",
-          "criterion=\"poisson\" statt quadratischem Fehler (#42)",
+          "criterion=\"poisson\" statt quadratischem Fehler",
           wert=befunde["dispersion"]),
 
         Z("XGBoost", "Verteilungsannahme", "entfaellt", "–", float("nan"),
@@ -576,7 +576,7 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
         Z("XGBoost", "Verlustfunktion passend zur Datenform",
           "Dispersionsindex, Abschnitt 1", f"{_z(befunde['dispersion'])}",
           float("nan"), "erfuellt",
-          "reg:tweedie mit getuntem Varianzexponenten (#42); Poisson (p = 1) "
+          "reg:tweedie mit getuntem Varianzexponenten; Poisson (p = 1) "
           "waere bei diesem Index zu eng", wert=befunde["dispersion"]),
 
         Z("Multinomiales Logit (Stufe 2)", "Linearitaet in den Log-Odds",
@@ -584,7 +584,7 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
           "genau die Trennlinie zu RF und XGBoost: fehlende Wechselwirkungen "
           "sind der Unterschied, den der Vergleich messen soll"),
         Z("Multinomiales Logit (Stufe 2)", "jede Klasse im Testfold besetzt",
-          "doppelte Stratifizierung (#30), Selbsttest v0_aufteilung", "–",
+          "doppelte Stratifizierung, Selbsttest v0_aufteilung", "–",
           float("nan"), "erfuellt",
           "ohne sie waere die Macro-AUROC in einzelnen Folds undefiniert"),
     ]
@@ -623,15 +623,15 @@ def ridge_rate(train: pd.DataFrame) -> None:
     Ein:  Trainingsstadtteile von Fold 1
     Aus:  Tabelle in eignungspruefung.md, direkt unter Abschnitt 2
 
-    - seit #43 schaetzt Ridge die RATE und rechnet ueber die Wohnbevoelkerung
+    - Ridge schaetzt die RATE und rechnet ueber die Wohnbevoelkerung
       auf die Anzahl zurueck; verglichen wird deshalb dieses Modell, nicht das
       Zaehlmodell der Tabelle darueber
     - beide Varianten auf derselben Skala, der berichteten Anzahl: ein R2 auf
       log(1+y) ist mit einem R2 auf der Rohskala nicht vergleichbar
     - dasselbe Modell wie in linearitaet() (StandardScaler, Ridge alpha=1)
-    - steht bewusst hinter Zeile 470: Code 21 der Arbeit zitiert die Zeilen
-      458-470 dieser Datei, sie duerfen sich nicht verschieben
     """
+
+
     from sklearn.linear_model import Ridge
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
@@ -649,7 +649,7 @@ def ridge_rate(train: pd.DataFrame) -> None:
         return float(1 - ((y - f) ** 2).sum() / ((y - y.mean()) ** 2).sum())
 
     log("")
-    log("Ridge auf der Rate (#43), auf die Anzahl zurueckgerechnet - beide")
+    log("Ridge auf der Rate, auf die Anzahl zurueckgerechnet - beide")
     log("Varianten auf derselben Skala:\n")
     log("| Variante | R2 Anzahl | R2 Rate | negative Vorhersagen |")
     log("|---|---|---|---|")
@@ -666,10 +666,10 @@ def ridge_rate(train: pd.DataFrame) -> None:
 
 # ---------------------------------------------------------------------------
 def main() -> None:
-    """Rechnet die sechs Belege und schreibt Bericht, Tabellen und Abbildungen.
+    """Rechnet die sechs Belege und schreibt Bericht und Tabelle.
 
     Ein:  beide Parquet-Dateien, baselines_klasse.csv
-    Aus:  eignungspruefung.md, annahmen.csv, qq_residuen.csv, 2 Abbildungen
+    Aus:  eignungspruefung.md, annahmen.csv
 
     - Schritt 2 von vorpruefung/run.py
     - Grundlage sind die Trainingsstadtteile von Fold 1; die Teststadtteile
@@ -707,7 +707,7 @@ def main() -> None:
     log("|---|---|---|---|")
     log("| Anzahl | Poisson-GLM mit Offset (Stufe 2) | Zaehldaten mit Exposition, Abschnitt 1 | belegt |")
     log("| Anzahl, Rate | Zaehldatengerechter Verlust in RF und XGBoost | Dispersionsindex, Abschnitt 1 | belegt |")
-    log("| Anzahl, Rate | Ridge auf `log(1+y)` | Residuenbilder, Abschnitt 2 | belegt |")
+    log("| Anzahl, Rate | Ridge auf `log(1+y)` | Korrelationen und R2, Abschnitt 2 | belegt |")
     log("| Anzahl, Rate | Random Forest, XGBoost | RESET und Interaktionen, Abschnitt 3 | belegt |")
     log("| Einsatzart | Log. Regression (Stufe 2) | Signaltest, Abschnitt 5 | belegt |")
     log("| Einsatzart | Random Forest, XGBoost | geringe lineare Ausschoepfung, Abschnitt 5 | belegt |")

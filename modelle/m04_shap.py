@@ -11,7 +11,7 @@ Ausgang: results/shap/beitraege.csv, gruppen.csv, uebersprungen.csv,
          faktorgruppen_menge.csv, vif.csv, extrapolation_*.csv,
          ablation_exposition.csv, ablation_faktorgruppen{,_mittel}.csv
 
-  - ZWEI ANTWORTEN auf Unterfrage 1: ATTRIBUTION (welcher Anteil der SHAP-
+  - ZWEI ANTWORTEN: ATTRIBUTION (welcher Anteil der SHAP-
     bzw. Koeffizientenmasse entfaellt auf eine Faktorgruppe - wie ein Modell
     seine Aufmerksamkeit verteilt) und ABLATION (was kostet das Weglassen -
     was die Gruppe WERT ist). Die zweite ist die haertere Frage: Ein Merkmal
@@ -28,31 +28,31 @@ Ausgang: results/shap/beitraege.csv, gruppen.csv, uebersprungen.csv,
   - FALLSTRICK: blockweise interpretieren. Die Strukturmerkmale sind
     korreliert, SHAP verteilt den Beitrag dann auf mehrere Merkmale.
     "median_haushaltseinkommen traegt 8 %" waere Scheinpraezision. Deshalb
-    die drei Faktorgruppen des Exposes, log_bevoelkerung und Saison getrennt
+    die drei Faktorgruppen, log_bevoelkerung und Saison getrennt
   - DER VIF steht hier und nicht in der Eignungspruefung: Seine einzige echte
     Konsequenz betrifft diese Interpretation. Gerechnet auf den EINDEUTIGEN
     Stadtteil-Jahr-Kombinationen, sonst waere er kuenstlich stabilisiert
 
-PRUEFAUFTRAEGE
-  - Stimmt die Rangfolge der Faktorgruppen zwischen RF und XGBoost ueberein?
-    Wenn nicht, ist das ein Befund fuer Kapitel 8, kein Fehler
-  - Passt sie zu den Korrelationen der Eignungspruefung (dort lagen
-    log_kriminalitaetsindex und anteil_risikogewerbe_pct vorn)?
-  - Wird eine Faktorgruppe als praktisch bedeutungslos ausgewiesen? Das waere
-    eine der wenigen wirklich inhaltlichen Aussagen der Arbeit
-  - Maximaler VIF noch bei rund 11,5? Sonst hat sich die Merkmalsbasis
-    geaendert
-  - Reproduziert die Ablationsvariante `voll` im Mengenstrang exakt die
-    Stufe-2-Baseline? Wenn nicht, sieht die Ablation andere Merkmale oder
-    Folds als v1 und jeder Vergleich darin ist wertlos (13.08.2026: 0,0)
-  - Welche Gruppen haben ein NEGATIVES Vorzeichen, verbessern die Prognose
-    also durch Weglassen? Befund fuer Kapitel 7 und KEINE Aufforderung, den
-    Merkmalssatz zu kuerzen - er ist durch Expose und Fairness-Regel
-    gebunden. Nachtraeglich kuerzen waere ergebnisgetriebene Spezifikation
-
-Setzt m02 und m03 voraus. Ausfuehrliche Fassung:
-docs/08_FUNKTIONSDOKUMENTATION.md
+Setzt m02 und m03 voraus.
 """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import json
 import sys
 from pathlib import Path
@@ -75,7 +75,7 @@ from v0_aufteilung import (selten_je_stadtteil,  # noqa: E402
 OUT = RESULTS_DIR / "shap"
 MERKMALE = PRAEDIKTOREN + SAISON
 
-# Die drei Faktorgruppen des Exposes, plus zwei getrennt gefuehrte Groessen.
+# Die drei Faktorgruppen, plus zwei getrennt gefuehrte Groessen.
 GRUPPEN = {
     "soziooekonomisch": ["median_haushaltseinkommen", "armutsquote_pct",
                          "akademikerquote_pct", "median_miete",
@@ -97,7 +97,7 @@ def schlagen_die_latte(vergleich: pd.DataFrame) -> tuple[list, pd.DataFrame]:
     - Grundlage ist der Primaertest auf den Wiederholungsmitteln
     - verlangt werden beide Bedingungen: mittlere Differenz zugunsten des
       Verfahrens UND signifikanter Test
-    - ein positiver Mittelwert allein reicht nicht; davor warnt R-6
+    - ein positiver Mittelwert allein reicht nicht
     """
     p = vergleich[(vergleich["rolle"] == "primaer")
                   & (vergleich["teststufe"] == "wiederholung")].copy()
@@ -137,7 +137,7 @@ def _beitraege(modell, X: pd.DataFrame, name: str) -> np.ndarray:
     - mehrklassige Ausgaben werden ueber die Klassen gemittelt; die Frage lautet
       "welche Faktorgruppe traegt", nicht "fuer welche Klasse"
     - XGBoost geht einen eigenen Weg: shap.TreeExplainer kann den mehrklassigen
-      base_score von XGBoost 3.x nicht lesen und bricht ab (B-17). XGBoost bringt
+      base_score von XGBoost 3.x nicht lesen und bricht ab. XGBoost bringt
       TreeSHAP selbst mit; pred_contribs=True liefert dieselben Werte vom selben
       Algorithmus
     """
@@ -169,17 +169,17 @@ def extrapolation_aufschluesseln(panel: pd.DataFrame, selten: pd.Series,
     Ein:  Panel, menge_folds.csv
     Aus:  extrapolation_merkmale.csv, _stadtteile.csv, _zusammenhang.csv
 
-    - macht aus einer Plausibilitaetsaussage eine Zahl: 03_STAND.md behauptete,
-      die Spanne von 3,6 % bis 57,4 % erklaere einen erheblichen Teil der
-      Fold-Streuung
-    - erklaert damit den zentralen Befund des Mengenstrangs (R-3, B-26)
+    - macht aus einer Plausibilitaetsaussage eine Zahl: erklaert die Spanne
+      der Extrapolationsanteile einen erheblichen Teil der Fold-Streuung?
     - drei Auswertungen: je Merkmal (wie oft liegt es allein ausserhalb), je
       Stadtteil (wie stark bricht er aus), je Verfahren (Spearman zwischen
       Extrapolationsanteil und Fehler ueber alle 50 Laeufe)
-    - Abgrenzung zu #34: Verboten waere, die Testmenge nach Extrapolationsgrad zu
+    - Abgrenzung: Verboten waere, die Testmenge nach Extrapolationsgrad zu
       schneiden und darin nach Verfahrensunterschieden zu suchen. Hier bleibt die
       Einheit der Fold, die Primaeraussage bleibt unberuehrt
     """
+
+
     from scipy.stats import spearmanr
 
     d = wiederholte_aufteilung(panel, wiederholung=0, selten=selten)
@@ -221,21 +221,21 @@ def ablation_exposition(panel: pd.DataFrame, selten: pd.Series,
     Ein:  Panel, tuning.csv des Mengenstrangs
     Aus:  ablation_exposition.csv
 
-    - der Hauptlauf modelliert die Rate und multipliziert zurueck (#43); diese
+    - der Hauptlauf modelliert die Rate und multipliziert zurueck; diese
       Ablation laesst die Baumverfahren direkt auf anzahl_einsaetze anpassen
     - alles andere bleibt gleich: dieselben Folds, Merkmale und Hyperparameter
     - die Hyperparameter werden bewusst nicht neu gesucht, sonst aenderten sich
       zwei Dinge gleichzeitig
-    - gemessen (B-33): ohne Expositionsbehandlung RF 50,85 und XGBoost 51,81
-      RMSE, mit ihr 34,97 und 37,39 - der Spezifikationsunterschied ist ein
-      Vielfaches des Verfahrensunterschieds
     - Vermutung dahinter: Baeume koennen "Einsaetze = Bevoelkerung x Risiko" nicht
       nachbauen, weil sie je Blatt einen festen Wert ausgeben; RMSE auf der
       Originalskala wird von den grossen Stadtteilen dominiert
-    - kein Widerspruch zu R-9: Fuer ein Modell mit Log-Verknuepfung und freiem
+    - fuer ein Modell mit Log-Verknuepfung und freiem
       Koeffizienten auf log_bevoelkerung ist der Offset redundant, fuer einen Baum
       ohne beides nicht
     """
+
+
+
     import m02_menge as m02
     from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
@@ -270,7 +270,7 @@ def ablation_exposition(panel: pd.DataFrame, selten: pd.Series,
 def ablation_faktorgruppen(reg: pd.DataFrame, kl: pd.DataFrame,
                            selten: pd.Series, tuning_kl: pd.DataFrame | None,
                            mit_baeumen: bool = True) -> pd.DataFrame:
-    """Ablation: Was ist eine Faktorgruppe wert? (Unterfrage 1)
+    """Ablation: Was ist eine Faktorgruppe wert?
 
     Ein:  beide Panels, tuning.csv beider Straenge, Schalter --ohne-baeume
     Aus:  ablation_faktorgruppen.csv mit den Einzellaeufen
@@ -280,19 +280,19 @@ def ablation_faktorgruppen(reg: pd.DataFrame, kl: pd.DataFrame,
     - die Ablation misst das Fehlende direkt: jede Gruppe wird einmal
       weggelassen, alles andere bleibt gleich
     - Mengenstrang: abladiert wird das Poisson-GLM, weil kein Vergleichsverfahren
-      es schlaegt (B-26) und weil es keinen Hyperparameter hat - dann aendert sich
+      es schlaegt und weil es keinen Hyperparameter hat - dann aendert sich
       ausschliesslich die Merkmalsmenge
-    - Strukturstrang: im finalen Lauf schlaegt allein der Random Forest die
-      Stufe-2-Baseline; XGBoost liegt bei -0,0003 Macro-F1 (p = 1,000) und
-      steht deshalb in uebersprungen.csv. Das Logit laeuft zum Vergleich mit
-    - Einschraenkung, die zu berichten ist: Bei den Baumverfahren stammen die
+    - Strukturstrang: abladiert werden die Baumverfahren aus m03; das Logit
+      laeuft zum Vergleich mit
+    - Einschraenkung: Bei den Baumverfahren stammen die
       Hyperparameter aus dem vollen Merkmalssatz. Die gemessene Verschlechterung
       enthaelt einen Anteil aus einer nicht mehr passenden Einstellung
-    - kein Signifikanztest: Die Testfamilien sind mit #38 festgelegt, weitere
+    - kein Signifikanztest: Die Testfamilien sind festgelegt, weitere
       Tests muessten in Holm eingehen. Die Ablation ist deskriptiv
     - der Offset des Poisson-GLM bleibt in jeder Variante bestehen; weggelassen
       wird nur der Praediktor log_bevoelkerung
     """
+
     from sklearn.metrics import f1_score
 
     import m03_struktur as m03
@@ -371,7 +371,7 @@ def _ablation_auswerten(roh: pd.DataFrame) -> pd.DataFrame:
 
     - gepaart je Lauf: Variante und voller Satz laufen auf demselben Fold
       derselben Wiederholung
-    - zweistufig gemittelt (R-5), weil die 50 Laeufe nicht unabhaengig sind
+    - zweistufig gemittelt, weil die 50 Laeufe nicht unabhaengig sind
     - das Vorzeichen ist so gedreht, dass ein positiver Wert immer
       "Verschlechterung durch Weglassen" heisst - bei RMSE ist klein besser, bei
       Macro-F1 gross
@@ -412,7 +412,7 @@ def faktorgruppen_baseline(panel: pd.DataFrame, selten: pd.Series,
     - Beitraege eines unterlegenen Modells auszuweisen hiesse, Rauschen zu
       erklaeren
     - das beste Modell des Mengenstrangs ist das Poisson-GLM; seine Koeffizienten
-      beantworten Unterfrage 1 direkt
+      zeigen den Beitrag der Faktorgruppen direkt
     - vergleichbar gemacht ueber |Koeffizient| x Standardabweichung des Merkmals;
       sonst haengt die Groesse an der Einheit (Einkommen in Dollar bekaeme einen
       winzigen Koeffizienten)
@@ -455,11 +455,11 @@ def _vif(panel: pd.DataFrame) -> pd.DataFrame:
     - Absicht: jede Merkmalskombination nur einmal zaehlen. Die Strukturmerkmale
       sind innerhalb eines Jahres konstant; ueber alle Zeilen zaehlte jede
       Kombination bis zu zwoelfmal und der VIF waere kuenstlich stabilisiert
-    - drop_duplicates() auf allen Praediktoren leistet das nicht: seit #17 ist
-      log_kriminalitaetsindex monatlich rollierend, damit sind nahezu alle 3.960
-      Zeilen eindeutig und die Entdopplung laeuft ins Leere (B-18)
+    - drop_duplicates() auf allen Praediktoren leistet das nicht: Der
+      log_kriminalitaetsindex ist monatlich rollierend, damit sind nahezu alle
+      3.960 Zeilen eindeutig und die Entdopplung laeuft ins Leere
     - `stadtteil_jahr` ist die Ebene, auf der ACS- und Land-Use-Merkmale
-      variieren; diese Zahl gehoert in den Text
+      variieren; diese Zahl ist massgeblich
     - `alle_zeilen` steht zum Vergleich daneben
     """
     from statsmodels.stats.outliers_influence import variance_inflation_factor
@@ -483,7 +483,7 @@ def _vif(panel: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> int:
-    """Rechnet die sechs Auswertungen zu Unterfrage 1.
+    """Rechnet die sechs Auswertungen.
 
     Ein:  beide Panels, Ergebnisdateien von m02 und m03; Schalter --ohne-baeume
     Aus:  neun CSV-Dateien unter results/shap/; Exitcode
@@ -496,14 +496,14 @@ def main() -> int:
     5. Ablation der Faktorgruppen: was kostet das Weglassen einer Gruppe
     6. VIF als Kollinearitaetsmass
 
-    - bleibt Schritt 1 leer, ist das ein Ergebnis und kein Fehler (R-2); genau das
+    - bleibt Schritt 1 leer, ist das ein Ergebnis und kein Fehler; genau das
       ist im Mengenstrang der Fall
     - das Hold-out wird vor Schritt 1 herausgefiltert; das Skript kennt kein
       "holdout"-Argument
     - die Schritte 3 bis 5 sind Zusatzbelege und beruehren den Verfahrensvergleich
       nicht
     - --ohne-baeume beschraenkt Schritt 5 auf die GLM-Baselines und drueckt die
-      Laufzeit von rund zehn auf unter eine Minute
+      Laufzeit deutlich
     """
     for pfad, wer in ((RESULTS_DIR / "regression" / "vergleich.csv", "m02"),
                       (RESULTS_DIR / "klassifikation" / "vergleich.csv", "m03")):
@@ -551,12 +551,12 @@ def main() -> int:
             X_te = test[MERKMALE].astype(float)
 
             if strang == "menge":
-                # EXPOSITION (#43): Fuer `anzahl_einsaetze` wurde das bewertete
+
+                # EXPOSITION: Fuer `anzahl_einsaetze` wurde das bewertete
                 # Modell auf der RATE angepasst. Wird hier direkt auf der Anzahl
                 # gefittet, erklaert SHAP ein anderes Modell als das, dessen
                 # Guetemasse berichtet werden - und niemand saehe es den Zahlen
-                # an. Die Beitraege beziehen sich also auf das Ratenmodell; das
-                # ist im Text zu benennen.
+                # an. Die Beitraege beziehen sich also auf das Ratenmodell.
                 fit_ziel = RATE if ziel == ZIELGROESSE else ziel
                 modell = modul.verfahren(name).set_params(**parameter)
                 modell.fit(train[MERKMALE].astype(float),
@@ -582,8 +582,8 @@ def main() -> int:
 
     if not beitraege:
         print("\n  Kein Modell schlaegt seine Stufe-2-Baseline - es gibt nichts "
-              "zu erklaeren.\n  Das ist ein Ergebnis, kein Fehler "
-              "(docs/06_RISIKEN.md, R-2).")
+              "zu erklaeren.\n  Das ist ein Ergebnis, kein Fehler"
+              ".")
 
     b = pd.DataFrame(beitraege)
     b.to_csv(OUT / "beitraege.csv", index=False)
@@ -601,7 +601,7 @@ def main() -> int:
         print("\n  Beitrag je Faktorgruppe:")
         print(g.to_string(index=False))
 
-    # Deskriptive Aufschluesselung der Extrapolation - erklaert R-3 und die
+    # Deskriptive Aufschluesselung der Extrapolation - erklaert die
     # Fold-Streuung. Beruehrt den Verfahrensvergleich nicht.
     merkmale, stadtteile, zusammenhang = extrapolation_aufschluesseln(
         reg, selten, pd.read_csv(RESULTS_DIR / "regression" / "menge_folds.csv"))
@@ -645,7 +645,7 @@ def main() -> int:
         print(f"    {z['verfahren'] + ', ' + wie:<40}RMSE {z['RMSE']:7.2f}  "
               f"R2 {z['R2']:6.3f}")
 
-    # --- Faktorgruppen des Mengenstrangs aus der Baseline (UF1) ---
+    # --- Faktorgruppen des Mengenstrangs aus der Baseline ---
     k_fold = ruhigster_fold(menge_folds)
     basis_beitraege = faktorgruppen_baseline(reg, selten, k_fold)
     basis_beitraege.round(4).to_csv(OUT / "faktorgruppen_menge.csv", index=False)
@@ -655,7 +655,7 @@ def main() -> int:
     for gruppe, anteil in gruppiert.items():
         print(f"    {gruppe:<24}{anteil:>7.1%}")
 
-    # --- Ablation der Faktorgruppen (UF1, zweite Antwort) ---
+    # --- Ablation der Faktorgruppen (zweite Antwort) ---
     # Attribution sagt, wie ein Modell seine Aufmerksamkeit verteilt.
     # Diese Ablation sagt, was die Gruppe wert ist. Siehe Docstring dort.
     tuning_kl = pd.read_csv(RESULTS_DIR / "klassifikation" / "tuning.csv")

@@ -287,8 +287,8 @@ def tract_zu_stadtteil(geoids: pd.Series, crosswalk: pd.DataFrame) -> pd.Series:
 
     - der Crosswalk beruht auf den Tract-Grenzen des Zensus 2020 (242 Tracts).
       Die Jahrgaenge 2009 bis 2019 tragen die Grenzen der Zensus 2000 bzw. 2010
-      und damit teils andere GEOIDs. Ein reiner Gleichheitsverbund verwarf
-      deshalb 40 der 197 Tracts von 2014/2019 - und mit ihnen 27 % der
+      und damit teils andere GEOIDs. Ein reiner Gleichheitsverbund verwirft
+      deshalb Tracts von 2014/2019 - und mit ihnen einen Teil der
       Wohnbevoelkerung, konzentriert in den geteilten Downtown-Tracts
     - Rueckfallebene ist der vierstellige Basiscode der Tract-Nummer: Eine
       Teilung im Zensus 2020 behaelt ihn bei und aendert nur das zweistellige
@@ -297,7 +297,7 @@ def tract_zu_stadtteil(geoids: pd.Series, crosswalk: pd.DataFrame) -> pd.Series:
       Hauptstrassen verlaufen und Teilungen innerhalb dieser Flaechen erfolgen
     - die Rueckfallebene greift nur, wenn ALLE 2020er Tracts desselben
       Basiscodes in denselben Stadtteil fallen; sonst bleibt der Tract offen.
-      Fuer 2014/2019 ist das bei allen 39 betroffenen Tracts der Fall
+      Fuer 2014/2019 ist das bei allen betroffenen Tracts der Fall
     - offen bleiben danach nur die Wasserflaechen-Tracts (99xx) ohne Bewohner
     """
     direkt = dict(zip(crosswalk["geoid"], crosswalk["neighborhood"]))
@@ -319,7 +319,7 @@ def acs_je_neighborhood(acs: pd.DataFrame, crosswalk: pd.DataFrame) -> pd.DataFr
     - ein Median laesst sich nicht addieren, daher die Gewichtung
     - die Zuordnung laeuft ueber tract_zu_stadtteil(); die Abbruchschwelle
       sichert, dass kein Jahrgang mit unvollstaendiger Bevoelkerung in die
-      Exposition geraet - genau das war der Fehler vor dem Basiscode-Fallback
+      Exposition geraet
     """
     m = acs.copy()
     m["neighborhood"] = tract_zu_stadtteil(m["geoid"], crosswalk)
@@ -354,8 +354,8 @@ def acs_snapshot(jahr: int, acs_years: list[int]) -> int:
 
     - Bedingung: acs_jahr <= Einsatzjahr - ACS_PUBLIKATIONS_LAG
     - zwei Stufen der Absicherung: "letzter verfuegbarer" statt "zeitlich
-      naechster" Snapshot (#4) und zusaetzlich die reale
-      Publikationsverzoegerung von rund einem Jahr (#11)
+      naechster" Snapshot und zusaetzlich die reale
+      Publikationsverzoegerung von rund einem Jahr
     - ohne die zweite haette ein Einsatz aus 2023 den Jahrgang 2023 bekommen,
       der erst Ende 2024 erschienen ist
     - vor dem ersten Snapshot gibt es keinen vergangenen Jahrgang; Rueckgriff auf
@@ -488,9 +488,9 @@ def kriminalitaetsindex(nb_per_year: dict[int, pd.DataFrame]) -> pd.DataFrame:
       Zaehler und Nenner gleich und kuerzt sich heraus
     - verbleibende Limitation: eine Verschiebung in der ZUSAMMENSETZUNG der
       erfassten Delikte, die einzelne Stadtteile staerker trifft, kuerzt sich
-      nicht heraus (Kap. 6.3)
+      nicht heraus
     - kein Leakage: das Fenster endet strikt im Vormonat
-    - crime_rate_raw (Delikte je 1.000 Ew.) ist nur deskriptiv fuer Kapitel 5.1
+    - crime_rate_raw (Delikte je 1.000 Ew.) ist nur deskriptiv
       und kein Modellmerkmal - sie enthaelt den Bruch von 2018
     """
     monatlich = crime_monatlich()
@@ -617,7 +617,7 @@ def berechne_quoten(df: pd.DataFrame) -> pd.DataFrame:
     Aus:  Anteilsspalten; Nenner <= 0 ergibt NaN statt Division durch Null
 
     - Kriminalitaet taucht hier nicht auf: Sie geht als relativer Index je
-      Stadtteil x Monat ein (#17), nicht als Anteil
+      Stadtteil x Monat ein, nicht als Anteil
     """
     for name, zaehler, nenner in QUOTEN:
         z = pd.to_numeric(df[zaehler], errors="coerce").astype(float)

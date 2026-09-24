@@ -2,8 +2,8 @@
 Prüfungen der Datenaufbereitung – gesammelt an einer Stelle.
 
 Diese Datei ist bewusst vom Analysecode getrennt: Die Module unter `prep/`
-bleiben dadurch lesbar und eignen sich als Code-Beleg im Anhang der Arbeit,
-während die Absicherung hier vollständig nachvollziehbar bleibt.
+bleiben dadurch lesbar, während die Absicherung hier vollständig
+nachvollziehbar bleibt.
 
 Geprüft werden die fertigen Datensätze in `data/processed/`, nicht der Code, der
 sie erzeugt. Damit fällt auch auf, wenn jemand eine Datei von Hand ändert.
@@ -41,8 +41,8 @@ from s2_datensaetze import (RATE, ZIELGROESSE, ZIELKLASSE,  # noqa: E402
                             _monat_minus, aggregiere, ergaenze_aufteilung,
                             fold_masken)
 
+
 # Erwartungswerte des festgesetzten Analysedatensatzes
-# (Decision Log #15, #18, #19, #23)
 N_STADTTEILE = N_STADTTEILE_ERWARTET            # eine Quelle: prep/config.py
 N_MONATE     = 132                              # 2015-01 bis 2025-12
 N_MODELL     = N_STADTTEILE * N_MONATE          # 4.752
@@ -88,9 +88,9 @@ def test_zeitraum_festgesetzt():
     """Der Zeitraum kommt aus Konstanten, nicht aus den Daten.
 
     Sonst verschiebt sich die Analyse bei jedem neuen Download – und ein
-    unvollständiger Randmonat kann unbemerkt ins Testfenster geraten
-    (Decision Log #12: Januar 2026 mit 258 statt ~3.300 Einsätzen).
+    unvollständiger Randmonat kann unbemerkt ins Testfenster geraten.
     """
+
     d = regression()
     assert d["jahr_monat"].min() == START, \
         f"Beginn {d['jahr_monat'].min()} statt {START} – Lag-Vorlauf prüfen"
@@ -126,7 +126,7 @@ def test_exposure_und_kriminalitaetsindex_vorhanden():
     d = regression()
     assert d["log_bevoelkerung"].notna().all()
     assert d["log_kriminalitaetsindex"].notna().all()
-    # Rohwerte bleiben erhalten (Poisson-Offset, Raten-Sensitivität, Kap. 5.1)
+    # Rohwerte bleiben erhalten (Poisson-Offset, Raten-Sensitivität)
     assert {"gesamtbevoelkerung", "kriminalitaetsindex"} <= set(d.columns)
 
 
@@ -217,7 +217,7 @@ def test_merkmale_vollstaendig():
         assert d[spalten].notna().all().all(), f"NaN im Merkmalssatz {name}"
     assert d[RATE].notna().all(), "NaN in der Rate"
     assert np.isfinite(d[RATE]).all(), "Rate mit Nenner null"
-    # Nullmonate sind erlaubt (Anteil 0,02 %), negative Raten nicht.
+    # Nullmonate sind erlaubt, negative Raten nicht.
     assert (d[RATE] >= 0).all()
     assert np.allclose(d[RATE], d[ZIELGROESSE] / d["gesamtbevoelkerung"] * 1000)
     assert d["jahr_monat"].max() == ENDE
@@ -266,7 +266,7 @@ def test_vorlauf_ohne_eigene_zeilen():
     """Die Vorlaufmonate liefern Lag-Werte, aber keine eigenen Beobachtungen.
 
     Sonst enthielte der Datensatz Zeilen ohne gültige Strukturmerkmale – der
-    Kriminalitätsindex beginnt erst 2015-01 (Decision Log #23).
+    Kriminalitätsindex beginnt erst 2015-01.
     """
     d = regression()
     assert (d["jahr_monat"] >= START).all()
@@ -292,7 +292,7 @@ def test_struktur_gleiche_abgrenzung_wie_regression():
 
     Gleiche Analyseeinheit, gleiche Stadtteile, gleicher Zeitraum und – der
     entscheidende Punkt – dieselbe Fold-Zuordnung. Nur dann ist der Vergleich
-    zwischen Menge und Struktur überhaupt zulässig (Gutachten R1).
+    zwischen Menge und Struktur überhaupt zulässig.
     """
     k, d = klassifikation(), regression()
     assert set(k["stadtteil"]) == set(d["stadtteil"])
@@ -332,10 +332,10 @@ def test_zielklasse_konsistent():
 def test_seltene_klasse_in_jedem_fold():
     """Brand muss in jedem Test-Fold vorkommen.
 
-    Von 70 brand-dominierten Monaten liegen 35 allein in Bayview Hunters Point.
-    Ohne Stratifizierung nach der seltenen Klasse hatte in drei von vier
-    Aufteilungen ein Fold null Brand-Testfaelle - Macro-F1 mittelt dann ueber
-    eine Klasse, die gar nicht vorkommt, und springt zwischen den Folds.
+    Die brand-dominierten Monate haeufen sich in Bayview Hunters Point.
+    Ohne Stratifizierung nach der seltenen Klasse kann ein Fold null
+    Brand-Testfaelle haben - Macro-F1 mittelt dann ueber eine Klasse, die
+    gar nicht vorkommt, und springt zwischen den Folds.
     """
     k = klassifikation()
     for f in range(1, N_FOLDS + 1):
@@ -362,20 +362,20 @@ def test_exposition_plausibel():
 
     Die uebrigen Pruefungen dieser Datei sichern die STRUKTUR der erzeugten
     Dateien - Zeilenzahl, Spalten, Foldtrennung, keine Ergebnisvariablen. Genau
-    deshalb konnte ein Verbund, der nicht matchende Census Tracts verwarf, die
-    Wohnbevoelkerung um ein Viertel zu klein machen, ohne dass etwas abbrach:
-    Der Datensatz blieb rechteckig, vollstaendig und typrichtig, nur die WERTE
-    waren falsch. Diese Pruefung schliesst die Luecke mit zwei Groessen, die
+    deshalb kann ein Verbund, der nicht matchende Census Tracts verwirft, die
+    Wohnbevoelkerung zu klein machen, ohne dass etwas abbricht:
+    Der Datensatz bleibt rechteckig, vollstaendig und typrichtig, nur die WERTE
+    sind falsch. Diese Pruefung schliesst die Luecke mit zwei Groessen, die
     ein solcher Verlust zwangslaeufig bewegt.
 
     1  Die stadtweite Wohnbevoelkerung ueber die enthaltenen Stadtteile liegt in
        der Spanne aus config.py. San Francisco hatte im Analysezeitraum rund
-       810.000 bis 875.000 Einwohner; der fehlerhafte Stand kam auf 591.246.
+       810.000 bis 875.000 Einwohner.
     2  Kein Stadtteil springt zwischen zwei Jahren um mehr als 60 Prozent. Die
        Wohnbevoelkerung wechselt nur beim ACS-Jahrgangswechsel; echte Spruenge
-       liegen dort bei bis zu Faktor 1,35 (South Of Market 2014 auf 2019), der
-       fehlerhafte Stand erreichte Faktor 5,0.
+       liegen dort unter dieser Schwelle.
     """
+
     d = regression()
     bev = (d.groupby(["jahr", "stadtteil"])[EXPOSURE_ROH].first()
              .groupby("jahr").sum())
