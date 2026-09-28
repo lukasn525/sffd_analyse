@@ -33,12 +33,25 @@ pip install -r requirements_lauf.txt
 `data/raw/` enthält die Rohdaten in dem Stand, in dem sie abgerufen wurden:
 aus DataSF die Einsätze der Feuerwehr, die Kriminalität, die Flächennutzung,
 die Stadtteilgrenzen und die Zuordnung der Census Tracts zu den Stadtteilen,
-vom Census Bureau die American Community Survey.
+vom Census Bureau die American Community Survey. Von den Einsatzmeldungen der
+Feuerwehr enthält `fire_incidents.parquet` nur diejenigen mit Stadtteil,
+erfasster Ankunft und einer Antwortzeit von 0 bis 60 Minuten. Die übrigen
+verwirft die Aufbereitung ohnehin.
 
 Die Aufbereitung rechnet ohne Netzzugang allein aus diesem Stand. Geladen wird
-nur, wenn ein `DOWNLOAD_*`-Schalter in `prep/config.py` auf `True` steht. Die
-Abfrage der American Community Survey erwartet dann einen Census-API-Schlüssel
-in der Umgebungsvariable `CENSUS_API_KEY`.
+nur, wenn ein `DOWNLOAD_*`-Schalter in `prep/config.py` auf `True` steht. Ein
+neuer Abruf überschreibt die Dateien in `data/raw/` mit dem aktuellen Stand der
+Portale; die Zahlen der Arbeit lassen sich danach nicht mehr nachrechnen.
+
+Die Abfrage der American Community Survey erwartet einen Census-API-Schlüssel.
+Er liegt der Abgabe nicht bei. Beantragt wird er kostenlos unter
+<https://api.census.gov/data/key_signup.html>, gesetzt vor dem Lauf in der
+Umgebungsvariable `CENSUS_API_KEY`:
+
+```bash
+set CENSUS_API_KEY=<eigener Schlüssel>          # Eingabeaufforderung
+$env:CENSUS_API_KEY = "<eigener Schlüssel>"     # PowerShell
+```
 
 `data/processed/` entsteht durch `prep/build.py`.
 
@@ -61,8 +74,8 @@ python modelle/m02_menge.py holdout         # Regression: Tuning, Kreuzvalidieru
 python modelle/m03_struktur.py holdout      # Klassifikation: Tuning, Kreuzvalidierung, Schlussbewertung
 python vorpruefung/v4_decke.py              # Obergrenzen des Strukturstrangs
 python vorpruefung/v4_decke.py holdout      # dieselben Obergrenzen inklusive Hold-out
-python modelle/suchdiagnose.py              # Diagnose der Hyperparametersuche
-python modelle/parametersensitivitaet.py    # Kreuzprobe der Parametersaetze ueber die Folds
+python modelle/suchdiagnose.py              # Reicht das Budget der Hyperparametersuche?
+python modelle/parametersensitivitaet.py    # Spannen und Kreuzprobe der Parametersaetze
 python modelle/trennschaerfe.py             # Trennschaerfe der gepaarten Tests
 python modelle/m04_shap.py                  # Faktorgruppen, Ablation, VIF
 ```

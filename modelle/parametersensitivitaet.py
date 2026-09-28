@@ -4,13 +4,15 @@ Wie viel haengt an der Wahl des Hyperparametersatzes? - Kreuzprobe ueber die Fol
     python modelle/parametersensitivitaet.py            beide Straenge
     python modelle/parametersensitivitaet.py menge      nur Regression
     python modelle/parametersensitivitaet.py struktur   nur Klassifikation
+    python modelle/parametersensitivitaet.py spannen    nur die normierten
+                                                        Spannen, ohne Kreuzprobe
 
 Eingang: data/processed/{regression,klassifikation}.parquet
          results/regression/tuning.csv, results/klassifikation/tuning.csv
          results/regression/menge_folds.csv, results/klassifikation/struktur_folds.csv
          (nur zur Selbstkontrolle der Diagonalen)
 Ausgang: results/parametersensitivitaet/matrix.csv, zusammenfassung.csv,
-         bericht.md
+         spannen.csv, bericht.md
 
   - Die Schlussbewertung laesst die Baumverfahren mit den Hyperparametern
     EINES Folds antreten (`fold_der_parameter`), obwohl die Saetze ueber die
@@ -23,6 +25,10 @@ Ausgang: results/parametersensitivitaet/matrix.csv, zusammenfassung.csv,
     und fremdem Parametersatz klein gegen den Abstand zwischen den Verfahren?
     Dann traegt die Schlussbewertung. Ist er gross, ist sie zu einem
     erheblichen Teil eine Parameterlotterie
+  - Vorab beschreibt `spannen()`, wie weit die fuenf gewaehlten Werte je
+    Hyperparameter im Suchraum auseinanderliegen: jeder Wert wird auf seine
+    Lage zwischen Unter- (0) und Obergrenze (1) umgerechnet, die normierte
+    Spanne ist die groesste minus die kleinste Lage
   - Beruehrt das Hold-out NICHT. Die Gegenprobe laeuft vollstaendig innerhalb
     der Kreuzvalidierung auf den 30 Entwicklungsstadtteilen. Es entsteht
     keine zweite Schlussbewertung
@@ -45,14 +51,10 @@ FALLSTRICKE
      sie ab, ist entweder die Aufteilung oder die Spezifikation veraendert
      worden - das Skript prueft es und warnt
 """
-
-
-
-
-
 from __future__ import annotations
 
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -65,6 +67,7 @@ sys.path.insert(0, str(ROOT / "vorpruefung"))
 
 from config import (N_FOLDS, PFAD_KLASSIFIKATION,  # noqa: E402
                     PFAD_REGRESSION, RESULTS_DIR)
+from config_modelle import SUCHRAEUME  # noqa: E402
 from s2_datensaetze import ZIELGROESSE, fold_masken  # noqa: E402
 from v0_aufteilung import (selten_je_stadtteil,  # noqa: E402
                            wiederholte_aufteilung)
@@ -98,6 +101,69 @@ def parametersaetze(pfad: Path, zielgroesse: str | None) -> dict:
         saetze.setdefault(z["verfahren"], {})[int(z["fold"])] = json.loads(
             z["parameter_json"])
     return saetze
+
+
+def lage_im_suchraum(spez: tuple, wert) -> float | None:
+    """Lage eines gewaehlten Wertes in seinem Suchraum.
+
+    Ein:  Suchraum-Spezifikation aus config_modelle.py, gewaehlter Wert
+    Aus:  Zahl von 0 (Untergrenze) bis 1 (Obergrenze), oder None
+
+    - loguniform wird logarithmisch umgerechnet, int und uniform linear,
+      choice ueber die Position in der Liste
+    - `None` bei max_depth heisst unbegrenzte Tiefe und steht am Ende der
+      Liste, zaehlt also als tiefster Wert
+    - liegt ein Wert nicht im Raum, gibt es None statt einer falschen Lage
+    """
+    art, *w = spez
+    if art == "loguniform":
+        a, b = math.log(w[0]), math.log(w[1])
+        return (math.log(wert) - a) / (b - a)
+    if art in ("int", "uniform"):
+        return (wert - w[0]) / (w[1] - w[0])
+    if art == "choice":
+        liste = list(w[0])
+        return liste.index(wert) / (len(liste) - 1) if wert in liste else None
+    return None
+
+
+def spannen() -> pd.DataFrame:
+    """Wie weit liegen die fuenf gewaehlten Werte je Hyperparameter auseinander?
+
+    Ein:  tuning.csv beider Straenge, Suchraeume aus config_modelle.py
+    Aus:  eine Zeile je Strang, Verfahren und Hyperparameter
+
+    - normierte Spanne = groesste minus kleinste Lage ueber die fuenf Folds:
+      0 heisst, alle Folds waehlen denselben Wert, 1 heisst, die Wahl reicht
+      von Rand zu Rand
+    - im Mengenstrang steht jeder Satz je Zielgroesse in tuning.csv, gezaehlt
+      wird er nur einmal
+    """
+    quellen = (("menge", RESULTS_DIR / "regression" / "tuning.csv", ZIELGROESSE),
+               ("struktur", RESULTS_DIR / "klassifikation" / "tuning.csv", None))
+    zeilen = []
+    for strang, pfad, ziel in quellen:
+        for name, je_fold in parametersaetze(pfad, ziel).items():
+            werte: dict = {}
+            for k in sorted(je_fold):
+                for schluessel, wert in je_fold[k].items():
+                    werte.setdefault(schluessel.split("__")[-1], []).append(wert)
+            for parameter, liste in werte.items():
+                spez = SUCHRAEUME[name].get(parameter)
+                if spez is None:
+                    continue
+                lagen = [lage_im_suchraum(spez, w) for w in liste]
+                lagen = [x for x in lagen if x is not None]
+                if not lagen:
+                    continue
+                zeilen.append({
+                    "strang": strang, "verfahren": name, "parameter": parameter,
+                    "gewaehlt": "; ".join(str(w) for w in liste),
+                    "lage_min": round(min(lagen), 3),
+                    "lage_max": round(max(lagen), 3),
+                    "spanne": round(max(lagen) - min(lagen), 3),
+                })
+    return pd.DataFrame(zeilen).sort_values("spanne", ignore_index=True)
 
 
 def kreuzprobe(strang: str) -> pd.DataFrame:
@@ -214,7 +280,8 @@ def _kontrolle(matrix: pd.DataFrame, strang: str) -> None:
                   f"{float(t[mass].iat[0]):.6f} im Hauptlauf.")
 
 
-def bericht(teile: list[tuple[pd.DataFrame, pd.DataFrame, str]]) -> str:
+def bericht(teile: list[tuple[pd.DataFrame, pd.DataFrame, str]],
+            sp: pd.DataFrame) -> str:
     """Setzt die Zusammenfassungen zu bericht.md zusammen. Reine Formatierung."""
     def md(df):
         kopf = "| " + " | ".join(df.columns) + " |"
@@ -228,13 +295,25 @@ def bericht(teile: list[tuple[pd.DataFrame, pd.DataFrame, str]]) -> str:
          "bewertet. Die Diagonale ist die berichtete Konfiguration.", ""]
     for _, s, strang in teile:
         z += [f"## Strang: {strang}", "", md(s), ""]
+    z += ["## Normierte Spannen der gewaehlten Werte", "",
+          "Lage jedes gewaehlten Wertes im Suchraum, 0 = Untergrenze, 1 =",
+          "Obergrenze. Spanne = groesste minus kleinste Lage ueber die Folds.",
+          "", md(sp[["strang", "verfahren", "parameter", "spanne"]]), ""]
     return "\n".join(z)
 
 
 def main(argv: list[str]) -> int:
-    """Rechnet die Kreuzprobe und schreibt drei Dateien."""
+    """Rechnet Spannen und Kreuzprobe und schreibt vier Dateien."""
     gewuenscht = [a for a in argv if a in STRAENGE] or list(STRAENGE)
     OUT.mkdir(parents=True, exist_ok=True)
+
+    sp = spannen()
+    sp.to_csv(OUT / "spannen.csv", index=False)
+    print("\nNormierte Spannen der gewaehlten Werte")
+    print(sp[["strang", "verfahren", "parameter", "spanne"]].to_string(index=False))
+    if "spannen" in argv:
+        print("\n  Geschrieben: results/parametersensitivitaet/spannen.csv")
+        return 0
 
     teile, matrizen = [], []
     for strang in gewuenscht:
@@ -250,10 +329,7 @@ def main(argv: list[str]) -> int:
     pd.concat(matrizen).to_csv(OUT / "matrix.csv", index=False)
     pd.concat([s for _, s, _ in teile]).to_csv(OUT / "zusammenfassung.csv",
                                                index=False)
-    (OUT / "bericht.md").write_text(bericht(teile), encoding="utf-8")
-
-
-
+    (OUT / "bericht.md").write_text(bericht(teile, sp), encoding="utf-8")
 
     # Kontrolle: je Verfahren N_FOLDS x N_FOLDS Zeilen
     alle = pd.concat(matrizen)
@@ -263,7 +339,7 @@ def main(argv: list[str]) -> int:
                   f"erwartet {N_FOLDS * N_FOLDS}.")
 
     print(f"\n  Geschrieben: results/parametersensitivitaet/matrix.csv, "
-          f"zusammenfassung.csv, bericht.md")
+          f"zusammenfassung.csv, spannen.csv, bericht.md")
     return 0
 
 

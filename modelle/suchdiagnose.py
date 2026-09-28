@@ -1,5 +1,5 @@
 """
-Suchdiagnose - war die Hyperparametersuche am Limit?
+Suchdiagnose - war das Budget der Hyperparametersuche gross genug?
 
     python modelle/suchdiagnose.py            beide Straenge, alle Verfahren
     python modelle/suchdiagnose.py menge      nur die Regression
@@ -12,54 +12,19 @@ Ausgabe unberuehrt. Vor einem zweistuendigen Lauf einmal ausfuehren - er
 prueft beide Straenge einmal durch, damit ein Fehler nicht erst nach der
 ganzen Rechenzeit auffaellt.
 
-Ausgang: results/suchdiagnose/kurve.csv · raender.csv · zusammenfassung.md
+Ausgang: results/suchdiagnose/kurve.csv · zusammenfassung.md
 
 --------------------------------------------------------------------------
-DIE ZWEI FRAGEN
+DIE FRAGE: WAR DAS BUDGET ZU KLEIN?
 --------------------------------------------------------------------------
-  1  WAR DAS BUDGET ZU KLEIN?   `tuning.csv` haelt nur den Gewinner fest, nicht
-     den Weg dorthin. Diese Diagnose schreibt jede einzelne Ziehung mit ihrem
-     inneren Guetewert mit und bildet daraus die SUCHKURVE: bester Wert nach
-     n Ziehungen. Steigt sie nach Ziehung 50 noch, war Budget 50 zu klein.
-     Laeuft sie flach aus, war sie es nicht.
+`tuning.csv` haelt nur den Gewinner fest, nicht den Weg dorthin. Diese
+Diagnose wiederholt die Suche des Hauptlaufs und schreibt jede einzelne
+Ziehung mit ihrem inneren Guetewert mit. Daraus entsteht die SUCHKURVE:
+bester Wert nach n Ziehungen. Steigt sie nach Ziehung 50 noch, war Budget 50
+zu klein. Laeuft sie flach aus, war es das nicht.
 
-  2  STAND DER ZAUN AN DER FALSCHEN STELLE?  Ein Suchraum ist eine Festlegung,
-     keine Naturkonstante. Liegt der beste gefundene Wert AM RAND, liegt das
-     Optimum vermutlich dahinter - und die Suche durfte nie hin.
-
---------------------------------------------------------------------------
-ZWEI SORTEN RAND - der Unterschied entscheidet
---------------------------------------------------------------------------
-  NATUERLICH, nichts zu tun
-    random_forest max_features       1,0 - das sind ALLE Merkmale
-    random_forest min_samples_leaf   1  - weniger als eine
-                                     Beobachtung je Blatt gibt es nicht
-    Das ist ein BEFUND, kein Mangel: Der Wald will maximale Flexibilitaet.
-
-  WILLKUERLICH, hier kann etwas fehlen
-    xgboost max_depth (Struktur)     3 - die UNTERGRENZE
-    xgboost max_depth (Menge)        am Rand, beide Enden getroffen
-    ridge alpha, xgboost reg_lambda  am Rand
-
-Der erste Fall ist der wichtigste des Projekts: In der Klassifikation will
-XGBoost den flachsten Baum, den es darf. Genau dort widersprechen sich
-Kreuzvalidierung und Hold-out - das Muster von Ueberanpassung.
-Wird die Untergrenze geoeffnet und XGBoost waehlt dann Tiefe 1 oder 2, war der
-Suchraum die Ursache.
-
---------------------------------------------------------------------------
-WIE VERGLICHEN WIRD - ein Lauf statt zwei
---------------------------------------------------------------------------
-Naheliegend waeren zwei Durchgaenge, einer je Suchraum. Das kostet doppelt.
-Stattdessen laeuft NUR der erweiterte Raum, und bei jeder Ziehung wird
-vermerkt, ob sie auch im ALTEN Raum gelegen haette. Daraus entstehen zwei
-Kurven aus denselben Ziehungen, denselben Folds und demselben Startwert:
-
-    bester Wert ueber alle Ziehungen          -> erweiterter Raum
-    bester Wert ueber die Teilmenge "alt"     -> urspruenglicher Raum
-
-Ehrlich dazu: Die Teilmenge ist kleiner als 100, der Vergleich also nicht bei
-gleichem Budget. Die Zahl der Ziehungen je Teilmenge wird deshalb mitberichtet.
+Eingeordnet wird der Gewinn der zweiten Haelfte an der Streuung ZWISCHEN den
+Folds: Ist er klein dagegen, hat sich die Suche totgelaufen.
 
 --------------------------------------------------------------------------
 WAS DIESE DIAGNOSE NICHT LEISTET
@@ -78,14 +43,8 @@ WAS SIE NICHT ANFASST
   - `results/regression/` und `results/klassifikation/` bleiben unberuehrt
   - das HOLD-OUT wird nicht gelesen; gefiltert wird wie in m02/m03, bevor
     irgendetwas rechnet
-  - `config_modelle.SUCHRAEUME` wird nicht veraendert, nur lokal ueberlagert
+  - Suchraeume, Folds und Startwert sind dieselben wie im Hauptlauf
 """
-
-
-
-
-
-
 from __future__ import annotations
 
 import sys
@@ -110,33 +69,6 @@ OUT = RESULTS_DIR / "suchdiagnose"
 MERKMALE = PRAEDIKTOREN + SAISON
 BUDGET = 100
 
-# ==========================================================================
-# Die erweiterten Suchraeume - NUR wo der Rand willkuerlich ist
-# ==========================================================================
-# Nicht erweitert werden max_features, min_samples_leaf, subsample und
-# colsample_bytree: Deren Grenzen sind natuerlich (alle Merkmale, eine
-# Beobachtung, der ganze Datensatz). Dahinter existiert nichts.
-#
-# Ebenfalls NICHT erweitert: n_estimators. Mehr Baeume sind der groesste
-# Laufzeittreiber. Bewusste Auslassung.
-WEITER = {
-    "ridge": {
-        "alpha": ("loguniform", 1e-5, 1e5),          # alter Raum 1e-3 bis 1e3
-    },
-    "random_forest": {
-
-        # Erstens nach oben erweitert. Zweitens steht `None` am ENDE: Es
-        # heisst unbegrenzte Tiefe, ist also faktisch der TIEFSTE Wert. Jede
-        # Auswertung, die die Listenposition als Tiefe liest, bekaeme sonst
-        # ein verdrehtes Bild.
-        "max_depth": ("choice", [8, 12, 16, 24, 32, 48, None]),
-    },
-    "xgboost": {
-        "max_depth": ("int", 1, 14),                 # alter Raum 3 bis 10
-        "reg_lambda": ("loguniform", 1e-4, 1e4),     # alter Raum 1e-2 bis 1e2
-    },
-}
-
 # Gemessene Laufzeit je Suchlauf bei Budget 50. Verdoppelt sich mit
 # dem Budget. Dient nur der Vorabschaetzung.
 SEKUNDEN_50 = {("menge", "ridge"): 3, ("menge", "random_forest"): 210,
@@ -153,10 +85,9 @@ SEKUNDEN_50 = {("menge", "ridge"): 3, ("menge", "random_forest"): 210,
 NUR_REGRESSION = {"tweedie_variance_power"}
 
 
-def erweitert(name: str, strang: str = "menge") -> dict:
-    """Suchraum eines Verfahrens mit den Erweiterungen ueberlagert."""
+def suchraum(name: str, strang: str = "menge") -> dict:
+    """Suchraum eines Verfahrens, derselbe wie im Hauptlauf."""
     raum = dict(SUCHRAEUME[name])
-    raum.update({k: v for k, v in WEITER.get(name, {}).items() if k in raum})
     if strang == "struktur":
         raum = {k: v for k, v in raum.items() if k not in NUR_REGRESSION}
     return raum
@@ -182,28 +113,6 @@ def _verteilungen(raum: dict, praefix: str = "") -> dict:
     return aus
 
 
-def im_alten_raum(name: str, parameter: dict) -> bool:
-    """Haette diese Ziehung auch im urspruenglichen Suchraum liegen koennen?
-
-    Nur die erweiterten Parameter werden geprueft - die uebrigen sind
-    unveraendert und liegen zwangslaeufig drin.
-    """
-    for p, spez in WEITER.get(name, {}).items():
-        schluessel = next((k for k in parameter if k.split("__")[-1] == p), None)
-        if schluessel is None:
-            continue
-        wert, alt = parameter[schluessel], SUCHRAEUME[name].get(p)
-        if alt is None:
-            continue
-        art, *w = alt
-        if art == "choice":
-            if wert not in w[0]:
-                return False
-        elif not (w[0] <= wert <= w[1]):
-            return False
-    return True
-
-
 # ==========================================================================
 def eine_suche(strang: str, name: str, train: pd.DataFrame, fold: int) -> list:
     """Ein Suchlauf mit Budget 100. Gibt JEDE Ziehung zurueck, nicht nur den Sieger."""
@@ -226,7 +135,7 @@ def eine_suche(strang: str, name: str, train: pd.DataFrame, fold: int) -> list:
 
     suche = RandomizedSearchCV(
         estimator=modul.verfahren(name, n_jobs=1),
-        param_distributions=_verteilungen(erweitert(name, strang), praefix),
+        param_distributions=_verteilungen(suchraum(name, strang), praefix),
         n_iter=BUDGET, cv=GroupKFold(n_splits=4), scoring=scoring,
         random_state=RANDOM_STATE, n_jobs=-1)
     suche.fit(X, y, groups=train["stadtteil"], **extra)
@@ -236,9 +145,7 @@ def eine_suche(strang: str, name: str, train: pd.DataFrame, fold: int) -> list:
                                       suche.cv_results_["mean_test_score"]), 1):
         rein = {k.split("__")[-1]: v for k, v in p.items()}
         zeilen.append({"strang": strang, "verfahren": name, "fold": fold,
-                       "ziehung": i, "wert": float(wert),
-                       "im_alten_raum": int(im_alten_raum(name, p)),
-                       **rein})
+                       "ziehung": i, "wert": float(wert), **rein})
     return zeilen
 
 
@@ -258,7 +165,7 @@ def _md(df: pd.DataFrame) -> str:
 
 
 def kurve(df: pd.DataFrame) -> pd.DataFrame:
-    """Bester Wert nach n Ziehungen - einmal gesamt, einmal nur "alter Raum".
+    """Bester Wert nach n Ziehungen.
 
     Beide Guetemasse sind so gerichtet, dass GROSS besser ist
     (neg_root_mean_squared_error und f1_macro), deshalb genuegt das laufende
@@ -268,31 +175,8 @@ def kurve(df: pd.DataFrame) -> pd.DataFrame:
     for (s, v, f), g in df.groupby(["strang", "verfahren", "fold"], sort=False):
         g = g.sort_values("ziehung").copy()
         g["bester_bisher"] = g["wert"].cummax()
-        nur_alt = g["wert"].where(g["im_alten_raum"] == 1)
-        g["bester_bisher_alt"] = nur_alt.cummax().ffill()
-        g["n_alt_bisher"] = g["im_alten_raum"].cumsum()
         teile.append(g)
     return pd.concat(teile, ignore_index=True)
-
-
-def raender(df: pd.DataFrame) -> pd.DataFrame:
-    """Wo liegt der SIEGER je Fold - im erweiterten Bereich oder im alten?"""
-    zeilen = []
-    for (s, v, f), g in df.groupby(["strang", "verfahren", "fold"], sort=False):
-        sieger = g.loc[g["wert"].idxmax()]
-        for p in WEITER.get(v, {}):
-            if p not in g.columns:
-                continue
-            # `max_depth = None` heisst UNBEGRENZTE Tiefe. Ueber den DataFrame
-            # wird daraus NaN, und das sieht wie ein fehlender Wert aus statt
-            # wie der tiefste moegliche. Deshalb ausgeschrieben.
-            wert = sieger[p]
-            zeilen.append({"strang": s, "verfahren": v, "fold": f,
-                           "parameter": p,
-                           "gewaehlt": "None (unbegrenzt)" if pd.isna(wert)
-                                       else wert,
-                           "sieger_im_alten_raum": int(sieger["im_alten_raum"])})
-    return pd.DataFrame(zeilen)
 
 
 # ==========================================================================
@@ -316,7 +200,7 @@ def main(argv: list[str]) -> int:
 
     schaetzung = sum(SEKUNDEN_50.get((s, v), 200) * 2 * N_FOLDS
                      for s in straenge for v in verfahren[s])
-    print(f"\n{'=' * 78}\n  SUCHDIAGNOSE - Budget {BUDGET}, erweiterte Suchraeume"
+    print(f"\n{'=' * 78}\n  SUCHDIAGNOSE - Budget {BUDGET}, Suchraeume des Hauptlaufs"
           f"\n{'=' * 78}")
     print(f"  Straenge: {', '.join(straenge)}")
     print(f"  Geschaetzte Dauer: {schaetzung / 60:.0f} min")
@@ -344,11 +228,10 @@ def main(argv: list[str]) -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     k = kurve(df)
     k.to_csv(OUT / "kurve.csv", index=False)
-    raender(df).to_csv(OUT / "raender.csv", index=False)
 
-    # ---- Frage 1: war das Budget zu klein? -------------------------------
+    # ---- War das Budget zu klein? ----------------------------------------
     halb = BUDGET // 2
-    print(f"\n{'=' * 78}\n  FRAGE 1  Verbessert sich der beste Wert nach "
+    print(f"\n{'=' * 78}\n  Verbessert sich der beste Wert nach "
           f"Ziehung {halb}?\n{'=' * 78}")
     zeilen = []
     for (s, v), g in k.groupby(["strang", "verfahren"], sort=False):
@@ -368,30 +251,16 @@ def main(argv: list[str]) -> int:
     print("\n  Einordnung: Ist der Gewinn klein gegenueber der Streuung ZWISCHEN")
     print("  den Folds, hat sich die Suche totgelaufen - Budget 50 genuegte.")
 
-    # ---- Frage 2: stand der Zaun falsch? ---------------------------------
-    print(f"\n{'=' * 78}\n  FRAGE 2  Nutzen die Sieger den erweiterten Bereich?"
-          f"\n{'=' * 78}")
-    r = raender(df)
-    for (s, v, p), g in r.groupby(["strang", "verfahren", "parameter"], sort=False):
-        aussen = int((g["sieger_im_alten_raum"] == 0).sum())
-        werte = ", ".join(str(x) for x in g["gewaehlt"])
-        mark = "  <<< alter Raum war zu eng" if aussen else ""
-        print(f"  {s:<9} {v:<14} {p:<18} {aussen}/{len(g)} ausserhalb   "
-              f"{werte[:38]}{mark}")
-
     # ---- Bericht ---------------------------------------------------------
     text = ["# Suchdiagnose", "",
             f"Stand {pd.Timestamp.today():%Y-%m-%d}. Budget {BUDGET}, "
-            f"erweiterte Suchraeume, Wiederholung 0, Trainingsstadtteile je Fold.",
+            f"Suchraeume des Hauptlaufs, Wiederholung 0, Trainingsstadtteile je Fold.",
             "Das Hold-out wurde nicht gelesen.", "",
-            "## Frage 1 - war Budget 50 zu klein?", "",
+            "## War Budget 50 zu klein?", "",
             _md(f1.round(5)), "",
-            "## Frage 2 - stand der Suchraum zu eng?", "",
-            _md(r), "",
-            "**Zu lesen:** Ein Sieger ausserhalb des alten Raums heisst, dass die",
-            "urspruengliche Grenze bindend war. Der innere Guetewert ist nicht die",
-            "Testleistung - ob sich der Unterschied auf die Prognose uebertraegt,",
-            "zeigt erst der Hauptlauf."]
+            "**Zu lesen:** Ist der Gewinn der zweiten Haelfte klein gegenueber der",
+            "Streuung zwischen den Folds, hat sich die Suche totgelaufen. Der innere",
+            "Guetewert ist nicht die Testleistung."]
     (OUT / "zusammenfassung.md").write_text("\n".join(text), encoding="utf-8")
 
     print(f"\n  Gesamtdauer: {(time.perf_counter() - t0) / 60:.1f} min")
