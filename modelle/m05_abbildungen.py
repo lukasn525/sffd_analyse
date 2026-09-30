@@ -352,7 +352,9 @@ def a1_gegen_baseline() -> list:
                     markeredgewidth=0.6, zorder=3)
         ax.axvline(0, color="black", linewidth=1.3, linestyle="--", zorder=1)
         ax.set_yticks(ypos)
-        ax.set_yticklabels([LABEL[v] for v in verf])
+        # Zweizeilig: einzeilig nehmen die Namen dem schmalen rechten Feld so
+        # viel Breite, dass sein Titel ueber den Rand laeuft.
+        ax.set_yticklabels([LABEL[v].replace(" ", "\n") for v in verf])
         ax.set_ylim(-0.62, len(verf) - 0.38)
         ax.set_xlabel(reihe["achse"])
         ax.xaxis.set_major_formatter(
@@ -479,7 +481,7 @@ def a3_spezifikation() -> list:
     ax.set_yticks(y)
     ax.set_yticklabels([z[0] for z in zeilen], fontsize=SCHRIFT)
     ax.set_xlabel("RMSE (Anzahl Einsätze), Mittel über 50 Läufe")
-    ax.set_xlim(0, max(z[1] for z in zeilen) * 1.16)
+    ax.set_xlim(0, max(z[1] for z in zeilen) * 1.22)
     ax.xaxis.set_major_formatter(_komma(0))
 
     # Gruppenklammern am rechten Rand - ausserhalb der Balken, damit sie
@@ -617,7 +619,8 @@ def a5_holdout() -> list:
     if not aufgaben:
         return []
 
-    fig, achsen = plt.subplots(1, len(aufgaben), figsize=(BREITE, 3.0))
+    from matplotlib.ticker import MaxNLocator
+    fig, achsen = plt.subplots(1, len(aufgaben), figsize=(BREITE, 3.4))
     achsen = np.atleast_1d(achsen)
     for ax, (d, spalte, einheit, titel, stellen, hoch_gut) in zip(achsen, aufgaben):
         d = d.sort_values("stufe")
@@ -644,9 +647,13 @@ def a5_holdout() -> list:
             ax.axhline(werte[stufen.index(2)], color="black", linewidth=1.0,
                        linestyle="--", zorder=0)
         ax.set_xticks(x)
-        ax.set_xticklabels(namen, rotation=28, ha="right",
-                           fontsize=SCHRIFT)
+        # 45 Grad und am Tick verankert: bei flacherem Winkel ueberdecken sich
+        # die Namen benachbarter Balken.
+        ax.set_xticklabels(namen, rotation=45, ha="right",
+                           rotation_mode="anchor", fontsize=SCHRIFT)
         ax.set_ylabel(einheit)
+        # Schritte ohne 2,5: mit einer Nachkommastelle stuende an 0,25 "0,2".
+        ax.yaxis.set_major_locator(MaxNLocator(nbins="auto", steps=[1, 2, 5, 10]))
         ax.yaxis.set_major_formatter(_komma(stellen))
         ax.set_title(titel, fontsize=SCHRIFT)
     return _speichere(fig, "a5_holdout.pdf")
@@ -905,7 +912,7 @@ def a8_hyperparameter() -> list:
     # kein Platz fuer die Blockueberschriften, und ohne die Ueberschriften ist
     # nicht ablesbar, welcher Block welcher ist - die Verfahrensnamen
     # wiederholen sich in beiden.
-    LUECKE = 1.15
+    LUECKE = 2.0
     y, versatz, vorher = [], 0.0, None
     for i, (strang, _, _) in enumerate(reihen):
         if vorher is not None and strang != vorher:
@@ -1001,7 +1008,8 @@ def a9_parallelisierung() -> list:
         ax.barh(yy, z["gewinn"], height=0.58,
                 color=STIL[z["verfahren"]]["grau"], edgecolor="black",
                 linewidth=0.8, hatch=STIL[z["verfahren"]]["schraffur"], zorder=2)
-        ax.text(z["gewinn"] + d["gewinn"].max() * 0.02, yy,
+        # Mindestens rechts der Linie bei 1,0, sonst kreuzt sie die Zahl.
+        ax.text(max(z["gewinn"], 1.0) + d["gewinn"].max() * 0.02, yy,
                 f"{_sekunden(z['ein'])} → {_sekunden(z['par'])}",
                 va="center", fontsize=SCHRIFT)
     ax.axvline(1.0, color="black", linewidth=1.2, linestyle="--", zorder=3)
@@ -1064,6 +1072,10 @@ def a10_qq_residuen() -> list:
         ax.set_aspect("equal", adjustable="box")
         ax.set_xlabel("theoretisches Quantil")
         ax.set_ylabel("beobachtetes Quantil")
+        # Ganzzahlige Schritte: sonst stuende an 2,5 die Beschriftung "2".
+        from matplotlib.ticker import MaxNLocator
+        ax.xaxis.set_major_locator(MaxNLocator(nbins="auto", steps=[1, 2, 5, 10], integer=True))
+        ax.yaxis.set_major_locator(MaxNLocator(nbins="auto", steps=[1, 2, 5, 10], integer=True))
         ax.xaxis.set_major_formatter(_komma(0))
         ax.yaxis.set_major_formatter(_komma(0))
         ax.set_title(LABEL.get(ziel, ziel), fontsize=SCHRIFT)
@@ -1341,7 +1353,9 @@ def a13_umschlag() -> list:
                     fontsize=SCHRIFT)
         ax.annotate(_dez(cv.mean()), xy=(x0, cv.mean()), xytext=(0, 5),
                     textcoords="offset points", va="bottom", ha="center",
-                    fontsize=SCHRIFT)
+                    fontsize=SCHRIFT, zorder=5,
+                    bbox={"facecolor": "white", "edgecolor": "none",
+                          "pad": 0.8})
     ax.set_xticks([0.0, 1.0])
     ax.set_xticklabels(["Kreuzvalidierung\n50 Läufe, 30 Stadtteile",
                         "Hold-out\neine Messung, 6 Stadtteile"])
@@ -1382,7 +1396,7 @@ def a14_ueberanpassung() -> list:
                    & (br.zielgroesse == "anzahl_einsaetze")].R2_mean.iloc[0])
     logit = float(bk.loc[bk.stufe == 2, "Macro-F1_mean"].iloc[0])
 
-    fig, axes = plt.subplots(1, 2, figsize=(BREITE, 3.1))
+    fig, axes = plt.subplots(1, 2, figsize=(BREITE, 3.4))
     for ax, tab, sp_tr, sp_cv, verf, titel, ylab, ref, refname in (
             (axes[0], me, "R2_train", "R2_mean",
              ["ridge", "random_forest", "xgboost"], "Menge: Anzahl Einsätze",
@@ -1405,11 +1419,10 @@ def a14_ueberanpassung() -> list:
                         fontsize=SCHRIFT)
             ax.annotate(_dez(cv), xy=(i, cv), xytext=(0, -13),
                         textcoords="offset points", ha="center",
-                        fontsize=SCHRIFT)
+                        fontsize=SCHRIFT, zorder=5,
+                        bbox={"facecolor": "white", "edgecolor": "none",
+                              "pad": 0.8})
         ax.axhline(ref, color="black", ls="--", lw=0.9)
-        ax.annotate(refname, xy=(len(verf) - 0.47, ref), xytext=(-2, 3),
-                    textcoords="offset points", ha="right", va="bottom",
-                    fontsize=SCHRIFT)
         ax.set_xticks(range(len(verf)))
         ax.set_xticklabels([LABEL[v] for v in verf])
         ax.set_xlim(-0.55, len(verf) - 0.45)
@@ -1421,8 +1434,12 @@ def a14_ueberanpassung() -> list:
                                mec="black", ls="none", label="Training")
     cvmarke, = axes[0].plot([], [], marker="s", ms=6, mfc="black",
                             mec="black", ls="none", label="Kreuzvalidierung")
-    axes[0].legend(handles=[trainmarke, cvmarke], loc="upper left",
-                   frameon=False, handletextpad=0.3, borderaxespad=0.1)
+    # Die Referenzlinie steht als Schluessel unter der Zeile wie in A4: im Feld
+    # kreuzten die Stiele den Namen, und die Legende verdeckte einen Wert.
+    basis, = axes[0].plot([], [], color="black", ls="--", lw=0.9,
+                          label="Stufe-2-Baseline")
+    fig.legend(handles=[trainmarke, cvmarke, basis], loc="outside lower center",
+               ncol=3, frameon=False, handletextpad=0.3)
     return _speichere(fig, "a14_ueberanpassung.pdf")
 
 
@@ -1526,6 +1543,9 @@ def a15_attribution_ablation() -> list:
     rand = 0.1 * (max(max(alle), 0) - min(min(alle), 0))
     ax.set_xlim(min(min(alle), 0) - rand, max(max(alle), 0) + rand)
     ax.set_xlabel("Macro-F1-Verlust ohne die Gruppe", fontsize=SCHRIFT)
+    # Schritte ohne 2,5: mit zwei Nachkommastellen stuende an 0,025 "0,03".
+    from matplotlib.ticker import MaxNLocator
+    ax.xaxis.set_major_locator(MaxNLocator(nbins="auto", steps=[1, 2, 4, 5, 10]))
     ax.xaxis.set_major_formatter(_komma(2, True))
     # Legende ausserhalb der Felder: "outside lower center" laesst
     # constrained_layout den Streifen unter der Zeile reservieren, statt die
@@ -1662,7 +1682,7 @@ def a18_foldstruktur() -> list:
 
     median = g["bev"].median() / 1000
     ax.axhline(median, color="black", linewidth=0.8, linestyle=":", zorder=2)
-    ax.text(5.55, median * 1.06, "Median", va="bottom", ha="right",
+    ax.text(5.55, median / 1.06, "Median", va="top", ha="right",
             fontsize=SCHRIFT)
     ax.axvline(0.5, color="0.6", linewidth=0.8, zorder=1)
 
