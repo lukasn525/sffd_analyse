@@ -6,8 +6,8 @@ Stellt den Abgabeordner ABGABE/ zusammen und berichtet, was hineinkommt.
 
 - ABGABE/ wird bei jedem Lauf vollstaendig geloescht und neu angelegt
 - im Repo selbst wird nichts veraendert
-- die Anlage entsteht aus Anlage_Internetquellen/ und den Dateien in
-  ANLAGE_AUS_QUELLEN, die aus Quellen/ umbenannt uebernommen werden
+- die Anlage entsteht allein aus Quellen/: ANLAGE_AUS_QUELLEN ordnet jedem
+  Dateinamen der Anlage (= bib-Schluessel) seine Datei in Quellen/ zu
 - jede Datei landet in genau einer Gruppe: KOMMT REIN, BLEIBT DRAUSSEN
   (mit Grund) oder NICHT ZUGEORDNET (wird nicht kopiert, bitte pruefen)
 - Pruefungen: Pflichtdateien, Anlage der Internetquellen, Spalten von
@@ -38,7 +38,8 @@ ORDNER_RAUS = {
     "tools": "Hilfsskripte, keine Zahlen der Arbeit",
     "archiv": "ueberholte Staende",
     "Claude outputs": "Arbeitsdateien",
-    "Quellen": "Volltexte; nur ANLAGE_AUS_QUELLEN wird in die Anlage uebernommen",
+    "Quellen": "Volltexte; die Anlage-Dateien kommen umbenannt aus ANLAGE_AUS_QUELLEN",
+    "Anlage_Internetquellen": "alte Sammelstelle, die Anlage entsteht aus Quellen/",
     "ABGABE": "Zielordner dieses Skripts",
     "results/abbildungen": "Abbildungen, Abbildungscode geht nicht mit (Schroeter 21.09.)",
     "results/suchdiagnose_test": "Probelauf von suchdiagnose.py --test",
@@ -51,6 +52,7 @@ DATEIEN_RAUS = {
     ".gitattributes": "Git-Hilfsdatei",
     "CLAUDE.md": "interne Arbeitsnotizen",
     "ki_verzeichnis.tex": "Teil der Arbeit, steht im PDF",
+    "ki_verzeichnis_neu.tex": "Teil der Arbeit, steht im PDF",
     "abgabe_packen.py": "dieses Skript",
     "modelle/m05_abbildungen.py": "erzeugt nur Abbildungen (Schroeter 21.09.)",
     "results/eignungspruefung/01_streudiagramme.png": "Abbildung",
@@ -82,26 +84,27 @@ PFLICHT = [
     "results/suchdiagnose/zusammenfassung.md",
 ]
 
-# Dateiname = bib-Schluessel. Pflicht: Internetseiten (Schroeter 13.07.),
-# freiwillig: Dokumente ohne DOI, die nur als Datei im Netz liegen.
+# Dateiname = bib-Schluessel. In die Anlage kommen nur Internetseiten
+# (fluechtige Quellen, Schroeter 13.07.), also die @online-Eintraege.
 ANLAGE = "Anlage_Internetquellen"
-ANLAGE_ERWARTET = [
-    "SFFD2026.pdf", "SFPD2026.pdf", "SFPD2018.pdf",
-    "SFPlanning2020.pdf", "SFPlanning2022.pdf", "SFPlanning2023.pdf",
-    "CensusACS2023.pdf",
-    "Statsmodels2025_het_breuschpagan.pdf", "Statsmodels2025_jarque_bera.pdf",
-    "ScikitLearn2025.pdf", "XGBoost2026.pdf",
-    "Murphy2022.pdf",
-    "Chapman2000.pdf", "USFA2015.pdf", "CensusBureau2018.pdf",
-    "CensusBureau2020.pdf", "Gourieroux1981.pdf", "Brantingham1997.pdf",
-    "Manning2009.pdf",
-]
-
-# Anlage-Dateien, die nur in Quellen/ liegen: Name in der Anlage -> Quelle.
+# Name in der Anlage -> Datei in Quellen/.
 ANLAGE_AUS_QUELLEN = {
-    "Murphy2022.pdf": "Quellen/murphy2022.pdf",
-    "Manning2009.pdf": "Quellen/Manning2009.pdf",
+    "SFFD2026.pdf": "Quellen/SFFD2026.pdf",
+    "SFPD2026.pdf": "Quellen/SFPD2026.pdf",
+    "SFPD2018.pdf": "Quellen/SFPD2018.pdf",
+    "SFPlanning2020.pdf": "Quellen/SFPlanning2020.pdf",
+    "SFPlanning2022.pdf": "Quellen/SFPlanning2022.pdf",
+    "SFPlanning2023.pdf": "Quellen/SFPlanning2023.pdf",
+    "CensusACS2023.pdf": "Quellen/CensusACS2023.pdf",
+    "Statsmodels2025_het_breuschpagan.pdf": "Quellen/statsmodels2025.pdf",
+    "Statsmodels2025_jarque_bera.pdf": "Quellen/statsmodels2025_jarque_bera.pdf",
+    "ScikitLearn2025_RandomForestRegressor.pdf":
+        "Quellen/ScikitLearn2025_RandomForestRegressor.pdf",
+    "ScikitLearn2025_roc_auc_score.pdf": "Quellen/ScikitLearn2025_roc_auc_score.pdf",
+    "ScikitLearn2025_r2_score.pdf": "Quellen/ScikitLearn2025_r2_score.pdf",
+    "XGBoost2026.pdf": "Quellen/xgboost2026.pdf",
 }
+ANLAGE_ERWARTET = list(ANLAGE_AUS_QUELLEN)
 
 FIRE_SPALTEN = 15
 TEXTENDUNGEN = {".py", ".md", ".txt", ".csv", ".json", ".geojson", ".tex"}
@@ -220,7 +223,7 @@ def main(argv: list[str]) -> int:
     rein, raus, offen = durchsuchen()
     fehler, sperre, hinweise = [], [], []
 
-    # Anlage-Dateien aus Quellen/ uebernehmen, falls nicht schon in der Anlage
+    # Anlage-Dateien aus Quellen/ uebernehmen
     herkunft = {}
     pfade = {e[0] for e in rein}
     for name, quelle in ANLAGE_AUS_QUELLEN.items():
