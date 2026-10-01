@@ -507,7 +507,7 @@ nicht auszuschließen. Der Befund „bei XGBoost liegt der Gewinn unter 1"
 
 **Was daraus folgt:** Einkern-Zeiten als Hauptaussage, Parallelisierungsgewinn
 ausdrücklich als maschinengebunden kennzeichnen. Prozessor, Kernzahl,
-Nebenlast und `requirements_lauf.txt` gehören in Kapitel 6.
+Nebenlast und `requirements.txt` gehören in Kapitel 6.
 
 ### R-6 · Merkmale sind innerhalb eines Jahres konstant
 

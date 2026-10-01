@@ -6,9 +6,7 @@
 %   Spalten: Kennung, Modell, Datum, Prompt, Verwendung
 %   Kennung: Claude2026a ... Claude2026z, Claude2026aa, Claude2026ab ...
 %   Sortierung: nach Vorkommen, erst Gesamttext, dann Abschnitte
-%               und Literatur, dann Code in der Reihenfolge der Entstehung
-%               (Pipeline: Aufbereitung, Vorpruefung, Modelle, README,
-%               Kommentare)
+%               und Literatur, dann Code
 %   Prompts ohne Anfuehrungszeichen, ohne Kursivschrift
 % ---------------------------------------------------
 \newpage
@@ -20,11 +18,11 @@
 \tabformat
 \setlength{\tabcolsep}{4pt}
 \begin{xltabular}{\textwidth}{@{}%
-    >{\raggedright\arraybackslash\hyphenpenalty=10000}p{2.6cm}%
+    >{\raggedright\arraybackslash\hyphenpenalty=10000}p{2.7cm}%
     >{\raggedright\arraybackslash}p{1.8cm}%
     >{\raggedright\arraybackslash\hyphenpenalty=10000}p{2.0cm}%
     >{\raggedright\arraybackslash}X%
-    >{\raggedright\arraybackslash\hyphenpenalty=10000}p{2.8cm}@{}}
+    >{\raggedright\arraybackslash\hyphenpenalty=10000}p{2.3cm}@{}}
     % \caption*{Verzeichnis der verwendeten KI-Hilfsmittel}\\
     \toprule
     \textbf{Kennung} & \textbf{Modell} & \textbf{Datum} & \textbf{Prompt}
@@ -123,150 +121,6 @@
     Claude2026u & Anthropic Claude Opus 5 & 26.08.2026
       & Der angehängte Diskussionsentwurf unterschätzt aus meiner Sicht, was die Merkmale leisten. Prüfe Einordnung und Implikationen gegen meine Ergebnistabelle, ergänze einen Vergleich mit einer weiteren Referenz aus dieser Tabelle und schlage überarbeitete Absätze vor.
       & Abschn.~7.1, 7.2 \\
-    \addlinespace
-    Claude2026v & Anthropic Claude Opus 5 & 27.07.2026
-      & Lege nach meinen angehängten Festlegungen eine zentrale Konfiguration für die Aufbereitung an: Analysezeitraum, Plausibilitätsfenster der Antwortzeit, ausgeschlossene Stadtteile und Schalter für die Downloads. Alle Skripte sollen diese Werte nur lesen und nie selbst setzen.
-      & config.py \\
-    \addlinespace
-    Claude2026w & Anthropic Claude Opus 5 & 27.07.2026
-      & Schreibe den Abruf der Rohdaten über die Schnittstellen von DataSF und dem Census Bureau. Welche Datensätze, Felder und Filter gebraucht werden, steht in meiner Quellenliste als Datei. Jede Quelle wird unverändert unter data/raw abgelegt.
-      & s1\_\allowbreak{}daten.py \\
-    \addlinespace
-    Claude2026x & Anthropic Claude Opus 5 & 28.07.2026
-      & Die Sozialdaten liegen je Census Tract vor. Ordne sie über die angehängte Zuordnungstabelle den Stadtteilen zu und gib je Jahrgang die Trefferquote aus.
-      & s1\_\allowbreak{}daten.py, Code~3 \\
-    \addlinespace
-    Claude2026y & Anthropic Claude Opus 5 & 28.07.2026
-      & Kaufman et~al. beschreiben Leakage auch durch Werte, die zum Vorhersagezeitpunkt noch gar nicht bekannt waren. Ordne deshalb jedem Monat nur den ACS-Jahrgang zu, der damals schon veröffentlicht war. Den Versatz je Jahrgang habe ich angehängt.
-      & s1\_\allowbreak{}daten.py, Code~4 \\
-    \addlinespace
-    Claude2026z & Anthropic Claude Opus 5 & 28.07.2026
-      & Bilde die Anteilswerte aus meiner angehängten Merkmalsliste. Ist ein Nenner null, soll ein fehlender Wert entstehen.
-      & s1\_\allowbreak{}daten.py, Code~6 \\
-    \addlinespace
-    Claude2026aa & Anthropic Claude Opus 5 & 29.07.2026
-      & Für die Kriminalität habe ich mich nach Brantingham und Brantingham für einen Standortquotienten entschieden. Implementiere ihn als relativen Index je Stadtteil und Monat, bezogen auf die gesamte Stadt im selben Monat.
-      & s1\_\allowbreak{}daten.py, Code~7 \\
-    \addlinespace
-    Claude2026ab & Anthropic Claude Opus 5 & 29.07.2026
-      & Aggregiere die Einsätze auf Stadtteil und Monat, einmal als Anzahl und einmal als überwiegende Einsatzart. Jede Kombination soll als Zeile vorhanden sein, jährliche Werte werden nach meiner angehängten Regel vorwärts gefüllt.
-      & s2\_\allowbreak{}datensaetze.py, Code~5 \\
-    \addlinespace
-    Claude2026ac & Anthropic Claude Opus 5 & 29.07.2026
-      & Kodiere den Kalendermonat als Sinus und Kosinus und ergänze die verzögerten Werte aus meiner Merkmalsliste, nur aus abgeschlossenen Vormonaten.
-      & s2\_\allowbreak{}datensaetze.py, Code~8 \\
-    \addlinespace
-    Claude2026ad & Anthropic Claude Opus 5 & 30.07.2026
-      & Roberts et~al. empfehlen bei räumlich abhängigen Daten eine gruppierte Kreuzvalidierung. Teile deshalb ganze Stadtteile auf fünf Folds und ein Hold-out auf, geschichtet nach brand-dominierten Monaten und Bevölkerung. Die Zuteilung steht als Spalte im Datensatz.
-      & s2\_\allowbreak{}datensaetze.py, Code~10 \\
-    \addlinespace
-    Claude2026ae & Anthropic Claude Opus 5 & 30.07.2026
-      & Baue eine Prüfung ein, die nach dem Bau des Panels abbricht, wenn Stadtteile, Zeitraum oder Wohnbevölkerung nicht zu meinen angehängten Sollwerten passen. Die Fehlermeldung soll den betroffenen Stadtteil und den gemessenen Wert nennen.
-      & s2\_\allowbreak{}datensaetze.py, Code~1 \\
-    \addlinespace
-    Claude2026af & Anthropic Claude Opus 5 & 31.07.2026
-      & Wie mit meinem Betreuer abgestimmt, messen sich die Verfahren an zwei Baselines. Implementiere eine Referenz ohne Merkmale und ein Poisson-GLM mit der Bevölkerung als Offset nach Winkelmann, für die Einsatzart ein multinomiales Logit.
-      & v1\_\allowbreak{}baselines.py, Code~12, 13 \\
-    \addlinespace
-    Claude2026ag & Anthropic Claude Opus 5 & 03.08.2026
-      & Setze die angehängten Eignungsprüfungen, die ich vor der Modellierung festgelegt habe, als ein Skript mit einem Bericht am Ende um. Dazu gehören die Überdispersion als Hilfsregression, die Linearität grafisch vor dem Einsatz von Ridge, der RESET nach Ramsey und je Verfahren eine Tabelle mit Anforderung, Teststatistik und p-Wert.
-      & v2\_\allowbreak{}eignung.py, Code~14 \\
-    \addlinespace
-    Claude2026ah & Anthropic Claude Opus 5 & 03.08.2026
-      & Fasse die Aufbereitung in einem einzigen Befehl zusammen, der beide Schritte nacheinander ausführt, bei einem Fehler abbricht und am Ende Zeilen und Spalten beider Dateien ausgibt. Dasselbe brauche ich für die Vorprüfung: erst die Baselines, danach die Eignungsprüfung, die deren Werte nur liest.
-      & build.py, run.py \\
-    \addlinespace
-    Claude2026ai & Anthropic Claude Opus 5 & 04.08.2026
-      & Lege das Skript für den Mengenvergleich in Phasen an, die ich nacheinander fülle: Tuning, Bewertung, Aggregation und Vergleich. Ridge rechnet nach meiner Methodik auf $\log(1+y)$, Random Forest und XGBoost mit zählgerechter Verlustfunktion. Ein einzelner Lauf passt auf der Rate an, rechnet auf Einsätze zurück und misst die Zeit.
-      & m02\_\allowbreak{}menge.py, Code~15, 16 \\
-    \addlinespace
-    Claude2026aj & Anthropic Claude Opus 5 & 05.08.2026
-      & Übertrage den Aufbau des Mengenvergleichs auf die Einsatzart mit Random Forest und XGBoost. Die vier Klassen sollen global einheitlich kodiert und ausgeglichen gewichtet werden, Hauptmaß ist nach Opitz und Burst der Macro-F1.
-      & m03\_\allowbreak{}struktur.py, Code~17 \\
-    \addlinespace
-    Claude2026ak & Anthropic Claude Opus 5 & 06.08.2026
-      & Die zehn Wiederholungen verschieben bisher nur die Nummern der Folds, die Zusammensetzung bleibt gleich, und das Hold-out wandert mit. Korrigiere das so, dass innerhalb der Rangblöcke meiner Schichtung neu gemischt wird und das Hold-out fest bleibt.
-      & v0\_\allowbreak{}aufteilung.py \\
-    \addlinespace
-    Claude2026al & Anthropic Claude Opus 5 & 06.08.2026
-      & Nach Bergstra und Bengio nehme ich eine Zufallssuche. Setze sie als innere, nach Stadtteilen gruppierte Kreuzvalidierung mit meinem angehängten Suchraum um.
-      & m02\_\allowbreak{}menge.py, Code~18 \\
-    \addlinespace
-    Claude2026am & Anthropic Claude Opus 5 & 07.08.2026
-      & Hurlbert beschreibt Pseudoreplikation, wenn abhängige Messungen als unabhängig gezählt werden. Mittle die Gütemaße deshalb zweistufig, erst über die Folds je Wiederholung und dann über die zehn Wiederholungen, und gib beide Streuungen aus.
-      & m02\_\allowbreak{}menge.py, Code~11, 19 \\
-    \addlinespace
-    Claude2026an & Anthropic Claude Opus 5 & 07.08.2026
-      & Die Eignungsprüfung verwirft die lineare Form nur innerhalb der Stichprobe. Prüfe in einem eigenen Skript, ob Quadrat- und Interaktionsterme im Poisson-GLM auch auf unbekannten Stadtteilen besser vorhersagen, mit denselben Folds wie im Vergleich.
-      & v3\_\allowbreak{}spezifikation.py \\
-    \addlinespace
-    Claude2026ao & Anthropic Claude Opus 5 & 08.08.2026
-      & Vergleiche jedes Verfahren gepaart mit dem Wilcoxon-Test gegen die Stufe-2-Baseline und korrigiere nach Holm. Die Schlussbewertung auf dem Hold-out läuft nur mit ausdrücklichem Argument, einmalig und mit den Parametern aus dem Tuning.
-      & m02\_\allowbreak{}menge.py, m03\_\allowbreak{}struktur.py \\
-    \addlinespace
-    Claude2026ap & Anthropic Claude Opus 5 & 08.08.2026
-      & Wiederholung null dient zugleich dem Tuning und der Bewertung. Beziffere, wie viel Vorsprung die Verfahren dadurch bekommen.
-      & m02\_\allowbreak{}menge.py, m03\_\allowbreak{}struktur.py \\
-    \addlinespace
-    Claude2026aq & Anthropic Claude Opus 5 & 11.08.2026
-      & Ich möchte die fertigen Dateien prüfen und nicht den Code. Schreibe dazu eine eigene Testdatei nach meiner angehängten Liste, gegliedert nach Panel, Aufteilung, Merkmalen und Struktur. Darunter fallen keine Ergebnisvariable als Merkmal im Sinne von Kaufman et~al. und kein Stadtteil zugleich in Training und Test. Sie soll auch ohne pytest laufen.
-      & test\_\allowbreak{}aufbereitung.py, Code~2, 9 \\
-    \addlinespace
-    Claude2026ar & Anthropic Claude Opus 5 & 13.08.2026
-      & SHAP-Werte nach Lundberg und Lee zeigen nur, wie ein Modell seine Aufmerksamkeit verteilt. Ergänze deshalb eine Ablation je Faktorgruppe aus meiner Gruppierung, bei der das Modell ohne die Gruppe neu angepasst und bewertet wird.
-      & m04\_\allowbreak{}shap.py \\
-    \addlinespace
-    Claude2026as & Anthropic Claude Opus 5 & 14.08.2026
-      & Sorge dafür, dass ein zweiter Lauf dieselben Zahlen liefert: ein fester Startwert für alle Zufallsschritte, Bewertung auf einem Kern und eine Datei mit den genauen Paketversionen. Die Konstanten der Modellierung kommen in eine eigene Konfiguration.
-      & config\_\allowbreak{}modelle.py, requirements\_\allowbreak{}lauf.txt \\
-    \addlinespace
-    Claude2026at & Anthropic Claude Opus 5 & 15.08.2026
-      & Ob das Budget der Hyperparametersuche reicht, will ich wie von Bischl et~al. empfohlen prüfen. Wiederhole die Suche mit steigender Zahl an Versuchen, zeige den Verlauf als Kurve und ergänze einen kurzen Probelauf.
-      & suchdiagnose.py \\
-    \addlinespace
-    Claude2026au & Anthropic Claude Opus 5 & 17.08.2026
-      & Ein Macro-F1 lässt sich ohne Obergrenze schlecht einordnen. Schätze mit meinem angehängten Ansatz, wie gut die Einsatzart mit diesen Merkmalen höchstens vorhersagbar ist, und setze die Werte aus dem Vergleich ins Verhältnis dazu.
-      & v4\_\allowbreak{}decke.py \\
-    \addlinespace
-    Claude2026av & Anthropic Claude Opus 5 & 20.08.2026
-      & Zum Data Understanding nach Chapman et~al. brauche ich zwei getrennte Skripte: eine Merkmalstabelle mit Skalenniveau, Einheit und Quelle aus meiner Vorlage und eine deskriptive Auswertung mit Verteilung, Varianzzerlegung und Korrelationen.
-      & codebook.py, deskriptiv.py \\
-    \addlinespace
-    Claude2026aw & Anthropic Claude Opus 5 & 23.08.2026
-      & Der Census-Schlüssel steht im Klartext in der Konfiguration. Lies ihn stattdessen aus einer Umgebungsvariable.
-      & config.py \\
-    \addlinespace
-    Claude2026ax & Anthropic Claude Opus 5 & 25.08.2026
-      & Stelle aus den Rohquellen die Befunde zusammen, aus denen ein Eingriff in der Aufbereitung folgt, etwa Dubletten, fehlende Baujahre oder Lücken in der Abdeckung. Meine Liste der Eingriffe liegt bei, alles andere bleibt draußen.
-      & rohbefunde.py \\
-    \addlinespace
-    Claude2026ay & Anthropic Claude Opus 5 & 29.08.2026
-      & In den ACS-Jahrgängen mit älteren Zensusgrenzen fehlt ein Teil der Wohnbevölkerung. Suche die Ursache in der Zuordnung der Tracts, schlage eine Korrektur vor und lass die Aufbereitung abbrechen, wenn zu wenig Bevölkerung zugeordnet ist.
-      & s1\_\allowbreak{}daten.py, Code~3 \\
-    \addlinespace
-    Claude2026az & Anthropic Claude Opus 5 & 30.08.2026
-      & Bevor ich Ergebnisse ansehe, will ich wissen, welche Stadtteile im Hold-out und welche in der Entwicklung liegen. Erstelle ein Profil beider Hälften mit Klassenverteilung und Zielgrößen, unabhängig von jedem Modellergebnis.
-      & panelprofil.py \\
-    \addlinespace
-    Claude2026ba & Anthropic Claude Opus 5 & 02.09.2026
-      & Probst et~al. zeigen, dass Verfahren unterschiedlich stark auf ihre Hyperparameter reagieren. Setze jeden getunten Parametersatz auf allen anderen Folds ein und fasse zusammen, wie weit die Güte dabei schwankt.
-      & parameter\allowbreak{}sensitivitaet.py \\
-    \addlinespace
-    Claude2026bb & Anthropic Claude Opus 5 & 11.09.2026
-      & Nach Altman und Bland ist ein nicht signifikanter Test kein Beleg für Gleichheit. Berechne für die gepaarten Vergleiche Effektstärke und Trennschärfe bei zehn Wiederholungsmitteln, mit derselben Formel für die Streuung wie in den Vergleichsskripten.
-      & trennschaerfe.py \\
-    \addlinespace
-    Claude2026bc & Anthropic Claude Opus 5 & 14.09.2026
-      & Setze die README für die Abgabe auf, gegliedert nach Umgebung, Daten, Ablauf, Reproduzierbarkeit und Aufbau. Den Ablauf gebe ich als Befehlsfolge in einer Datei vor. Alle weiteren Inhalte stammen aus Code und Konfiguration, dazu ein Hinweis, dass ein neuer Abruf die Rohdaten überschreibt und der Census-Schlüssel nicht beiliegt.
-      & README.md \\
-    \addlinespace
-    Claude2026bd & Anthropic Claude Opus 5.5 & 24.09.2026
-      & Gleiche die Kommentare aller Skripte mit dem Stand der Arbeit ab. Meine angehängte Liste nennt veraltete Begriffe, Zahlen und Kapitelverweise. Schlage je Datei die Änderungen vor, geändert werden nur Kommentare und Docstrings.
-      & alle Skripte \\
-    \addlinespace
-    Claude2026be & Anthropic Claude Opus 5.5 & 24.09.2026
-      & Bringe die Kommentare in allen Dateien in eine einheitliche Form nach meiner Vorlage: ein Kopf mit Zweck, Aufruf, Eingang und Ausgang, darunter kurze Stichpunkte zu den Entscheidungen. Interne Kürzel und Verweise auf Arbeitsnotizen entfallen.
-      & alle Skripte \\
     \addlinespace
 \end{xltabular}
 % \tabquelle

@@ -221,7 +221,7 @@ def _md(df: pd.DataFrame) -> str:
     """Markdown-Tabelle von Hand.
 
     NICHT `DataFrame.to_markdown()`: Das braucht `tabulate`, und das steht
-    weder in `requirements.txt` noch im gemessenen `requirements_lauf.txt`.
+    nicht in `requirements.txt`.
     Hier waere der Aufruf besonders tueckisch, weil er ganz am Ende steht - die
     CSV-Dateien sind dann schon geschrieben, nur decke.md fehlt, und der Lauf
     endet mit einem Traceback statt mit einem Ergebnis. Gleiche Loesung wie in

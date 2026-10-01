@@ -496,7 +496,7 @@ Maschine, ohne Nebenlast:
 | Kerne | **2 physisch**, 4 logisch (Hyperthreading) |
 | Arbeitsspeicher | 7,8 GB |
 | Betriebssystem | Windows 10 Pro |
-| Python | 3.14.0 · Pakete in `requirements_lauf.txt` |
+| Python | 3.14.0 · Pakete in `requirements.txt` |
 
 **Trainingszeit je Fold, einkernig gemessen** (#40) — der Wert, der zwischen
 den Verfahren vergleichbar ist:

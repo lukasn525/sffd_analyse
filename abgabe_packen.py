@@ -31,7 +31,7 @@ GRENZE_MB = 250
 # Ordner, die ganz draussen bleiben. Sie werden nicht durchsucht.
 ORDNER_RAUS = {
     ".git": "Git-Historie, enthaelt im Commit vom 04.05. den Census-Schluessel",
-    "venv": "virtuelle Umgebung, entsteht aus requirements_lauf.txt",
+    "venv": "virtuelle Umgebung, entsteht aus requirements.txt",
     ".vscode": "Editor-Einstellungen",
     ".dist": "Hilfsordner",
     "docs": "interne Dokumentation (Schroeter 21.09.: nicht hochladen)",
@@ -50,7 +50,6 @@ DATEIEN_RAUS = {
     ".gitignore": "Git-Hilfsdatei",
     ".gitattributes": "Git-Hilfsdatei",
     "CLAUDE.md": "interne Arbeitsnotizen",
-    "requirements.txt": "von Hand gepflegte Liste, massgeblich ist requirements_lauf.txt",
     "ki_verzeichnis.tex": "Teil der Arbeit, steht im PDF",
     "abgabe_packen.py": "dieses Skript",
     "modelle/m05_abbildungen.py": "erzeugt nur Abbildungen (Schroeter 21.09.)",
@@ -66,7 +65,7 @@ ANALYSEDATEIEN = ("data/processed/regression.parquet",
 
 PFLICHT = [
     "README.md",
-    "requirements_lauf.txt",
+    "requirements.txt",
     "data/raw/fire_incidents.parquet",
     "data/raw/crime_raw.parquet",
     "data/raw/crime_historisch_raw.parquet",
@@ -120,7 +119,7 @@ def einordnen(rel: str) -> tuple[str, str]:
     name = teile[-1]
 
     if len(teile) == 1:
-        if rel in ("README.md", "requirements_lauf.txt"):
+        if rel in ("README.md", "requirements.txt"):
             return "rein", "Anleitung und Umgebung"
         return "offen", "Datei im Hauptordner"
 

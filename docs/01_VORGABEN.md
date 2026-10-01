@@ -356,7 +356,7 @@ dokumentierte KI-Nutzung.
 `prep/`, `vorpruefung/`, `modelle/`, `tools/`, `tests/`, `results/`, `docs/`,
 die beiden finalen Parquet-Dateien (`data/processed/regression.parquet`,
 `data/processed/klassifikation.parquet`), `README.md`, `CLAUDE.md`,
-`requirements.txt`, `requirements_lauf.txt` und die `.bib`-Dateien.
+`requirements.txt` und die `.bib`-Dateien.
 
 **Nicht ins Zip:** `venv/`, `data/raw/`, `archiv/`, alle `__pycache__/`,
 `data/processed/einsaetze.parquet` (36 MB Zwischenstand) — alles über

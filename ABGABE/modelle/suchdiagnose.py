@@ -153,7 +153,7 @@ def _md(df: pd.DataFrame) -> str:
     """Markdown-Tabelle von Hand.
 
     NICHT `DataFrame.to_markdown()`: Das braucht `tabulate`, und das steht
-    weder in `requirements.txt` noch im gemessenen `requirements_lauf.txt`.
+    nicht in `requirements.txt`.
     Der Aufruf waere erst nach ein bis zwei Stunden Rechenzeit gescheitert -
     beim Schreiben des Berichts, also nach der ganzen Arbeit.
     """

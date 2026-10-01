@@ -19,13 +19,13 @@ Offset bzw. multinomiale logistische Regression).
 
 ## Umgebung
 
-Gerechnet wurde unter Windows mit Python 3.14. `requirements_lauf.txt` hält
-die Versionen aller Pakete fest, mit denen die Ergebnisse entstanden sind.
+Gerechnet wurde unter Windows mit Python 3.14. `requirements.txt` hält die
+Versionen aller Pakete fest, mit denen die Ergebnisse entstanden sind.
 
 ```bash
 python -m venv venv
 venv\Scripts\activate
-pip install -r requirements_lauf.txt
+pip install -r requirements.txt
 ```
 
 ## Daten
