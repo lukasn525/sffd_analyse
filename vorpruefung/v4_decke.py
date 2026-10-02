@@ -9,9 +9,12 @@ Eingang: data/processed/klassifikation.parquet
          des Entwicklungspanels)
          results/klassifikation/holdout.csv (optional, fuer die Quoten des
          Hold-out-Laufs)
+         results/klassifikation/struktur_vorhersagen.parquet (optional, fuer
+         das F1 je Klasse des Entwicklungspanels)
 Ausgang: results/klassifikation/decke.csv, decke_marge.csv,
          decke_ausschoepfung.csv, decke.md - mit Argument "holdout" dieselben
          Dateien mit Endung _holdout
+         results/klassifikation/klassen_f1.csv - nur ohne Argument
 
   - Gegen 1,0 gehalten sieht der Macro-F1 des Strukturstrangs
     misslungen aus; diese Lesart vergleicht mit einer Obergrenze, die
@@ -34,6 +37,8 @@ Ausgang: results/klassifikation/decke.csv, decke_marge.csv,
   - Beide Decken entstehen VOR jeder Modellwahl. Sie zu beziffern ist keine
     nachtraegliche Entlastung, sondern die Voraussetzung dafuer, den erreichten
     Macro-F1 ueberhaupt einordnen zu koennen
+  - Das F1 je Klasse zeigt, worauf der Macro-F1 der Verfahren ruht: Er
+    mittelt vier Klassen mit gleichem Gewicht, eine davon ist selten
 
 FALLSTRICKE
   1  Ohne Argument "holdout" wird auf ist_holdout == 0 gefiltert wie in m02
@@ -217,6 +222,47 @@ def ausschoepfung(modelle: dict[str, float], basis: float,
     return pd.DataFrame(zeilen)
 
 
+def klassen_f1() -> pd.DataFrame:
+    """F1 je Klasse und Verfahren aus den Vorhersagen der Kreuzvalidierung.
+
+    Ein:  struktur_vorhersagen.parquet aus m03_struktur.py
+    Aus:  Datenrahmen mit einer Zeile je Verfahren und Klasse; leer, wenn die
+          Datei fehlt
+
+    - F1 je Lauf und Klasse, dann gemittelt ueber die 50 Laeufe. Das Mittel
+      der vier Klassen ist der Macro-F1 aus struktur_mittel.csv
+    - eine Klasse, die ein Lauf nie vorhersagt, zaehlt dort mit F1 = 0
+    - dazu, wie oft eine Klasse vorhergesagt und dabei getroffen wird und in
+      wie vielen Laeufen sie gar nicht vorkommt
+    - die Kodierung 0 bis 3 folgt KLASSEN, wie in m03_struktur.kodiere()
+    """
+    pfad = OUT / "struktur_vorhersagen.parquet"
+    if not pfad.exists():
+        return pd.DataFrame()
+    v = pd.read_parquet(pfad)
+    codes = list(range(len(KLASSEN)))
+    zeilen = []
+    for name, g in v.groupby("verfahren", sort=False):
+        laeufe = g.groupby(["wiederholung", "fold"])
+        f1 = np.array([f1_score(h["y"], h["y_hat"], labels=codes,
+                                average=None, zero_division=0)
+                       for _, h in laeufe])
+        for i, klasse in enumerate(KLASSEN):
+            vorhergesagt = g["y_hat"] == i
+            zeilen.append({
+                "verfahren": name, "klasse": klasse,
+                "f1_mittel": round(float(f1[:, i].mean()), 4),
+                "vorhergesagt": int(vorhergesagt.sum()),
+                "davon_richtig": int((vorhergesagt & (g["y"] == i)).sum()),
+                "testzeilen": len(g),
+                "laeufe_ohne_vorhersage": int(laeufe["y_hat"]
+                                              .apply(lambda s: (s == i).sum() == 0)
+                                              .sum()),
+                "laeufe": laeufe.ngroups,
+            })
+    return pd.DataFrame(zeilen)
+
+
 def _md(df: pd.DataFrame) -> str:
     """Markdown-Tabelle von Hand.
 
@@ -242,18 +288,27 @@ def _md(df: pd.DataFrame) -> str:
 
 def bericht(tab: pd.DataFrame, aus: pd.DataFrame, mrg: pd.DataFrame,
             kipp: float, treffer: float, modal: pd.Series, n_stadtteile: int,
-            quelle: str = "") -> str:
+            quelle: str = "", kf: pd.DataFrame | None = None) -> str:
     """Setzt die Ergebnistabellen zu decke.md zusammen.
 
     Ein:  Deckentabelle, Ausschoepfung, Margenverteilung, Kipp- und
           Trefferanteil, Modalklassen, Zahl der Stadtteile, Herkunft der
-          Modellwerte
+          Modellwerte, optional F1 je Klasse
     Aus:  Markdown-Text
 
     - reine Formatierung, hier wird nichts gerechnet
     - Ziehungszahl und RANDOM_STATE stehen im Kopf, damit die Datei ohne den Code
       lesbar bleibt
     """
+    teil_klassen = ([
+        "## F1 je Klasse (Kreuzvalidierung)",
+        "",
+        "Mittel ueber die 50 Laeufe aus `struktur_vorhersagen.parquet`. Das "
+        "Mittel der vier Klassen ist der Macro-F1 des Verfahrens.",
+        "",
+        _md(kf),
+        "",
+    ] if kf is not None and not kf.empty else [])
     z = "\n".join([
         "# Obergrenzen des Strukturstrangs",
         "",
@@ -271,6 +326,7 @@ def bericht(tab: pd.DataFrame, aus: pd.DataFrame, mrg: pd.DataFrame,
         f"Modellwerte aus `{quelle}`.\n" if quelle else "",
         _md(aus),
         "",
+        *teil_klassen,
         "## Wie knapp faellt der argmax aus?",
         "",
         _md(mrg),
@@ -297,13 +353,14 @@ def bericht(tab: pd.DataFrame, aus: pd.DataFrame, mrg: pd.DataFrame,
 
 
 def main(argv: list[str]) -> int:
-    """Rechnet beide Decken, Marge und Ausschoepfung; schreibt vier Dateien.
+    """Rechnet beide Decken, Marge, Ausschoepfung und F1 je Klasse.
 
     Ein:  klassifikation.parquet; Argument "holdout" oeffnet die 6 gesperrten
           Stadtteile; struktur_mittel.csv bzw. holdout.csv optional fuer die
           Quoten
     Aus:  decke.csv, decke_marge.csv, decke_ausschoepfung.csv, decke.md
-          (mit Endung _holdout, wenn das Argument gesetzt ist); Exitcode
+          (mit Endung _holdout, wenn das Argument gesetzt ist), ohne Argument
+          zusaetzlich klassen_f1.csv; Exitcode
 
     - ohne das Argument wird auf ist_holdout == 0 gefiltert (Fallstrick 1)
     - die Quelle der Modellwerte richtet sich nach dem Lauf (Fallstrick 5);
@@ -356,6 +413,12 @@ def main(argv: list[str]) -> int:
     mrg = marge(panel)
     print(mrg.to_string(index=False), "\n")
 
+    # Nur fuer die Kreuzvalidierung: Fuer das Hold-out gibt es keine
+    # gespeicherten Vorhersagen (Fallstrick 5).
+    kf = pd.DataFrame() if mit_holdout else klassen_f1()
+    if not kf.empty:
+        print(kf.to_string(index=False), "\n")
+
 
     # Der Hold-out-Lauf schreibt in EIGENE Dateien. Sonst ueberschriebe die
     # Schlussbewertung die Zahlen des Entwicklungspanels - derselbe Fehler,
@@ -365,9 +428,12 @@ def main(argv: list[str]) -> int:
     mrg.to_csv(OUT / f"decke_marge{endung}.csv", index=False)
     if not aus.empty:
         aus.to_csv(OUT / f"decke_ausschoepfung{endung}.csv", index=False)
+    if not kf.empty:
+        kf.to_csv(OUT / "klassen_f1.csv", index=False)
     (OUT / f"decke{endung}.md").write_text(
         bericht(tab, aus, mrg, kipp, treffer, modal,
-                panel["stadtteil"].nunique(), quelle_modelle if modelle else ""),
+                panel["stadtteil"].nunique(), quelle_modelle if modelle else "",
+                kf),
         encoding="utf-8")
 
     # Kontrolle: Mehrheitsklasse < Decke B < Decke A.
@@ -375,7 +441,8 @@ def main(argv: list[str]) -> int:
         print("  WARNUNG: Erwartete Ordnung Mehrheitsklasse < Decke B < Decke A "
               "verletzt - Rechenweg pruefen.")
     print(f"  Geschrieben: results/klassifikation/decke{endung}.csv, "
-          f"decke_marge{endung}.csv, decke{endung}.md")
+          f"decke_marge{endung}.csv, decke{endung}.md"
+          f"{'' if kf.empty else ', klassen_f1.csv'}")
     return 0
 
 

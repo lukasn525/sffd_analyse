@@ -373,6 +373,10 @@ def zielgroessen(reg: pd.DataFrame, kls: pd.DataFrame) -> list[str]:
 
     r = reg["einsaetze_je_1000_ew"]
     je_st = reg.groupby("stadtteil")["einsaetze_je_1000_ew"].mean()
+    # Wie in prep/s2_datensaetze.pruefe_zuschnitt: ein Wert je Stadtteil
+    # und Jahr, summiert ueber die Stadtteile.
+    bev_jahr = (reg.groupby(["jahr", "stadtteil"])[EXPOSURE_ROH].first()
+                   .groupby("jahr").sum())
     t += [
         "## Zielgroesse 2 - einsaetze_je_1000_ew (Robustheitspruefung)", "",
         f"- Mittel {z(r.mean(), 2)} | Median {z(r.median(), 2)} "
@@ -385,6 +389,9 @@ def zielgroessen(reg: pd.DataFrame, kls: pd.DataFrame) -> list[str]:
         "der Verteilungsannahme, die Modellwahl haengt an Zielgroesse 1",
         f"- Stadtteilmittel {z(je_st.min(), 2)} bis {z(je_st.max(), 2)} "
         f"-> Faktor {z(je_st.max() / je_st.min(), 0)}",
+        f"- Stadtweite Wohnbevoelkerung der {reg['stadtteil'].nunique()} "
+        f"Stadtteile, Nenner der Rate: {z(bev_jahr.min(), 0)} bis "
+        f"{z(bev_jahr.max(), 0)} je Jahr",
         "- Der Faktor ist der Grund, warum R2 auf der Rate kein tragfaehiges "
         "Hauptmass ist: R2 misst gegen den Mittelwert der Testdaten, und der "
         "liegt je nach Fold weit vom Trainingsmittelwert entfernt"
@@ -407,6 +414,48 @@ def zielgroessen(reg: pd.DataFrame, kls: pd.DataFrame) -> list[str]:
         "NFIRS-Anteilsspalten desselben Monats. Es ist eine echte Klasse, "
         "kein gesetzter Schwellwert und keine Einteilung einer stetigen "
         "Groesse.",
+        "",
+    ]
+
+    # Gleichstand: Mehrere Gruppen teilen sich den hoechsten Anteil. Dann
+    # entscheidet die Reihenfolge der Anteilsspalten (idxmax nimmt die erste).
+    zaehl = kls[ANZAHLEN]
+    gleich = zaehl.eq(zaehl.max(axis=1), axis=0).sum(axis=1) > 1
+    t += [
+        "### Gleichstand zwischen zwei Gruppen", "",
+        f"- Bei {z(int(gleich.sum()), 0)} der {z(len(kls), 0)} "
+        "Stadtteil-Monate teilen sich mindestens zwei Gruppen den hoechsten "
+        "Anteil. Dann entscheidet die Reihenfolge der Anteilsspalten: "
+        + ", ".join(a.replace("anteil_", "") for a in ANTEILE) + ".",
+    ]
+    for klasse in v.index:
+        alle = int((kls["dominante_einsatzart"] == klasse).sum())
+        davon = int((gleich & (kls["dominante_einsatzart"] == klasse)).sum())
+        t.append(f"- `{klasse}`: {davon} von {alle} Monaten durch "
+                 "Gleichstand entschieden")
+    t.append("")
+
+    # Dieselbe Zielgroesse je Einsatz statt je Stadtteil-Monat. Alle Einsaetze
+    # eines Stadtteil-Monats tragen dieselben Merkmale; mehr als die
+    # haeufigste Gruppe je Merkmalsprofil kann kein Modell treffen.
+    merkmale = list(PRAEDIKTOREN) + list(SAISON)
+    einsaetze = int(zaehl.to_numpy().sum())
+    je_profil = zaehl.groupby([kls[m] for m in merkmale]).sum()
+    profil_treffer = je_profil.max(axis=1).sum() / einsaetze
+    mehrheit = zaehl.sum()
+    mehrheit_treffer = mehrheit.max() / einsaetze
+    t += [
+        "### Dieselbe Frage je Einsatz statt je Stadtteil-Monat", "",
+        f"- {z(einsaetze, 0)} Einsaetze in {z(len(kls), 0)} Stadtteil-Monaten "
+        f"mit {z(len(je_profil), 0)} verschiedenen Merkmalsprofilen",
+        f"- Jedem Profil seine haeufigste Gruppe zuweisen: "
+        f"{z(100 * profil_treffer)} % der Einsaetze getroffen",
+        f"- Stets die haeufigste Gruppe "
+        f"(`{mehrheit.idxmax().replace('anzahl_', '')}`): "
+        f"{z(100 * mehrheit_treffer)} % getroffen",
+        f"- Spielraum: {z(100 * (profil_treffer - mehrheit_treffer))} "
+        "Prozentpunkte. Je Einsatz ist die Frage deshalb nicht "
+        "beantwortbar, je Stadtteil-Monat schon.",
         "",
     ]
 

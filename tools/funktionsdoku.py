@@ -1,13 +1,13 @@
 """
 Erzeugt die ausfuehrliche Funktionsdokumentation aus dem Quelltext.
 
-    python tools/funktionsdoku.py archiv    docs/08_FUNKTIONSDOKUMENTATION.md
-    python tools/funktionsdoku.py pdf       docs/funktionsdoku/*.pdf
+    python tools/funktionsdoku.py archiv    doku/08_FUNKTIONSDOKUMENTATION.md
+    python tools/funktionsdoku.py pdf       doku/funktionsdoku/*.pdf
     python tools/funktionsdoku.py           beides
 
 Eingang: alle .py-Dateien in prep/, vorpruefung/, modelle/, tests/, tools/
-Ausgang: docs/08_FUNKTIONSDOKUMENTATION.md
-         docs/funktionsdoku/{prep,vorpruefung,modelle}.pdf
+Ausgang: doku/08_FUNKTIONSDOKUMENTATION.md
+         doku/funktionsdoku/{prep,vorpruefung,modelle}.pdf
 
 STAND: neu am 17.08.2026.
 
@@ -29,7 +29,7 @@ Seither gilt die Arbeitsteilung:
 --------------------------------------------------------------------------
 FALLSTRICKE
 --------------------------------------------------------------------------
-  1  JEDER LAUF UEBERSCHREIBT. `docs/08_FUNKTIONSDOKUMENTATION.md` und die drei
+  1  JEDER LAUF UEBERSCHREIBT. `doku/08_FUNKTIONSDOKUMENTATION.md` und die drei
      PDFs sind die eingefrorene Fassung von VOR der Verdichtung. Ein erneuter
      Lauf liest den heutigen - gekuerzten - Quelltext und ersetzte die
      ausfuehrliche Fassung durch die kurze. Das Skript verweigert deshalb
@@ -62,8 +62,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ARCHIV = ROOT / "docs" / "08_FUNKTIONSDOKUMENTATION.md"
-PDF_ORDNER = ROOT / "docs" / "funktionsdoku"
+ARCHIV = ROOT / "doku" / "08_FUNKTIONSDOKUMENTATION.md"
+PDF_ORDNER = ROOT / "doku" / "funktionsdoku"
 
 ABSCHNITTE = [
     ("prep", "Aufbereitung"),

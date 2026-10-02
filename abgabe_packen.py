@@ -34,7 +34,7 @@ ORDNER_RAUS = {
     "venv": "virtuelle Umgebung, entsteht aus requirements.txt",
     ".vscode": "Editor-Einstellungen",
     ".dist": "Hilfsordner",
-    "docs": "interne Dokumentation (Schroeter 21.09.: nicht hochladen)",
+    "doku": "interne Arbeitsdokumentation",
     "tools": "Hilfsskripte, keine Zahlen der Arbeit",
     "archiv": "ueberholte Staende",
     "Claude outputs": "Arbeitsdateien",
@@ -133,6 +133,11 @@ def einordnen(rel: str) -> tuple[str, str]:
 
     if teile[0] == "results":
         return "rein", "Ergebnisse (Schroeter 25.09.)"
+
+    if teile[0] == "docs":
+        if name.endswith(".md"):
+            return "rein", "Dokumentation zur Abgabe"
+        return "offen", "keine Markdown-Datei in docs/"
 
     if teile[:2] == ["data", "raw"]:
         return "rein", "Rohdaten, eingefrorener Stand"

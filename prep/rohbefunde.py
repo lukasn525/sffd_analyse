@@ -19,7 +19,8 @@ Groessen traegt einen Eingriff:
   Parzellen ohne Baujahr                -> Nenner yrbuilt_count statt
                                            parcel_count
   ACS-Jahrgang 2009 ohne B15003         -> Analysebeginn 2015
-  Tracts je Jahrgang gegen Crosswalk    -> Trefferquoten
+  Tracts je Jahrgang gegen Crosswalk    -> Trefferquoten, Rueckfall ueber
+                                           den Basiscode der Tract-Nummer
   Einwohner der Parkgebiete             -> Ausschluss der drei Parks
   erster Jahrgang mit Mission Bay       -> Ausschluss der drei Stadtteile
                                            ohne durchgaengige Abdeckung
@@ -75,8 +76,10 @@ import pandas as pd
 
 WURZEL = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(WURZEL))
+sys.path.insert(0, str(WURZEL / "prep"))
 
 from prep.config import ACS_YEARS, START, ENDE  # noqa: E402
+from s1_daten import tract_zu_stadtteil  # noqa: E402
 
 ROH = WURZEL / "data" / "raw"
 PROC = WURZEL / "data" / "processed"
@@ -125,6 +128,13 @@ def main() -> int:
           f"= {z(100 * ohne / len(lu), 1)} %", ""]
 
     # ---- 3  ACS-Jahrgaenge -----------------------------------------------
+    # Zuordnung der Tracts wie in der Aufbereitung: erst ueber die volle
+    # Kennung, sonst ueber den vierstelligen Basiscode. Mehrdeutig ist ein
+    # Basiscode, dessen Nachfolger in verschiedenen Stadtteilen liegen.
+    cw = pd.read_csv(ROH / "crosswalk.csv", dtype={"geoid": str})
+    cw_kennungen = set(cw["geoid"])
+    stadtteile_je_basis = (cw.assign(basis=cw["geoid"].str[5:9])
+                             .groupby("basis")["neighborhood"].nunique())
     zeilen = []
     for jg in ACS_YEARS:
         tr = pd.read_csv(ROH / f"acs_tracts_{jg}.csv")
@@ -132,6 +142,20 @@ def main() -> int:
         uebrige = nb[~nb["neighborhood"].isin(PARKS)]["total_population"]
         park = nb[nb["neighborhood"].isin(PARKS)]["total_population"]
         ggp = nb[nb["neighborhood"] == "Golden Gate Park"]["total_population"]
+        kennung = tr["geoid"].astype(str).str.zfill(11)
+        direkt = kennung.isin(cw_kennungen)
+        zugeordnet = tract_zu_stadtteil(tr["geoid"], cw).notna()
+        bev = pd.to_numeric(tr["total_population"], errors="coerce").fillna(0)
+        n_je_basis = stadtteile_je_basis.reindex(kennung[~direkt].str[5:9])
+        zuordnung = {
+            "tracts_direkt": int(direkt.sum()),
+            "tracts_basiscode": int((zugeordnet & ~direkt).sum()),
+            "tracts_basiscode_mehrdeutig": int((n_je_basis > 1).sum()),
+            "tracts_offen": int((~zugeordnet).sum()),
+            "einwohner_offen": int(bev[~zugeordnet].sum()),
+            "bev_anteil_ohne_basiscode": round(float(bev[~direkt].sum()
+                                                     / bev.sum()), 6),
+        }
         zeilen.append({
             "jahrgang": jg,
             "genutzt": jg in GENUTZTE_JAHRGAENGE,
@@ -142,6 +166,7 @@ def main() -> int:
             "park_max": int(park.max()) if len(park) else None,
             "median_uebrige": int(uebrige.median()),
             "mission_bay": "Mission Bay" in set(nb["neighborhood"]),
+            **zuordnung,
         })
     acs = pd.DataFrame(zeilen)
     crosswalk = pd.read_csv(ROH / "crosswalk.csv")["geoid"].nunique()
@@ -174,6 +199,27 @@ def main() -> int:
           f"- Der Median der uebrigen Stadtteile liegt nie unter "
           f"**{z(g['median_uebrige'].min(), 0)}**.", ""]
 
+    t += ["## Zuordnung der Tracts zu Stadtteilen", "",
+          "Erst ueber die volle Kennung, sonst ueber den vierstelligen "
+          "Basiscode der Tract-Nummer (`prep/s1_daten.py`, "
+          "`tract_zu_stadtteil`). Die letzte Spalte nennt den Anteil der "
+          "Wohnbevoelkerung, der ohne den Basiscode keinen Stadtteil erhielte.",
+          "",
+          "| Jahrgang | Tracts | direkt | ueber Basiscode | Basiscode "
+          "mehrdeutig | offen | Einwohner offen | zugeordnet | ohne Basiscode "
+          "fehlte |",
+          "|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
+    for r in zeilen:
+        n_zugeordnet = r["tracts_direkt"] + r["tracts_basiscode"]
+        t.append(f"| {r['jahrgang']} | {r['tracts']} | {r['tracts_direkt']} "
+                 f"({z(100 * r['tracts_direkt'] / r['tracts'], 1)} %) | "
+                 f"{r['tracts_basiscode']} | "
+                 f"{r['tracts_basiscode_mehrdeutig']} | {r['tracts_offen']} | "
+                 f"{z(r['einwohner_offen'], 0)} | "
+                 f"{z(100 * n_zugeordnet / r['tracts'], 1)} % | "
+                 f"{z(100 * r['bev_anteil_ohne_basiscode'], 1)} % |")
+    t.append("")
+
     (ZIEL / "rohbefunde.md").write_text("\n".join(t), encoding="utf-8")
     acs.to_csv(ZIEL / "rohbefunde_acs.csv", index=False)
 
@@ -188,6 +234,10 @@ def main() -> int:
           f"({z(100 * ohne / len(lu), 1)} %)")
     print(f"Tracts je Jahrgang            : "
           f"{' -> '.join(str(x) for x in acs['tracts'])}")
+    print(f"davon direkt zugeordnet       : "
+          f"{' -> '.join(str(x) for x in acs['tracts_direkt'])}")
+    print(f"davon ueber den Basiscode     : "
+          f"{' -> '.join(str(x) for x in acs['tracts_basiscode'])}")
     print(f"Golden Gate Park, genutzte Jg.: "
           f"{z(g['golden_gate_park'].min(), 0)} bis "
           f"{z(g['golden_gate_park'].max(), 0)} Einwohner")

@@ -3,9 +3,10 @@ Wer sind die 30 und wer sind die 6? - Profil beider Panelhaelften.
 
     python vorpruefung/panelprofil.py
 
-Eingang: data/processed/regression.parquet, data/processed/klassifikation.parquet
+Eingang: data/processed/regression.parquet, data/processed/klassifikation.parquet,
+         data/raw/neighborhoods.geojson
 Ausgang: results/panelprofil/stadtteile.csv, klassenverteilung.csv,
-         zielgroessen.csv, panelprofil.md
+         zielgroessen.csv, suchmenge.csv, nachbarschaft.csv, panelprofil.md
 
   - Der Validierungsrahmen haelt ganze Stadtteile zurueck. Eine
     Schlussbewertung auf sechs Einheiten ist ohne diese sechs Einheiten keine
@@ -23,8 +24,13 @@ Ausgang: results/panelprofil/stadtteile.csv, klassenverteilung.csv,
     von denen eine selten ist - und die Verteilung der Zielgroessen auf der
     RATE, weil das die Skala ist, auf der alle drei Verfahren angepasst
     werden
+  - Zwei weitere Eigenschaften der Aufteilung stehen hier, weil sie nicht
+    vom Modell abhaengen: wie viele Teststadtteile der Wiederholungen 1 bis 9
+    schon in der Suchmenge von Wiederholung 0 lagen, und wie viele
+    Trainingsstadtteile keine gemeinsame Grenze mit einem Teststadtteil haben
   - Rein deskriptiv. Kein Modell, kein Test, kein Zufall: zwei Laeufe
-    liefern dieselbe Datei. Haengt bewusst nicht an vorpruefung/run.py,
+    liefern dieselbe Datei. Die Wiederholungen kommen aus v0_aufteilung.py
+    mit festem Startwert. Haengt bewusst nicht an vorpruefung/run.py,
     weil es keine Voraussetzung fuer die Baselines ist
 
 FALLSTRICKE
@@ -57,9 +63,13 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "prep"))
+sys.path.insert(0, str(ROOT / "modelle"))
 
-from config import (EXPOSURE_ROH, PFAD_KLASSIFIKATION,  # noqa: E402
+from config import (EXPOSURE_ROH, N_FOLDS, PFAD_KLASSIFIKATION,  # noqa: E402
                     PFAD_REGRESSION)
+from config_modelle import WIEDERHOLUNGEN  # noqa: E402
+from s1_daten import neighborhoods_gdf  # noqa: E402
+from v0_aufteilung import selten_je_stadtteil, wiederholte_aufteilung  # noqa: E402
 
 OUT = ROOT / "results" / "panelprofil"
 
@@ -172,6 +182,65 @@ def zielgroessen(reg: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(zeilen)
 
 
+def suchmenge(reg: pd.DataFrame, kl: pd.DataFrame) -> pd.DataFrame:
+    """Anteil der Teststadtteile, die schon in der Suchmenge lagen.
+
+    Ein:  beide Datensaetze
+    Aus:  Datenrahmen mit einer Zeile je Wiederholung 1 bis 9 und Fold
+
+    - die Parameter fuer Fold k werden in Wiederholung 0 auf dessen
+      Trainingsstadtteilen gesucht und in allen Wiederholungen fuer Fold k
+      verwendet
+    - gezaehlt wird, wie viele Teststadtteile von Fold k einer spaeteren
+      Wiederholung zu dieser Suchmenge gehoerten
+    """
+    selten = selten_je_stadtteil(kl)
+
+    def zuteilung(w: int) -> pd.Series:
+        d = wiederholte_aufteilung(reg, wiederholung=w, selten=selten)
+        return d[d["ist_holdout"] == 0].groupby("stadtteil")["fold"].first()
+
+    basis = zuteilung(0)
+    zeilen = []
+    for w in range(1, WIEDERHOLUNGEN):
+        jetzt = zuteilung(w)
+        for k in range(1, N_FOLDS + 1):
+            test = set(jetzt[jetzt == k].index)
+            gesucht = set(basis[basis != k].index)
+            zeilen.append({"wiederholung": w, "fold": k,
+                           "teststadtteile": len(test),
+                           "davon_in_suchmenge": len(test & gesucht),
+                           "anteil": round(len(test & gesucht) / len(test), 4)})
+    return pd.DataFrame(zeilen)
+
+
+def nachbarschaft(reg: pd.DataFrame, kl: pd.DataFrame) -> pd.DataFrame:
+    """Trainingsstadtteile ohne gemeinsame Grenze mit einem Teststadtteil.
+
+    Ein:  beide Datensaetze, dazu die Stadtteilgeometrie aus data/raw
+    Aus:  Datenrahmen mit einer Zeile je Wiederholung und Fold
+
+    - zeigt, wie viele Trainingsstadtteile ein Puffer um die Teststadtteile
+      uebrig liesse: ausgeschlossen wird jeder Trainingsstadtteil, der einen
+      Teststadtteil beruehrt
+    - dieselbe Geometrie wie in der Aufbereitung (s1_daten.neighborhoods_gdf)
+    """
+    geo = neighborhoods_gdf().set_index("neighborhood")["geometry"]
+    selten = selten_je_stadtteil(kl)
+    zeilen = []
+    for w in range(WIEDERHOLUNGEN):
+        d = wiederholte_aufteilung(reg, wiederholung=w, selten=selten)
+        f = d[d["ist_holdout"] == 0].groupby("stadtteil")["fold"].first()
+        for k in range(1, N_FOLDS + 1):
+            test = geo.loc[f[f == k].index].union_all()
+            train = f[f != k].index
+            frei = [s for s in train if not geo.loc[s].intersects(test)]
+            zeilen.append({"wiederholung": w, "fold": k,
+                           "trainingsstadtteile": len(train),
+                           "ohne_gemeinsame_grenze": len(frei)})
+    return pd.DataFrame(zeilen)
+
+
 def _md(df: pd.DataFrame) -> str:
     """Datenrahmen als Markdown-Tabelle. Reine Formatierung."""
     kopf = "| " + " | ".join(df.columns) + " |"
@@ -181,10 +250,12 @@ def _md(df: pd.DataFrame) -> str:
     return "\n".join([kopf, linie, *zeilen])
 
 
-def bericht(st: pd.DataFrame, kv: pd.DataFrame, zg: pd.DataFrame) -> str:
+def bericht(st: pd.DataFrame, kv: pd.DataFrame, zg: pd.DataFrame,
+            sm: pd.DataFrame, nb: pd.DataFrame) -> str:
     """Setzt die Tabellen zu panelprofil.md zusammen.
 
-    Ein:  Stadtteilprofil, Klassenverteilung, Zielgroessenverteilung
+    Ein:  Stadtteilprofil, Klassenverteilung, Zielgroessenverteilung,
+          Suchmenge, Nachbarschaft
     Aus:  Markdown-Text
 
     - reine Formatierung, hier wird nichts gerechnet
@@ -195,6 +266,7 @@ def bericht(st: pd.DataFrame, kv: pd.DataFrame, zg: pd.DataFrame) -> str:
     b_hold = int(st[st["ist_holdout"] == 1]["monate_brand_dominiert"].sum())
     b_dev = int(st[st["ist_holdout"] == 0]["monate_brand_dominiert"].sum())
     erster = st.iloc[0]
+    nb0 = nb[nb["wiederholung"] == 0]
 
     return "\n".join([
         "# Profil der beiden Panelhaelften",
@@ -229,11 +301,30 @@ def bericht(st: pd.DataFrame, kv: pd.DataFrame, zg: pd.DataFrame) -> str:
         "",
         _md(st),
         "",
+        "## Suchmenge und spaetere Wiederholungen",
+        "",
+        "Die Parameter fuer Fold k werden in Wiederholung 0 auf dessen "
+        "Trainingsstadtteilen gesucht. In den Wiederholungen 1 bis 9 lagen im "
+        f"Mittel {sm['anteil'].mean():.1%} der Teststadtteile eines Folds in "
+        f"dieser Suchmenge (Spanne {sm['anteil'].min():.1%} bis "
+        f"{sm['anteil'].max():.1%} je Fold). Einzelwerte in `suchmenge.csv`.",
+        "",
+        "## Raeumliche Nachbarschaft der Testfolds",
+        "",
+        "Trainingsstadtteile ohne gemeinsame Grenze mit einem Teststadtteil, "
+        "also was ein Puffer um die Teststadtteile uebrig liesse. Im Mittel "
+        f"{nb0['ohne_gemeinsame_grenze'].mean():.1f} statt "
+        f"{nb0['trainingsstadtteile'].mean():.0f} in Wiederholung 0, "
+        f"{nb['ohne_gemeinsame_grenze'].mean():.1f} ueber alle "
+        f"{len(nb)} Laeufe. Einzelwerte in `nachbarschaft.csv`.",
+        "",
+        _md(nb0),
+        "",
     ])
 
 
 def main(argv: list[str]) -> int:
-    """Schreibt drei CSV-Dateien und die Lesefassung.
+    """Schreibt fuenf CSV-Dateien und die Lesefassung.
 
     Ein:  keine Argumente
     Aus:  Exitcode
@@ -248,15 +339,26 @@ def main(argv: list[str]) -> int:
     st = stadtteile(reg, kl)
     kv = klassenverteilung(kl)
     zg = zielgroessen(reg)
+    sm = suchmenge(reg, kl)
+    nb = nachbarschaft(reg, kl)
 
     print(st.to_string(index=False), "\n")
     print(kv.to_string(index=False), "\n")
     print(zg.to_string(index=False), "\n")
+    print(f"  Teststadtteile in der Suchmenge von Wiederholung 0: "
+          f"{sm['anteil'].mean():.1%} im Mittel")
+    print(f"  Trainingsstadtteile ohne Grenze zum Testfold: "
+          f"{nb.loc[nb['wiederholung'] == 0, 'ohne_gemeinsame_grenze'].mean():.1f} "
+          f"(Wiederholung 0), {nb['ohne_gemeinsame_grenze'].mean():.1f} "
+          f"(alle Laeufe)\n")
 
     st.to_csv(OUT / "stadtteile.csv", index=False)
     kv.to_csv(OUT / "klassenverteilung.csv", index=False)
     zg.to_csv(OUT / "zielgroessen.csv", index=False)
-    (OUT / "panelprofil.md").write_text(bericht(st, kv, zg), encoding="utf-8")
+    sm.to_csv(OUT / "suchmenge.csv", index=False)
+    nb.to_csv(OUT / "nachbarschaft.csv", index=False)
+    (OUT / "panelprofil.md").write_text(bericht(st, kv, zg, sm, nb),
+                                        encoding="utf-8")
 
     # Kontrollen:
     #   1  6 Stadtteile im Hold-out, 30 in der Entwicklung
@@ -281,7 +383,8 @@ def main(argv: list[str]) -> int:
               "nicht auf die Gesamtzahl.")
 
     print("  Geschrieben: results/panelprofil/stadtteile.csv, "
-          "klassenverteilung.csv, zielgroessen.csv, panelprofil.md")
+          "klassenverteilung.csv, zielgroessen.csv, suchmenge.csv, "
+          "nachbarschaft.csv, panelprofil.md")
     return 0
 
 

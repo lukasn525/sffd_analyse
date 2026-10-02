@@ -7,7 +7,7 @@ von keinem Skript in prep/, vorpruefung/ oder modelle/ importiert.
 
 WOZU
 --------------------------------------------------------------------------
-`CLAUDE.md` legt fest: jede Ergebniszahl steht in `docs/03_STAND.md` und nur
+`CLAUDE.md` legt fest: jede Ergebniszahl steht in `doku/03_STAND.md` und nur
 dort. Diese Regel haelt genau so lange, wie jemand sie nach jedem Lauf von
 Hand nachzieht. Am 07.08.2026 hat sie nicht gehalten - Abschnitt 4 berichtete
 die Negative Binomial (RMSE 37,27), waehrend Abschnitt 5 derselben Datei das
@@ -52,7 +52,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 RES = ROOT / "results"
-DOCS = ROOT / "docs"
+DOCS = ROOT / "doku"
 
 
 # ==========================================================================
@@ -166,7 +166,7 @@ def zahlen_in(text: str) -> set[float]:
 class Pruefung:
     name: str
     soll: float
-    dok: str                      # Dateiname in docs/
+    dok: str                      # Dateiname in doku/
     abschnitt: str | None = None  # None = ganzes Dokument
     stellen: int = 2
     quelle: str = ""
@@ -560,7 +560,7 @@ VERWORFENE_BASELINES = ("Negative Binomial", "Negativ-Binomial",
                         "Negative-Binomial")
 
 # Berichte, die die Wahl der Baseline BEGRUENDEN - erzeugt, nicht von Hand
-# geschrieben. Nur diese werden geprueft: In docs/ und in 07_BEFUNDE.md sind
+# geschrieben. Nur diese werden geprueft: In doku/ und in 07_BEFUNDE.md sind
 # Rueckblicke auf die Negative Binomial erwuenscht, dort greift ALTLASTEN.
 BEGRUENDENDE_BERICHTE = ("eignungspruefung/eignungspruefung.md",)
 
@@ -577,7 +577,7 @@ def pruefe_baselinename(erg: Ergebnis) -> None:
     WARUM DIE VIER UEBRIGEN PRUEFUNGEN DAS NICHT GEFUNDEN HABEN - zwei Gruende,
     beide behebbar nur durch diese Pruefung:
 
-      1  Sie lesen `docs/`. Dies hier ist eine ERZEUGTE Datei unter `results/`,
+      1  Sie lesen `doku/`. Dies hier ist eine ERZEUGTE Datei unter `results/`,
          die bis heute von keiner Pruefung angefasst wurde.
       2  Es ist keine Zahl, sondern ein NAME. Der Zahlenwaechter sucht
          ausschliesslich nach deutsch formatierten Zahlen.
@@ -623,7 +623,7 @@ def pruefe_baselinename(erg: Ergebnis) -> None:
         #    Die Abgrenzung "warum nicht die Negative Binomial" gehoert in den
         #    Bericht; sie muss nur als Abgrenzung erkennbar sein und nicht wie
         #    eine Setzung dastehen. Massstab ist dieselbe HISTORIE-Regel, die
-        #    auch fuer Altlasten in docs/ gilt.
+        #    auch fuer Altlasten in doku/ gilt.
         for i, zeile in enumerate(zeilen):
             umfeld = "\n".join(zeilen[max(0, i - UMFELD):i + UMFELD + 1])
             for alt in VERWORFENE_BASELINES:
@@ -669,7 +669,7 @@ ALTLASTEN = [
     Altlast("550", None, "altes Laufzeitverhaeltnis Ridge/Random Forest"),
     # Werte aus dem Lauf mit Budget 50 (07.08.2026). Nach Decision Log #52 wird
     # ausschliesslich der finale Lauf berichtet - kein Vorher-Nachher, keine
-    # zweite Ergebnisreihe. Taucht eine dieser Zahlen in docs/ auf, ist sie
+    # zweite Ergebnisreihe. Taucht eine dieser Zahlen in doku/ auf, ist sie
     # entweder ein Rueckblick (dann markiert) oder ein Verstoss gegen #52.
     Altlast("35,88", "37,39", "XGBoost RMSE, Lauf mit Budget 50 (#52)"),
     Altlast("35,63", "34,96", "Random Forest RMSE, Budget 50 (#52)"),

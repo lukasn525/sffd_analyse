@@ -1,4 +1,4 @@
-"""Funktionslandkarte - erzeugt docs/10_FUNKTIONSLANDKARTE.md aus dem Quelltext.
+"""Funktionslandkarte - erzeugt doku/10_FUNKTIONSLANDKARTE.md aus dem Quelltext.
 
     python tools/landkarte.py
 
@@ -245,7 +245,7 @@ A(f"""# Funktionslandkarte — jede Funktion, ihr Zweck, ihr Aufrufer
 >
 > **Wozu diese Datei.** Sie beantwortet für jede Funktion des Repos drei
 > Fragen: Wo steht sie, was tut sie, wer ruft sie. Sie ersetzt nicht
-> `docs/08_FUNKTIONSDOKUMENTATION.md` — dort steht ausführlich, *warum* eine
+> `doku/08_FUNKTIONSDOKUMENTATION.md` — dort steht ausführlich, *warum* eine
 > Funktion so aussieht (Stand 17.08.2026, eingefroren). Hier steht knapp,
 > *was* sie ist, und zwar auf dem aktuellen Stand.
 >
@@ -558,7 +558,7 @@ Für das Verständnis der Arbeit sind sie zweitrangig — **mit einer Ausnahme:*
 ### `tools/pruefe_zahlen.py` — der Zahlenwächter
 
 Die einzige Datei in `tools/`, die man kennen sollte. Sie prüft **148 Werte**
-aus `results/` gegen die Stellen in `docs/`, an denen sie stehen, plus fünf
+aus `results/` gegen die Stellen in `doku/`, an denen sie stehen, plus fünf
 Strukturprüfungen. `baue_pruefungen` (227 Z.) ist die Registrierungsliste —
 lang, aber trivial: eine Zeile je Wert. `abschnitte` zerlegt ein
 Markdown-Dokument an den nummerierten Überschriften, damit ein Wert nicht in
@@ -639,8 +639,8 @@ Nach Erfahrung mit dieser Art Prüfung reichen fünf Antworten:
    bei Abweichung.
 """)
 
-ziel = R/"docs"/"10_FUNKTIONSLANDKARTE.md"
+ziel = R/"doku"/"10_FUNKTIONSLANDKARTE.md"
 ziel.write_text("\n".join(P), encoding="utf-8")
 n = len(ziel.read_text(encoding="utf-8").splitlines())
-print(f"geschrieben: docs/10_FUNKTIONSLANDKARTE.md  ({n} Zeilen, "
+print(f"geschrieben: doku/10_FUNKTIONSLANDKARTE.md  ({n} Zeilen, "
       f"{sum(len(v) for v in fkt.values())} Funktionen erfasst)")

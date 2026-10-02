@@ -1,7 +1,7 @@
 # CLAUDE.md — Rahmenplan und Wegweiser
 
 > **Anweisung an Claude:** Diese Datei bei jeder neuen Session zuerst einlesen,
-> danach `docs/03_STAND.md`. Diese Datei enthält **keine Ergebniszahlen** — sie
+> danach `doku/03_STAND.md`. Diese Datei enthält **keine Ergebniszahlen** — sie
 > sagt, wo was steht und nach welchen Regeln gearbeitet wird.
 
 **Arbeit:** „Vorhersage von Feuerwehreinsätzen mittels Machine Learning, ein
@@ -22,16 +22,16 @@ Zahl an sechs Stellen, von denen fünf falsch werden, ohne dass es auffällt.
 
 | Datei | Ändert sich | Inhalt |
 |---|---|---|
-| `docs/01_VORGABEN.md` | nur wenn Schröter etwas sagt | Auflagen, Gutachten-Regeln R1–R10, Formales, Abgabe, Kolloquiumsfragen |
-| `docs/02_ENTSCHEIDUNGEN.md` | wächst, wird nie umgeschrieben | Decision Log: jede Abweichung vom Exposé mit Begründung |
-| `docs/03_STAND.md` | **bei jedem `build.py`** | Was die Aufbereitung tut, Datensatz-Steckbrief, Baseline-Werte |
-| `docs/04_MODELLIERUNG.md` | wenn sich die Modellplanung ändert | Spezifikation für `modelle/`: Verfahren, Validierungsrahmen, Verbote |
-| `docs/06_RISIKEN.md` | wenn ein Risiko eintritt oder wegfällt | Risikoregister der Modellierung, Grundlage für die Sprechstunde |
-| `docs/07_BEFUNDE.md` | wächst während der Implementierung | Was beim Bauen aufgefallen ist: lückenhafte Spezifikation, Ergebnisse gegen Entscheidungen, Annahmen. Grundlage für Kapitel 8 und die kritische Reflexion |
-| `docs/10_FUNKTIONSLANDKARTE.md` | **erzeugt** — `python tools/landkarte.py` | Jede Funktion mit Zeilen, Zweck und Aufrufer; Lernpfad und die drei wiederkehrenden Muster. Tabellen und Größenangaben werden bei jedem Lauf neu gemessen |
+| `doku/01_VORGABEN.md` | nur wenn Schröter etwas sagt | Auflagen, Gutachten-Regeln R1–R10, Formales, Abgabe, Kolloquiumsfragen |
+| `doku/02_ENTSCHEIDUNGEN.md` | wächst, wird nie umgeschrieben | Decision Log: jede Abweichung vom Exposé mit Begründung |
+| `doku/03_STAND.md` | **bei jedem `build.py`** | Was die Aufbereitung tut, Datensatz-Steckbrief, Baseline-Werte |
+| `doku/04_MODELLIERUNG.md` | wenn sich die Modellplanung ändert | Spezifikation für `modelle/`: Verfahren, Validierungsrahmen, Verbote |
+| `doku/06_RISIKEN.md` | wenn ein Risiko eintritt oder wegfällt | Risikoregister der Modellierung, Grundlage für die Sprechstunde |
+| `doku/07_BEFUNDE.md` | wächst während der Implementierung | Was beim Bauen aufgefallen ist: lückenhafte Spezifikation, Ergebnisse gegen Entscheidungen, Annahmen. Grundlage für Kapitel 8 und die kritische Reflexion |
+| `doku/10_FUNKTIONSLANDKARTE.md` | **erzeugt** — `python tools/landkarte.py` | Jede Funktion mit Zeilen, Zweck und Aufrufer; Lernpfad und die drei wiederkehrenden Muster. Tabellen und Größenangaben werden bei jedem Lauf neu gemessen |
 
 Die Schreibanleitung für die Kapitel steht als Kommentarblöcke **in `main.tex`**,
-nicht in `docs/` — sonst laufen zwei Fassungen derselben Anleitung auseinander.
+nicht in `doku/` — sonst laufen zwei Fassungen derselben Anleitung auseinander.
 
 ### Wo der Text lebt — Overleaf ist der Master
 
@@ -42,7 +42,7 @@ Bibliothek, keine zweite Fassung von `main.tex`**.
 | liegt lokal | liegt in Overleaf |
 |---|---|
 | `Quellen/` — die PDF der zitierten Literatur | `main.tex` — der gesamte Text |
-| `docs/` — Vorgaben, Entscheidungen, Stand, Befunde | `literatur.bib` — die Bibliothek und zugleich das Quellenregister |
+| `doku/` — Vorgaben, Entscheidungen, Stand, Befunde | `literatur.bib` — die Bibliothek und zugleich das Quellenregister |
 | `prep/`, `vorpruefung/`, `modelle/`, `tests/`, `tools/` | die eingebundenen Bilddateien |
 | `results/` — Tabellen und Abbildungen, die der Text einbindet | |
 
@@ -70,7 +70,7 @@ Daraus folgt die Arbeitsregel:
    **wie oft**, liest zuerst die aktuelle `main.tex` aus Overleaf — nicht die
    Registerzeile, nicht eine frühere Session, nicht diese Datei.
 2. Dasselbe gilt für den Code: maßgeblich ist die Datei in `modelle/`,
-   `prep/`, `vorpruefung/`, nicht ihre Beschreibung in `docs/`.
+   `prep/`, `vorpruefung/`, nicht ihre Beschreibung in `doku/`.
 3. Erst **nachdem** die Fundstelle im Text gelesen ist, wird geprüft, ob die
    PDF in `Quellen/` den dort stehenden Satz auf der angegebenen Seite trägt.
    Die Reihenfolge ist nicht beliebig: Der Satz im Text bestimmt, welche Seite
@@ -88,7 +88,7 @@ Angaben zu Kapitel und Häufigkeit sind es nicht.
 
 ### Die eine Regel, die den Aufbau trägt
 
-**Jede Ergebniszahl steht in `docs/03_STAND.md` — und nur dort.** Alle anderen
+**Jede Ergebniszahl steht in `doku/03_STAND.md` — und nur dort.** Alle anderen
 Dateien und die Thesis verweisen darauf, statt Werte abzuschreiben. Nach jedem
 `python prep/build.py` wird `03_STAND.md` einmal überschrieben, dann stimmt der
 Rest von allein.
@@ -359,11 +359,11 @@ Strukturstrang nicht belegt" — genau der Fall, der vorab vorgesehen war.
 
 | Kapitel | Inhalt | Artefakt |
 |---|---|---|
-| 4 Anwendungsfall & Daten | Datenquellen, Variablen, Zielgrößen | `docs/03_STAND.md` |
-| 5 Data Preparation | Aufbereitung Schritt für Schritt, Split, Baselines | `docs/03_STAND.md`, `prep/` |
-| 6 Modelling | Eignungsprüfung, Verfahrenswahl, Tuning | `modelle/`, `docs/04_MODELLIERUNG.md` |
+| 4 Anwendungsfall & Daten | Datenquellen, Variablen, Zielgrößen | `doku/03_STAND.md` |
+| 5 Data Preparation | Aufbereitung Schritt für Schritt, Split, Baselines | `doku/03_STAND.md`, `prep/` |
+| 6 Modelling | Eignungsprüfung, Verfahrenswahl, Tuning | `modelle/`, `doku/04_MODELLIERUNG.md` |
 | 7 Evaluation | Fold-Ergebnisse, Baselines, Laufzeiten | `results/` |
-| 8 Diskussion | Verfahrensvergleich, Limitationen | `docs/02_ENTSCHEIDUNGEN.md` |
+| 8 Diskussion | Verfahrensvergleich, Limitationen | `doku/02_ENTSCHEIDUNGEN.md` |
 | 9 Fazit | Beantwortung der Forschungsfrage | – |
 
 ---
