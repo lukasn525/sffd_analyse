@@ -710,7 +710,7 @@ def leakage_diagnose(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFra
 
     - in W0 stammen die Parameter aus dem Trainingssatz genau dieses Folds
     - in W1-9 werden dieselben Parameter auf andere Aufteilungen angewandt; im
-      Mittel waren dort 78 % der Teststadtteile in der Suchmenge
+      Mittel waren dort 80 % der Teststadtteile in der Suchmenge
     - waere der Effekt bedeutsam, muesste der Vorsprung in W1-9 systematisch
       groesser ausfallen
     - bewusst schwache Diagnose: W0 ist auch eine andere Aufteilung, der

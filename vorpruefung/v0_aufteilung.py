@@ -169,7 +169,7 @@ def _selbsttest() -> int:
         brand = [int(((kd["fold"] == j) & (kd[ZIELKLASSE] == SELTENE_KLASSE)).sum())
                  for j in range(1, N_FOLDS + 1)]
 
-        ok = ho == ho_datei and sorted(groessen) == [5, 6, 6, 6, 6] and min(brand) > 0
+        ok = ho == ho_datei and sorted(groessen) == [6, 6, 6, 6, 6] and min(brand) > 0
         fehler += not ok
         print(f"  W{w}  Stadtteile je Fold {groessen} | Brand-Testfaelle {brand}"
               f" | Hold-out unveraendert {ho == ho_datei}  {'ok' if ok else 'FEHLER'}")
