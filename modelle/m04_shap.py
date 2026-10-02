@@ -5,11 +5,13 @@ Interpretation: Welche Merkmale tragen die Vorhersage?
     python modelle/m04_shap.py --ohne-baeume    Ablation nur fuer GLM und Logit
 
 Eingang: results/regression/{menge_folds,vergleich,tuning}.csv
+         results/regression/menge_vorhersagen.parquet
          results/klassifikation/{struktur_folds,vergleich,tuning}.csv
          data/processed/{regression,klassifikation}.parquet
 Ausgang: results/shap/beitraege.csv, gruppen.csv, uebersprungen.csv,
          faktorgruppen_menge.csv, vif.csv, extrapolation_*.csv,
-         ablation_exposition.csv, ablation_faktorgruppen{,_mittel}.csv
+         ablation_exposition.csv, ablation_faktorgruppen{,_mittel}.csv,
+         verschiebung.csv
 
   - ZWEI ANTWORTEN: ATTRIBUTION (welcher Anteil der SHAP-
     bzw. Koeffizientenmasse entfaellt auf eine Faktorgruppe - wie ein Modell
@@ -35,8 +37,6 @@ Ausgang: results/shap/beitraege.csv, gruppen.csv, uebersprungen.csv,
 
 Setzt m02 und m03 voraus.
 """
-
-
 
 
 
@@ -483,7 +483,7 @@ def _vif(panel: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> int:
-    """Rechnet die sechs Auswertungen.
+    """Rechnet die sieben Auswertungen.
 
     Ein:  beide Panels, Ergebnisdateien von m02 und m03; Schalter --ohne-baeume
     Aus:  neun CSV-Dateien unter results/shap/; Exitcode
@@ -495,12 +495,13 @@ def main() -> int:
     4. Faktorgruppen des Mengenstrangs aus der Baseline
     5. Ablation der Faktorgruppen: was kostet das Weglassen einer Gruppe
     6. VIF als Kollinearitaetsmass
+    7. Verschiebung der Mengenvorhersagen -> verschiebung.csv
 
     - bleibt Schritt 1 leer, ist das ein Ergebnis und kein Fehler; genau das
       ist im Mengenstrang der Fall
     - das Hold-out wird vor Schritt 1 herausgefiltert; das Skript kennt kein
       "holdout"-Argument
-    - die Schritte 3 bis 5 sind Zusatzbelege und beruehren den Verfahrensvergleich
+    - die Schritte 3 bis 5 und 7 sind Zusatzbelege und beruehren den Verfahrensvergleich
       nicht
     - --ohne-baeume beschraenkt Schritt 5 auf die GLM-Baselines und drueckt die
       Laufzeit deutlich
@@ -683,8 +684,59 @@ def main() -> int:
         oben = g.iloc[0]
         print(f"    {basis:<15} {int(oben['n_zeilen']):>5} Zeilen  "
               f"{oben['merkmal']} {oben['vif']}")
+
+    versch = verschiebung()
+    versch.round(4).to_csv(OUT / "verschiebung.csv", index=False)
+    print("\n  Verschiebung der Mengenvorhersagen (y_hat - y, Mittel ueber die Laeufe):")
+    for _, z in versch.iterrows():
+        print(f"    {z['zielgroesse']:<22}{z['verfahren']:<15}"
+              f"{z['verschiebung_mittel']:>8.2f}   RMSE {z['rmse_mittel']:7.2f}"
+              f" -> {z['rmse_ohne_verschiebung']:7.2f}   "
+              f"{int(z['laeufe_unterschaetzt'])}/{int(z['laeufe'])} Laeufe zu tief")
     print(f"\n  => {OUT}")
     return 0
+
+
+def verschiebung() -> pd.DataFrame:
+    """Wie weit liegen die Mengenvorhersagen im Mittel daneben?
+
+    Ein:  results/regression/menge_vorhersagen.parquet aus m02
+    Aus:  verschiebung.csv
+
+    - Fehler je Testzeile: y_hat - y, negativ heisst zu tief vorhergesagt
+    - je Lauf (Wiederholung x Fold) drei Werte: die Verschiebung als Mittel
+      der Fehler, der RMSE und der RMSE ohne Verschiebung, also die
+      Standardabweichung der Fehler; je Lauf gilt
+      RMSE^2 = Verschiebung^2 + Standardabweichung^2
+    - gemittelt wird ueber die Laeufe wie in m02; jeder Lauf hat gleich viele
+      Testzeilen, das Laufmittel der Verschiebung ist damit zugleich das
+      Mittel ueber alle Testzeilen
+    - Anlass: Ridge schaetzt auf log(1+y), und expm1 fuehrt im Mittel zu
+      tief; rmse_senkung zeigt fuer jedes Verfahren, was das Abziehen der
+      Verschiebung braechte
+    - liest nur, passt kein Modell an
+    """
+    vorhersagen = pd.read_parquet(RESULTS_DIR / "regression"
+                                  / "menge_vorhersagen.parquet")
+    vorhersagen["fehler"] = vorhersagen["y_hat"] - vorhersagen["y"]
+    lauf = (vorhersagen
+            .groupby(["zielgroesse", "verfahren", "wiederholung", "fold"])
+            ["fehler"]
+            .agg(verschiebung="mean",
+                 rmse=lambda e: np.sqrt(np.mean(e ** 2)),
+                 rmse_ohne_verschiebung=lambda e: e.std(ddof=0))
+            .reset_index())
+    lauf["zu_tief"] = lauf["verschiebung"] < 0
+    tabelle = (lauf.groupby(["zielgroesse", "verfahren"])
+               .agg(laeufe=("verschiebung", "size"),
+                    laeufe_unterschaetzt=("zu_tief", "sum"),
+                    verschiebung_mittel=("verschiebung", "mean"),
+                    rmse_mittel=("rmse", "mean"),
+                    rmse_ohne_verschiebung=("rmse_ohne_verschiebung", "mean"))
+               .reset_index())
+    tabelle["rmse_senkung"] = (tabelle["rmse_mittel"]
+                               - tabelle["rmse_ohne_verschiebung"])
+    return tabelle
 
 
 if __name__ == "__main__":
