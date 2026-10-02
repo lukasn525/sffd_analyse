@@ -345,8 +345,8 @@ def baue_klassifikation(regression: pd.DataFrame,
       einzelnen Einsatzes
     - Grund: Innerhalb eines Stadtteil-Monats tragen alle Einsaetze identische
       Strukturmerkmale; auf Einzeleinsatz-Ebene ist nichts zu holen
-    - Zeilen, Zeitraum, Merkmale und Folds werden dem Regressionsdatensatz
-      entnommen; beide Straenge beruhen zwingend auf derselben Aufteilung
+    - Zeilen, Zeitraum und Merkmale werden dem Regressionsdatensatz
+      entnommen, die Folds traegt run() danach in beide ein
     """
 
     von, bis = int(regression["jahr_monat"].min()), int(regression["jahr_monat"].max())
@@ -422,7 +422,7 @@ def pruefe_zuschnitt(r: pd.DataFrame) -> None:
 
     - ein Verbund, der nicht matchende Zeilen verwirft, verliert Analyseeinheiten
       und Bevoelkerung, ohne dass etwas abbricht; alle Folgezahlen sehen
-      weiterhin plausibel aus. Die 19 Pruefungen in tests/ sichern die Struktur
+      weiterhin plausibel aus. Die 20 Pruefungen in tests/ sichern die Struktur
       der erzeugten Dateien, nicht die Plausibilitaet ihrer Werte
     - deshalb hier zwei Groessen, die ein solcher Verlust zwangslaeufig bewegt:
       die Zahl der Analyseeinheiten und die stadtweite Wohnbevoelkerung

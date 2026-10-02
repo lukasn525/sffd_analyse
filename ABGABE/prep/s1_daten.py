@@ -110,7 +110,7 @@ QUELLEN = {
 
 
 def _get(url: str, params: dict) -> requests.Response:
-    """Ruft eine URL mit Wiederholversuchen ab.
+    """Ruft eine URL ab und bricht bei einem HTTP-Fehler ab.
 
     Ein:  URL, optionale Parameter
     Aus:  Antwort der Anfrage
@@ -205,8 +205,8 @@ def run_download() -> None:
     Aus:  Parquet- und CSV-Dateien in data/raw; Exitcode
 
     - Schritt 1a von prep/build.py
-    - vorhandene Dateien werden uebersprungen, damit ein Teillauf nicht erneut
-      ueber die APIs geht
+    - jede eingeschaltete Quelle wird neu geladen und ueberschreibt ihre
+      Datei in data/raw
     """
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     aktiv = [n for n, q in QUELLEN.items() if q[0]]

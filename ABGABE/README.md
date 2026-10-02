@@ -132,6 +132,7 @@ modelle/           Hyperparametersuche, Kreuzvalidierung, Tests,
                    Schlussbewertung und Interpretation
   config_modelle.py  Suchraeume, Budget, Wiederholungen, Startwert
 tests/             Pruefungen der Aufbereitung
+docs/              Datenherkunft, Datenfluss, Ergebnisverzeichnis
 data/raw/          Rohdaten
 data/processed/    erzeugte Analysedateien
 results/           Ergebnisse als Tabellen und Berichte
@@ -140,3 +141,15 @@ results/           Ergebnisse als Tabellen und Berichte
 Die beiden Analysedateien sind `data/processed/regression.parquet` und
 `data/processed/klassifikation.parquet`. Beide liegen auf der Einheit
 Stadtteil je Monat vor, ohne fehlende Werte.
+
+## Dokumentation
+
+`docs/` ergänzt die README um vier kurze Nachschlagedateien:
+
+- `datenherkunft.md`: Portal, Abrufdatum, Filter und Nutzungsbedingungen
+  jeder Rohdatei, dazu die bekannten Fehler in den Rohdaten
+- `datenfluss.md`: welches Skript welche Dateien liest und schreibt
+- `ergebnisverzeichnis.md`: welche Datei in `results/` hinter welcher Tabelle
+  der Arbeit steht
+- `codebook.md`: Verweis auf das Codebook in `results/codebook/`, das
+  `prep/codebook.py` aus den Analysedateien erzeugt

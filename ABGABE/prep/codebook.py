@@ -43,7 +43,7 @@ Damit ist die Tabelle nicht nur einmal richtig, sondern bleibt es.
 --------------------------------------------------------------------------
 EIN BEFUND, DER IN DIE TABELLE GEHOERT
 --------------------------------------------------------------------------
-Fuenf Spalten tragen die Endung `_pct`, enthalten aber ANTEILE von 0 bis 1,
+Sechs Spalten tragen die Endung `_pct`, enthalten aber ANTEILE von 0 bis 1,
 keine Prozentwerte: `armutsquote_pct` steht auf 0,36 und meint 36 %. Wer den
 Namen liest statt den Wertebereich, berichtet den Faktor 100 falsch. Die
 Spalte "Einheit" weist das deshalb ausdruecklich aus.
@@ -407,7 +407,7 @@ def als_markdown(df: pd.DataFrame) -> str:
               f"{int((df['wofuer'].str.startswith('ZIELGROESSE')).sum())} "
               f"Zielgroessen. Fehlende Werte: "
               f"{int(df['fehlend'].sum())} in der gesamten Tabelle.", "",
-              "**Zur Einheit:** Fuenf Spalten tragen die Endung `_pct`, "
+              "**Zur Einheit:** Sechs Spalten tragen die Endung `_pct`, "
               "enthalten aber Anteile von 0 bis 1 und keine Prozentwerte. "
               "`armutsquote_pct` = 0,36 bedeutet 36 %. Die Spalte Einheit ist "
               "massgeblich, nicht der Name.", "",
