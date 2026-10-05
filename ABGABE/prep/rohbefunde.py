@@ -1,70 +1,27 @@
 """
-Rohdatenbefunde.
+Rohdatenbefunde der Quellen, wie sie vom Portal kommen.
 
     python prep/rohbefunde.py
 
-Ausgang: results/deskriptiv/rohbefunde.md
+Output:  results/deskriptiv/rohbefunde.md
 
-Gegenstueck zu deskriptiv.py: Jenes beschreibt den AUFBEREITETEN Datensatz,
-dieses die ROHQUELLEN, so wie sie vom Portal kommen.
-
---------------------------------------------------------------------------
-WAS HIER STEHT UND WAS NICHT
---------------------------------------------------------------------------
-Aufgenommen ist nur, was in der Aufbereitung eine FOLGE hat. Jede der sieben
-Groessen traegt einen Eingriff:
-
-  Meldungen gesamt / im Analysezeitraum -> Umfang, Zeitraumwahl
-  Dubletten nach Einsatznummer          -> Dedup
-  Parzellen ohne Baujahr                -> Nenner yrbuilt_count statt
-                                           parcel_count
-  ACS-Jahrgang 2009 ohne B15003         -> Analysebeginn 2015
-  Tracts je Jahrgang gegen Crosswalk    -> Trefferquoten, Rueckfall ueber
-                                           den Basiscode der Tract-Nummer
-  Einwohner der Parkgebiete             -> Ausschluss der drei Parks
-  erster Jahrgang mit Mission Bay       -> Ausschluss der drei Stadtteile
-                                           ohne durchgaengige Abdeckung
-
-NICHT aufgenommen, bewusst:
-  - Die Antwortzeit. Sie ist eine ERGEBNISvariable und faellt erst nach dem
-    Einsatz an; sie ist weder Merkmal noch Zielgroesse. Ein Qualitaetsbefund
-    ueber eine Spalte, die nie in die Analyse eingeht, ist Ballast.
-  - Fehlende Medianwerte in einzelnen Tracts. Daraus folgt kein Eingriff.
-
---------------------------------------------------------------------------
-WARUM DIE PARKGEBIETE ALS SPANNE BERICHTET WERDEN
---------------------------------------------------------------------------
-Die Einwohnerzahl des Golden Gate Park haengt am ACS-Jahrgang. Eine einzelne
-Zahl waere nicht reproduzierbar - wer nachrechnet, bekommt je nach Jahrgang
-etwas anderes. Berichtet wird deshalb das MAXIMUM ueber die
-genutzten Jahrgaenge gegen das MINIMUM des Medians der uebrigen Stadtteile.
-Diese Aussage gilt in jedem genutzten Jahrgang und traegt das Argument
-staerker als eine Einzelzahl.
+  - Gegenstueck zu deskriptiv.py (aufbereiteter Datensatz)
+  - nur Befunde mit Folge fuer die Aufbereitung:
+      Meldungen gesamt / im Analysezeitraum -> Umfang, Zeitraumwahl
+      Dubletten nach Einsatznummer          -> Dedup
+      Parzellen ohne Baujahr                -> Nenner yrbuilt_count statt
+                                               parcel_count
+      ACS-Jahrgang 2009 ohne B15003         -> Analysebeginn 2015
+      Tracts je Jahrgang gegen Crosswalk    -> Trefferquoten, Rueckfall ueber
+                                               den Basiscode der Tract-Nummer
+      Einwohner der Parkgebiete             -> Ausschluss der drei Parks
+      erster Jahrgang mit Mission Bay       -> Ausschluss der drei Stadtteile
+                                               ohne durchgaengige Abdeckung
+  - bewusst nicht: Antwortzeit (Ergebnisvariable, geht nie in die Analyse),
+    fehlende Medianwerte einzelner Tracts (kein Eingriff)
+  - Parkgebiete als Spanne: Maximum ueber die genutzten Jahrgaenge gegen das
+    Minimum des Medians der uebrigen Stadtteile (gilt in jedem Jahrgang)
 """
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 from __future__ import annotations

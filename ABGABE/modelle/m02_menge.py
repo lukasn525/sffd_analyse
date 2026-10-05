@@ -5,8 +5,8 @@ Verfahrensvergleich fuer die MENGE der Einsatzlast.
     python modelle/m02_menge.py holdout    zusaetzlich die einmalige Schlussbewertung
     python modelle/m02_menge.py holdout --weiter   Phase 1+2 aus results/ uebernehmen
 
-Eingang: data/processed/regression.parquet
-Ausgang: results/regression/menge_folds.csv, menge_mittel.csv, tuning.csv,
+Input:   data/processed/regression.parquet
+Output:  results/regression/menge_folds.csv, menge_mittel.csv, tuning.csv,
          vergleich.csv, holdout.csv
 
   - Zwei Zielgroessen (anzahl_einsaetze, einsaetze_je_1000_ew) x drei
@@ -18,31 +18,6 @@ Ausgang: results/regression/menge_folds.csv, menge_mittel.csv, tuning.csv,
     Referenz
   - Die Fallstricke sind im Code markiert
 """
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 import json
@@ -71,57 +46,33 @@ MERKMALE = PRAEDIKTOREN + SAISON
 ZIELE = (ZIELGROESSE, RATE)
 VERFAHREN = ("ridge", "random_forest", "xgboost")
 
-# Die Stufe-2-Baseline, gegen die die Primaeraussage laeuft. Der Name
-# muss zu vorpruefung/v1_baselines.POISSON passen - er wird zum Filtern der
-# Spalte `modell` in baselines_folds.csv benutzt, ein Tippfehler liefert also
-# stillschweigend eine leere Vergleichsmenge.
+# Stufe-2-Baseline; Name muss zu v1_baselines.POISSON passen (Filter auf
+# `modell` in baselines_folds.csv, Tippfehler = leere Vergleichsmenge).
 BASELINE_STUFE2 = "Poisson-GLM"
 
-# Der gepaarte Test laeuft auf RMSE. Begruendung: Bei der Rate ist R2 kein
-# tragfaehiges Mass - der Mittelwert wird
-# negativ, obwohl die Baseline in jedem Fold besser ist als die Nullmarke. Zwei
-# verschiedene Testmetriken fuer zwei Zielgroessen waeren schwerer zu
-# verteidigen als eine. MAE und R2 wandern als Spalten mit und werden
-# nachrichtlich berichtet.
+# Test auf RMSE: R2 ist bei der Rate nicht tragfaehig (Mittel negativ trotz
+# besserer Baseline); eine Testmetrik fuer beide Zielgroessen. MAE und R2
+# nachrichtlich.
 TESTMASS = "RMSE"
 ALPHA = 0.05
 
 # ==========================================================================
-# PARALLELISIERUNG - zwei Gruende fuer eine Entscheidung
+# PARALLELISIERUNG
 # ==========================================================================
-# Die Modelle laufen EINKERNIG, parallelisiert wird nur die Suche.
-# Praktisch: RandomizedSearchCV(n_jobs=-1) um einen Schaetzer mit n_jobs=-1
-# startet Prozesse ueber alle Kerne, die sich gegenseitig blockieren.
-# Inhaltlich und wichtiger: Verglichen wird auch der Aufwand. Ridge hat als
-# geschlossene Loesung nichts zu parallelisieren, RF und XGBoost skalieren -
-# in unterschiedlichen Betriebsarten gemessen haengt die Zahl an der Kernzahl
-# der Maschine statt am Verfahren. Der Parallelisierungsgewinn ist eine eigene
-# Groesse und wird in jedem Lauf getrennt miterhoben (siehe `ein_lauf`).
+# Modelle einkernig, parallel nur die Suche: verschachtelte Parallelisierung
+# blockiert sich, und der Aufwand soll vom Verfahren abhaengen, nicht von der
+# Kernzahl. Parallelgewinn wird je Lauf getrennt erhoben (`ein_lauf`).
 N_JOBS_MODELL = 1
 N_JOBS_SUCHE = -1
-
-
-
-
-
-
 
 
 # ==========================================================================
 # EXPOSITION - jedes Verfahren modelliert die RATE
 # ==========================================================================
-# Ein Satz fuer alle vier Modelle: geschaetzt wird `einsaetze_je_1000_ew`, fuer
-# `anzahl_einsaetze` wird mit der Einwohnerzahl zurueckmultipliziert. Genau
-# diese Konstruktion verwendet das Poisson-GLM ueber seinen Offset.
-#
-# Grund: Die Frage lautet, welches VERFAHREN die hoechste
-# Guete erzielt. Verlieren zwei davon, weil ihnen die Expositionsstruktur
-# vorenthalten wurde, misst der Vergleich die Modellierungsentscheidung. Bei
-# Zaehldaten mit Expositionsgroesse ist deren explizite Behandlung Standard.
-#
-# Die Gegenprobe - Baumverfahren OHNE Expositionsbehandlung - ist kein zweiter
-# Betriebsmodus, sondern die Ablation in m04_shap.ablation_exposition(). Hier
-# gibt es keinen Schalter: Der Lauf hat genau eine Spezifikation.
+# Alle Verfahren schaetzen `einsaetze_je_1000_ew`; `anzahl_einsaetze` = Rate x
+# Einwohner (wie der Offset im Poisson-GLM). Sonst maesse der Vergleich die
+# Modellierungsentscheidung statt das Verfahren. Gegenprobe ohne Exposition:
+# m04_shap.ablation_exposition().
 
 
 # ---------------------------------------------------------------------------
@@ -130,8 +81,8 @@ N_JOBS_SUCHE = -1
 def verfahren(name: str, n_jobs: int = N_JOBS_MODELL):
     """Baut die ungetunte Pipeline fuer ein Verfahren.
 
-    Ein:  Verfahrensname, optional n_jobs
-    Aus:  scikit-learn-Pipeline ohne Hyperparameter
+    Input:  Verfahrensname, optional n_jobs
+    Output: scikit-learn-Pipeline ohne Hyperparameter
 
     - n_jobs steuert nur die Parallelisierung, nicht das Ergebnis; voreingestellt
       einkernig, damit die Laufzeiten vergleichbar bleiben
@@ -165,17 +116,11 @@ def verfahren(name: str, n_jobs: int = N_JOBS_MODELL):
     raise ValueError(f"Unbekanntes Verfahren: {name}")
 
 
-
-
-
-
-
-
 def suchraum(name: str) -> dict:
     """Uebersetzt SUCHRAEUME aus der Config in scipy-Verteilungen.
 
-    Ein:  Verfahrensname
-    Aus:  dict Parametername -> Verteilung, mit Pipeline-Praefix
+    Input:  Verfahrensname
+    Output: dict Parametername -> Verteilung, mit Pipeline-Praefix
 
     - die Config haelt die Raeume als Tupel ("loguniform", a, b), damit sie ohne
       scipy lesbar bleiben
@@ -210,8 +155,8 @@ def suchraum(name: str) -> dict:
 def tune(name: str, train: pd.DataFrame, ziel: str) -> dict:
     """Sucht die Hyperparameter auf den Trainingsstadtteilen eines Folds.
 
-    Ein:  Trainingsrahmen des Folds, Verfahren, Zielgroesse
-    Aus:  die Parameter als dict, nicht das Modell
+    Input:  Trainingsrahmen des Folds, Verfahren, Zielgroesse
+    Output: die Parameter als dict, nicht das Modell
 
     - FALLSTRICK: Der innere CV muss nach Stadtteil gruppieren. RandomizedSearchCV
       nimmt voreingestellt KFold und schneidet nach Zeilen; ein Stadtteil hat aber
@@ -248,10 +193,10 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
              mit_vorhersagen: bool = False) -> dict:
     """Ein Fit, eine Vorhersage, mit Zeitmessung - eine Zeile fuer die CSV.
 
-    Ein:  Trainings- und Testrahmen, Verfahren, Parameter, Zielgroesse,
-          auch_parallel
-    Aus:  dict mit Guetemassen, Laufzeiten, n_negativ, y_hat_min,
-          Extrapolationsanteil
+    Input:  Trainings- und Testrahmen, Verfahren, Parameter, Zielgroesse,
+            auch_parallel
+    Output: dict mit Guetemassen, Laufzeiten, n_negativ, y_hat_min,
+            Extrapolationsanteil
 
     - die Zeit wird um fit und predict herum gemessen, nicht um die ganze
       Funktion; sonst steckt die Metrikberechnung mit in der Zahl
@@ -269,10 +214,8 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
     X_tr, X_te = train[MERKMALE].astype(float), test[MERKMALE].astype(float)
     y_te = test[ziel].astype(float)
 
-    # EXPOSITION: Geschaetzt wird immer die Rate; fuer die absolute Zahl
-    # wird mit der Einwohnerzahl zurueckmultipliziert. Dieselbe Konstruktion
-    # wie beim Poisson-GLM. Die Zeitmessung bleibt unberuehrt - die
-    # Ruecktransformation ist eine Multiplikation und steht ausserhalb.
+    # Exposition: Rate schaetzen, mit der Einwohnerzahl zurueckrechnen
+    # (ausserhalb der Zeitmessung).
     auf_rate = ziel == ZIELGROESSE
     y_tr = train[RATE if auf_rate else ziel].astype(float)
     zurueck = (test[EXPOSURE_ROH].astype(float).to_numpy() / 1000.0
@@ -299,35 +242,19 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
         y_par = parallel.predict(X_te) * zurueck
         inferenz_par = time.perf_counter() - t
 
-        # Aendert die Kernzahl das ERGEBNIS? Gemessen statt behauptet - und
-        # gemessen statt abgebrochen, ein Diagnosewert darf keinen
-        # mehrstuendigen Lauf beenden. Die berichteten Guetemasse stammen aus
-        # dem einkernigen Fit.
-        # Bei XGBoost erhebliche Abweichung, bei Ridge und RF null. Ursache ist
-        # die parallele Reduktion der Histogramme - eine andere Summierungs-
-        # reihenfolge kippt knapp benachbarte Split-Kandidaten und schaukelt
-        # sich ueber hunderte Baeume auf. Eine Aussage ueber Reproduzierbarkeit.
+        # Aendert die Kernzahl das Ergebnis? Nur gemessen, kein Abbruch;
+        # berichtet wird der einkernige Fit. XGBoost weicht ab (parallele
+        # Histogramm-Reduktion), Ridge und RF nicht.
         abweichung = float(np.max(np.abs(y_hat - y_par)))
-        # Das Maximum sagt, wie weit EINE Zeile auseinanderlaeuft. Ob die
-        # berichteten Guetemasse davon beruehrt waeren, entscheidet der
-        # Abstand ueber ALLE Zeilen auf der Skala des Guetemasses.
+        # Maximum je Zeile; ob die Guete betroffen ist, zeigt der Abstand
+        # ueber alle Zeilen.
         abweichung_rmse = float(np.sqrt(np.mean((y_hat - y_par) ** 2)))
 
-    # UEBERANPASSUNGSNACHWEIS: dieselbe Guete auf den TRAININGS-
-    # stadtteilen. Der Abstand ist der Standardnachweis fuer Ueberanpassung -
-    # ohne ihn bleibt die Diagnose eine Auslegung der Hold-out-Abweichung.
-    # KEIN zweiter Fit, nur eine zusaetzliche Vorhersage, und NACH der
-    # Zeitmessung, damit die Laufzeit unberuehrt bleibt. Verglichen wird auf
-    # der BERICHTETEN Skala, nicht auf der Rate, auf der angepasst wurde.
-    #
-    # WIE DIE ZAHL ZU LESEN IST: Ein Random Forest mit min_samples_leaf = 1
-    # interpoliert seine Trainingsdaten KONSTRUKTIONSBEDINGT - ein
-    # Trainings-R2 nahe 1 ist dort erwartbar und kein Beweis. Der Abstand ist
-    # also NICHT als "A ueberanpasst staerker als B" zu lesen, sondern
-    # zwischen KONFIGURATIONEN desselben Verfahrens und als
-    # Groessenordnung gegen die linearen Modelle. Der saubere Wert fuer Baeume
-    # waere die Out-of-Bag-Schaetzung; sie gibt es nur beim RF und waere
-    # gegenueber Ridge und XGBoost asymmetrisch. Bewusst nicht erhoben.
+    # Ueberanpassung: dieselbe Guete auf den Trainingsstadtteilen, nur eine
+    # zusaetzliche Vorhersage nach der Zeitmessung, auf der berichteten Skala.
+    # RF mit min_samples_leaf = 1 interpoliert konstruktionsbedingt
+    # (Trainings-R2 nahe 1): Abstand nur zwischen Konfigurationen und als
+    # Groessenordnung lesen. OOB gaebe es nur beim RF, daher nicht erhoben.
     y_hat_tr = modell.predict(X_tr) * (
         train[EXPOSURE_ROH].astype(float).to_numpy() / 1000.0 if auf_rate else 1.0)
     y_tr_echt = train[ziel].astype(float)
@@ -350,9 +277,8 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
         "y_hat_min": float(np.min(y_hat)),
     }
 
-    # VORHERSAGEN JE ZEILE (nur von phase_bewertung angefordert): Ohne sie
-    # braucht jede spaetere Frage - Fehleranalyse je Stadtteil, Beitrag eines
-    # einzelnen Teststadtteils zum Gesamtfehler - einen neuen Modelllauf.
+    # Vorhersagen je Zeile (nur phase_bewertung): spaetere Fehleranalysen
+    # ohne neuen Modelllauf.
     if mit_vorhersagen:
         ergebnis["_vorhersagen"] = pd.DataFrame({
             "stadtteil": test["stadtteil"].to_numpy(),
@@ -366,8 +292,8 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
 def extrapolationsanteil(train: pd.DataFrame, test: pd.DataFrame) -> float:
     """Anteil der Testzeilen ausserhalb des Trainings-Wertebereichs.
 
-    Ein:  Trainings- und Testmatrix
-    Aus:  Anteil zwischen 0 und 1
+    Input:  Trainings- und Testmatrix
+    Output: Anteil zwischen 0 und 1
 
     - erklaert spaeter, warum ein Fold aus der Reihe faellt
     - erfasst nur die Spanne je Merkmal, nicht unbekannte Kombinationen; das echte
@@ -384,8 +310,8 @@ def extrapolationsanteil(train: pd.DataFrame, test: pd.DataFrame) -> float:
 def phase_tuning(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     """Phase 1: je Zielgroesse, Verfahren und Fold einmal tune().
 
-    Ein:  Panel der Entwicklungsstadtteile
-    Aus:  tuning.csv mit 30 Zeilen, Parameter als Spalten und als JSON
+    Input:  Panel der Entwicklungsstadtteile
+    Output: tuning.csv mit 30 Zeilen, Parameter als Spalten und als JSON
 
     - keine STILLE Wiederverwendung: tuning.csv ist ein Ergebnis dieses Laufs,
       kein Eingang. Sonst wuerden nach einer Aenderung der Spezifikation still
@@ -403,14 +329,8 @@ def phase_tuning(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     """
     d = wiederholte_aufteilung(panel, wiederholung=0, selten=selten)
 
-
-
-
-    # EXPOSITION: Alle Modelle werden auf der RATE angepasst, es gibt
-    # also nur EIN Modell je Verfahren und Fold und damit nur eine Suche.
-    # Beide Zielgroessen erhalten denselben Parametersatz, wie bei der
-    # Baseline. Die Suche laeuft ueber (Verfahren x Fold) = 15 Durchgaenge; die
-    # 30 Zeilen der tuning.csv entstehen erst danach durch Zuordnung.
+    # Ein Modell je Verfahren und Fold (Rate), also 15 Suchen; die 30 Zeilen
+    # der tuning.csv entstehen durch Zuordnung auf beide Zielgroessen.
     gefunden = {}
     for name in VERFAHREN:
         for k in range(1, N_FOLDS + 1):
@@ -440,8 +360,8 @@ def phase_tuning(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
 def _rein_python(p: dict) -> dict:
     """Wandelt NumPy-Skalare in native Typen, bevor sie nach JSON gehen.
 
-    Ein:  Parameter-dict aus best_params_
-    Aus:  dasselbe dict mit int/float
+    Input:  Parameter-dict aus best_params_
+    Output: dasselbe dict mit int/float
 
     - np.float64 erbt von float und ueberlebt json.dumps zufaellig, np.int64 erbt
       nicht von int
@@ -457,8 +377,8 @@ def _rein_python(p: dict) -> dict:
 def _parameter_je_fold(parameter: pd.DataFrame) -> dict:
     """Liest tuning.csv als Nachschlagetabelle.
 
-    Ein:  tuning.csv als Datenrahmen
-    Aus:  {(zielgroesse, verfahren, fold): Parameter-dict}
+    Input:  tuning.csv als Datenrahmen
+    Output: {(zielgroesse, verfahren, fold): Parameter-dict}
     """
     return {(z["zielgroesse"], z["verfahren"], int(z["fold"])):
             json.loads(z["parameter_json"])
@@ -469,9 +389,9 @@ def phase_bewertung(panel: pd.DataFrame, parameter: pd.DataFrame,
                     selten: pd.Series) -> pd.DataFrame:
     """Phase 2: 10 Wiederholungen x 5 Folds x 3 Verfahren x 2 Zielgroessen.
 
-    Ein:  Panel, Parametertabelle aus Phase 1
-    Aus:  menge_folds.csv mit 300 Zeilen und menge_vorhersagen.parquet
-          mit einer Zeile je Vorhersage
+    Input:  Panel, Parametertabelle aus Phase 1
+    Output: menge_folds.csv mit 300 Zeilen und menge_vorhersagen.parquet
+            mit einer Zeile je Vorhersage
 
     - trainiert wird je Fold auf allen Trainingsstadtteilen
     - mit den Parametern aus Phase 1, aber einem frischen Modell: best_estimator_
@@ -517,8 +437,8 @@ MASSE_PARALLEL = ["train_sekunden_parallel", "inferenz_sekunden_parallel"]
 def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
     """Phase 3: zweistufig mitteln, erst je Wiederholung, dann darueber.
 
-    Ein:  menge_folds.csv als Datenrahmen
-    Aus:  menge_mittel.csv mit std_folds und std_wiederholungen
+    Input:  menge_folds.csv als Datenrahmen
+    Output: menge_mittel.csv mit std_folds und std_wiederholungen
 
     - die 50 Fold-Ergebnisse sind nicht unabhaengig: dieselben 30 Stadtteile in
       zehn Gruppierungen. Ein Intervall aus std_folds/sqrt(50) waere zu eng
@@ -533,24 +453,16 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
     z = z.join(je_wdh.groupby(schluessel, sort=False).std()
                      .add_suffix("_std_wiederholungen"))
     z = z.join(g[MASSE_PARALLEL].mean().add_suffix("_mean"))
-    # Parallelisierungsgewinn: Faktor, um den der Fit ueber alle Kerne
-    # schneller ist. Bei Ridge zu erwarten: rund 1 - eine geschlossene Loesung
-    # hat nichts zu verteilen.
-    # Beide Zeiten stammen aus denselben 50 Laeufen.
+    # Parallelisierungsgewinn (Ridge ~1); beide Zeiten aus denselben 50 Laeufen.
     z["parallel_gewinn"] = (z["train_sekunden_mean"]
                             / z["train_sekunden_parallel_mean"])
-    # Groesste Abweichung zwischen einkernigem und parallelem Modell. Null
-    # heisst threadunabhaengig; alles darueber ist ein Reproduzierbarkeits-
-    # befund.
+    # Groesste Abweichung einkernig/parallel; > 0 = Reproduzierbarkeitsbefund.
     z["parallel_abweichung_max"] = g["parallel_abweichung"].max()
     z = z.join(g[["extrapolationsanteil"]].mean())
     z = z.join(g[["n_negativ"]].sum().rename(columns={"n_negativ": "n_negativ_gesamt"}))
 
-    # UEBERANPASSUNG: Trainingsguete und der Abstand zur Testguete. Ein grosser
-    # positiver Wert heisst, das Modell erklaert die Trainingsstadtteile viel
-    # besser als unbekannte - genau das ist Ueberanpassung. Beim Poisson-GLM
-    # und bei Ridge ist ein kleiner Abstand zu erwarten, bei den Baumverfahren
-    # ein grosser.
+    # Ueberanpassung: Abstand Trainings- zu Testguete; erwartet klein bei GLM
+    # und Ridge, gross bei den Baumverfahren.
     z = z.join(g[["RMSE_train", "R2_train"]].mean())
     z["ueberanpassung_RMSE"] = z["RMSE_mean"] - z["RMSE_train"]
     z["ueberanpassung_R2"] = z["R2_train"] - z["R2_mean"]
@@ -572,8 +484,8 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
 def _holm(p: np.ndarray) -> np.ndarray:
     """Holm-Bonferroni ueber eine Testfamilie.
 
-    Ein:  Liste von p-Werten
-    Aus:  angepasste p-Werte, direkt gegen alpha pruefbar
+    Input:  Liste von p-Werten
+    Output: angepasste p-Werte, direkt gegen alpha pruefbar
 
     - p-Werte aufsteigend, kleinster gegen alpha/m, dann alpha/(m-1), bis zur
       ersten Nichtablehnung
@@ -592,8 +504,8 @@ def _holm(p: np.ndarray) -> np.ndarray:
 def _gepaart(a: np.ndarray, b: np.ndarray) -> dict:
     """Gepaarter Wilcoxon samt der Kennzahlen, die ohne p-Wert tragen.
 
-    Ein:  zwei gepaarte Wertereihen (a = Verfahren, b = Gegner)
-    Aus:  dict mit p-Wert, mittlerer Differenz, Konfidenzintervall, Siegen
+    Input:  zwei gepaarte Wertereihen (a = Verfahren, b = Gegner)
+    Output: dict mit p-Wert, mittlerer Differenz, Konfidenzintervall, Siegen
 
     - bei RMSE ist klein besser; die Differenz b - a ist der Vorteil von a
     """
@@ -618,8 +530,8 @@ def _gepaart(a: np.ndarray, b: np.ndarray) -> dict:
 def vergleiche(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
     """Phase 4: gepaarter Wilcoxon auf RMSE, zwei Rollen und zwei Teststufen.
 
-    Ein:  menge_folds.csv, Baseline-Laeufe aus v1_baselines.py
-    Aus:  vergleich.csv
+    Input:  menge_folds.csv, Baseline-Laeufe aus v1_baselines.py
+    Output: vergleich.csv
 
     - Rolle `primaer`: jedes Verfahren gegen die Stufe-2-Baseline (6 Tests). Keine
       Familie, weil jede Frage vorab einzeln formuliert ist; keine
@@ -647,10 +559,8 @@ def vergleiche(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
                            sort=False)[TESTMASS].mean().rename("wert").reset_index())
 
         for ziel in ZIELE:
-            # GEPAART heisst: auf denselben Laeufen. Deshalb wird ueber die
-            # Schluessel VERBUNDEN und nicht auf gleiche Reihenfolge vertraut -
-            # sonst subtrahiert man stillschweigend verschiedene Testmengen
-            # voneinander. Fehlt ein Gegenstueck, bricht der Lauf ab.
+            # Gepaart = ueber die Schluessel verbunden, nicht ueber die
+            # Reihenfolge; fehlt ein Gegenstueck, bricht der Lauf ab.
             reihen = {n: (v[(v["zielgroesse"] == ziel) & (v["verfahren"] == n)]
                           .set_index(schluessel)["wert"]) for n in VERFAHREN}
             gegner = b[b["zielgroesse"] == ziel].set_index(schluessel)["wert"]
@@ -658,8 +568,8 @@ def vergleiche(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
             def paar(links: pd.Series, rechts: pd.Series) -> dict:
                 """Legt eine Vergleichszeile fuer vergleich.csv an.
 
-                Ein:  Rolle, Teststufe, Zielgroesse, Verfahren, Gegner, Wertereihen
-                Aus:  dict mit Testergebnis und Kennzahlen
+                Input:  Rolle, Teststufe, Zielgroesse, Verfahren, Gegner, Wertereihen
+                Output: dict mit Testergebnis und Kennzahlen
                 """
                 zusammen = pd.concat([links.rename("a"), rechts.rename("b")],
                                      axis=1, join="inner")
@@ -687,10 +597,8 @@ def vergleiche(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
 
     df = pd.DataFrame(zeilen)
 
-    # Holm je Teststufe getrennt, nur innerhalb der sekundaeren Familie.
-    # ZWEI FAMILIEN, nicht sieben Tests: Regression und Klassifikation
-    # beantworten verschiedene Teilfragen.
-    # m03_struktur.py hat genau einen Test und wird nicht korrigiert.
+    # Holm je Teststufe, nur in der sekundaeren Familie (Regression und
+    # Klassifikation getrennt; m03 hat nur einen Test).
     df["p_holm"] = np.nan
     for stufe in df["teststufe"].unique():
         maske = (df["rolle"] == "sekundaer") & (df["teststufe"] == stufe)
@@ -705,8 +613,8 @@ def vergleiche(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
 def leakage_diagnose(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
     """Beziffert, was das Tuning auf Wiederholung 0 kostet.
 
-    Ein:  menge_folds.csv, Baseline-Laeufe
-    Aus:  Datenrahmen mit dem Vorsprung in W0 gegen W1-9
+    Input:  menge_folds.csv, Baseline-Laeufe
+    Output: Datenrahmen mit dem Vorsprung in W0 gegen W1-9
 
     - in W0 stammen die Parameter aus dem Trainingssatz genau dieses Folds
     - in W1-9 werden dieselben Parameter auf andere Aufteilungen angewandt; im
@@ -746,8 +654,8 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
              folds: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     """Einmalige Schlussbewertung: 30 Stadtteile trainieren, 6 bewerten.
 
-    Ein:  vollstaendiges Panel, Parametertabelle aus Phase 1
-    Aus:  holdout.csv mit Spalte fold_der_parameter
+    Input:  vollstaendiges Panel, Parametertabelle aus Phase 1
+    Output: holdout.csv mit Spalte fold_der_parameter
 
     - das Tuning liefert fuenf Parametersaetze je Zielgroesse und Verfahren; die
       Spezifikation legt nicht fest, welcher gilt
@@ -758,7 +666,6 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
       Streuung, deutlich unsicherer als die Kreuzvalidierungswerte
     """
 
-
     param = _parameter_je_fold(parameter)
     dev, ho = entwicklung_und_holdout(panel)
     train, test = panel[dev], panel[ho]
@@ -766,10 +673,8 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
           f"({len(train):,} Zeilen), Bewertung auf "
           f"{test['stadtteil'].nunique()} ({len(test):,} Zeilen)")
 
-    # DIE BASELINES GEHOEREN DAZU: Ein RMSE ist ohne Referenz keine
-    # Aussage, und die Primaeraussage lautet "Verfahren gegen
-    # Stufe-2-Baseline". Sie haben keine Hyperparameter - es gibt nichts zu
-    # waehlen und damit nichts, was der Hold-out beeinflussen koennte.
+    # Baselines gehoeren dazu (Primaeraussage gegen Stufe 2); ohne
+    # Hyperparameter kann das Hold-out sie nicht beeinflussen.
     from v1_baselines import (NULLMARKE, POISSON, bewerte_regression,
                               poisson_glm)
 
@@ -811,8 +716,8 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
 def uebernehmen(panel: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Liest Tuning und Bewertung aus results/, statt sie neu zu rechnen.
 
-    Ein:  Entwicklungspanel; liest tuning.csv und menge_folds.csv
-    Aus:  dieselben zwei Datenrahmen, die Phase 1 und Phase 2 zurueckgeben
+    Input:  Entwicklungspanel; liest tuning.csv und menge_folds.csv
+    Output: dieselben zwei Datenrahmen, die Phase 1 und Phase 2 zurueckgeben
 
     - NUR ueber den Schalter --weiter erreichbar. Ohne ihn rechnet das Skript
       unveraendert alles neu
@@ -828,7 +733,6 @@ def uebernehmen(panel: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
       Zeilenzahl faellt nicht auf. Der Schalter ist fuer den Anschlusslauf
       desselben Tages gedacht, nicht als Dauereinrichtung
     """
-
 
     konfig = Path(__file__).resolve().parent / "config_modelle.py"
     fehlend = [d for d in ("tuning.csv", "menge_folds.csv")
@@ -869,10 +773,10 @@ def uebernehmen(panel: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 def main(argv: list[str]) -> int:
     """Faehrt die vier Phasen und schreibt alle Ergebnisdateien.
 
-    Ein:  regression.parquet; Argument "holdout" haengt die Schlussbewertung
-          an, "--weiter" uebernimmt Phase 1 und 2 aus results/regression/
-    Aus:  tuning.csv, menge_folds.csv, menge_mittel.csv, vergleich.csv,
-          leakage_diagnose.csv, optional holdout.csv; Exitcode
+    Input:  regression.parquet; Argument "holdout" haengt die Schlussbewertung
+            an, "--weiter" uebernimmt Phase 1 und 2 aus results/regression/
+    Output: tuning.csv, menge_folds.csv, menge_mittel.csv, vergleich.csv,
+            leakage_diagnose.csv, optional holdout.csv; Exitcode
 
     - ohne das Argument werden die Hold-out-Zeilen zu Beginn und unwiderruflich
       herausgefiltert, bevor irgendetwas rechnet
@@ -888,9 +792,8 @@ def main(argv: list[str]) -> int:
     voll = pd.read_parquet(PFAD_REGRESSION)
     selten = selten_je_stadtteil(pd.read_parquet(PFAD_KLASSIFIKATION))
 
-    # FALLSTRICK 4, konstruktiv: Ohne das Argument "holdout" wird der Datensatz
-    # HIER auf die Entwicklungsstadtteile eingeschraenkt. Alles Folgende kann
-    # die Hold-out-Zeilen nicht mehr sehen, auch nicht versehentlich.
+    # Fallstrick 4: ohne "holdout" hier auf die Entwicklungsstadtteile
+    # einschraenken; danach sieht nichts mehr Hold-out-Zeilen.
     panel = voll[voll["ist_holdout"] == 0].reset_index(drop=True)
     print(f"  Entwicklung: {len(panel):,} Zeilen | "
           f"{panel['stadtteil'].nunique()} Stadtteile\n")

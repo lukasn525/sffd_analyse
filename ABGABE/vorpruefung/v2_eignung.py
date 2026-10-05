@@ -3,32 +3,20 @@ Eignungspruefung: Passen die gewaehlten Verfahren zu den Zielgroessen?
 
     python vorpruefung/v2_eignung.py
 
-Eingang: data/processed/{regression,klassifikation}.parquet
+Input:   data/processed/{regression,klassifikation}.parquet
          results/klassifikation/baselines_klasse.csv (aus v1_baselines.py)
-Ausgang: results/eignungspruefung/eignungspruefung.md
+Output:  results/eignungspruefung/eignungspruefung.md
          results/eignungspruefung/annahmen.csv     Abschnitt 6, maschinenlesbar
 
-  - Sechs Belege, mehr nicht: (1) Zaehldaten ueberdispers -> zaehldaten-
-    gerechte Verlustfunktionen, (2) Zusammenhaenge nicht linear ->
-    Ridge auf log(1+y), (3) lineare Spezifikation reicht nicht -> RF und
-    XGBoost, (4) Teststadtteile liegen oft ausserhalb -> Limitation, keine
-    Verfahrensfrage, (5) Merkmale trennen auch die Einsatzart -> zweiter
-    Strang, (6) Anforderungen je Verfahren mit Teststatistik und p-Wert
-  - Abschnitt 6 fuehrt auch die Zeilen, in denen eine Anforderung GAR NICHT
-    besteht: Dass Baumverfahren keine Verteilungsannahme haben, ist eine
-    Aussage und keine Auslassung
-  - Abschnitt 2 vergleicht Pearson und Spearman und passt Ridge einmal auf
-    der Rohskala und einmal auf log(1+y) an
-  - Abschnitt 5 ist noetig, weil die Regression den Klassifikationsstrang
-    nicht mitbeantwortet: Kruemmung bei der ANZAHL sagt nichts darueber, ob
-    dieselben Merkmale die ART trennen
-  - Was die Pruefung NICHT leistet: Sie unterscheidet nicht zwischen Random
-    Forest und XGBoost - das ist die empirische Forschungsfrage der Arbeit
-  - Gerechnet wird nur auf den TRAININGSSTADTTEILEN VON FOLD 1; ausgenommen
-    sind Abschnitt 4 und die aus v1 gelesenen Referenzwerte
-  - Der Bericht ist ein Befundblatt
-
-Setzt v1_baselines.py voraus.
+  - sechs Belege: (1) Ueberdispersion -> zaehldatengerechte Verlustfunktionen,
+    (2) nicht linear -> Ridge auf log(1+y), (3) lineare Spezifikation reicht
+    nicht -> RF und XGBoost, (4) Extrapolation -> Limitation, (5) Merkmale
+    trennen die Einsatzart -> zweiter Strang, (6) Anforderungen je Verfahren
+    mit Test und p-Wert, auch wo keine besteht
+  - unterscheidet nicht zwischen RF und XGBoost (empirische Forschungsfrage)
+  - gerechnet auf den Trainingsstadtteilen von Fold 1, ausser Abschnitt 4 und
+    den Referenzwerten aus v1
+  - setzt v1_baselines.py voraus
 """
 
 
@@ -36,20 +24,8 @@ import sys
 from pathlib import Path
 
 
-
-
-
 import numpy as np
 import pandas as pd
-
-
-
-
-
-
-
-
-
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "prep"))
@@ -68,31 +44,19 @@ bericht: list[str] = []
 def log(txt: str = "") -> None:
     """Gibt eine Zeile aus und haengt sie an den Berichtstext an.
 
-    Ein:  Textzeile (leer = Leerzeile)
-    Aus:  nichts; wirkt auf die Liste `bericht`
+    Input:  Textzeile (leer = Leerzeile)
+    Output: nichts; wirkt auf die Liste `bericht`
     """
     print(txt)
     bericht.append(txt)
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # ---------------------------------------------------------------------------
 def dispersion(train: pd.DataFrame) -> None:
     """Beleg 1: Dispersionsindex der beiden Zaehl-Zielgroessen.
 
-    Ein:  Trainingszeilen von Fold 1
-    Aus:  Textabschnitt im Bericht, Dispersionsindex je Zielgroesse
+    Input:  Trainingszeilen von Fold 1
+    Output: Textabschnitt im Bericht, Dispersionsindex je Zielgroesse
 
     - der Index Varianz/Mittelwert misst die Verletzung der Poisson-Annahme
       Var = mu
@@ -103,7 +67,6 @@ def dispersion(train: pd.DataFrame) -> None:
       Konsistenz des bedingten Mittelwerts (Gourieroux u.a. 1984). Das
       Poisson-GLM bleibt Stufe 2
     """
-
 
     y = train[ZIELGROESSE].astype(float)
     index = y.var() / y.mean()
@@ -143,8 +106,8 @@ def dispersion(train: pd.DataFrame) -> None:
 def linearitaet(train: pd.DataFrame) -> None:
     """Beleg 2: Korrelationen und Ridge auf zwei Skalen.
 
-    Ein:  Trainingszeilen von Fold 1
-    Aus:  Textabschnitt
+    Input:  Trainingszeilen von Fold 1
+    Output: Textabschnitt
 
     - Pearson misst den linearen, Spearman den monotonen Zusammenhang; ein
       Auseinanderklaffen zeigt Kruemmung an
@@ -193,16 +156,6 @@ def linearitaet(train: pd.DataFrame) -> None:
         log(f"`{ziel}`: {len(stark[ziel])} Merkmale bewertet, groesster Abstand "
             f"**`{m}`** ({p:+.3f} gegen {s:+.3f}, {d:.3f}) - {art}.")
 
-
-
-
-
-
-
-
-
-
-
     # Ridge fuer BEIDE Zielgroessen, je roh und logarithmiert.
     X = train[MERKMALE].astype(float)
     guete = {}
@@ -213,13 +166,6 @@ def linearitaet(train: pd.DataFrame) -> None:
                         ("log(1+y)", np.log1p(roh))]:
             modell = make_pipeline(StandardScaler(), Ridge(alpha=1.0)).fit(X, y)
             guete[(ziel, name)] = modell.score(X, y)
-
-
-
-
-
-
-
 
     log("")
     log("Ridge im Training (Anpassung, NICHT Prognoseguete):\n")
@@ -239,8 +185,8 @@ def linearitaet(train: pd.DataFrame) -> None:
 def spezifikation(train: pd.DataFrame) -> None:
     """Beleg 3: RESET-Test und Interaktionsterme.
 
-    Ein:  Trainingszeilen von Fold 1
-    Aus:  Textabschnitt mit F-Wert, p-Wert und adjustiertem R2
+    Input:  Trainingszeilen von Fold 1
+    Output: Textabschnitt mit F-Wert, p-Wert und adjustiertem R2
 
     - der RESET-Test prueft, ob Potenzen der Vorhersage noch etwas erklaeren
     - tun sie das, hat das lineare Modell Struktur uebrig gelassen
@@ -292,8 +238,8 @@ def spezifikation(train: pd.DataFrame) -> None:
 def extrapolation(panel: pd.DataFrame) -> None:
     """Beleg 4: Anteil der Teststadtteile ausserhalb des Gelernten.
 
-    Ein:  vollstaendiges Panel (alle Folds, Extrapolation betrifft jeden)
-    Aus:  Textabschnitt mit dem Anteil ausserhalb der Trainingsspanne
+    Input:  vollstaendiges Panel (alle Folds, Extrapolation betrifft jeden)
+    Output: Textabschnitt mit dem Anteil ausserhalb der Trainingsspanne
 
     - ein hoher Anteil ist eine Limitation der Datenlage, keine Verfahrensfrage
     - Baumverfahren extrapolieren grundsaetzlich nicht ueber den gesehenen
@@ -328,8 +274,8 @@ def extrapolation(panel: pd.DataFrame) -> None:
 def klassifikation(kl: pd.DataFrame) -> None:
     """Beleg 5: Trennen dieselben Merkmale auch die Einsatzart?
 
-    Ein:  klassifikation.parquet, baselines_klasse.csv
-    Aus:  Textabschnitt mit Kruskal-Wallis je Merkmal und den Baseline-Werten
+    Input:  klassifikation.parquet, baselines_klasse.csv
+    Output: Textabschnitt mit Kruskal-Wallis je Merkmal und den Baseline-Werten
 
     - eigene Frage: Kruemmung bei der ANZAHL sagt nichts darueber, ob dieselben
       Merkmale die ART trennen
@@ -405,8 +351,8 @@ def klassifikation(kl: pd.DataFrame) -> None:
 def _z(wert: float, stellen: int = 1) -> str:
     """Teststatistik mit deutschem Dezimalkomma.
 
-    Ein:  Zahl, Nachkommastellen
-    Aus:  Zeichenkette
+    Input:  Zahl, Nachkommastellen
+    Output: Zeichenkette
     """
     return f"{wert:.{stellen}f}".replace(".", ",")
 
@@ -414,8 +360,8 @@ def _z(wert: float, stellen: int = 1) -> str:
 def _p(wert: float) -> str:
     """p-Wert deutsch; unter 0,001 wird begrenzt statt beziffert.
 
-    Ein:  p-Wert
-    Aus:  Zeichenkette, ggf. "< 0,001"
+    Input:  p-Wert
+    Output: Zeichenkette, ggf. "< 0,001"
 
     - "4.0e-47" ist keine lesbare Information; die Aussage lautet "praktisch null"
     - bei n = 3.036 findet ein Test fast jede Abweichung; die Effektgroesse
@@ -431,8 +377,8 @@ def _p(wert: float) -> str:
 def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
     """Beleg 6: Anforderungen je Verfahren mit formalen Tests.
 
-    Ein:  Trainingszeilen von Fold 1, Klassifikationspanel
-    Aus:  Textabschnitt, annahmen.csv
+    Input:  Trainingszeilen von Fold 1, Klassifikationspanel
+    Output: Textabschnitt, annahmen.csv
 
     - Anforderungen je Verfahren, formale Tests statt Augenmass, Tabelle mit
       Teststatistik und p-Wert
@@ -446,7 +392,6 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
     - der VIF steht bewusst nicht hier, sondern in m04_shap._vif(): dieselbe Zahl
       an zwei Orten ist eine Fehlerquelle
     """
-
 
     import statsmodels.api as sm
 
@@ -482,12 +427,6 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
                           "jb": float(jb[0]), "jb_p": float(jb[1]),
                           "schiefe": float(jb[2]), "woelbung": float(jb[3])}
 
-
-
-
-
-
-
     reset = befunde["reset"]
     d_anz = diagnose[ZIELGROESSE]
 
@@ -495,8 +434,8 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
           wert=float("nan")):
         """Baut eine Zeile der Anforderungstabelle.
 
-        Ein:  Verfahren, Anforderung, Status, Test, Statistik, p-Wert, Konsequenz
-        Aus:  dict fuer den Tabellenaufbau
+        Input:  Verfahren, Anforderung, Status, Test, Statistik, p-Wert, Konsequenz
+        Output: dict fuer den Tabellenaufbau
 
         - `statistik` ist die lesbare Fassung mit Dezimalkomma, `wert` dieselbe Zahl
           maschinenlesbar
@@ -620,8 +559,8 @@ def annahmen(train: pd.DataFrame, befunde: dict) -> pd.DataFrame:
 def ridge_rate(train: pd.DataFrame) -> None:
     """Beleg 2b: Zieltransformation fuer Ridge, so wie Ridge tatsaechlich rechnet.
 
-    Ein:  Trainingsstadtteile von Fold 1
-    Aus:  Tabelle in eignungspruefung.md, direkt unter Abschnitt 2
+    Input:  Trainingsstadtteile von Fold 1
+    Output: Tabelle in eignungspruefung.md, direkt unter Abschnitt 2
 
     - Ridge schaetzt die RATE und rechnet ueber die Wohnbevoelkerung
       auf die Anzahl zurueck; verglichen wird deshalb dieses Modell, nicht das
@@ -630,7 +569,6 @@ def ridge_rate(train: pd.DataFrame) -> None:
       log(1+y) ist mit einem R2 auf der Rohskala nicht vergleichbar
     - dasselbe Modell wie in linearitaet() (StandardScaler, Ridge alpha=1)
     """
-
 
     from sklearn.linear_model import Ridge
     from sklearn.pipeline import make_pipeline
@@ -668,8 +606,8 @@ def ridge_rate(train: pd.DataFrame) -> None:
 def main() -> None:
     """Rechnet die sechs Belege und schreibt Bericht und Tabelle.
 
-    Ein:  beide Parquet-Dateien, baselines_klasse.csv
-    Aus:  eignungspruefung.md, annahmen.csv
+    Input:  beide Parquet-Dateien, baselines_klasse.csv
+    Output: eignungspruefung.md, annahmen.csv
 
     - Schritt 2 von vorpruefung/run.py
     - Grundlage sind die Trainingsstadtteile von Fold 1; die Teststadtteile

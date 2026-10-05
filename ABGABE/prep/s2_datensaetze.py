@@ -4,8 +4,8 @@ Schritt 2: die beiden finalen Datensaetze samt Validierungsrahmen.
     python prep/s2_datensaetze.py          beide Datensaetze bauen
     python prep/s2_datensaetze.py splits   nur die Aufteilung anzeigen
 
-Eingang: data/processed/einsaetze.parquet        ein Einsatz je Zeile
-Ausgang: data/processed/regression.parquet       Stadtteil x Monat, Menge
+Input:   data/processed/einsaetze.parquet        ein Einsatz je Zeile
+Output:  data/processed/regression.parquet       Stadtteil x Monat, Menge
          data/processed/klassifikation.parquet   Stadtteil x Monat, Struktur
 
 - Beide Dateien liegen auf derselben Analyseeinheit. Die eine misst die MENGE
@@ -15,7 +15,6 @@ Ausgang: data/processed/regression.parquet       Stadtteil x Monat, Menge
   ueber den DATENSATZ, nicht ueber die Algorithmen.
 - Drei Teile: A Stadtteil-Split, B Menge, C Struktur.
 """
-
 
 
 from __future__ import annotations
@@ -64,9 +63,9 @@ def ergaenze_aufteilung(daten: pd.DataFrame, versatz: int = 0,
                         selten: pd.Series | None = None) -> pd.DataFrame:
     """Schreibt `fold` (0..N_FOLDS) und `ist_holdout` in den Datensatz.
 
-    Ein:  Datensatz, `versatz` fuer wiederholte Splits, `selten` als Zahl
-          brand-dominierter Monate je Stadtteil
-    Aus:  derselbe Datensatz mit zwei zusaetzlichen Spalten
+    Input:  Datensatz, `versatz` fuer wiederholte Splits, `selten` als Zahl
+            brand-dominierter Monate je Stadtteil
+    Output: derselbe Datensatz mit zwei zusaetzlichen Spalten
 
     - die Stadtteile werden reihum auf N_FOLDS + 1 Gruppen verteilt; Gruppe 0 ist
       das Hold-out
@@ -98,8 +97,8 @@ def ergaenze_aufteilung(daten: pd.DataFrame, versatz: int = 0,
 def fold_masken(daten: pd.DataFrame, k: int) -> tuple[pd.Series, pd.Series]:
     """Liefert Trainings- und Testmaske des Folds k aus den Spalten der Datei.
 
-    Ein:  Datensatz mit fold-Spalte, Foldnummer k
-    Aus:  zwei boolesche Masken (Training, Test)
+    Input:  Datensatz mit fold-Spalte, Foldnummer k
+    Output: zwei boolesche Masken (Training, Test)
 
     - Test sind die Stadtteile dieses Folds mit allen Monaten
     - Training sind alle uebrigen Entwicklungsstadtteile, ohne das Hold-out
@@ -115,8 +114,8 @@ def fold_masken(daten: pd.DataFrame, k: int) -> tuple[pd.Series, pd.Series]:
 def beschreibe_splits(daten: pd.DataFrame) -> str:
     """Fasst die Aufteilung lesbar zusammen.
 
-    Ein:  Datensatz mit Fold-Spalten
-    Aus:  nichts, reine Konsolenausgabe
+    Input:  Datensatz mit Fold-Spalten
+    Output: nichts, reine Konsolenausgabe
 
     - zeigt, welcher Stadtteil in welchem Fold getestet wird
     - zeigt, dass jeder Fold den vollen Zeitraum abdeckt: der Unterschied zum
@@ -142,8 +141,8 @@ def beschreibe_splits(daten: pd.DataFrame) -> str:
 def _monat_minus(jahr_monat: int, monate: int) -> int:
     """Verschiebt einen jahr_monat-Schluessel um n Monate zurueck.
 
-    Ein:  Schluessel wie 202403, Zahl der Monate
-    Aus:  verschobener Schluessel
+    Input:  Schluessel wie 202403, Zahl der Monate
+    Output: verschobener Schluessel
     """
     jahr, monat = divmod(jahr_monat, 100)
     gesamt = jahr * 12 + (monat - 1) - monate
@@ -153,9 +152,9 @@ def _monat_minus(jahr_monat: int, monate: int) -> int:
 def _setze_datentypen(d: pd.DataFrame, merkmale: list[str]) -> pd.DataFrame:
     """Vereinheitlicht die Datentypen auf modelltaugliche NumPy-Typen.
 
-    Ein:  Datensatz, Merkmalsliste
-    Aus:  derselbe Datensatz - Merkmale float64, Schluessel und Zaehlgroessen
-          int64, stadtteil str
+    Input:  Datensatz, Merkmalsliste
+    Output: derselbe Datensatz - Merkmale float64, Schluessel und Zaehlgroessen
+            int64, stadtteil str
 
     - notwendig, weil EINE nullable Int64-Spalte genuegt, damit X.to_numpy() ein
       object-Array liefert
@@ -185,8 +184,8 @@ def aggregiere(von: int, bis: int, mit_parkgebieten: bool = False,
                verbose: bool = False) -> pd.DataFrame:
     """Verdichtet die Einsatz-Ebene zu Stadtteil x Monat, vollstaendiges Raster.
 
-    Ein:  Zeitgrenzen als jahr_monat-Schluessel, inklusive Lag-Vorlauf
-    Aus:  Panel mit einer Zeile je Stadtteil und Monat
+    Input:  Zeitgrenzen als jahr_monat-Schluessel, inklusive Lag-Vorlauf
+    Output: Panel mit einer Zeile je Stadtteil und Monat
 
     - vollstaendig heisst: auch ein Monat ohne Einsaetze bekommt eine Zeile mit
       Null
@@ -257,9 +256,9 @@ def baue_regression(vorlauf: int = VORLAUF_MONATE,
                     verbose: bool = False) -> pd.DataFrame:
     """Baut den vollstaendigen Regressionsdatensatz.
 
-    Ein:  einsaetze.parquet, Zahl der Vorlaufmonate
-    Aus:  4.752 Zeilen x 25 Spalten - Merkmale, beide Mengen-Zielgroessen,
-          Exposition, Saison, Lags
+    Input:  einsaetze.parquet, Zahl der Vorlaufmonate
+    Output: 4.752 Zeilen x 25 Spalten - Merkmale, beide Mengen-Zielgroessen,
+            Exposition, Saison, Lags
 
     - Lag-Vorlauf: aggregiert wird ab START minus `vorlauf` Monaten, damit
       lag_12 schon fuer den ersten Analysemonat definiert ist
@@ -318,7 +317,6 @@ def baue_regression(vorlauf: int = VORLAUF_MONATE,
     # Einwohnerzahl ab.
     d[RATE] = d[ZIELGROESSE] / d[EXPOSURE_ROH].astype(float) * 1000
 
-
     # REPRODUZIERBARKEITSVERTRAG - diese Sortierung darf nicht veraendert
     # werden: Random Forest und XGBoost ziehen ihre Bootstrap- bzw.
     # Subsample-Stichproben ueber Zeilenpositionen. Eine andere Reihenfolge
@@ -337,9 +335,9 @@ def baue_klassifikation(regression: pd.DataFrame,
                         verbose: bool = False) -> pd.DataFrame:
     """Baut die Anteile der vier NFIRS-Gruppen je Stadtteil und Monat.
 
-    Ein:  der fertige Regressionsdatensatz
-    Aus:  4.751 Zeilen x 29 Spalten mit `dominante_einsatzart` als argmax ueber
-          die vier Anteile
+    Input:  der fertige Regressionsdatensatz
+    Output: 4.751 Zeilen x 29 Spalten mit `dominante_einsatzart` als argmax ueber
+            die vier Anteile
 
     - Zielgroesse ist die ZUSAMMENSETZUNG der Einsatzlast, nicht die Art des
       einzelnen Einsatzes
@@ -417,8 +415,8 @@ def baue_klassifikation(regression: pd.DataFrame,
 def pruefe_zuschnitt(r: pd.DataFrame) -> None:
     """Prueft, ob der Analysezuschnitt der Festlegung entspricht.
 
-    Ein:  fertiger Regressionsdatensatz
-    Aus:  nichts; bricht ab, wenn Zuschnitt oder Exposition unplausibel sind
+    Input:  fertiger Regressionsdatensatz
+    Output: nichts; bricht ab, wenn Zuschnitt oder Exposition unplausibel sind
 
     - ein Verbund, der nicht matchende Zeilen verwirft, verliert Analyseeinheiten
       und Bevoelkerung, ohne dass etwas abbricht; alle Folgezahlen sehen
@@ -446,8 +444,8 @@ def pruefe_zuschnitt(r: pd.DataFrame) -> None:
 def run(verbose: bool = True) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Baut beide finalen Datensaetze, traegt die Folds ein und schreibt sie.
 
-    Ein:  einsaetze.parquet
-    Aus:  regression.parquet und klassifikation.parquet auf der Platte
+    Input:  einsaetze.parquet
+    Output: regression.parquet und klassifikation.parquet auf der Platte
 
     - die Fold-Zuteilung erfolgt EINMAL und wird auf beide Datensaetze angewandt
     - nur so sehen Menge und Struktur dieselben Stadtteile im Test

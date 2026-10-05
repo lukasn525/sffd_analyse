@@ -3,9 +3,9 @@ Wiederholte Splits - die eine Stelle, an der die Fold-Zuteilung entsteht.
 
     python vorpruefung/v0_aufteilung.py    Selbsttest
 
-Eingang: data/processed/{regression,klassifikation}.parquet mit den Spalten
+Input:   data/processed/{regression,klassifikation}.parquet mit den Spalten
          fold und ist_holdout aus prep/s2_datensaetze.ergaenze_aufteilung()
-Ausgang: keine Datei - liefert Datenrahmen an v1_baselines.py, m02_menge.py
+Output:  keine Datei - liefert Datenrahmen an v1_baselines.py, m02_menge.py
          und m03_struktur.py
 
   - Die Grundaufteilung aus der Datei reicht fuer die 10 Wiederholungen
@@ -41,22 +41,19 @@ from config import (EXPOSURE_ROH, N_FOLDS, PFAD_KLASSIFIKATION,  # noqa: E402
 from config_modelle import RANDOM_STATE, WIEDERHOLUNGEN  # noqa: E402
 from s2_datensaetze import ZIELKLASSE, fold_masken  # noqa: E402
 
-# Die seltenste Klasse, nach der stratifiziert wird. Der
-# Wert steht so in der Zielspalte der Klassifikation.
+# Seltenste Klasse, nach der stratifiziert wird (Wert wie in der Zielspalte).
 SELTENE_KLASSE = "brand"
 
 
 def selten_je_stadtteil(klassifikation: pd.DataFrame) -> pd.Series:
     """Zahl der brand-dominierten Monate je Stadtteil.
 
-    Ein:  klassifikation.parquet als Datenrahmen
-    Aus:  Reihe stadtteil -> Anzahl
+    Input:  klassifikation.parquet als Datenrahmen
+    Output: Reihe stadtteil -> Anzahl
 
-    - Stratifizierungsmass der Fold-Zuteilung
-    - identisch zur Berechnung in prep/s2_datensaetze.run()
-    - der Wert steht in keiner Datei; deshalb liest auch der Regressionsstrang
-      klassifikation.parquet mit
-    - kein Leakage: geht in kein Modell ein, bestimmt nur die Testgruppen
+    - Stratifizierungsmass der Fold-Zuteilung, wie in prep/s2_datensaetze.run()
+    - steht in keiner Datei -> auch der Regressionsstrang liest klassifikation
+    - kein Leakage: bestimmt nur die Testgruppen
     """
     return (klassifikation[klassifikation[ZIELKLASSE] == SELTENE_KLASSE]
             .groupby("stadtteil").size())
@@ -66,16 +63,14 @@ def wiederholte_aufteilung(daten: pd.DataFrame, wiederholung: int = 0,
                            selten: pd.Series | None = None) -> pd.DataFrame:
     """Belegt die fold-Spalte fuer eine Wiederholung neu.
 
-    Ein:  Datenrahmen mit fold/ist_holdout, Wiederholung 0..9, `selten`
-    Aus:  Kopie mit neuer fold-Spalte; ist_holdout unveraendert
+    Input:  Datenrahmen mit fold/ist_holdout, Wiederholung 0..9, `selten`
+    Output: Kopie mit neuer fold-Spalte; ist_holdout unveraendert
 
-    - Wiederholung 0 reproduziert die Datei bitgenau, per assert geprueft
-    - Wiederholungen 1..9 mischen innerhalb der Rangbloecke; Foldgroessen und
-      Stratifizierung bleiben erhalten
-    - Hold-out-Zeilen behalten fold = 0 und bleiben in jeder Wiederholung
-      ausgeschlossen
-    - ohne `selten` wird nur nach Bevoelkerung stratifiziert; das reproduziert
-      die Datei NICHT und ist nur fuer Sonderfaelle gedacht
+    - Wiederholung 0 reproduziert die Datei (assert), 1..9 mischen innerhalb
+      der Rangbloecke
+    - Hold-out bleibt fold = 0 und in jeder Wiederholung ausgeschlossen
+    - ohne `selten` nur nach Bevoelkerung stratifiziert (reproduziert die
+      Datei nicht)
     """
     if "ist_holdout" not in daten.columns or "fold" not in daten.columns:
         raise ValueError("Datensatz ohne fold/ist_holdout - erst prep/build.py.")
@@ -91,8 +86,7 @@ def wiederholte_aufteilung(daten: pd.DataFrame, wiederholung: int = 0,
     ordnung = list(pd.DataFrame({"selten": s, "bev": bev})
                      .sort_values(["selten", "bev"], ascending=False).index)
 
-    # Mischen INNERHALB der Rangbloecke. Wiederholung 0 bleibt ungemischt,
-    # damit die Datei exakt reproduziert wird.
+    # Mischen innerhalb der Rangbloecke; Wiederholung 0 bleibt ungemischt.
     if wiederholung:
         rng = np.random.default_rng(RANDOM_STATE + wiederholung)
         for anfang in range(0, len(ordnung), N_FOLDS):
@@ -119,23 +113,22 @@ def entwicklung_und_holdout(daten: pd.DataFrame
                             ) -> tuple[pd.Series, pd.Series]:
     """Masken der Schlussbewertung: 30 Entwicklungs- gegen 6 Hold-out-Stadtteile.
 
-    Ein:  Datenrahmen mit Spalte ist_holdout
-    Aus:  zwei boolesche Reihen (Entwicklung, Hold-out)
+    Input:  Datenrahmen mit Spalte ist_holdout
+    Output: zwei boolesche Reihen (Entwicklung, Hold-out)
 
-    - Gegenstueck zu fold_masken() fuer den einen Lauf, der das Hold-out liest
     - einzige Stelle im Repo, die ist_holdout == 1 auswertet
     """
     return daten["ist_holdout"] == 0, daten["ist_holdout"] == 1
 
 
 # ==========================================================================
-# Selbsttest - beantwortet die vier Fragen, an denen diese Datei haengt
+# Selbsttest
 # ==========================================================================
 def _selbsttest() -> int:
     """Selbsttest ueber alle 10 Wiederholungen.
 
-    Ein:  beide Parquet-Dateien
-    Aus:  Exitcode 0 bei Erfolg, 1 bei mindestens einem Fehler
+    Input:  beide Parquet-Dateien
+    Output: Exitcode 0 bei Erfolg, 1 bei mindestens einem Fehler
 
     Geprueft wird:
     - Foldgroessen 6/6/6/6/6

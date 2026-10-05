@@ -3,32 +3,22 @@ Trennschaerfe des gepaarten Wilcoxon bei zehn Wiederholungsmitteln.
 
     python modelle/trennschaerfe.py
 
-Eingang: results/regression/vergleich.csv, results/klassifikation/vergleich.csv
-Ausgang: results/trennschaerfe/trennschaerfe.csv   je Vergleich: d, Trennschaerfe
+Input:   results/regression/vergleich.csv, results/klassifikation/vergleich.csv
+Output:  results/trennschaerfe/trennschaerfe.csv   je Vergleich: d, Trennschaerfe
          results/trennschaerfe/raster.csv          Trennschaerfe fuer d = 0,1 ... 1,6
 
-  - m02 und m03 pruefen auf n = 10 Wiederholungsmitteln. Ein nicht
-    signifikanter Vergleich traegt erst dann eine Aussage, wenn feststeht,
-    welche Effekte dieses Design ueberhaupt aufloesen kann. Diese Zahl
-    liefert das Skript
-  - Effektstaerke d = mittlere Differenz / Standardabweichung der zehn
-    Differenzen. Die Standardabweichung wird aus dem Konfidenzintervall in
-    vergleich.csv zurueckgerechnet, mit derselben Formel, mit der
-    m02._gepaart bzw. m03._gepaart das Intervall gebildet haben:
+  - welche Effekte n = 10 Wiederholungsmittel ueberhaupt aufloesen koennen
+  - d = mittlere Differenz / SD der zehn Differenzen; SD aus dem
+    Konfidenzintervall in vergleich.csv (Formel wie in m02/m03._gepaart):
     sd = (ci_oben - ci_unten) / 2 / t(1 - ALPHA/2; n - 1) * sqrt(n)
-  - Trennschaerfe per Monte Carlo: ZIEHUNGEN Stichproben zu n Differenzen aus
-    N(d, 1); je Stichprobe derselbe Test wie in m02/m03 (wilcoxon,
-    zero_method="wilcox", zweiseitig), Anteil der Ziehungen mit p < ALPHA
-  - Alle Effektstaerken teilen sich dieselben Standardnormal-Ziehungen
-    (gemeinsame Zufallszahlen): Die Kurve im Raster steigt dadurch glatt,
-    und das Ergebnis haengt nicht von der Reihenfolge der Vergleiche ab
+  - Monte Carlo: ZIEHUNGEN Stichproben aus N(d, 1), Test wie in m02/m03
+    (wilcoxon, zero_method="wilcox", zweiseitig), Anteil mit p < ALPHA
+  - gemeinsame Standardnormal-Ziehungen fuer alle d (glatte Kurve)
 
 FALLSTRICKE
-  1  Nur die Teststufe "wiederholung". Die Stufe "lauf" (n = 50) steht in
-     vergleich.csv nur zur Gegenueberstellung - sie waere Pseudoreplikation
-  2  Normalverteilte Differenzen sind eine Annahme der SIMULATION, nicht des
-     Tests. Die Zahlen sind eine Groessenordnung, keine exakte Eigenschaft
-  3  Die zweiseitige Trennschaerfe haengt nur vom Betrag von d ab
+  1  nur Teststufe "wiederholung" ("lauf" mit n = 50 waere Pseudoreplikation)
+  2  Normalverteilung ist Annahme der Simulation -> Zahlen als Groessenordnung
+  3  zweiseitige Trennschaerfe haengt nur vom Betrag von d ab
 """
 
 from __future__ import annotations
@@ -54,8 +44,8 @@ RASTER = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6]
 def effektstaerke(zeile: pd.Series) -> float:
     """Effektstaerke d einer Zeile aus vergleich.csv.
 
-    Ein:  Zeile mit n_paare, differenz_mittel, ci_unten, ci_oben
-    Aus:  mittlere Differenz geteilt durch die Standardabweichung der Differenzen
+    Input:  Zeile mit n_paare, differenz_mittel, ci_unten, ci_oben
+    Output: mittlere Differenz geteilt durch die Standardabweichung der Differenzen
     """
     n = int(zeile["n_paare"])
     halb = (zeile["ci_oben"] - zeile["ci_unten"]) / 2
@@ -66,8 +56,8 @@ def effektstaerke(zeile: pd.Series) -> float:
 def trennschaerfe(d: float, basis: np.ndarray) -> float:
     """Anteil der Ziehungen, in denen der gepaarte Wilcoxon bei ALPHA verwirft.
 
-    Ein:  Effektstaerke d, Standardnormal-Ziehungen (ZIEHUNGEN x N_PAARE)
-    Aus:  geschaetzte Trennschaerfe zwischen 0 und 1
+    Input:  Effektstaerke d, Standardnormal-Ziehungen (ZIEHUNGEN x N_PAARE)
+    Output: geschaetzte Trennschaerfe zwischen 0 und 1
     """
     p = wilcoxon(basis + abs(d), zero_method="wilcox", axis=1).pvalue
     return float((p < ALPHA).mean())

@@ -1,57 +1,21 @@
 """
-Codebook - die eine grosse Merkmalstabelle.
+Codebook - eine Tabelle fuer alle Merkmale.
 
     python prep/codebook.py            erzeugt die Tabelle
     python prep/codebook.py -v         zusaetzlich die Spalten je Datensatz
 
-Ausgang: results/codebook/merkmale.csv · merkmale.md
+Output:  results/codebook/merkmale.csv · merkmale.md
 
-Die Ausgabe ist bewusst selbsttragend und enthaelt alles, was die Tabelle
-braucht.
-
-Eine grosse Tabelle fuer alle Merkmale (Skalenniveau, Wertebereich, Was,
-wie, wofuer) - ausdruecklich OHNE eigene deskriptive Statistik je Merkmal.
-
---------------------------------------------------------------------------
-DIE AUFTEILUNG, AUF DER DAS SKRIPT BERUHT
---------------------------------------------------------------------------
-Eine Haelfte der Tabelle ist GEMESSEN, die andere BEHAUPTET:
-
-  gemessen     Wertebereich, Zeilenzahl, fehlende Werte, Zahl der
-               Auspraegungen, in welchem Datensatz die Spalte steht. Entsteht
-               bei jedem Lauf neu aus den Parquet-Dateien und kann deshalb
-               nicht veralten.
-
-  behauptet    Skalenniveau, Einheit, Quelle, Was/Wie/Wofuer. Das steht so in
-               keiner Datei und muss von Hand gepflegt werden - unten in META.
-
-Die Trennung ist der Zweck der Uebung. Waeren die Wertebereiche abgeschrieben,
-waeren sie beim naechsten Pipeline-Lauf still falsch.
-
---------------------------------------------------------------------------
-DIE WAECHTERFUNKTION
---------------------------------------------------------------------------
-Das Skript bricht mit Exit-Code 1 ab, wenn
-
-  - eine Spalte in den Parquet-Dateien steht, aber nicht in META
-    -> ein neues Merkmal waere sonst stillschweigend undokumentiert
-  - ein META-Eintrag auf keine Spalte passt
-    -> ein entferntes Merkmal wuerde sonst weiter in der Tabelle stehen
-
-Damit ist die Tabelle nicht nur einmal richtig, sondern bleibt es.
-
---------------------------------------------------------------------------
-EIN BEFUND, DER IN DIE TABELLE GEHOERT
---------------------------------------------------------------------------
-Sechs Spalten tragen die Endung `_pct`, enthalten aber ANTEILE von 0 bis 1,
-keine Prozentwerte: `armutsquote_pct` steht auf 0,36 und meint 36 %. Wer den
-Namen liest statt den Wertebereich, berichtet den Faktor 100 falsch. Die
-Spalte "Einheit" weist das deshalb ausdruecklich aus.
-
-Umbenannt wird nichts - die Namen stehen in den fertigen Parquet-Dateien und
-in allen Ergebnissen. Dokumentiert wird es.
+  - je Merkmal Skalenniveau, Einheit, Quelle, Was/Wie/Wofuer; keine
+    deskriptive Statistik (-> deskriptiv.py)
+  - gemessen bei jedem Lauf: Wertebereich, Zeilen, Fehlwerte, Auspraegungen,
+    Datensatz; von Hand in META: Skalenniveau, Einheit, Quelle, Beschreibung
+  - Abbruch mit Exit-Code 1, wenn eine Spalte in META fehlt oder ein
+    META-Eintrag auf keine Spalte passt
+  - sechs `_pct`-Spalten enthalten Anteile 0-1, keine Prozent
+    (armutsquote_pct = 0,36 heisst 36 %); vermerkt in der Spalte "Einheit",
+    umbenannt wird nichts
 """
-
 
 
 from __future__ import annotations
