@@ -5,45 +5,19 @@ Suchdiagnose - war das Budget der Hyperparametersuche gross genug?
     python modelle/suchdiagnose.py menge      nur die Regression
     python modelle/suchdiagnose.py struktur   nur die Klassifikation
     python modelle/suchdiagnose.py --nur-xgboost   das billigste sinnvolle Mass
-    python modelle/suchdiagnose.py --test     Rauchtest, Budget 6, ~3 min
+    python modelle/suchdiagnose.py --test     Rauchtest, Budget 6, ~3 min,
+                                              schreibt nach results/suchdiagnose_test/
 
-`--test` schreibt nach `results/suchdiagnose_test/` und laesst die echte
-Ausgabe unberuehrt. Vor einem zweistuendigen Lauf einmal ausfuehren - er
-prueft beide Straenge einmal durch, damit ein Fehler nicht erst nach der
-ganzen Rechenzeit auffaellt.
+Output:  results/suchdiagnose/kurve.csv · zusammenfassung.md
 
-Ausgang: results/suchdiagnose/kurve.csv · zusammenfassung.md
-
---------------------------------------------------------------------------
-DIE FRAGE: WAR DAS BUDGET ZU KLEIN?
---------------------------------------------------------------------------
-`tuning.csv` haelt nur den Gewinner fest, nicht den Weg dorthin. Diese
-Diagnose wiederholt die Suche des Hauptlaufs und schreibt jede einzelne
-Ziehung mit ihrem inneren Guetewert mit. Daraus entsteht die SUCHKURVE:
-bester Wert nach n Ziehungen. Steigt sie nach Ziehung 50 noch, war Budget 50
-zu klein. Laeuft sie flach aus, war es das nicht.
-
-Eingeordnet wird der Gewinn der zweiten Haelfte an der Streuung ZWISCHEN den
-Folds: Ist er klein dagegen, hat sich die Suche totgelaufen.
-
---------------------------------------------------------------------------
-WAS DIESE DIAGNOSE NICHT LEISTET
---------------------------------------------------------------------------
-Der innere Guetewert ist NICHT die Testleistung. Ein besserer innerer Wert
-garantiert kein besseres Ergebnis auf unbekannten Stadtteilen - er sagt nur,
-dass die Suche noch etwas gefunden hat. Ob sich das auf die Prognose
-uebertraegt, zeigt erst der Hauptlauf.
-
-Die Diagnose beantwortet also: War die Suche am Limit? Nicht: Wird das
-Ergebnis besser?
-
---------------------------------------------------------------------------
-WAS SIE NICHT ANFASST
---------------------------------------------------------------------------
-  - `results/regression/` und `results/klassifikation/` bleiben unberuehrt
-  - das HOLD-OUT wird nicht gelesen; gefiltert wird wie in m02/m03, bevor
-    irgendetwas rechnet
-  - Suchraeume, Folds und Startwert sind dieselben wie im Hauptlauf
+  - wiederholt die Suche des Hauptlaufs und schreibt jede Ziehung mit
+    (tuning.csv haelt nur den Gewinner) -> Suchkurve: bester innerer Wert
+    nach n Ziehungen
+  - Gewinn der zweiten Haelfte gegen die Streuung zwischen den Folds
+  - innerer Guetewert ist nicht die Testleistung: zeigt, ob die Suche am
+    Limit war, nicht ob das Ergebnis besser wird
+  - unberuehrt: results/regression/, results/klassifikation/, Hold-out
+    (gefiltert wie in m02/m03); Suchraeume, Folds, Startwert wie im Hauptlauf
 """
 from __future__ import annotations
 
@@ -69,19 +43,14 @@ OUT = RESULTS_DIR / "suchdiagnose"
 MERKMALE = PRAEDIKTOREN + SAISON
 BUDGET = 100
 
-# Gemessene Laufzeit je Suchlauf bei Budget 50. Verdoppelt sich mit
-# dem Budget. Dient nur der Vorabschaetzung.
+# Gemessene Laufzeit je Suchlauf bei Budget 50, nur zur Vorabschaetzung.
 SEKUNDEN_50 = {("menge", "ridge"): 3, ("menge", "random_forest"): 210,
                ("menge", "xgboost"): 154, ("struktur", "random_forest"): 184,
                ("struktur", "xgboost"): 233}
 
 
-# Steuert die Verlustfunktion der REGRESSION und ist bei `multi:softprob`
-# bedeutungslos. XGBoost nimmt den Parameter stillschweigend an und ignoriert
-# ihn - ein Sechstel des Budgets ginge auf eine wirkungslose Dimension, und die
-# Suchkurve des Strukturstrangs fiele dadurch zu flach aus.
-# `m03_struktur.suchraum()` entfernt ihn aus demselben Grund; ohne diese Zeile
-# weicht die Diagnose vom Hauptlauf ab.
+# Nur fuer die Regression; bei multi:softprob wirkungslos (verschwendetes
+# Budget, zu flache Suchkurve). Wie in m03_struktur.suchraum() entfernt.
 NUR_REGRESSION = {"tweedie_variance_power"}
 
 

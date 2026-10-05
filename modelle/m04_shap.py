@@ -4,53 +4,27 @@ Interpretation: Welche Merkmale tragen die Vorhersage?
     python modelle/m04_shap.py
     python modelle/m04_shap.py --ohne-baeume    Ablation nur fuer GLM und Logit
 
-Eingang: results/regression/{menge_folds,vergleich,tuning}.csv
+Input:   results/regression/{menge_folds,vergleich,tuning}.csv
          results/regression/menge_vorhersagen.parquet
          results/klassifikation/{struktur_folds,vergleich,tuning}.csv
          data/processed/{regression,klassifikation}.parquet
-Ausgang: results/shap/beitraege.csv, gruppen.csv, uebersprungen.csv,
+Output:  results/shap/beitraege.csv, gruppen.csv, uebersprungen.csv,
          faktorgruppen_menge.csv, vif.csv, extrapolation_*.csv,
          ablation_exposition.csv, ablation_faktorgruppen{,_mittel}.csv,
          verschiebung.csv
 
-  - ZWEI ANTWORTEN: ATTRIBUTION (welcher Anteil der SHAP-
-    bzw. Koeffizientenmasse entfaellt auf eine Faktorgruppe - wie ein Modell
-    seine Aufmerksamkeit verteilt) und ABLATION (was kostet das Weglassen -
-    was die Gruppe WERT ist). Die zweite ist die haertere Frage: Ein Merkmal
-    kann viel Masse binden und trotzdem ersetzbar sein
-  - DIE EINE REGEL: SHAP nur fuer Modelle, die ihre Stufe-2-Baseline
-    schlagen. Sonst erklaert man Rauschen. Massgeblich ist der Primaertest
-    auf den Wiederholungsmitteln; Uebersprungenes steht mit Begruendung in
-    uebersprungen.csv, damit die Auswahl nicht wie Rosinenpicken aussieht
-  - Gerechnet wird auf EINEM Fold - dem mit dem geringsten
-    Extrapolationsanteil in Wiederholung 0. Dort beruhen die Beitraege am
-    ehesten auf Interpolation; die Wahl steht in der Ausgabe
-  - TreeExplainer fuer RF und XGBoost, standardisierte Koeffizienten fuer
-    Ridge und das GLM - der StandardScaler steht in der Pipeline
-  - FALLSTRICK: blockweise interpretieren. Die Strukturmerkmale sind
-    korreliert, SHAP verteilt den Beitrag dann auf mehrere Merkmale.
-    "median_haushaltseinkommen traegt 8 %" waere Scheinpraezision. Deshalb
-    die drei Faktorgruppen, log_bevoelkerung und Saison getrennt
-  - DER VIF steht hier und nicht in der Eignungspruefung: Seine einzige echte
-    Konsequenz betrifft diese Interpretation. Gerechnet auf den EINDEUTIGEN
-    Stadtteil-Jahr-Kombinationen, sonst waere er kuenstlich stabilisiert
-
-Setzt m02 und m03 voraus.
+  - Attribution (Anteil der SHAP- bzw. Koeffizientenmasse je Faktorgruppe)
+    und Ablation (Verlust beim Weglassen einer Gruppe = was sie wert ist)
+  - SHAP nur fuer Modelle, die ihre Stufe-2-Baseline im Primaertest
+    schlagen; Uebersprungenes mit Grund in uebersprungen.csv
+  - ein Fold: geringster Extrapolationsanteil in Wiederholung 0
+  - TreeExplainer fuer RF/XGBoost, standardisierte Koeffizienten fuer Ridge
+    und GLM
+  - FALLSTRICK: korrelierte Merkmale -> blockweise in Faktorgruppen lesen
+  - VIF hier (betrifft nur die Interpretation), auf den eindeutigen
+    Stadtteil-Jahr-Kombinationen
+  - setzt m02 und m03 voraus
 """
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 import json
@@ -91,8 +65,8 @@ GRUPPEN = {
 def schlagen_die_latte(vergleich: pd.DataFrame) -> tuple[list, pd.DataFrame]:
     """Welche (Zielgroesse, Verfahren) schlagen ihre Stufe-2-Baseline?
 
-    Ein:  vergleich.csv beider Straenge
-    Aus:  Menge der zugelassenen Kombinationen
+    Input:  vergleich.csv beider Straenge
+    Output: Menge der zugelassenen Kombinationen
 
     - Grundlage ist der Primaertest auf den Wiederholungsmitteln
     - verlangt werden beide Bedingungen: mittlere Differenz zugunsten des
@@ -117,8 +91,8 @@ def schlagen_die_latte(vergleich: pd.DataFrame) -> tuple[list, pd.DataFrame]:
 def ruhigster_fold(folds: pd.DataFrame) -> int:
     """Fold mit dem geringsten Extrapolationsanteil in Wiederholung 0.
 
-    Ein:  Laufdatei des Strangs
-    Aus:  Foldnummer
+    Input:  Laufdatei des Strangs
+    Output: Foldnummer
     """
     w0 = folds[folds["wiederholung"] == 0]
     je_fold = w0.groupby("fold")["extrapolationsanteil"].first()
@@ -128,8 +102,8 @@ def ruhigster_fold(folds: pd.DataFrame) -> int:
 def _beitraege(modell, X: pd.DataFrame, name: str) -> np.ndarray:
     """Mittlerer absoluter Beitrag je Merkmal: SHAP oder Koeffizient.
 
-    Ein:  gefittetes Modell, Merkmalsmatrix, Verfahrensname
-    Aus:  Reihe Merkmal -> Beitrag
+    Input:  gefittetes Modell, Merkmalsmatrix, Verfahrensname
+    Output: Reihe Merkmal -> Beitrag
 
     - Ridge und GLM: standardisierte Koeffizienten, direkter Gegenwert zu
       SHAP-Beitraegen, kein Explainer noetig
@@ -166,8 +140,8 @@ def extrapolation_aufschluesseln(panel: pd.DataFrame, selten: pd.Series,
                                  folds: pd.DataFrame) -> tuple:
     """Schluesselt den Extrapolationsanteil nach Merkmal und Stadtteil auf.
 
-    Ein:  Panel, menge_folds.csv
-    Aus:  extrapolation_merkmale.csv, _stadtteile.csv, _zusammenhang.csv
+    Input:  Panel, menge_folds.csv
+    Output: extrapolation_merkmale.csv, _stadtteile.csv, _zusammenhang.csv
 
     - macht aus einer Plausibilitaetsaussage eine Zahl: erklaert die Spanne
       der Extrapolationsanteile einen erheblichen Teil der Fold-Streuung?
@@ -178,7 +152,6 @@ def extrapolation_aufschluesseln(panel: pd.DataFrame, selten: pd.Series,
       schneiden und darin nach Verfahrensunterschieden zu suchen. Hier bleibt die
       Einheit der Fold, die Primaeraussage bleibt unberuehrt
     """
-
 
     from scipy.stats import spearmanr
 
@@ -218,8 +191,8 @@ def ablation_exposition(panel: pd.DataFrame, selten: pd.Series,
                         parameter: pd.DataFrame) -> pd.DataFrame:
     """Ablation: Was leistet die Expositionsbehandlung?
 
-    Ein:  Panel, tuning.csv des Mengenstrangs
-    Aus:  ablation_exposition.csv
+    Input:  Panel, tuning.csv des Mengenstrangs
+    Output: ablation_exposition.csv
 
     - der Hauptlauf modelliert die Rate und multipliziert zurueck; diese
       Ablation laesst die Baumverfahren direkt auf anzahl_einsaetze anpassen
@@ -233,8 +206,6 @@ def ablation_exposition(panel: pd.DataFrame, selten: pd.Series,
       Koeffizienten auf log_bevoelkerung ist der Offset redundant, fuer einen Baum
       ohne beides nicht
     """
-
-
 
     import m02_menge as m02
     from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -250,9 +221,8 @@ def ablation_exposition(panel: pd.DataFrame, selten: pd.Series,
             train, test = d[tr], d[te]
             y = test[ZIELGROESSE].astype(float).to_numpy()
             for name in baeume:
-                # OHNE Exposition: direkt auf der absoluten Zahl anpassen.
-                # Der Hauptlauf tut das Gegenteil (Rate schaetzen, mit der
-                # Bevoelkerung zurueckrechnen); die Differenz ist der Effekt.
+                # Ohne Exposition direkt auf der Anzahl (Hauptlauf: Rate x
+                # Bevoelkerung); die Differenz ist der Effekt.
                 modell = m02.verfahren(name).set_params(
                     **param[(ZIELGROESSE, name, k)])
                 modell.fit(train[MERKMALE].astype(float),
@@ -272,8 +242,8 @@ def ablation_faktorgruppen(reg: pd.DataFrame, kl: pd.DataFrame,
                            mit_baeumen: bool = True) -> pd.DataFrame:
     """Ablation: Was ist eine Faktorgruppe wert?
 
-    Ein:  beide Panels, tuning.csv beider Straenge, Schalter --ohne-baeume
-    Aus:  ablation_faktorgruppen.csv mit den Einzellaeufen
+    Input:  beide Panels, tuning.csv beider Straenge, Schalter --ohne-baeume
+    Output: ablation_faktorgruppen.csv mit den Einzellaeufen
 
     - Attribution sagt, wie ein Modell seine Aufmerksamkeit verteilt, nicht was
       eine Gruppe wert ist: Ein Merkmal kann viel Masse binden und ersetzbar sein
@@ -366,8 +336,8 @@ def ablation_faktorgruppen(reg: pd.DataFrame, kl: pd.DataFrame,
 def _ablation_auswerten(roh: pd.DataFrame) -> pd.DataFrame:
     """Verschlechterung je Gruppe gegenueber dem vollen Merkmalssatz.
 
-    Ein:  Einzellaeufe aus ablation_faktorgruppen()
-    Aus:  ablation_faktorgruppen_mittel.csv
+    Input:  Einzellaeufe aus ablation_faktorgruppen()
+    Output: ablation_faktorgruppen_mittel.csv
 
     - gepaart je Lauf: Variante und voller Satz laufen auf demselben Fold
       derselben Wiederholung
@@ -404,8 +374,8 @@ def faktorgruppen_baseline(panel: pd.DataFrame, selten: pd.Series,
                          fold: int) -> pd.DataFrame:
     """Beitrag der drei Faktorgruppen im Mengenstrang, aus der Baseline.
 
-    Ein:  Panel, ruhigster Fold
-    Aus:  faktorgruppen_menge.csv
+    Input:  Panel, ruhigster Fold
+    Output: faktorgruppen_menge.csv
 
     - fuer die Struktur liefert SHAP den Beitrag, fuer die Menge nicht: m04
       ueberspringt dort alle Modelle, weil keines seine Baseline schlaegt
@@ -449,8 +419,8 @@ def faktorgruppen_baseline(panel: pd.DataFrame, selten: pd.Series,
 def _vif(panel: pd.DataFrame) -> pd.DataFrame:
     """VIF auf zwei Bezugsmengen.
 
-    Ein:  Panel mit allen Praediktoren
-    Aus:  vif.csv, je ein Wert je Merkmal und Bezugsmenge
+    Input:  Panel mit allen Praediktoren
+    Output: vif.csv, je ein Wert je Merkmal und Bezugsmenge
 
     - Absicht: jede Merkmalskombination nur einmal zaehlen. Die Strukturmerkmale
       sind innerhalb eines Jahres konstant; ueber alle Zeilen zaehlte jede
@@ -485,8 +455,8 @@ def _vif(panel: pd.DataFrame) -> pd.DataFrame:
 def main() -> int:
     """Rechnet die sieben Auswertungen.
 
-    Ein:  beide Panels, Ergebnisdateien von m02 und m03; Schalter --ohne-baeume
-    Aus:  neun CSV-Dateien unter results/shap/; Exitcode
+    Input:  beide Panels, Ergebnisdateien von m02 und m03; Schalter --ohne-baeume
+    Output: neun CSV-Dateien unter results/shap/; Exitcode
 
     1. Attribution: SHAP-Beitraege auf dem ruhigsten Fold, verdichtet zu
        Faktorgruppen -> beitraege.csv, gruppen.csv, uebersprungen.csv
@@ -553,11 +523,8 @@ def main() -> int:
 
             if strang == "menge":
 
-                # EXPOSITION: Fuer `anzahl_einsaetze` wurde das bewertete
-                # Modell auf der RATE angepasst. Wird hier direkt auf der Anzahl
-                # gefittet, erklaert SHAP ein anderes Modell als das, dessen
-                # Guetemasse berichtet werden - und niemand saehe es den Zahlen
-                # an. Die Beitraege beziehen sich also auf das Ratenmodell.
+                # Exposition: erklaert wird das bewertete Ratenmodell, nicht
+                # ein direkt auf der Anzahl gefittetes.
                 fit_ziel = RATE if ziel == ZIELGROESSE else ziel
                 modell = modul.verfahren(name).set_params(**parameter)
                 modell.fit(train[MERKMALE].astype(float),
@@ -656,9 +623,7 @@ def main() -> int:
     for gruppe, anteil in gruppiert.items():
         print(f"    {gruppe:<24}{anteil:>7.1%}")
 
-    # --- Ablation der Faktorgruppen (zweite Antwort) ---
-    # Attribution sagt, wie ein Modell seine Aufmerksamkeit verteilt.
-    # Diese Ablation sagt, was die Gruppe wert ist. Siehe Docstring dort.
+    # --- Ablation der Faktorgruppen (zweite Antwort, siehe Docstring) ---
     tuning_kl = pd.read_csv(RESULTS_DIR / "klassifikation" / "tuning.csv")
     roh = ablation_faktorgruppen(reg, kl, selten, tuning_kl,
                                  mit_baeumen="--ohne-baeume" not in sys.argv)
@@ -700,8 +665,8 @@ def main() -> int:
 def verschiebung() -> pd.DataFrame:
     """Wie weit liegen die Mengenvorhersagen im Mittel daneben?
 
-    Ein:  results/regression/menge_vorhersagen.parquet aus m02
-    Aus:  verschiebung.csv
+    Input:  results/regression/menge_vorhersagen.parquet aus m02
+    Output: verschiebung.csv
 
     - Fehler je Testzeile: y_hat - y, negativ heisst zu tief vorhergesagt
     - je Lauf (Wiederholung x Fold) drei Werte: die Verschiebung als Mittel

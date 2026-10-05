@@ -1,9 +1,9 @@
 """
 Schritt 1: Rohdaten beschaffen und auf Einsatzebene zusammenfuehren.
 
-Eingang:  DataSF- und Census-APIs (nur wenn DOWNLOAD_* in config.py True ist)
+Input:    DataSF- und Census-APIs (nur wenn DOWNLOAD_* in config.py True ist)
           data/raw/*
-Ausgang:  data/processed/einsaetze.parquet   (ein Einsatz je Zeile, ~720.000)
+Output:   data/processed/einsaetze.parquet   (ein Einsatz je Zeile, ~720.000)
 
 Vier Quellen: ACS (soziooekonomisch, je Stadtteil x Jahrgang, mit
 Publikationsversatz), Crime (relativer Index je Stadtteil x Monat), Land Use
@@ -112,8 +112,8 @@ QUELLEN = {
 def _get(url: str, params: dict) -> requests.Response:
     """Ruft eine URL ab und bricht bei einem HTTP-Fehler ab.
 
-    Ein:  URL, optionale Parameter
-    Aus:  Antwort der Anfrage
+    Input:  URL, optionale Parameter
+    Output: Antwort der Anfrage
     """
     headers = {"X-App-Token": DATASF_APP_TOKEN} if DATASF_APP_TOKEN else {}
     r = requests.get(url, params=params, headers=headers, timeout=60)
@@ -124,8 +124,8 @@ def _get(url: str, params: dict) -> requests.Response:
 def lade_datasf(name: str, limit: int = 50_000) -> pd.DataFrame:
     """Holt eine DataSF-Quelle vollstaendig und setzt die Spaltentypen.
 
-    Ein:  Datensatz-ID der Socrata-API, Zielpfad, optionale Typangaben
-    Aus:  Parquet-Datei in data/raw; Rueckgabe der Zeilenzahl
+    Input:  Datensatz-ID der Socrata-API, Zielpfad, optionale Typangaben
+    Output: Parquet-Datei in data/raw; Rueckgabe der Zeilenzahl
 
     - paginiert, weil die API je Anfrage deckelt
     - die Typen werden explizit gesetzt: sonst raet pandas bei GEOIDs auf int
@@ -175,8 +175,8 @@ def lade_datasf(name: str, limit: int = 50_000) -> pd.DataFrame:
 def lade_acs(year: int) -> pd.DataFrame:
     """Holt die ACS 5-Year Estimates auf Tract-Ebene fuer San Francisco County.
 
-    Ein:  Jahrgang, Variablenliste aus config.py
-    Aus:  eine CSV je Jahrgang in data/raw
+    Input:  Jahrgang, Variablenliste aus config.py
+    Output: eine CSV je Jahrgang in data/raw
 
     - eigene Funktion, weil die Census-API ein anderes Format liefert als
       DataSF: Kopfzeile plus Datenzeilen als verschachtelte Liste
@@ -201,8 +201,8 @@ def lade_acs(year: int) -> pd.DataFrame:
 def run_download() -> None:
     """Laedt alle Rohquellen nach data/raw.
 
-    Ein:  die Quellen-IDs und ACS-Jahrgaenge aus config.py
-    Aus:  Parquet- und CSV-Dateien in data/raw; Exitcode
+    Input:  die Quellen-IDs und ACS-Jahrgaenge aus config.py
+    Output: Parquet- und CSV-Dateien in data/raw; Exitcode
 
     - Schritt 1a von prep/build.py
     - jede eingeschaltete Quelle wird neu geladen und ueberschreibt ihre
@@ -251,8 +251,8 @@ def run_download() -> None:
 def prepare_sffd(df: pd.DataFrame) -> pd.DataFrame:
     """Bereitet Dedup, Antwortzeit, Zeitmerkmale und Stadtteilnamen auf.
 
-    Ein:  die rohe SFFD-Tabelle
-    Aus:  dieselbe Tabelle, bereinigt und um Zeitspalten ergaenzt
+    Input:  die rohe SFFD-Tabelle
+    Output: dieselbe Tabelle, bereinigt und um Zeitspalten ergaenzt
 
     - der Dedup laeuft ueber die Einsatznummer und wird gezaehlt ausgegeben
     - doppelte Meldungen desselben Einsatzes waeren sonst zwei Zeilen
@@ -282,8 +282,8 @@ def prepare_sffd(df: pd.DataFrame) -> pd.DataFrame:
 def tract_zu_stadtteil(geoids: pd.Series, crosswalk: pd.DataFrame) -> pd.Series:
     """Ordnet Census Tracts einem Stadtteil zu, auch ueber Zensusgrenzen hinweg.
 
-    Ein:  GEOID-Spalte einer ACS-Tabelle, Crosswalk
-    Aus:  Stadtteilspalte, fehlend wo keine Zuordnung moeglich ist
+    Input:  GEOID-Spalte einer ACS-Tabelle, Crosswalk
+    Output: Stadtteilspalte, fehlend wo keine Zuordnung moeglich ist
 
     - der Crosswalk beruht auf den Tract-Grenzen des Zensus 2020 (242 Tracts).
       Die Jahrgaenge 2009 bis 2019 tragen die Grenzen der Zensus 2000 bzw. 2010
@@ -312,8 +312,8 @@ def tract_zu_stadtteil(geoids: pd.Series, crosswalk: pd.DataFrame) -> pd.Series:
 def acs_je_neighborhood(acs: pd.DataFrame, crosswalk: pd.DataFrame) -> pd.DataFrame:
     """Aggregiert Census Tracts auf Stadtteile.
 
-    Ein:  ACS-Tabelle auf Tract-Ebene, Crosswalk
-    Aus:  eine Zeile je Stadtteil und Jahrgang
+    Input:  ACS-Tabelle auf Tract-Ebene, Crosswalk
+    Output: eine Zeile je Stadtteil und Jahrgang
 
     - Mediane werden bevoelkerungsgewichtet gemittelt, Zaehlgroessen summiert
     - ein Median laesst sich nicht addieren, daher die Gewichtung
@@ -349,8 +349,8 @@ def acs_je_neighborhood(acs: pd.DataFrame, crosswalk: pd.DataFrame) -> pd.DataFr
 def acs_snapshot(jahr: int, acs_years: list[int]) -> int:
     """Waehlt den zum Prognosezeitpunkt tatsaechlich publizierten ACS-Jahrgang.
 
-    Ein:  Einsatzjahr, verfuegbare ACS-Jahrgaenge
-    Aus:  der zu verwendende Jahrgang
+    Input:  Einsatzjahr, verfuegbare ACS-Jahrgaenge
+    Output: der zu verwendende Jahrgang
 
     - Bedingung: acs_jahr <= Einsatzjahr - ACS_PUBLIKATIONS_LAG
     - zwei Stufen der Absicherung: "letzter verfuegbarer" statt "zeitlich
@@ -368,8 +368,8 @@ def acs_snapshot(jahr: int, acs_years: list[int]) -> int:
 def join_acs(sffd: pd.DataFrame, nb_per_year: dict[int, pd.DataFrame]) -> pd.DataFrame:
     """Fuegt jedem Einsatz den passenden ACS-Jahrgang an.
 
-    Ein:  Einsatztabelle, ACS-Jahrgaenge je Stadtteil
-    Aus:  Einsatztabelle mit den soziooekonomischen Merkmalen
+    Input:  Einsatztabelle, ACS-Jahrgaenge je Stadtteil
+    Output: Einsatztabelle mit den soziooekonomischen Merkmalen
 
     - massgeblich ist der Jahrgang, der zum Einsatzzeitpunkt veroeffentlicht war
       (ACS_PUBLIKATIONS_LAG)
@@ -397,8 +397,8 @@ def join_acs(sffd: pd.DataFrame, nb_per_year: dict[int, pd.DataFrame]) -> pd.Dat
 def neighborhoods_gdf():
     """Laedt die Neighborhood-Polygone.
 
-    Ein:  nichts
-    Aus:  GeoDataFrame der Stadtteilgeometrien
+    Input:  nichts
+    Output: GeoDataFrame der Stadtteilgeometrien
 
     - beide Spatial Joins nutzen dieselbe Geometrie, damit sich Kriminalitaets-
       und Baumerkmale auf identische Flaechen beziehen
@@ -415,9 +415,9 @@ def neighborhoods_gdf():
 def crime_monatlich() -> pd.DataFrame:
     """Zaehlt Delikte je Stadtteil und Monat aus beiden SFPD-Quellen.
 
-    Ein:  nichts; beide Rohtabellen und die Stadtteilgeometrie werden hier
-          aus data/raw gelesen
-    Aus:  eine Zeile je Stadtteil und Monat mit der Deliktzahl
+    Input:  nichts; beide Rohtabellen und die Stadtteilgeometrie werden hier
+            aus data/raw gelesen
+    Output: eine Zeile je Stadtteil und Monat mit der Deliktzahl
 
     - zwei Quellen mit Schnitt 2018
     - die moderne ist voraggregiert und hat eine Stadtteilspalte, die historische
@@ -473,8 +473,8 @@ def crime_monatlich() -> pd.DataFrame:
 def kriminalitaetsindex(nb_per_year: dict[int, pd.DataFrame]) -> pd.DataFrame:
     """Berechnet den relativen Kriminalitaetsindex je Stadtteil und Monat.
 
-    Ein:  monatliche Deliktzahlen, Einwohnerzahlen, Fensterlaenge
-    Aus:  Indexspalte je Stadtteil-Monat, dazu crime_rate_raw
+    Input:  monatliche Deliktzahlen, Einwohnerzahlen, Fensterlaenge
+    Output: Indexspalte je Stadtteil-Monat, dazu crime_rate_raw
 
     Definition (Location Quotient der Kriminalitaetsbelastung):
 
@@ -544,8 +544,8 @@ def kriminalitaetsindex(nb_per_year: dict[int, pd.DataFrame]) -> pd.DataFrame:
 def land_use_je_neighborhood() -> pd.DataFrame:
     """Ordnet Parzellen-Centroide Stadtteilen zu und aggregiert je Stadtteil.
 
-    Ein:  Parzellentabelle, Stadtteilgeometrien
-    Aus:  eine Zeile je Stadtteil mit den baulichen Merkmalen
+    Input:  Parzellentabelle, Stadtteilgeometrien
+    Output: eine Zeile je Stadtteil mit den baulichen Merkmalen
 
     - statisch: Snapshot 2020, der einzige verfuegbare Jahrgang
     """
@@ -613,8 +613,8 @@ QUOTEN = [
 def berechne_quoten(df: pd.DataFrame) -> pd.DataFrame:
     """Rechnet Anteilswerte in [0,1].
 
-    Ein:  Zaehler- und Nennerspalten
-    Aus:  Anteilsspalten; Nenner <= 0 ergibt NaN statt Division durch Null
+    Input:  Zaehler- und Nennerspalten
+    Output: Anteilsspalten; Nenner <= 0 ergibt NaN statt Division durch Null
 
     - Kriminalitaet taucht hier nicht auf: Sie geht als relativer Index je
       Stadtteil x Monat ein, nicht als Anteil
@@ -635,8 +635,8 @@ def berechne_quoten(df: pd.DataFrame) -> pd.DataFrame:
 def run_join() -> pd.DataFrame:
     """Fuehrt alle Rohquellen zur Einsatztabelle zusammen.
 
-    Ein:  die Dateien aus run_download()
-    Aus:  data/processed/einsaetze.parquet; Exitcode
+    Input:  die Dateien aus run_download()
+    Output: data/processed/einsaetze.parquet; Exitcode
 
     - Reihenfolge: SFFD aufbereiten, ACS anfuegen, Kriminalitaetsindex und
       Baumerkmale ueber die Stadtteilgeometrie anspielen, Quoten rechnen

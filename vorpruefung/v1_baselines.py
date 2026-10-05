@@ -3,8 +3,8 @@ Stufe 1 und 2: die Messlatte.
 
     python vorpruefung/v1_baselines.py
 
-Eingang: data/processed/{regression,klassifikation}.parquet
-Ausgang: results/regression/baselines_{folds,mittel}.csv
+Input:   data/processed/{regression,klassifikation}.parquet
+Output:  results/regression/baselines_{folds,mittel}.csv
          results/klassifikation/baselines_klasse.csv
 
   - STUFE 1, triviale Referenz ohne ein einziges Merkmal: Gesamtmittelwert
@@ -59,8 +59,8 @@ LOGREG         = "Multinomiale logistische Regression"
 def bewerte_regression(y_true, y_pred) -> dict:
     """RMSE, MAE und R2 auf der Originalskala der Zielgroesse.
 
-    Ein:  wahre und vorhergesagte Werte
-    Aus:  dict mit rmse, mae, r2
+    Input:  wahre und vorhergesagte Werte
+    Output: dict mit rmse, mae, r2
     """
     from sklearn.metrics import (mean_absolute_error, mean_squared_error,
                                  r2_score)
@@ -75,8 +75,8 @@ def poisson_glm(train: pd.DataFrame, test: pd.DataFrame,
                 merkmale: list[str] | None = None) -> np.ndarray:
     """Stufe 2 der Regression: Poisson-GLM mit Offset.
 
-    Ein:  Trainings- und Testrahmen, optional ein reduzierter Merkmalssatz
-    Aus:  Vorhersagen auf der Originalskala, eine Zahl je Stadtteil-Monat
+    Input:  Trainings- und Testrahmen, optional ein reduzierter Merkmalssatz
+    Output: Vorhersagen auf der Originalskala, eine Zahl je Stadtteil-Monat
 
     - kanonischer log-Link, unpenalisierte Maximum-Likelihood
     - log(Bevoelkerung) als OFFSET, Koeffizient fest auf 1: geschaetzt wird die
@@ -111,8 +111,8 @@ def poisson_glm(train: pd.DataFrame, test: pd.DataFrame,
 def logit_glm(train: pd.DataFrame, merkmale: list[str] | None = None):
     """Stufe 2 der Klassifikation: multinomiales Logit.
 
-    Ein:  Trainingsrahmen, optional ein reduzierter Merkmalssatz
-    Aus:  das angepasste Modell, nicht die Vorhersage
+    Input:  Trainingsrahmen, optional ein reduzierter Merkmalssatz
+    Output: das angepasste Modell, nicht die Vorhersage
 
     - linear in den Log-Odds, unpenalisiert (C = inf), kein Tuning
     - class_weight="balanced" statt Resampling: kein SMOTE, keine duplizierte
@@ -141,8 +141,8 @@ def logit_glm(train: pd.DataFrame, merkmale: list[str] | None = None):
 def regression(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     """Beide Mengen-Zielgroessen, Stufe 1 und 2, je Wiederholung und Fold.
 
-    Ein:  regression.parquet, `selten` fuer die Stratifizierung
-    Aus:  Datenrahmen mit 200 Zeilen (50 Laeufe x 2 Zielgroessen x 2 Modelle)
+    Input:  regression.parquet, `selten` fuer die Stratifizierung
+    Output: Datenrahmen mit 200 Zeilen (50 Laeufe x 2 Zielgroessen x 2 Modelle)
 
     - Stufe 1: Gesamtmittelwert der Trainingsstadtteile
     - Stufe 2: poisson_glm()
@@ -182,8 +182,8 @@ def _zweistufig(df: pd.DataFrame, schluessel: list[str],
                 masse: list[str]) -> pd.DataFrame:
     """Zweistufige Aggregation ueber die Laeufe eines Durchgangs.
 
-    Ein:  Datenrahmen der Einzellaeufe (Wiederholung x Fold)
-    Aus:  je Modell und Zielgroesse eine Zeile mit Mittel und beiden Streuungen
+    Input:  Datenrahmen der Einzellaeufe (Wiederholung x Fold)
+    Output: je Modell und Zielgroesse eine Zeile mit Mittel und beiden Streuungen
 
     - Stufe 1: je Wiederholung ueber die 5 Folds mitteln
     - Stufe 2: Streuung dieser 10 Werte berichten -> `std_wiederholungen`
@@ -210,8 +210,8 @@ def _zweistufig(df: pd.DataFrame, schluessel: list[str],
 def klassifikation(kl: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     """Beide Stufen der Klassifikation, je Wiederholung und Fold.
 
-    Ein:  klassifikation.parquet, `selten` fuer die Stratifizierung
-    Aus:  Datenrahmen der Einzellaeufe, Zahl der Konvergenzwarnungen
+    Input:  klassifikation.parquet, `selten` fuer die Stratifizierung
+    Output: Datenrahmen der Einzellaeufe, Zahl der Konvergenzwarnungen
 
     - Stufe 1: haeufigste Klasse des Trainings. Accuracy hoch, Macro-F1 niedrig -
       deshalb ist Macro-F1 das massgebliche Guetemass
@@ -269,8 +269,8 @@ def _macro_auroc(y_true, proba: np.ndarray, klassen_modell: list,
                  klassen_alle: list) -> float:
     """Macro-AUROC (One-vs-Rest), NaN wenn im Testfold eine Klasse fehlt.
 
-    Ein:  wahre Klassen, Wahrscheinlichkeitsmatrix, Klassenreihenfolge des Modells
-    Aus:  Zahl oder NaN
+    Input:  wahre Klassen, Wahrscheinlichkeitsmatrix, Klassenreihenfolge des Modells
+    Output: Zahl oder NaN
 
     - kein Ersatzwert 0,5 oder 0: ein erfundener Wert zieht den Mittelwert nach
       unten und sieht wie ein Messergebnis aus
@@ -291,8 +291,8 @@ def _macro_auroc(y_true, proba: np.ndarray, klassen_modell: list,
 def run() -> None:
     """Fuehrt beide Straenge aus und schreibt die drei Ergebnisdateien.
 
-    Ein:  beide Parquet-Dateien
-    Aus:  baselines_folds.csv, baselines_mittel.csv, baselines_klasse.csv
+    Input:  beide Parquet-Dateien
+    Output: baselines_folds.csv, baselines_mittel.csv, baselines_klasse.csv
 
     - Schritt 1 von vorpruefung/run.py
     - das Stratifizierungsmass wird auch fuer die Regression aus der
@@ -312,7 +312,6 @@ def run() -> None:
     mittel = regression(r, selten)
     print(f"Regression - {WIEDERHOLUNGEN} Wiederholungen x {N_FOLDS} Folds")
     print(mittel.to_string(index=False))
-
 
     df = klassifikation(kl, selten)
     print(f"\nKlassifikation - Mittel ueber alle "

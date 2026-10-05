@@ -3,55 +3,31 @@ Wer sind die 30 und wer sind die 6? - Profil beider Panelhaelften.
 
     python vorpruefung/panelprofil.py
 
-Eingang: data/processed/regression.parquet, data/processed/klassifikation.parquet,
+Input:   data/processed/regression.parquet, data/processed/klassifikation.parquet,
          data/raw/neighborhoods.geojson
-Ausgang: results/panelprofil/stadtteile.csv, klassenverteilung.csv,
+Output:  results/panelprofil/stadtteile.csv, klassenverteilung.csv,
          zielgroessen.csv, suchmenge.csv, nachbarschaft.csv, panelprofil.md
 
-  - Der Validierungsrahmen haelt ganze Stadtteile zurueck. Eine
-    Schlussbewertung auf sechs Einheiten ist ohne diese sechs Einheiten keine
-    Aussage, sondern eine Zahl ohne Bezugsmenge. Deshalb steht die
-    Zusammensetzung beider Haelften in einer eigenen Datei, erzeugt VOR der
-    Auswertung und unabhaengig von jedem Modellergebnis
-  - Die Zuteilung ist deterministisch: absteigend nach brand-dominierten
-    Monaten, bei Gleichstand nach Bevoelkerung, dann reihum auf N_FOLDS + 1
-    Gruppen; Gruppe 0 ist das Hold-out. Der auf dem
-    Stratifizierungskriterium rangerste Stadtteil liegt damit ZWANGSLAEUFIG
-    im Hold-out - keine Zufallsziehung, sondern eine Eigenschaft der Regel,
-    und als solche zu berichten
-  - Zwei Groessen entscheiden darueber, wie die Schlussbewertung zu lesen
-    ist: die Klassenverteilung, weil Macro-F1 ueber vier Klassen mittelt
-    von denen eine selten ist - und die Verteilung der Zielgroessen auf der
-    RATE, weil das die Skala ist, auf der alle drei Verfahren angepasst
-    werden
-  - Zwei weitere Eigenschaften der Aufteilung stehen hier, weil sie nicht
-    vom Modell abhaengen: wie viele Teststadtteile der Wiederholungen 1 bis 9
-    schon in der Suchmenge von Wiederholung 0 lagen, und wie viele
-    Trainingsstadtteile keine gemeinsame Grenze mit einem Teststadtteil haben
-  - Rein deskriptiv. Kein Modell, kein Test, kein Zufall: zwei Laeufe
-    liefern dieselbe Datei. Die Wiederholungen kommen aus v0_aufteilung.py
-    mit festem Startwert. Haengt bewusst nicht an vorpruefung/run.py,
-    weil es keine Voraussetzung fuer die Baselines ist
+  - Zusammensetzung beider Haelften, erzeugt VOR der Auswertung und
+    unabhaengig von jedem Modellergebnis
+  - Zuteilung deterministisch (brand-dominierte Monate, dann Bevoelkerung,
+    reihum); der rangerste Stadtteil liegt dadurch zwangslaeufig im Hold-out
+  - Klassenverteilung (Macro-F1 mittelt vier Klassen, eine davon selten) und
+    Zielgroessen auf der Rate (Skala der Anpassung)
+  - Suchmenge: Teststadtteile der Wiederholungen 1-9, die schon in der Suche
+    von Wiederholung 0 lagen; Nachbarschaft: Trainingsstadtteile ohne
+    gemeinsame Grenze mit einem Teststadtteil
+  - rein deskriptiv, kein Zufall; nicht Teil von vorpruefung/run.py
 
 FALLSTRICKE
-  1  Die Klassenverteilung kommt aus klassifikation.parquet (4.751 Zeilen),
-     die Zielgroessen aus regression.parquet (4.752). Der Unterschied ist
-     der eine Monat ohne Einsatz, der keine Zusammensetzung hat. Beide
-     Zahlen nebeneinanderzustellen ohne das zu sagen waere ein stiller
-     Bezugsmengenwechsel
-  2  Anteile IMMER innerhalb der jeweiligen Haelfte bilden, nie am
-     Gesamtpanel. Sonst liest sich der Brandanteil als Aussage ueber die
-     Stadt statt ueber die Testmenge
-  3  Der Dispersionsindex gehoert zur Anzahl, nicht zur Rate - er ist auf
-     Zaehldaten definiert. Fuer die Rate steht die Standardabweichung da
-  4  Modalklasse je Stadtteil ueber alle 132 Monate, nicht je Fold. Sonst
-     haengt die Groesse, aus der v4_decke Decke B bildet, an der
-     Fold-Zuteilung
-  5  Die Spalte ist_holdout kommt aus der DATEI, nicht aus einer Rechnung
-     in diesem Skript. Wer sie hier neu bestimmte, koennte still von der
-     Aufteilung abweichen, gegen die m02 und m03 gesperrt sind
+  1  Klassen aus klassifikation.parquet (4.751 Zeilen), Zielgroessen aus
+     regression.parquet (4.752): ein Monat ohne Einsatz
+  2  Anteile innerhalb der jeweiligen Haelfte bilden, nie am Gesamtpanel
+  3  Dispersionsindex nur fuer die Anzahl, fuer die Rate Standardabweichung
+  4  Modalklasse je Stadtteil ueber alle 132 Monate, nicht je Fold
+     (Grundlage von Decke B in v4_decke)
+  5  ist_holdout aus der Datei, nicht hier neu bestimmen
 """
-
 
 
 from __future__ import annotations
@@ -84,8 +60,8 @@ HAELFTEN = {0: "Entwicklung", 1: "Hold-out"}
 def lade() -> tuple[pd.DataFrame, pd.DataFrame]:
     """Liest beide Datensaetze und prueft die gemeinsame Aufteilung.
 
-    Ein:  nichts
-    Aus:  (regression, klassifikation)
+    Input:  nichts
+    Output: (regression, klassifikation)
 
     - beide Dateien tragen fold und ist_holdout aus EINEM Aufruf von
       ergaenze_aufteilung(). Weichen sie ab, ist die Aufbereitung
@@ -105,8 +81,8 @@ def lade() -> tuple[pd.DataFrame, pd.DataFrame]:
 def stadtteile(reg: pd.DataFrame, kl: pd.DataFrame) -> pd.DataFrame:
     """Eine Zeile je Stadtteil: Zuteilung, Groesse, Einsatzlast, Klassenlage.
 
-    Ein:  beide Datensaetze
-    Aus:  Datenrahmen, absteigend nach brand-dominierten Monaten sortiert
+    Input:  beide Datensaetze
+    Output: Datenrahmen, absteigend nach brand-dominierten Monaten sortiert
 
     - die Sortierung bildet die Zuteilungsregel nach. Wer die Datei
       liest, sieht der Reihenfolge an, warum welcher Stadtteil in Gruppe 0
@@ -139,8 +115,8 @@ def stadtteile(reg: pd.DataFrame, kl: pd.DataFrame) -> pd.DataFrame:
 def klassenverteilung(kl: pd.DataFrame) -> pd.DataFrame:
     """Klassenanteile je Panelhaelfte.
 
-    Ein:  klassifikation.parquet
-    Aus:  Datenrahmen mit einer Zeile je Haelfte und Klasse
+    Input:  klassifikation.parquet
+    Output: Datenrahmen mit einer Zeile je Haelfte und Klasse
 
     - FALLSTRICK 2: Anteil am Nenner der eigenen Haelfte
     """
@@ -159,8 +135,8 @@ def klassenverteilung(kl: pd.DataFrame) -> pd.DataFrame:
 def zielgroessen(reg: pd.DataFrame) -> pd.DataFrame:
     """Verteilung beider Zielgroessen je Panelhaelfte.
 
-    Ein:  regression.parquet
-    Aus:  Datenrahmen mit einer Zeile je Haelfte und Zielgroesse
+    Input:  regression.parquet
+    Output: Datenrahmen mit einer Zeile je Haelfte und Zielgroesse
 
     - FALLSTRICK 3: Dispersionsindex nur fuer die Anzahl
     - die Rate steht mit dabei, weil auf ihr angepasst wird: eine
@@ -185,8 +161,8 @@ def zielgroessen(reg: pd.DataFrame) -> pd.DataFrame:
 def suchmenge(reg: pd.DataFrame, kl: pd.DataFrame) -> pd.DataFrame:
     """Anteil der Teststadtteile, die schon in der Suchmenge lagen.
 
-    Ein:  beide Datensaetze
-    Aus:  Datenrahmen mit einer Zeile je Wiederholung 1 bis 9 und Fold
+    Input:  beide Datensaetze
+    Output: Datenrahmen mit einer Zeile je Wiederholung 1 bis 9 und Fold
 
     - die Parameter fuer Fold k werden in Wiederholung 0 auf dessen
       Trainingsstadtteilen gesucht und in allen Wiederholungen fuer Fold k
@@ -217,8 +193,8 @@ def suchmenge(reg: pd.DataFrame, kl: pd.DataFrame) -> pd.DataFrame:
 def nachbarschaft(reg: pd.DataFrame, kl: pd.DataFrame) -> pd.DataFrame:
     """Trainingsstadtteile ohne gemeinsame Grenze mit einem Teststadtteil.
 
-    Ein:  beide Datensaetze, dazu die Stadtteilgeometrie aus data/raw
-    Aus:  Datenrahmen mit einer Zeile je Wiederholung und Fold
+    Input:  beide Datensaetze, dazu die Stadtteilgeometrie aus data/raw
+    Output: Datenrahmen mit einer Zeile je Wiederholung und Fold
 
     - zeigt, wie viele Trainingsstadtteile ein Puffer um die Teststadtteile
       uebrig liesse: ausgeschlossen wird jeder Trainingsstadtteil, der einen
@@ -254,9 +230,9 @@ def bericht(st: pd.DataFrame, kv: pd.DataFrame, zg: pd.DataFrame,
             sm: pd.DataFrame, nb: pd.DataFrame) -> str:
     """Setzt die Tabellen zu panelprofil.md zusammen.
 
-    Ein:  Stadtteilprofil, Klassenverteilung, Zielgroessenverteilung,
-          Suchmenge, Nachbarschaft
-    Aus:  Markdown-Text
+    Input:  Stadtteilprofil, Klassenverteilung, Zielgroessenverteilung,
+            Suchmenge, Nachbarschaft
+    Output: Markdown-Text
 
     - reine Formatierung, hier wird nichts gerechnet
     - die Zuteilungsregel steht im Kopf, damit die Datei ohne den Code
@@ -326,8 +302,8 @@ def bericht(st: pd.DataFrame, kv: pd.DataFrame, zg: pd.DataFrame,
 def main(argv: list[str]) -> int:
     """Schreibt fuenf CSV-Dateien und die Lesefassung.
 
-    Ein:  keine Argumente
-    Aus:  Exitcode
+    Input:  keine Argumente
+    Output: Exitcode
 
     - anders als m02/m03/v4 gibt es hier KEINE Hold-out-Sperre: das Skript
       beschreibt die Aufteilung, es bewertet kein Modell auf ihr. Genau

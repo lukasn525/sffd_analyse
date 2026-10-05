@@ -5,46 +5,23 @@ Verfahrensvergleich fuer die STRUKTUR der Einsatzlast.
     python modelle/m03_struktur.py holdout    zusaetzlich die einmalige Schlussbewertung
     python modelle/m03_struktur.py holdout --weiter   Phase 1+2 aus results/ uebernehmen
 
-Eingang: data/processed/klassifikation.parquet
-Ausgang: results/klassifikation/struktur_folds.csv, struktur_mittel.csv,
+Input:   data/processed/klassifikation.parquet
+Output:  results/klassifikation/struktur_folds.csv, struktur_mittel.csv,
          tuning.csv, vergleich.csv, holdout.csv
 
-  - Eine Zielgroesse (dominante_einsatzart, vier ungeordnete Klassen) x zwei
-    Verfahren (Random Forest, XGBoost) x 10 Wiederholungen x 5 Folds = 100
-    Laeufe. Ridge hat auf einer nominalen Zielgroesse keine Entsprechung
-  - AUFBAU: spiegelt m02_menge.py - dieselben Funktionen, dieselbe
-    Reihenfolge, dieselben Fallstricke. Hier stehen nur die Unterschiede
-  - Guetemasse Macro-F1 (Hauptmass) und Macro-AUROC, Accuracy nachrichtlich;
-    getunt wird auf f1_macro. Stufe-2-Baseline ist die multinomiale
-    logistische Regression, nicht die Mehrheitsklasse
-  - Holm entfaellt: Es gibt genau EINEN sekundaeren Test (RF gegen XGBoost),
-    und Regression und Klassifikation sind getrennte Testfamilien
+  - dominante_einsatzart (vier Klassen) x RF, XGBoost x 10 Wiederholungen
+    x 5 Folds = 100 Laeufe; Ridge entfaellt (nominale Zielgroesse)
+  - Aufbau wie m02_menge.py, hier nur die Unterschiede
+  - Macro-F1 (Hauptmass, getunt auf f1_macro), Macro-AUROC, Accuracy;
+    Stufe-2-Baseline: multinomiale logistische Regression
+  - kein Holm: genau ein sekundaerer Test (RF gegen XGBoost)
 
 DREI FALLSTRICKE, die es in m02 nicht gibt
-  1  KLASSENGEWICHTE statt Resampling - class_weight="balanced" beim RF,
-     sample_weight beim XGBClassifier. Kein SMOTE, kein Over- oder
-     Undersampling; das waere ein Eingriff in die Datenverteilung
-  2  LABEL-ENCODER EINMAL GLOBAL, nicht je Fold. Sonst verschiebt sich das
-     Mapping in Folds ohne eine Klasse und die Wahrscheinlichkeitsspalten
-     zeigen auf die falschen Klassen
-  3  MACRO-AUROC KANN UNDEFINIERT SEIN. Dann als FEHLEND fuehren, nicht durch
-     null ersetzen. zero_division=0 bei Macro-F1 muss gesetzt bleiben
+  1  Klassengewichte statt Resampling (class_weight / sample_weight)
+  2  Label-Encoder einmal global, nicht je Fold
+  3  Macro-AUROC kann undefiniert sein -> fehlend, nicht 0;
+     zero_division=0 bei Macro-F1 bleibt gesetzt
 """
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 import json
@@ -72,23 +49,18 @@ OUT = RESULTS_DIR / "klassifikation"
 MERKMALE = PRAEDIKTOREN + SAISON
 VERFAHREN = ("random_forest", "xgboost")
 
-# Die vier Klassen in FESTER Reihenfolge - abgeleitet aus ANTEILE, also aus
-# derselben Quelle, aus der die Zielgroesse per argmax entsteht. Diese Liste
-# ist der globale Label-Encoder (Fallstrick 2): Index = Integer-Label.
+# Die vier Klassen in fester Reihenfolge aus ANTEILE = globaler
+# Label-Encoder (Fallstrick 2): Index = Integer-Label.
 KLASSEN = [s.replace("anteil_", "") for s in ANTEILE]
 SELTENE_KLASSE = "brand"
 
-# Muss zu vorpruefung/v1_baselines.LOGREG passen - der Name filtert die Spalte
-# `modell` in baselines_klasse.csv, ein Tippfehler liefert also stillschweigend
-# eine leere Vergleichsmenge. `hold_out()` importiert die Konstante direkt.
+# Muss zu v1_baselines.LOGREG passen (Filter auf `modell` in
+# baselines_klasse.csv); hold_out() importiert die Konstante direkt.
 BASELINE_STUFE2 = "Multinomiale logistische Regression"
 TESTMASS = "macro_f1"
 ALPHA = 0.05
 
-# Wie in m02: Modelle einkernig, nur die Suche parallel. Begruendung dort im
-# Block PARALLELISIERUNG. Der berichtete Aufwand
-# muss zwischen den Verfahren vergleichbar sein, und der Parallelisierungs-
-# gewinn ist eine eigene Groesse.
+# Wie in m02: Modelle einkernig, nur die Suche parallel.
 N_JOBS_MODELL = 1
 N_JOBS_SUCHE = -1
 
@@ -99,8 +71,8 @@ N_JOBS_SUCHE = -1
 def verfahren(name: str, n_jobs: int = N_JOBS_MODELL):
     """Baut die ungetunte Pipeline. Kein Scaler, beide Verfahren sind Baeume.
 
-    Ein:  Verfahrensname, optional n_jobs
-    Aus:  Schaetzer ohne Hyperparameter
+    Input:  Verfahrensname, optional n_jobs
+    Output: Schaetzer ohne Hyperparameter
 
     - n_jobs steuert nur die Parallelisierung, nicht das Ergebnis; voreingestellt
       einkernig
@@ -126,8 +98,8 @@ def verfahren(name: str, n_jobs: int = N_JOBS_MODELL):
 def suchraum(name: str) -> dict:
     """Uebersetzt SUCHRAEUME in scipy-Verteilungen, ohne Praefix.
 
-    Ein:  Verfahrensname
-    Aus:  dict Parametername -> Verteilung
+    Input:  Verfahrensname
+    Output: dict Parametername -> Verteilung
 
     - beide Verfahren sind nackte Schaetzer statt Pipelines, weil keine
       Skalierung noetig ist
@@ -162,8 +134,8 @@ def suchraum(name: str) -> dict:
 def kodiere(y: pd.Series) -> np.ndarray:
     """Klassennamen -> Integer 0..3 nach der globalen Reihenfolge KLASSEN.
 
-    Ein:  Reihe mit Klassennamen
-    Aus:  Integer-Array
+    Input:  Reihe mit Klassennamen
+    Output: Integer-Array
 
     - Fallstrick 2: Das Mapping haengt nicht von den gerade vorliegenden Daten ab
     - ein je Fold gefitteter LabelEncoder verschoebe in einem Fold ohne Brand die
@@ -179,8 +151,8 @@ def kodiere(y: pd.Series) -> np.ndarray:
 def _gewichte(y_int: np.ndarray) -> np.ndarray:
     """class_weight="balanced" von Hand, fuer XGBoost.
 
-    Ein:  Integer-Labels des Trainings
-    Aus:  Gewichtsvektor gleicher Laenge
+    Input:  Integer-Labels des Trainings
+    Output: Gewichtsvektor gleicher Laenge
     """
     from sklearn.utils.class_weight import compute_sample_weight
     return compute_sample_weight("balanced", y_int)
@@ -192,8 +164,8 @@ def _gewichte(y_int: np.ndarray) -> np.ndarray:
 def tune(name: str, train: pd.DataFrame) -> dict:
     """Wie m02.tune, aber mit f1_macro als Scoring.
 
-    Ein:  Trainingsrahmen des Folds, Verfahren
-    Aus:  die Parameter als dict
+    Input:  Trainingsrahmen des Folds, Verfahren
+    Output: die Parameter als dict
 
     - der Fallstrick aus m02 gilt unveraendert: Der innere CV muss nach Stadtteil
       gruppieren, sonst stehen dieselben 132 Zeilen in innerem Training und
@@ -230,9 +202,9 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
              mit_vorhersagen: bool = False) -> dict:
     """Ein Fit, eine Vorhersage, mit Zeitmessung - eine Zeile fuer die CSV.
 
-    Ein:  Trainings- und Testrahmen, Verfahren, Parameter, auch_parallel
-    Aus:  dict mit Macro-F1, Macro-AUROC, Accuracy, Laufzeiten,
-          Extrapolationsanteil
+    Input:  Trainings- und Testrahmen, Verfahren, Parameter, auch_parallel
+    Output: dict mit Macro-F1, Macro-AUROC, Accuracy, Laufzeiten,
+            Extrapolationsanteil
 
     - die Zeit wird um fit und predict herum gemessen, einkernig fuer beide
       Verfahren
@@ -249,8 +221,8 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
     def fitte(kerne: int):
         """Fittet einen Schaetzer mit den Klassengewichten des Verfahrens.
 
-        Ein:  Schaetzer, Merkmalsmatrix, Integer-Labels
-        Aus:  der gefittete Schaetzer
+        Input:  Schaetzer, Merkmalsmatrix, Integer-Labels
+        Output: der gefittete Schaetzer
 
         - XGBoost bekommt sample_weight beim Fit
         - der Random Forest hat die Gewichte bereits als Hyperparameter
@@ -272,18 +244,12 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
     train_par, inferenz_par, abweichung = np.nan, np.nan, np.nan
     if auch_parallel:
         _, y_par, train_par, inferenz_par = fitte(-1)
-        # Anteil der Zeilen, die einkernig und parallel verschieden
-        # klassifiziert werden. KEIN Abbruch - gemessen und berichtet: Bei
-        # XGBoost ist die Vorhersage threadabhaengig.
-        # Die berichteten Guetemasse stammen aus dem einkernigen Fit.
+        # Anteil abweichend klassifizierter Zeilen einkernig/parallel; nur
+        # gemessen (XGBoost threadabhaengig), berichtet wird der einkernige Fit.
         abweichung = float(np.mean(y_hat != y_par))
 
-
-
-
-    # UEBERANPASSUNGSNACHWEIS - wie in m02, siehe dort.
-    # Eine zusaetzliche Vorhersage auf den Trainingsstadtteilen, kein zweiter
-    # Fit, nach der Zeitmessung.
+    # Ueberanpassung wie in m02: zusaetzliche Vorhersage auf den
+    # Trainingsstadtteilen, nach der Zeitmessung.
     y_hat_tr = modell.predict(X_tr)
 
     ergebnis = {
@@ -304,9 +270,8 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
         "extrapolationsanteil": extrapolationsanteil(train, test),
     }
 
-    # VORHERSAGEN JE ZEILE (nur von phase_bewertung angefordert): Traegt die
-    # Konfusionsmatrix und die klassenweisen F1-Werte, ohne die ein Macro-F1
-    # aus vier Klassen nicht lesbar ist. Kein neuer Modelllauf noetig.
+    # Vorhersagen je Zeile (nur phase_bewertung): Konfusionsmatrix und F1
+    # je Klasse ohne neuen Modelllauf.
     if mit_vorhersagen:
         ergebnis["_vorhersagen"] = pd.DataFrame({
             "stadtteil": test["stadtteil"].to_numpy(),
@@ -320,8 +285,8 @@ def ein_lauf(name: str, parameter: dict, train: pd.DataFrame,
 def extrapolationsanteil(train: pd.DataFrame, test: pd.DataFrame) -> float:
     """Anteil der Testzeilen ausserhalb des Trainings-Wertebereichs.
 
-    Ein:  Trainings- und Testmatrix
-    Aus:  Anteil zwischen 0 und 1
+    Input:  Trainings- und Testmatrix
+    Output: Anteil zwischen 0 und 1
 
     - wortgleich zu m02_menge, bewusst dupliziert statt importiert
     - ein gemeinsames Hilfsmodul fuer zwei Aufrufer braechte mehr Indirektion als
@@ -335,8 +300,8 @@ def extrapolationsanteil(train: pd.DataFrame, test: pd.DataFrame) -> float:
 def _gepaart(a: np.ndarray, b: np.ndarray) -> dict:
     """Gepaarter Wilcoxon samt der Kennzahlen, die ohne p-Wert tragen.
 
-    Ein:  zwei gepaarte Wertereihen (a = Verfahren, b = Gegner)
-    Aus:  dict mit p-Wert, mittlerer Differenz, Konfidenzintervall, Siegen
+    Input:  zwei gepaarte Wertereihen (a = Verfahren, b = Gegner)
+    Output: dict mit p-Wert, mittlerer Differenz, Konfidenzintervall, Siegen
 
     - wortgleich zu m02_menge
     - bei Macro-F1 ist gross besser; die Aufrufstelle dreht die Argumente
@@ -363,8 +328,8 @@ def _macro_auroc(y_true: np.ndarray, proba: np.ndarray,
                  klassen_modell: list) -> float:
     """Macro-AUROC (One-vs-Rest), NaN wenn eine Klasse im Test fehlt.
 
-    Ein:  wahre Labels, Wahrscheinlichkeitsmatrix, Klassenreihenfolge des Modells
-    Aus:  Zahl oder NaN
+    Input:  wahre Labels, Wahrscheinlichkeitsmatrix, Klassenreihenfolge des Modells
+    Output: Zahl oder NaN
 
     - Fallstrick 3: kein Ersatz durch 0,5 - ein erfundener Wert sieht wie eine
       Messung aus und zieht den Mittelwert nach unten
@@ -388,8 +353,8 @@ def _macro_auroc(y_true: np.ndarray, proba: np.ndarray,
 def phase_tuning(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     """Phase 1: je Verfahren und Fold einmal tune() auf Wiederholung 0.
 
-    Ein:  Panel der Entwicklungsstadtteile
-    Aus:  tuning.csv mit 10 Zeilen
+    Input:  Panel der Entwicklungsstadtteile
+    Output: tuning.csv mit 10 Zeilen
 
     - wie in m02 wird nichts STILL wiederverwendet: tuning.csv ist ein Ergebnis
       dieses Laufs, kein Eingang. Einzige Ausnahme ist der ausdrueckliche
@@ -415,8 +380,8 @@ def phase_tuning(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
 def _rein_python(p: dict) -> dict:
     """Wandelt NumPy-Skalare in native Typen, wortgleich zu m02_menge.
 
-    Ein:  Parameter-dict aus best_params_
-    Aus:  dasselbe dict mit int/float
+    Input:  Parameter-dict aus best_params_
+    Output: dasselbe dict mit int/float
 
     - np.int64 erbt nicht von int; ohne die Wandlung wuerde aus 287 die
       Zeichenkette "287" und set_params braeche nach dem Tuning ab
@@ -428,8 +393,8 @@ def _rein_python(p: dict) -> dict:
 def _parameter_je_fold(parameter: pd.DataFrame) -> dict:
     """Liest tuning.csv als Nachschlagetabelle.
 
-    Ein:  tuning.csv als Datenrahmen
-    Aus:  {(verfahren, fold): Parameter-dict}
+    Input:  tuning.csv als Datenrahmen
+    Output: {(verfahren, fold): Parameter-dict}
     """
     return {(z["verfahren"], int(z["fold"])): json.loads(z["parameter_json"])
             for _, z in parameter.iterrows()}
@@ -439,9 +404,9 @@ def phase_bewertung(panel: pd.DataFrame, parameter: pd.DataFrame,
                     selten: pd.Series) -> pd.DataFrame:
     """Phase 2: 10 Wiederholungen x 5 Folds x 2 Verfahren = 100 Zeilen.
 
-    Ein:  Panel, Parametertabelle aus Phase 1
-    Aus:  struktur_folds.csv und struktur_vorhersagen.parquet mit einer
-          Zeile je Vorhersage
+    Input:  Panel, Parametertabelle aus Phase 1
+    Output: struktur_folds.csv und struktur_vorhersagen.parquet mit einer
+            Zeile je Vorhersage
 
     - trainiert wird je Fold mit einem frischen Modell auf allen
       Trainingsstadtteilen, nicht mit best_estimator_ aus dem Tuning
@@ -483,8 +448,8 @@ MASSE_PARALLEL = ["train_sekunden_parallel", "inferenz_sekunden_parallel"]
 def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
     """Phase 3: zweistufig mitteln, wie in m02.
 
-    Ein:  struktur_folds.csv als Datenrahmen
-    Aus:  struktur_mittel.csv
+    Input:  struktur_folds.csv als Datenrahmen
+    Output: struktur_mittel.csv
 
     - massgeblich ist std_wiederholungen, nicht std_folds
     - die 50 Fold-Ergebnisse sind dieselben 30 Stadtteile in zehn Gruppierungen
@@ -522,8 +487,8 @@ def aggregiere(folds: pd.DataFrame) -> pd.DataFrame:
 def vergleiche(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
     """Phase 4: gepaarter Wilcoxon auf Macro-F1.
 
-    Ein:  struktur_folds.csv, Baseline-Laeufe aus v1_baselines.py
-    Aus:  vergleich.csv
+    Input:  struktur_folds.csv, Baseline-Laeufe aus v1_baselines.py
+    Output: vergleich.csv
 
     - zwei primaere Tests (je Verfahren gegen Stufe 2), ein sekundaerer (RF gegen
       XGBoost)
@@ -550,8 +515,8 @@ def vergleiche(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
         def paar(links, rechts):
             """Legt eine Vergleichszeile fuer vergleich.csv an.
 
-            Ein:  Rolle, Teststufe, Verfahren, Gegner, Wertereihen
-            Aus:  dict mit Testergebnis und Kennzahlen
+            Input:  Rolle, Teststufe, Verfahren, Gegner, Wertereihen
+            Output: dict mit Testergebnis und Kennzahlen
             """
             zusammen = pd.concat([links.rename("a"), rechts.rename("b")],
                                  axis=1, join="inner")
@@ -582,8 +547,8 @@ def vergleiche(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
 def leakage_diagnose(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFrame:
     """Beziffert, was das Tuning auf Wiederholung 0 kostet.
 
-    Ein:  struktur_folds.csv, Baseline-Laeufe
-    Aus:  Datenrahmen mit dem Vorsprung in W0 gegen W1-9
+    Input:  struktur_folds.csv, Baseline-Laeufe
+    Output: Datenrahmen mit dem Vorsprung in W0 gegen W1-9
 
     - bei Macro-F1 ist gross besser; der Vorsprung ist Verfahren minus Baseline
     - ausfuehrliche Begruendung in m02_menge.leakage_diagnose
@@ -612,8 +577,8 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
              folds: pd.DataFrame) -> pd.DataFrame:
     """Einmalige Schlussbewertung, mit Macro-F1 als Auswahlkriterium.
 
-    Ein:  vollstaendiges Panel, Parametertabelle aus Phase 1
-    Aus:  holdout.csv
+    Input:  vollstaendiges Panel, Parametertabelle aus Phase 1
+    Output: holdout.csv
 
     - gewaehlt wird der Parametersatz des Folds mit dem hoechsten Macro-F1 in
       Wiederholung 0
@@ -622,7 +587,6 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
     - dies ist EINE Messung an SECHS Einheiten: kein Mittelwert, keine Streuung
     """
 
-
     param = _parameter_je_fold(parameter)
     dev, ho = entwicklung_und_holdout(panel)
     train, test = panel[dev], panel[ho]
@@ -630,15 +594,8 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
           f"({len(train):,} Zeilen), Bewertung auf "
           f"{test['stadtteil'].nunique()} ({len(test):,} Zeilen)")
 
-
-
-    # Wie in m02 gehoeren beide Baselines dazu - ohne Bezugspunkt ist ein
-    # Macro-F1 keine Aussage.
-    #
-    # EINE SPEZIFIKATION, ZWEI AUFRUFER. Wie m02 `poisson_glm` holt diese
-    # Funktion das Logit aus v1_baselines, statt es nachzubauen. Stuende die
-    # Spezifikation an zwei Orten, maesse die Kreuzvalidierung nach einer
-    # Aenderung still gegen ein anderes Modell als die Schlussbewertung.
+    # Beide Baselines gehoeren dazu. Das Logit kommt aus v1_baselines (eine
+    # Spezifikation fuer Kreuzvalidierung und Schlussbewertung).
     from sklearn.metrics import accuracy_score, f1_score
     from v1_baselines import LOGREG, logit_glm
 
@@ -658,11 +615,8 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
             "verfahren": modell, "zielgroesse": ZIELKLASSE, "stufe": stufe,
             "macro_f1": float(f1_score(y_te, y_hat, average="macro",
                                        zero_division=0)),
-            # FALLSTRICK 2 auch hier: Die Wahrscheinlichkeitsspalten der
-            # logistischen Regression stehen in alphabetischer Reihenfolge
-            # ihrer Klassennamen, nicht in der von KLASSEN. Erst umsortieren,
-            # dann bewerten - `roc_auc_score` verlangt aufsteigend sortierte
-            # Labels und liefert sonst gar nichts.
+            # Fallstrick 2: Spalten der LogReg alphabetisch, nicht in der
+            # Reihenfolge von KLASSEN -> erst umsortieren (roc_auc_score).
             "macro_auroc": (np.nan if proba is None else _macro_auroc(
                 kodiere(y_te),
                 proba[:, [list(logreg.classes_).index(c) for c in KLASSEN]],
@@ -691,8 +645,8 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
 def uebernehmen(panel: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Liest Tuning und Bewertung aus results/, statt sie neu zu rechnen.
 
-    Ein:  Entwicklungspanel; liest tuning.csv und struktur_folds.csv
-    Aus:  dieselben zwei Datenrahmen, die Phase 1 und Phase 2 zurueckgeben
+    Input:  Entwicklungspanel; liest tuning.csv und struktur_folds.csv
+    Output: dieselben zwei Datenrahmen, die Phase 1 und Phase 2 zurueckgeben
 
     - baugleich zu m02_menge.uebernehmen(); die Begruendung steht dort
     - NUR ueber den Schalter --weiter erreichbar; ohne ihn rechnet das Skript
@@ -737,11 +691,11 @@ def uebernehmen(panel: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 def main(argv: list[str]) -> int:
     """Faehrt die vier Phasen und schreibt alle Ergebnisdateien.
 
-    Ein:  klassifikation.parquet; Argument "holdout" haengt die
-          Schlussbewertung an, "--weiter" uebernimmt Phase 1 und 2 aus
-          results/klassifikation/
-    Aus:  tuning.csv, struktur_folds.csv, struktur_mittel.csv, vergleich.csv,
-          leakage_diagnose.csv, optional holdout.csv; Exitcode
+    Input:  klassifikation.parquet; Argument "holdout" haengt die
+            Schlussbewertung an, "--weiter" uebernimmt Phase 1 und 2 aus
+            results/klassifikation/
+    Output: tuning.csv, struktur_folds.csv, struktur_mittel.csv, vergleich.csv,
+            leakage_diagnose.csv, optional holdout.csv; Exitcode
 
     - ohne das Argument werden die Hold-out-Zeilen zu Beginn unwiderruflich
       herausgefiltert

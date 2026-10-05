@@ -1,128 +1,24 @@
 """
-Deskriptive Attributuebersicht.
+Deskriptive Attributuebersicht des aufbereiteten Datensatzes.
 
-    python prep/deskriptiv.py          erzeugt alle Tabellen
-    python prep/deskriptiv.py -v       zusaetzlich die Rohwerte je Stadtteil
+    python prep/deskriptiv.py          alle Tabellen
+    python prep/deskriptiv.py -v       zusaetzlich Rohwerte je Stadtteil
 
-Ausgang: results/deskriptiv/verteilung.csv
-         results/deskriptiv/varianzzerlegung.csv
-         results/deskriptiv/aufloesung.csv
-         results/deskriptiv/korrelation_zielgroesse.csv
-         results/deskriptiv/korrelation_pearson.csv · _spearman.csv
-         results/deskriptiv/stadtteilprofil.csv
-         results/deskriptiv/befunde.md           <- die Lesefassung
-         results/deskriptiv/je_stadtteil.csv     nur mit -v
+Output:  results/deskriptiv/verteilung.csv, varianzzerlegung.csv,
+         aufloesung.csv, korrelation_zielgroesse.csv,
+         korrelation_pearson.csv, korrelation_spearman.csv,
+         stadtteilprofil.csv, befunde.md (Lesefassung),
+         je_stadtteil.csv (nur mit -v)
 
-Wie bei `codebook.py` ist die Ausgabe selbsttragend geschrieben: Die Tabellen
-in `results/` sind auch ohne das Skript lesbar.
-
---------------------------------------------------------------------------
-ABGRENZUNG ZU codebook.py - DIE BEIDEN TUN VERSCHIEDENES
---------------------------------------------------------------------------
-  codebook.py    WAS ist ein Merkmal?   Skalenniveau, Einheit, Quelle,
-                 Was/Wie/Wofuer. Eine grosse Tabelle, ausdruecklich OHNE
-                 deskriptive Statistik je Merkmal.
-
-  deskriptiv.py  WIE SIEHT es aus?      Lage, Streuung, Form, Varianzanteile,
-                 zeitliche Aufloesung, Zusammenhaenge.
-
-Die Phase Data Understanding ist ohne Verteilungsbefunde leer. Getrennte
-Skripte, getrennte Ausgaben, kein Wert an zwei Stellen.
-
---------------------------------------------------------------------------
-ABGRENZUNG ZU vorpruefung/v2_eignung.py - DIE WICHTIGERE GRENZE
---------------------------------------------------------------------------
-  WIE DIE DATEN BESCHAFFEN SIND    "rechtsschief, hoher Dispersionsindex"
-  OB EIN VERFAHREN DAZU PASST      "deshalb Ridge auf log(1+y);
-                                    der RESET-Test verwirft die lineare
-                                    Spezifikation"
-
-Dieses Skript rechnet AUSSCHLIESSLICH die linke Spalte. Kein RESET-Test, kein
-VIF, keine Residuenanalyse, keine Breusch-Pagan- oder Jarque-Bera-Statistik -
-die stehen in `v2_eignung.py`.
-
-Eine Ausnahme mit Absicht: Pearson UND Spearman werden beide berechnet. Ihr
-ABSTAND ist ein Befund ueber die Daten (monotoner, aber gekruemmter
-Zusammenhang) und gehoert hierher. Die Schlussfolgerung daraus - dass ein
-lineares Modell die Kruemmung nicht abbildet - gehoert in `v2_eignung.py`.
-
---------------------------------------------------------------------------
-DIE GESAMTMENGE, AUF DER GERECHNET WIRD
---------------------------------------------------------------------------
-ALLE 36 Stadtteile, Entwicklung UND Hold-out. Das ist hier richtig und in der
-Eignungspruefung falsch:
-
-  Dieses Skript beschreibt den DATENBESTAND. Wer ihn nur auf 30 Stadtteilen
-  beschriebe, beschriebe nicht den Datensatz, sondern eine Teilmenge davon.
-  Es wird nichts geschaetzt und nichts entschieden - eine Verteilungsangabe
-  ueber den vollen Bestand kann kein Leakage erzeugen.
-
-  Die Eignungspruefung dagegen ENTSCHEIDET ueber Verfahren. Sie rechnet
-  deshalb auf den 24 Trainingsstadtteilen von Fold 1.
-
-Beide Bezugsmengen kommen vor. Wo eine Zahl steht, ist sie zu nennen -
-deshalb traegt jede erzeugte Tabelle ihre Bezugsmenge in der Kopfzeile.
-
---------------------------------------------------------------------------
-WARUM DIE VARIANZZERLEGUNG DER KERN DIESES SKRIPTS IST
---------------------------------------------------------------------------
-Der Datensatz hat 4.752 Zeilen, aber nur 36 Stadtteile. Fast alle Merkmale
-sind innerhalb eines Stadtteils nahezu konstant. Die Zerlegung zwischen /
-innerhalb macht das messbar statt behauptet und traegt drei Aussagen
-gleichzeitig:
-
-  - Befund ueber die Daten
-  - Begruendung des Stadtteil-Splits (ein Zeitschnitt pruefte nichts)
-  - effektive Stichprobe, Designeffekt, warum mehr Jahre nicht helfen
+  - Beschreibt nur die Daten: Lage, Streuung, Form, Varianzanteile,
+    Zusammenhaenge. Merkmalsdefinitionen -> codebook.py, Tests und
+    Verfahrenseignung (RESET, VIF, Residuen) -> v2_eignung.py
+  - Pearson UND Spearman: ihr Abstand zeigt gekruemmte Zusammenhaenge
+  - Bezugsmenge: alle 36 Stadtteile inkl. Hold-out (reine Beschreibung,
+    kein Leakage), genannt in befunde.md; v2 rechnet auf Fold 1
+  - Kern: Varianzzerlegung zwischen/innerhalb der Stadtteile -> Begruendung
+    des Stadtteil-Splits, Designeffekt, effektive Stichprobe
 """
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 from __future__ import annotations
@@ -170,8 +66,8 @@ def gruppe_von(spalte: str) -> str:
 def verteilung(d: pd.DataFrame, spalten: list[str]) -> pd.DataFrame:
     """Lage, Streuung und Form je Merkmal.
 
-    Ein:  Datensatz, Spaltenliste
-    Aus:  eine Zeile je Merkmal
+    Input:  Datensatz, Spaltenliste
+    Output: eine Zeile je Merkmal
 
     - Variationskoeffizient nur bei durchgehend positiven Merkmalen; bei
       Groessen um null herum ist er nicht interpretierbar und bleibt leer.
@@ -208,8 +104,8 @@ def verteilung(d: pd.DataFrame, spalten: list[str]) -> pd.DataFrame:
 def varianzzerlegung(d: pd.DataFrame, spalten: list[str]) -> pd.DataFrame:
     """Wie viel Streuung liegt ZWISCHEN, wie viel INNERHALB der Stadtteile?
 
-    Ein:  Datensatz mit Spalte `stadtteil`, Spaltenliste
-    Aus:  je Merkmal Zwischen-Anteil, ICC und Designeffekt
+    Input:  Datensatz mit Spalte `stadtteil`, Spaltenliste
+    Output: je Merkmal Zwischen-Anteil, ICC und Designeffekt
 
     - Der Zwischen-Anteil ist die Varianz der Stadtteilmittelwerte, gewichtet
       mit der Zahl ihrer Monate, geteilt durch die Gesamtvarianz.
@@ -220,7 +116,6 @@ def varianzzerlegung(d: pd.DataFrame, spalten: list[str]) -> pd.DataFrame:
     - Der DESIGNEFFEKT 1 + (m - 1) * ICC beziffert, um welchen Faktor die
       effektive Stichprobe unter der Zeilenzahl liegt. n_eff = n / Designeffekt.
     """
-
 
     zeilen = []
     for c in spalten:
@@ -265,8 +160,8 @@ def varianzzerlegung(d: pd.DataFrame, spalten: list[str]) -> pd.DataFrame:
 def aufloesung(d: pd.DataFrame, spalten: list[str]) -> pd.DataFrame:
     """Wie viele verschiedene Werte nimmt ein Merkmal je Stadtteil an?
 
-    Ein:  Datensatz, Spaltenliste
-    Aus:  je Merkmal der Mittelwert der eindeutigen Werte je Stadtteil
+    Input:  Datensatz, Spaltenliste
+    Output: je Merkmal der Mittelwert der eindeutigen Werte je Stadtteil
 
     Die vielleicht aussagekraeftigste Tabelle dieses Skripts. Ein Merkmal mit
     einem einzigen Wert je Stadtteil traegt ueber 132 Monate keine einzige
@@ -300,19 +195,14 @@ def aufloesung(d: pd.DataFrame, spalten: list[str]) -> pd.DataFrame:
 def stadtteilprofil(d: pd.DataFrame) -> pd.DataFrame:
     """Lage und Streuung der Einsatzlast je Stadtteil ueber alle Monate.
 
-    Ein:  Regressionsdatensatz
-    Aus:  eine Zeile je Stadtteil mit Median, Quartilen, Mittel, Maximum,
-          Rate, Bevoelkerung und Hold-out-Kennzeichen
+    Input:  Regressionsdatensatz
+    Output: eine Zeile je Stadtteil mit Median, Quartilen, Mittel, Maximum,
+            Rate, Bevoelkerung und Hold-out-Kennzeichen
 
     Abgegrenzt von `je_stadtteil.csv` (Schalter -v): Das ist eine
     Diagnoseausgabe zum Nachschauen, diese Datei ist ein Artefakt der Arbeit
     und wird immer geschrieben.
     """
-
-
-
-
-
 
     g = d.groupby("stadtteil")
     profil = pd.DataFrame({
@@ -337,8 +227,8 @@ def stadtteilprofil(d: pd.DataFrame) -> pd.DataFrame:
 def zielgroessen(reg: pd.DataFrame, kls: pd.DataFrame) -> list[str]:
     """Steckbrief beider Zielgroessen als Markdown-Bloecke.
 
-    Ein:  beide Datensaetze
-    Aus:  Liste von Textzeilen
+    Input:  beide Datensaetze
+    Output: Liste von Textzeilen
 
     - Der DISPERSIONSINDEX Var/Mean ist der zentrale Befund des Mengenstrangs:
       Bei einer Poisson-verteilten Groesse waere er 1. Er begruendet hier
@@ -493,8 +383,8 @@ def zusammenhaenge(d: pd.DataFrame, spalten: list[str],
                    ziel: str) -> pd.DataFrame:
     """Pearson und Spearman gegen die Zielgroesse - und ihr Abstand.
 
-    Ein:  Datensatz, Merkmalsliste, Name der Zielgroesse
-    Aus:  je Merkmal beide Korrelationen und ihre Differenz
+    Input:  Datensatz, Merkmalsliste, Name der Zielgroesse
+    Output: je Merkmal beide Korrelationen und ihre Differenz
 
     Der ABSTAND ist der Befund: Ein grosser Unterschied bei gleichzeitig
     substanzieller Korrelation zeigt einen monotonen, aber gekruemmten
@@ -555,9 +445,6 @@ def main(argv: list[str]) -> int:
     merkmale = list(PRAEDIKTOREN) + list(SAISON)
     beschreibend = merkmale + [EXPOSURE_ROH, CRIME_ROH] + list(LAGS)
     vorhanden = [c for c in beschreibend if c in reg.columns]
-
-
-
 
     # Die beiden Mengenzielgroessen kommen NUR in verteilung.csv dazu, damit
     # ihre Schiefe und Woelbung auch in einer maschinenlesbaren Datei stehen.

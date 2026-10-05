@@ -3,8 +3,8 @@ Der eine Befehl der Vorpruefung.
 
     python vorpruefung/run.py
 
-Eingang: data/processed/{regression,klassifikation}.parquet
-Ausgang: results/{regression,klassifikation}/baselines_*.csv
+Input:   data/processed/{regression,klassifikation}.parquet
+Output:  results/{regression,klassifikation}/baselines_*.csv
          results/eignungspruefung/eignungspruefung.md
 
   - Schritt 1  v1_baselines.py  legt die Messlatte: Stufe 1 (trivial) und
@@ -29,8 +29,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 def schritt(nummer: str, titel: str) -> None:
     """Gibt die Ueberschrift eines Arbeitsschrittes aus.
 
-    Ein:  Nummer wie "1/2", Titel des Schrittes
-    Aus:  nichts, reine Konsolenausgabe
+    Input:  Nummer wie "1/2", Titel des Schrittes
+    Output: nichts, reine Konsolenausgabe
     """
     print(f"\n{'=' * 78}\n  SCHRITT {nummer}: {titel}\n{'=' * 78}\n")
 
@@ -38,8 +38,8 @@ def schritt(nummer: str, titel: str) -> None:
 def main() -> int:
     """Faehrt beide Schritte der Vorpruefung nacheinander.
 
-    Ein:  nichts; setzt einen Lauf von prep/build.py voraus
-    Aus:  Exitcode 0
+    Input:  nichts; setzt einen Lauf von prep/build.py voraus
+    Output: Exitcode 0
 
     - Schritt 1 v1_baselines.run(), Schritt 2 v2_eignung.main()
     - die Reihenfolge ist zwingend: die Eignungspruefung liest die

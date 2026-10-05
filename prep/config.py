@@ -1,7 +1,7 @@
 """
 Konfiguration der Datenaufbereitung.
 
-Ausgang: Konstanten fuer prep/, vorpruefung/ und modelle/.
+Output:  Konstanten fuer prep/, vorpruefung/ und modelle/.
 
 - Hier steht, was in die Parquet-Dateien GESCHRIEBEN wird. Was nur beim
   RECHNEN gilt, steht in modelle/config_modelle.py.
@@ -22,7 +22,7 @@ RESULTS_DIR   = ROOT / "results"
 # Zwischenstand: ein Einsatz je Zeile, alle Merkmale angejoint.
 PFAD_EINSAETZE = PROCESSED_DIR / "einsaetze.parquet"
 
-# Die beiden FINALEN Datensaetze. Nur diese beiden Dateien lesen die Modelle.
+# Die beiden finalen Datensaetze; nur diese lesen die Modelle.
 PFAD_REGRESSION     = PROCESSED_DIR / "regression.parquet"
 PFAD_KLASSIFIKATION = PROCESSED_DIR / "klassifikation.parquet"
 
@@ -79,31 +79,25 @@ ANTWORTZEIT_MIN, ANTWORTZEIT_MAX = 0, 60
 # ==========================================================================
 # 4  ANALYSEZEITRAUM UND ANALYSEEINHEITEN
 # ==========================================================================
-# Hart fixiert, nicht aus den Daten abgeleitet.
-#   START  frueheste Periode mit vollstaendigen ACS-Merkmalen
-#   ENDE   letztes vollstaendiges Kalenderjahr
+# Fest gesetzt, nicht aus den Daten: START erste Periode mit allen
+# ACS-Merkmalen, ENDE letztes vollstaendiges Kalenderjahr.
 START = 201501
 ENDE  = 202512
 
-# Lag-Vorlauf: ab START-VORLAUF aggregieren, Lags bilden, auf START
-# zuschneiden. Ohne ihn beginnt die Regression erst 2016-01. 4.752 statt 4.320.
+# Lag-Vorlauf: Lags ab START-VORLAUF bilden, dann auf START zuschneiden
+# (4.752 statt 4.320 Zeilen).
 VORLAUF_MONATE = 12
 
-# Parks ohne Wohnbevoelkerung: 25 bis 850 Einwohner ueber die genutzten
-# ACS-Jahrgaenge, gegen mindestens 17.916 im Median der uebrigen Stadtteile.
-# Jede Pro-Kopf-Groesse wird dort beliebig gross.
+# Parks: 25 bis 850 Einwohner (uebrige Stadtteile im Median >= 17.916),
+# Pro-Kopf-Groessen dort beliebig gross.
 PARKGEBIETE = ["Golden Gate Park", "Lincoln Park", "Mclaren Park"]
 
-# Erwarteter Analysezuschnitt. Ausgeschlossen sind die drei Parkgebiete ohne
-# Wohnbevoelkerung sowie Lakeshore und Treasure Island, fuer die das
-# Parzellenverzeichnis kein einziges Baujahr fuehrt - der Altbauanteil ist dort
-# nicht bildbar. Bleiben 36 der 41 Analysis Neighborhoods.
+# 41 Stadtteile - 3 Parks - Lakeshore, Treasure Island (kein Baujahr im
+# Parzellenverzeichnis) = 36.
 N_STADTTEILE_ERWARTET = 36
 
-# Plausibilitaetsspanne der stadtweiten Wohnbevoelkerung ueber die enthaltenen
-# Stadtteile. San Francisco liegt im Analysezeitraum bei rund 810.000 bis
-# 875.000 Einwohnern; die Spanne faengt ab, wenn ein Verbund Tracts verwirft und
-# die Exposition dadurch stillschweigend zu klein wird.
+# Plausible Gesamtbevoelkerung (SF rund 810.000 bis 875.000); faengt
+# verworfene Tracts ab, die die Exposition still verkleinern.
 BEV_PLAUSIBEL = (750_000, 950_000)
 
 # Warnschwelle fuer unvollstaendige Monate. Kein Filter - massgeblich ist ENDE.
@@ -112,10 +106,8 @@ VOLLSTAENDIGKEITS_SCHWELLE = 0.5
 # ==========================================================================
 # 5  MERKMALE DER REGRESSION
 # ==========================================================================
-# Praediktoren: soziooekonomisch, kriminalitaetsbezogen, baulich.
-# log_bevoelkerung als Groessenkontrolle, log_kriminalitaetsindex weil der
-# Index multiplikativ ist. Beide Logarithmen gelten fuer ALLE Modelle
-# gleich (Fairness-Regel).
+# Praediktoren: soziooekonomisch, Kriminalitaet, baulich. Beide Logarithmen
+# (Groessenkontrolle, multiplikativer Index) gelten fuer alle Modelle.
 PRAEDIKTOREN = [
     "median_haushaltseinkommen", "armutsquote_pct", "akademikerquote_pct",
     "median_miete", "leerstandsquote_pct", "log_bevoelkerung",
@@ -131,14 +123,12 @@ CRIME_ROH    = "kriminalitaetsindex"
 # Saison als sin/cos - der Monat als Zahl gaebe Dezember und Januar Abstand 11.
 SAISON = ["monat_sin", "monat_cos"]
 
-# Lags bleiben im Datensatz, sind aber KEIN Modellmerkmal: sonst
-# erklaerte die Historie das Ergebnis statt der Struktur. Nur fuer die
-# Deskription. Strikt rueckwaerts, shift() VOR rolling().
+# Lags nur fuer die Deskription, kein Modellmerkmal; strikt rueckwaerts
+# (shift() vor rolling()).
 LAGS = ["lag_1", "lag_12", "rolling_mean_3"]
 
-# Ein Merkmalssatz fuer alle drei Verfahren. Ohne rohes `jahr` und
-# Stadtteil-ID: Baeume koennen nicht extrapolieren, Ridge schon - das
-# verzerrte den Vergleich.
+# Ein Merkmalssatz fuer alle Verfahren, ohne `jahr` und Stadtteil-ID
+# (Baeume extrapolieren nicht, Ridge schon).
 FEATURE_SETS = {
     "S": PRAEDIKTOREN + SAISON,
 }
@@ -146,10 +136,7 @@ FEATURE_SETS = {
 # ==========================================================================
 # 6  MERKMALE UND ZIELGROESSEN DER KLASSIFIKATION
 # ==========================================================================
-# NFIRS: die fuehrende Ziffer bezeichnet die Serie. Zusammengefasst nach
-# fachlicher Bedeutung, nicht nach Haeufigkeit.
-#   100 Brand · 300 Rettungsdienst · 600/700 Fehlalarm
-#   200/400/500/800/900 technische Hilfe und Gefahrenlagen
+# NFIRS-Serie (fuehrende Ziffer) -> Gruppe, nach fachlicher Bedeutung.
 NFIRS_GRUPPEN = {
     "1": "Brand",
     "3": "Rettung/EMS",
@@ -164,18 +151,15 @@ NFIRS_GRUPPEN = {
 KLASSEN    = ["Brand", "Rettung/EMS", "Technische Hilfe/Gefahr", "Fehlalarm/Good Intent"]
 RESTKLASSE = "Technische Hilfe/Gefahr"
 
-# Zielgroesse ist die ZUSAMMENSETZUNG der Einsatzlast je Stadtteil-Monat.
-# Auf Einzeleinsatz-Ebene waeren es nur 4.751 Profile fuer 357.553 Einsaetze.
+# Zielgroesse: Zusammensetzung der Einsatzlast je Stadtteil-Monat.
 ANTEILE = [f"anteil_{k}" for k in
            ["brand", "rettung_ems", "technische_hilfe", "fehlalarm"]]
 
-# Zaehlungen je Gruppe - im Datensatz mitgefuehrt fuer die Deskription und als
-# Nenner-Kontrolle, keine Modellmerkmale.
+# Zaehlungen je Gruppe: Deskription und Nennerkontrolle, kein Merkmal.
 ANZAHLEN = [f"anzahl_{k}" for k in
             ["brand", "rettung_ems", "technische_hilfe", "fehlalarm"]]
 
-# Die Merkmale sind identisch mit denen der Regression - dieselbe Analyseeinheit,
-# dieselben Folds, dieselben Verfahren (Fairness-Regel).
+# Dieselben Merkmale wie in der Regression (Fairness-Regel).
 MERKMALE_STRUKTUR = list(PRAEDIKTOREN)
 
 # Ergebnisvariablen - NIEMALS Merkmal. Stehen erst nach dem Einsatz fest.
@@ -190,17 +174,15 @@ ERGEBNISVARIABLEN = [
 # ==========================================================================
 # 7  VALIDIERUNG  (Schritt: prep/s2_datensaetze.py, Teil A)
 # ==========================================================================
-# STADTTEIL-SPLIT: ein Stadtteil wird komplett zurueckgehalten. Bei einem
-# Zeitschnitt stuende jeder Stadtteil in Training UND Test und das Modell
-# kennte sein Niveau bereits.
-#     30 Stadtteile -> 5 Folds (6/6/6/6/6)   6 -> Hold-out
-# Stratifiziert nach einem PRAEDIKTOR, nicht nach der Zielgroesse.
+# Stadtteil-Split (bei einem Zeitschnitt kennte das Modell das Niveau jedes
+# Stadtteils): 30 -> 5 Folds (6/6/6/6/6), 6 -> Hold-out. Stratifiziert
+# nach einem Praediktor, nicht nach der Zielgroesse.
 N_FOLDS = 5
 
 # ==========================================================================
 # 8  SPALTENNAMEN  englisch -> deutsch
 # ==========================================================================
-# Englisch -> deutsch. Einzige Stelle des Wechsels, deshalb ganz unten.
+# Einzige Stelle der Umbenennung.
 spalten_deutsch = {
     # ── SFFD Einsatzfelder (Quelldaten) ──────────────────────────────────────
     "incident_number":               "einsatz_nummer",
@@ -239,9 +221,8 @@ spalten_deutsch = {
     "vacant_housing_units":          "leerstehende_wohneinheiten",
     "total_housing_units":           "gesamtzahl_wohnungen",
     # ── SFPD Kriminalitaet ────────────────────────────────────────────────────
-    # Relativer Index je Stadtteil x Monat (Location Quotient gegen den
-    # Stadtdurchschnitt desselben Monats, rollierendes 12-Monats-Fenster endend
-    # im Vormonat).
+    # Location Quotient gegen das Stadtmittel desselben Monats,
+    # 12 Monate bis zum Vormonat.
     "crime_index":                   "kriminalitaetsindex",
     "crime_rate_raw":                "kriminalitaetsrate_pro_1000_ew_roh",
     # ── Land Use (Rohdaten) ───────────────────────────────────────────────────

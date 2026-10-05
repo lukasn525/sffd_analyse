@@ -4,62 +4,31 @@ Wie gut KANN die Einsatzart mit diesen Merkmalen ueberhaupt vorhergesagt werden?
     python vorpruefung/v4_decke.py            Entwicklungspanel, 30 Stadtteile
     python vorpruefung/v4_decke.py holdout    zusaetzlich die 6 gesperrten
 
-Eingang: data/processed/klassifikation.parquet
-         results/klassifikation/struktur_mittel.csv (optional, fuer die Quoten
-         des Entwicklungspanels)
-         results/klassifikation/holdout.csv (optional, fuer die Quoten des
-         Hold-out-Laufs)
-         results/klassifikation/struktur_vorhersagen.parquet (optional, fuer
-         das F1 je Klasse des Entwicklungspanels)
-Ausgang: results/klassifikation/decke.csv, decke_marge.csv,
-         decke_ausschoepfung.csv, decke.md - mit Argument "holdout" dieselben
-         Dateien mit Endung _holdout
+Input:   data/processed/klassifikation.parquet
+         results/klassifikation/struktur_mittel.csv, holdout.csv,
+         struktur_vorhersagen.parquet (je optional: Quoten, F1 je Klasse)
+Output:  results/klassifikation/decke.csv, decke_marge.csv,
+         decke_ausschoepfung.csv, decke.md (mit "holdout": Endung _holdout)
          results/klassifikation/klassen_f1.csv - nur ohne Argument
 
-  - Gegen 1,0 gehalten sieht der Macro-F1 des Strukturstrangs
-    misslungen aus; diese Lesart vergleicht mit einer Obergrenze, die
-    bei DIESER Zielgroesse und DIESEM Merkmalssatz nicht erreichbar ist
-  - DECKE A, Label-Rauschen: `dominante_einsatzart` ist kein beobachtetes
-    Merkmal, sondern der argmax ueber vier Anteilsspalten. Liegen zwei
-    Anteile dicht beieinander, entscheidet die Monatsziehung. Gemessen per
-    parametrischem Bootstrap aus Multinomial(N, p_beobachtet) - das ist die
-    Guete eines Modells, das die wahren Wahrscheinlichkeiten exakt kennt
-  - DECKE B, Grenze des Stadtteilwissens: Alle Praediktoren sind
-    stadtteilgebunden (baulich konstant, sozial je Stadtteil-Jahr,
-    Kriminalitaet ueberwiegend zwischen den Stadtteilen). Mehr als die
-    Modalklasse SEINES Stadtteils kann ein Modell daraus nicht ableiten.
-    Diese Decke liegt deutlich unter A, weil fast alle Stadtteile dieselbe
-    Modalklasse haben
-  - Berichtet wird die baselinekorrigierte Ausschoepfung
-    (Modell - Mehrheitsklasse) / (Decke - Mehrheitsklasse). Der
-    Rohquotient waere geschoent: Der Sockel der Mehrheitsklasse ist keine
-    Leistung des Modells
-  - Beide Decken entstehen VOR jeder Modellwahl. Sie zu beziffern ist keine
-    nachtraegliche Entlastung, sondern die Voraussetzung dafuer, den erreichten
-    Macro-F1 ueberhaupt einordnen zu koennen
-  - Das F1 je Klasse zeigt, worauf der Macro-F1 der Verfahren ruht: Er
-    mittelt vier Klassen mit gleichem Gewicht, eine davon ist selten
+  - Decke A, Label-Rauschen: dominante_einsatzart ist der argmax ueber vier
+    Anteile; parametrischer Bootstrap aus Multinomial(N, p_beobachtet) =
+    Guete eines Modells, das die wahren Wahrscheinlichkeiten kennt
+  - Decke B, Stadtteilwissen: alle Praediktoren sind stadtteilgebunden ->
+    hoechstens die Modalklasse des Stadtteils; liegt deutlich unter A
+  - berichtet: (Modell - Mehrheitsklasse) / (Decke - Mehrheitsklasse)
+  - beide Decken entstehen vor jeder Modellwahl
+  - F1 je Klasse zeigt, worauf der Macro-F1 ruht
 
 FALLSTRICKE
-  1  Ohne Argument "holdout" wird auf ist_holdout == 0 gefiltert wie in m02
-     und m03. Die Decke ist zwar eine Eigenschaft der ZIELGROESSE und
-     beruehrt keinen Praediktor - die Sperre gilt trotzdem konstruktiv
-  2  Zeilen mit N = 0 gibt es hier nicht, das Skript prueft es trotzdem:
-     rng.multinomial lieferte stumm einen Nullvektor, dessen argmax immer
-     auf die erste Klasse zeigt - eine erfundene Beobachtung
-  3  Der Bootstrap braucht RANDOM_STATE aus config_modelle.py, sonst
-     schwankt Decke A zwischen zwei Laeufen und eine berichtete Zahl passt
-     nicht mehr zur Zahl in der CSV
-  4  Decke A ist eine Obergrenze, kein Zielwert. Bindend ist Decke B
-  5  Modellwerte und Decken muessen aus DERSELBEN Bewertung stammen - also
-     keine Kreuzvalidierungsmittel gegen Hold-out-Decken. _modellwerte()
-     waehlt die Quelle anhand des Laufs und decke.md nennt sie
+  1  ohne "holdout" Filter auf ist_holdout == 0 wie in m02 und m03
+  2  Zeilen mit N = 0 werden geprueft (multinomial liefert sonst einen
+     Nullvektor, argmax = erste Klasse)
+  3  Bootstrap mit RANDOM_STATE, sonst schwankt Decke A zwischen Laeufen
+  4  Decke A ist Obergrenze, kein Zielwert; bindend ist Decke B
+  5  Modellwerte und Decken aus derselben Bewertung; _modellwerte() waehlt
+     die Quelle, decke.md nennt sie
 """
-
-
-
-
-
 
 
 from __future__ import annotations
@@ -89,8 +58,8 @@ ZIEHUNGEN = 200
 def _macro_f1(a, b) -> float:
     """Macro-F1 zweier Klassenreihen; fehlende Klassen zaehlen als 0.
 
-    Ein:  zwei Reihen von Klassenlabels
-    Aus:  Zahl
+    Input:  zwei Reihen von Klassenlabels
+    Output: Zahl
     """
     return float(f1_score(a, b, average="macro", zero_division=0))
 
@@ -98,8 +67,8 @@ def _macro_f1(a, b) -> float:
 def decke_a(panel: pd.DataFrame) -> tuple[float, float, float]:
     """Decke A: Label-Rauschen des argmax, parametrischer Bootstrap.
 
-    Ein:  Panel mit den vier Anteilsspalten und der Einsatzzahl N
-    Aus:  (mittlerer Macro-F1, Streuung ueber die Ziehungen, Kippanteil)
+    Input:  Panel mit den vier Anteilsspalten und der Einsatzzahl N
+    Output: (mittlerer Macro-F1, Streuung ueber die Ziehungen, Kippanteil)
 
     - jeder Stadtteil-Monat wird aus Multinomial(N, p_beobachtet) neu gezogen
     - der Macro-F1 zwischen beobachtetem und neu gezogenem Label ist die Guete
@@ -129,8 +98,8 @@ def decke_a(panel: pd.DataFrame) -> tuple[float, float, float]:
 def decke_b(panel: pd.DataFrame) -> tuple[float, float, pd.Series]:
     """Decke B: Modalklasse je Stadtteil, Obergrenze des Stadtteilwissens.
 
-    Ein:  Panel mit Stadtteil- und Klassenspalte
-    Aus:  (Macro-F1 der Zuweisung, Trefferanteil, Verteilung der Modalklassen)
+    Input:  Panel mit Stadtteil- und Klassenspalte
+    Output: (Macro-F1 der Zuweisung, Trefferanteil, Verteilung der Modalklassen)
 
     - aus stadtteilgebundenen Merkmalen kann ein Modell nicht mehr ableiten als
       die haeufigste Klasse seines Stadtteils
@@ -146,8 +115,8 @@ def decke_b(panel: pd.DataFrame) -> tuple[float, float, pd.Series]:
 def marge(panel: pd.DataFrame) -> pd.DataFrame:
     """Abstand zwischen groesstem und zweitgroesstem Klassenanteil.
 
-    Ein:  Panel mit den vier Anteilsspalten
-    Aus:  Datenrahmen mit der Verteilung des Abstands
+    Input:  Panel mit den vier Anteilsspalten
+    Output: Datenrahmen mit der Verteilung des Abstands
 
     - ein kleiner Abstand heisst: das Label haette bei einer anderen
       Monatsziehung anders gelautet
@@ -168,8 +137,8 @@ def marge(panel: pd.DataFrame) -> pd.DataFrame:
 def _modellwerte(mit_holdout: bool) -> tuple[dict[str, float], str]:
     """Macro-F1 je Verfahren aus derselben Bewertung, aus der die Decken stammen.
 
-    Ein:  Schalter, ob der Hold-out-Lauf gefahren wird
-    Aus:  Zuordnung Verfahren -> Macro-F1 und der Dateiname als Herkunftsnachweis
+    Input:  Schalter, ob der Hold-out-Lauf gefahren wird
+    Output: Zuordnung Verfahren -> Macro-F1 und der Dateiname als Herkunftsnachweis
 
     - ohne "holdout": struktur_mittel.csv, also die Mittel ueber die 50 Laeufe
       auf den 30 Entwicklungsstadtteilen. Dazu passen die Decken aus
@@ -200,9 +169,9 @@ def ausschoepfung(modelle: dict[str, float], basis: float,
                   a: float, b: float) -> pd.DataFrame:
     """Baselinekorrigierte Quote je Verfahren gegen beide Decken.
 
-    Ein:  Modellwerte aus _modellwerte(), Mehrheitsklassen-Basis, Decke A,
-          Decke B
-    Aus:  Datenrahmen mit einer Quote je Verfahren und Decke
+    Input:  Modellwerte aus _modellwerte(), Mehrheitsklassen-Basis, Decke A,
+            Decke B
+    Output: Datenrahmen mit einer Quote je Verfahren und Decke
 
     - Formel: (Modell - Mehrheitsklasse) / (Decke - Mehrheitsklasse)
     - der Rohquotient Modell/Decke waere geschoent: der Sockel der
@@ -225,9 +194,9 @@ def ausschoepfung(modelle: dict[str, float], basis: float,
 def klassen_f1() -> pd.DataFrame:
     """F1 je Klasse und Verfahren aus den Vorhersagen der Kreuzvalidierung.
 
-    Ein:  struktur_vorhersagen.parquet aus m03_struktur.py
-    Aus:  Datenrahmen mit einer Zeile je Verfahren und Klasse; leer, wenn die
-          Datei fehlt
+    Input:  struktur_vorhersagen.parquet aus m03_struktur.py
+    Output: Datenrahmen mit einer Zeile je Verfahren und Klasse; leer, wenn die
+            Datei fehlt
 
     - F1 je Lauf und Klasse, dann gemittelt ueber die 50 Laeufe. Das Mittel
       der vier Klassen ist der Macro-F1 aus struktur_mittel.csv
@@ -291,10 +260,10 @@ def bericht(tab: pd.DataFrame, aus: pd.DataFrame, mrg: pd.DataFrame,
             quelle: str = "", kf: pd.DataFrame | None = None) -> str:
     """Setzt die Ergebnistabellen zu decke.md zusammen.
 
-    Ein:  Deckentabelle, Ausschoepfung, Margenverteilung, Kipp- und
-          Trefferanteil, Modalklassen, Zahl der Stadtteile, Herkunft der
-          Modellwerte, optional F1 je Klasse
-    Aus:  Markdown-Text
+    Input:  Deckentabelle, Ausschoepfung, Margenverteilung, Kipp- und
+            Trefferanteil, Modalklassen, Zahl der Stadtteile, Herkunft der
+            Modellwerte, optional F1 je Klasse
+    Output: Markdown-Text
 
     - reine Formatierung, hier wird nichts gerechnet
     - Ziehungszahl und RANDOM_STATE stehen im Kopf, damit die Datei ohne den Code
@@ -355,12 +324,12 @@ def bericht(tab: pd.DataFrame, aus: pd.DataFrame, mrg: pd.DataFrame,
 def main(argv: list[str]) -> int:
     """Rechnet beide Decken, Marge, Ausschoepfung und F1 je Klasse.
 
-    Ein:  klassifikation.parquet; Argument "holdout" oeffnet die 6 gesperrten
-          Stadtteile; struktur_mittel.csv bzw. holdout.csv optional fuer die
-          Quoten
-    Aus:  decke.csv, decke_marge.csv, decke_ausschoepfung.csv, decke.md
-          (mit Endung _holdout, wenn das Argument gesetzt ist), ohne Argument
-          zusaetzlich klassen_f1.csv; Exitcode
+    Input:  klassifikation.parquet; Argument "holdout" oeffnet die 6 gesperrten
+            Stadtteile; struktur_mittel.csv bzw. holdout.csv optional fuer die
+            Quoten
+    Output: decke.csv, decke_marge.csv, decke_ausschoepfung.csv, decke.md
+            (mit Endung _holdout, wenn das Argument gesetzt ist), ohne Argument
+            zusaetzlich klassen_f1.csv; Exitcode
 
     - ohne das Argument wird auf ist_holdout == 0 gefiltert (Fallstrick 1)
     - die Quelle der Modellwerte richtet sich nach dem Lauf (Fallstrick 5);
@@ -418,7 +387,6 @@ def main(argv: list[str]) -> int:
     kf = pd.DataFrame() if mit_holdout else klassen_f1()
     if not kf.empty:
         print(kf.to_string(index=False), "\n")
-
 
     # Der Hold-out-Lauf schreibt in EIGENE Dateien. Sonst ueberschriebe die
     # Schlussbewertung die Zahlen des Entwicklungspanels - derselbe Fehler,

@@ -4,8 +4,8 @@ DER EINE BEFEHL. Erzeugt aus den Rohdaten die beiden finalen Datensaetze.
     python prep/build.py            Aufbereitung
     python prep/build.py tests      anschliessend die Pruefungen
 
-Eingang: data/raw/*  (sechs Rohquellen)
-Ausgang: data/processed/regression.parquet      4.752 x 25, modellfertig
+Input:   data/raw/*  (sechs Rohquellen)
+Output:  data/processed/regression.parquet      4.752 x 25, modellfertig
          data/processed/klassifikation.parquet  4.751 x 29, modellfertig
 
 - Zwei Schritte: s1_daten laedt und verortet, s2_datensaetze baut das Panel.
@@ -37,8 +37,8 @@ DATEIEN = [
 def schritt(nummer: str, titel: str) -> float:
     """Gibt die Ueberschrift eines Arbeitsschrittes aus und startet die Uhr.
 
-    Ein:  Nummer wie "1/2", Titel des Schrittes
-    Aus:  Startzeitpunkt, gegen den die Dauer gerechnet wird
+    Input:  Nummer wie "1/2", Titel des Schrittes
+    Output: Startzeitpunkt, gegen den die Dauer gerechnet wird
     """
     print(f"\n{'=' * 78}\n  SCHRITT {nummer}: {titel}\n{'=' * 78}\n")
     return time.time()
@@ -47,8 +47,8 @@ def schritt(nummer: str, titel: str) -> float:
 def uebersicht() -> None:
     """Steckbrief der erzeugten Dateien: Zeilen, Spalten, Groesse, Zeitraum.
 
-    Ein:  die Konstante DATEIEN mit Pfad und Beschreibung
-    Aus:  nichts, reine Konsolenausgabe
+    Input:  die Konstante DATEIEN mit Pfad und Beschreibung
+    Output: nichts, reine Konsolenausgabe
 
     - fehlt eine Datei, wird sie als FEHLT gemeldet statt den Lauf abzubrechen
     - so ist beim Teillauf sofort sichtbar, was noch aussteht
@@ -73,8 +73,8 @@ def uebersicht() -> None:
 def main() -> int:
     """Faehrt beide Aufbereitungsschritte, dann die Uebersicht.
 
-    Ein:  optional das Argument "tests"
-    Aus:  Exitcode 0, bei "tests" der Code des Testlaufs
+    Input:  optional das Argument "tests"
+    Output: Exitcode 0, bei "tests" der Code des Testlaufs
 
     - die Reihenfolge ist zwingend: s2_datensaetze liest, was s1_daten schreibt
     """

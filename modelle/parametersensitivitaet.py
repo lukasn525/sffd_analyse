@@ -7,49 +7,28 @@ Wie viel haengt an der Wahl des Hyperparametersatzes? - Kreuzprobe ueber die Fol
     python modelle/parametersensitivitaet.py spannen    nur die normierten
                                                         Spannen, ohne Kreuzprobe
 
-Eingang: data/processed/{regression,klassifikation}.parquet
+Input:   data/processed/{regression,klassifikation}.parquet
          results/regression/tuning.csv, results/klassifikation/tuning.csv
          results/regression/menge_folds.csv, results/klassifikation/struktur_folds.csv
          (nur zur Selbstkontrolle der Diagonalen)
-Ausgang: results/parametersensitivitaet/matrix.csv, zusammenfassung.csv,
+Output:  results/parametersensitivitaet/matrix.csv, zusammenfassung.csv,
          spannen.csv, bericht.md
 
-  - Die Schlussbewertung laesst die Baumverfahren mit den Hyperparametern
-    EINES Folds antreten (`fold_der_parameter`), obwohl die Saetze ueber die
-    Folds erheblich streuen. Die Baselines haben keine Hyperparameter und
-    sind von dieser Asymmetrie nicht betroffen
-  - Dieses Skript misst, wie viel das ausmacht: Jeder Testfold wird mit
-    JEDEM der fuenf Parametersaetze bewertet. Die Diagonale ist die
-    berichtete Konfiguration, die uebrigen 20 Zellen sind fremde Saetze
-  - Die Frage, die damit beantwortet wird: Ist der Abstand zwischen eigenem
-    und fremdem Parametersatz klein gegen den Abstand zwischen den Verfahren?
-    Dann traegt die Schlussbewertung. Ist er gross, ist sie zu einem
-    erheblichen Teil eine Parameterlotterie
-  - Vorab beschreibt `spannen()`, wie weit die fuenf gewaehlten Werte je
-    Hyperparameter im Suchraum auseinanderliegen: jeder Wert wird auf seine
-    Lage zwischen Unter- (0) und Obergrenze (1) umgerechnet, die normierte
-    Spanne ist die groesste minus die kleinste Lage
-  - Beruehrt das Hold-out NICHT. Die Gegenprobe laeuft vollstaendig innerhalb
-    der Kreuzvalidierung auf den 30 Entwicklungsstadtteilen. Es entsteht
-    keine zweite Schlussbewertung
+  - die Schlussbewertung nutzt die Hyperparameter EINES Folds
+    (`fold_der_parameter`); hier wird jeder Testfold mit jedem der fuenf
+    Saetze bewertet (Diagonale = berichtet, 20 Zellen fremde Saetze)
+  - Frage: Ist der Abstand eigener/fremder Satz klein gegen den Abstand
+    zwischen den Verfahren?
+  - `spannen()`: Lage der fuenf Werte im Suchraum (0 = Unter-, 1 = Obergrenze),
+    Spanne = groesste minus kleinste Lage
+  - nur Kreuzvalidierung auf den 30 Entwicklungsstadtteilen, kein Hold-out
 
 FALLSTRICKE
-  1  Hold-out-Sperre steht vor allem anderen, wie in m02, m03 und v4. Dieses
-     Skript hat keinen Schalter, der sie loest - es gibt hier nichts zu sehen
-  2  Nur Wiederholung 0. Dort wurde getunt (phase_tuning), also
-     ist nur dort definiert, welcher Satz zu welchem Fold gehoert. In
-     Wiederholung 1 bis 9 ist die Fold-Zusammensetzung eine andere, ein
-     "Satz des Folds 3" existiert dort nicht
-  3  Die Parametersaetze gelten fuer BEIDE Zielgroessen der Menge: getunt
-     wurde einmal auf der Rate. `tuning.csv` fuehrt sie trotzdem je
-     Zielgroesse - vor dem Einlesen auf eine Zielgroesse filtern, sonst
-     zaehlt jeder Satz doppelt
-  4  Gemessen wird ohne `auch_parallel`. Die Laufzeiten stammen aus dem
-     Hauptlauf und werden hier nicht neu erhoben; ein zweiter Zeitwert aus
-     einem anderen Lauf waere eine zweite Wahrheit
-  5  Die Diagonale MUSS die Fold-Werte des Hauptlaufs reproduzieren. Weicht
-     sie ab, ist entweder die Aufteilung oder die Spezifikation veraendert
-     worden - das Skript prueft es und warnt
+  1  Hold-out-Sperre vor allem anderen, wie in m02, m03 und v4
+  2  nur Wiederholung 0 (nur dort gehoert ein Satz zu einem Fold)
+  3  tuning.csv fuehrt die Saetze je Zielgroesse -> vorher filtern
+  4  ohne `auch_parallel`; Laufzeiten stammen aus dem Hauptlauf
+  5  Diagonale muss die Fold-Werte des Hauptlaufs reproduzieren (geprueft)
 """
 from __future__ import annotations
 
@@ -74,8 +53,7 @@ from v0_aufteilung import (selten_je_stadtteil,  # noqa: E402
 
 OUT = RESULTS_DIR / "parametersensitivitaet"
 
-# Je Strang: Anzeigename, Zielspalte des Gueterasses, Richtung.
-# hoeher_besser steuert nur das Vorzeichen der Verschlechterung im Bericht.
+# Je Strang: Anzeigename, Zielspalte des Guetemasses, Richtung (hoeher_besser).
 STRAENGE = {
     "menge":    {"mass": "RMSE",     "hoeher_besser": False},
     "struktur": {"mass": "macro_f1", "hoeher_besser": True},
@@ -85,8 +63,8 @@ STRAENGE = {
 def parametersaetze(pfad: Path, zielgroesse: str | None) -> dict:
     """Liest die getunten Saetze je Verfahren und Fold aus tuning.csv.
 
-    Ein:  Pfad zur tuning.csv, optional die Zielgroesse zum Filtern
-    Aus:  {verfahren: {fold: parameter-dict}}
+    Input:  Pfad zur tuning.csv, optional die Zielgroesse zum Filtern
+    Output: {verfahren: {fold: parameter-dict}}
 
     - FALLSTRICK 3: im Mengenstrang auf eine Zielgroesse filtern, sonst
       erscheint jeder Satz zweimal
@@ -106,8 +84,8 @@ def parametersaetze(pfad: Path, zielgroesse: str | None) -> dict:
 def lage_im_suchraum(spez: tuple, wert) -> float | None:
     """Lage eines gewaehlten Wertes in seinem Suchraum.
 
-    Ein:  Suchraum-Spezifikation aus config_modelle.py, gewaehlter Wert
-    Aus:  Zahl von 0 (Untergrenze) bis 1 (Obergrenze), oder None
+    Input:  Suchraum-Spezifikation aus config_modelle.py, gewaehlter Wert
+    Output: Zahl von 0 (Untergrenze) bis 1 (Obergrenze), oder None
 
     - loguniform wird logarithmisch umgerechnet, int und uniform linear,
       choice ueber die Position in der Liste
@@ -130,8 +108,8 @@ def lage_im_suchraum(spez: tuple, wert) -> float | None:
 def spannen() -> pd.DataFrame:
     """Wie weit liegen die fuenf gewaehlten Werte je Hyperparameter auseinander?
 
-    Ein:  tuning.csv beider Straenge, Suchraeume aus config_modelle.py
-    Aus:  eine Zeile je Strang, Verfahren und Hyperparameter
+    Input:  tuning.csv beider Straenge, Suchraeume aus config_modelle.py
+    Output: eine Zeile je Strang, Verfahren und Hyperparameter
 
     - normierte Spanne = groesste minus kleinste Lage ueber die fuenf Folds:
       0 heisst, alle Folds waehlen denselben Wert, 1 heisst, die Wahl reicht
@@ -169,8 +147,8 @@ def spannen() -> pd.DataFrame:
 def kreuzprobe(strang: str) -> pd.DataFrame:
     """Bewertet jeden Testfold mit jedem Parametersatz.
 
-    Ein:  "menge" oder "struktur"
-    Aus:  Datenrahmen mit N_FOLDS x N_FOLDS Zeilen je Verfahren
+    Input:  "menge" oder "struktur"
+    Output: Datenrahmen mit N_FOLDS x N_FOLDS Zeilen je Verfahren
 
     - FALLSTRICK 1: Hold-out-Sperre in der ersten Zeile nach dem Einlesen
     - FALLSTRICK 2: ausschliesslich Wiederholung 0
@@ -189,10 +167,8 @@ def kreuzprobe(strang: str) -> pd.DataFrame:
                                  None)
         mass = "macro_f1"
 
-    # FALLSTRICK 1 - vor allem anderen. reset_index wie in m02/m03.main:
-    # Die Zeilenreihenfolge ist ein Reproduzierbarkeitsvertrag (Bootstrap von
-    # RF und XGBoost laeuft ueber Zeilenpositionen); ohne sie weicht die
-    # Diagonale vom Hauptlauf ab.
+    # FALLSTRICK 1 zuerst. reset_index wie in m02/m03: die Zeilenreihenfolge
+    # bestimmt den Bootstrap von RF/XGBoost, sonst weicht die Diagonale ab.
     panel = voll[voll["ist_holdout"] == 0].reset_index(drop=True)
 
     selten = selten_je_stadtteil(pd.read_parquet(PFAD_KLASSIFIKATION))
@@ -222,8 +198,8 @@ def kreuzprobe(strang: str) -> pd.DataFrame:
 def zusammenfassung(matrix: pd.DataFrame, strang: str) -> pd.DataFrame:
     """Eigener gegen fremde Parametersaetze, je Verfahren.
 
-    Ein:  Ergebnismatrix, Strang
-    Aus:  eine Zeile je Verfahren
+    Input:  Ergebnismatrix, Strang
+    Output: eine Zeile je Verfahren
 
     - `verschlechterung` ist immer positiv = fremder Satz ist schlechter
     - `anteil_fremd_besser` zeigt, wie oft der eigene Satz gar nicht der

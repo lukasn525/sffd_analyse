@@ -3,8 +3,8 @@ Haelt die diagnostizierte Nichtlinearitaet out-of-sample nach?
 
     python vorpruefung/v3_spezifikation.py
 
-Eingang: data/processed/regression.parquet
-Ausgang: results/spezifikation/spezifikation_{folds,mittel}.csv
+Input:   data/processed/regression.parquet
+Output:  results/spezifikation/spezifikation_{folds,mittel}.csv
 
   - v2_eignung.py verwirft die lineare Spezifikation IN-SAMPLE (RESET
     F-Test; adjustiertes R2 steigt mit 45 Interaktionen).
@@ -63,8 +63,8 @@ def entwerfe(train: pd.DataFrame, test: pd.DataFrame,
              spezifikation: str) -> tuple[np.ndarray, np.ndarray, list[str]]:
     """Merkmalsmatrizen fuer Training und Test, auf Trainingsdaten zentriert.
 
-    Ein:  Trainings- und Testrahmen, Name der Spezifikation
-    Aus:  (X_train, X_test, Namen), jeweils mit Konstante an Position 0
+    Input:  Trainings- und Testrahmen, Name der Spezifikation
+    Output: (X_train, X_test, Namen), jeweils mit Konstante an Position 0
 
     - Mittelwert und Streuung stammen nur aus dem Training; der Teststadtteil
       darf die Transformation nicht mitbestimmen
@@ -105,8 +105,8 @@ def ein_lauf(train: pd.DataFrame, test: pd.DataFrame,
              spezifikation: str) -> dict:
     """Eine Poisson-Anpassung, eine Bewertung auf der Originalskala.
 
-    Ein:  Panel, Wiederholung, Fold, Spezifikation
-    Aus:  dict mit RMSE, MAE, R2 und Konvergenzstatus
+    Input:  Panel, Wiederholung, Fold, Spezifikation
+    Output: dict mit RMSE, MAE, R2 und Konvergenzstatus
     """
     import statsmodels.api as sm
 
@@ -135,8 +135,8 @@ def ein_lauf(train: pd.DataFrame, test: pd.DataFrame,
 def alle_laeufe(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
     """10 Wiederholungen x 5 Folds x 4 Spezifikationen = 200 Anpassungen.
 
-    Ein:  Panel, `selten` fuer die Stratifizierung
-    Aus:  Datenrahmen mit einer Zeile je Lauf
+    Input:  Panel, `selten` fuer die Stratifizierung
+    Output: Datenrahmen mit einer Zeile je Lauf
     """
     zeilen = []
     for w in range(WIEDERHOLUNGEN):
@@ -154,8 +154,8 @@ def alle_laeufe(panel: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
 def zweistufig(df: pd.DataFrame) -> pd.DataFrame:
     """Erst je Wiederholung ueber die Folds, dann ueber die Wiederholungen.
 
-    Ein:  Datenrahmen der 200 Einzellaeufe
-    Aus:  je Spezifikation eine Zeile mit Mittel und beiden Streuungen
+    Input:  Datenrahmen der 200 Einzellaeufe
+    Output: je Spezifikation eine Zeile mit Mittel und beiden Streuungen
 
     - dieselbe Regel wie ueberall sonst: massgeblich ist die Streuung der
       10 Wiederholungsmittel, nicht die der 50 Einzellaeufe
@@ -174,8 +174,8 @@ def zweistufig(df: pd.DataFrame) -> pd.DataFrame:
 def _selbsttest(mittel: pd.DataFrame) -> None:
     """Prueft, ob die Spezifikation `linear` die Stufe-2-Baseline reproduziert.
 
-    Ein:  Ergebnisse der Spalte `linear`, baselines_mittel.csv
-    Aus:  Abbruch bei Abweichung ueber drei Nachkommastellen
+    Input:  Ergebnisse der Spalte `linear`, baselines_mittel.csv
+    Output: Abbruch bei Abweichung ueber drei Nachkommastellen
 
     - weicht sie ab, sieht dieses Skript andere Merkmale oder andere Folds als
       v1_baselines.py
@@ -201,8 +201,8 @@ def _selbsttest(mittel: pd.DataFrame) -> None:
 def run() -> int:
     """Rechnet alle 200 Anpassungen und schreibt die beiden Ergebnisdateien.
 
-    Ein:  regression.parquet, klassifikation.parquet (nur fuer `selten`)
-    Aus:  spezifikation_folds.csv, spezifikation_mittel.csv; Exitcode
+    Input:  regression.parquet, klassifikation.parquet (nur fuer `selten`)
+    Output: spezifikation_folds.csv, spezifikation_mittel.csv; Exitcode
 
     - laeuft einzeln, nicht ueber vorpruefung/run.py
     - die Zahl der nicht konvergierten Anpassungen wird ausgegeben
