@@ -623,7 +623,7 @@ def main() -> int:
     for gruppe, anteil in gruppiert.items():
         print(f"    {gruppe:<24}{anteil:>7.1%}")
 
-    # --- Ablation der Faktorgruppen (zweite Antwort, siehe Docstring) ---
+    # --- Ablation der Faktorgruppen ---
     tuning_kl = pd.read_csv(RESULTS_DIR / "klassifikation" / "tuning.csv")
     roh = ablation_faktorgruppen(reg, kl, selten, tuning_kl,
                                  mit_baeumen="--ohne-baeume" not in sys.argv)

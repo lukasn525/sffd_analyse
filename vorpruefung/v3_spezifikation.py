@@ -52,7 +52,7 @@ from v1_baselines import bewerte_regression  # noqa: E402
 OUT = RESULTS_DIR / "spezifikation"
 MERKMALE = PRAEDIKTOREN + SAISON
 
-# Reihenfolge ist die Darstellungsreihenfolge in Abbildung und Tabelle.
+# Reihenfolge = Zeilenfolge in spezifikation_folds.csv und _mittel.csv.
 SPEZIFIKATIONEN = ["linear", "quadrate", "interaktionen", "beides"]
 
 # Nur die Praediktoren werden quadriert und gekreuzt, nie die Saisonterme.

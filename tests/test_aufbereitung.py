@@ -131,7 +131,7 @@ def test_exposure_und_kriminalitaetsindex_vorhanden():
 
 
 # ---------------------------------------------------------------------------
-# 2. Zeitschnitte
+# 2. Stadtteil-Split
 # ---------------------------------------------------------------------------
 def test_folds_ordnung_und_holdout():
     """Kein Stadtteil ist zugleich Trainings- und Testfall.

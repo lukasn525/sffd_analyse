@@ -16,7 +16,7 @@ Output:  results/regression/menge_folds.csv, menge_mittel.csv, tuning.csv,
     aggregieren, gepaart vergleichen
   - Gegner ist die STUFE-2-BASELINE aus v1_baselines.py, nicht die triviale
     Referenz
-  - Die Fallstricke sind im Code markiert
+  - Drei Fallstricke sind im Code markiert (FALLSTRICK 1 bis 3)
 """
 
 
@@ -158,7 +158,7 @@ def tune(name: str, train: pd.DataFrame, ziel: str) -> dict:
     Input:  Trainingsrahmen des Folds, Verfahren, Zielgroesse
     Output: die Parameter als dict, nicht das Modell
 
-    - FALLSTRICK: Der innere CV muss nach Stadtteil gruppieren. RandomizedSearchCV
+    - FALLSTRICK 1: Der innere CV muss nach Stadtteil gruppieren. RandomizedSearchCV
       nimmt voreingestellt KFold und schneidet nach Zeilen; ein Stadtteil hat aber
       132 Zeilen, und da die Strukturmerkmale innerhalb eines Jahres konstant
       sind, laegen faktisch dieselben Zeilen in innerem Training und innerer
@@ -648,7 +648,7 @@ def leakage_diagnose(folds: pd.DataFrame, baselines: pd.DataFrame) -> pd.DataFra
 
 
 # ---------------------------------------------------------------------------
-# FALLSTRICK 4  Das Hold-out
+# FALLSTRICK 3  Das Hold-out
 # ---------------------------------------------------------------------------
 def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
              folds: pd.DataFrame, selten: pd.Series) -> pd.DataFrame:
@@ -657,8 +657,7 @@ def hold_out(panel: pd.DataFrame, parameter: pd.DataFrame,
     Input:  vollstaendiges Panel, Parametertabelle aus Phase 1
     Output: holdout.csv mit Spalte fold_der_parameter
 
-    - das Tuning liefert fuenf Parametersaetze je Zielgroesse und Verfahren; die
-      Spezifikation legt nicht fest, welcher gilt
+    - das Tuning liefert fuenf Parametersaetze je Zielgroesse und Verfahren
     - gewaehlt ist der Satz des Folds mit dem niedrigsten RMSE in Wiederholung 0:
       deterministisch und ausschliesslich aus Entwicklungsdaten
     - beide Baselines laufen mit; ohne Bezugspunkt ist ein RMSE keine Aussage
@@ -792,7 +791,7 @@ def main(argv: list[str]) -> int:
     voll = pd.read_parquet(PFAD_REGRESSION)
     selten = selten_je_stadtteil(pd.read_parquet(PFAD_KLASSIFIKATION))
 
-    # Fallstrick 4: ohne "holdout" hier auf die Entwicklungsstadtteile
+    # Fallstrick 3: ohne "holdout" hier auf die Entwicklungsstadtteile
     # einschraenken; danach sieht nichts mehr Hold-out-Zeilen.
     panel = voll[voll["ist_holdout"] == 0].reset_index(drop=True)
     print(f"  Entwicklung: {len(panel):,} Zeilen | "

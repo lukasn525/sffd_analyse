@@ -169,9 +169,6 @@ def aufloesung(d: pd.DataFrame, spalten: list[str]) -> pd.DataFrame:
     wiederholt in der Tabelle steht. Genau das gilt fuer die drei baulichen
     Merkmale (Land-Use-Snapshot 2020) und naeherungsweise fuer die
     ACS-Merkmale (fuenf Jahrgaenge mit Publikationsversatz).
-
-    Hier steht nur der Befund; seine Konsequenz - dass Ablation und
-    Attribution deshalb auseinanderfallen - nicht.
     """
     zeilen = []
     for c in spalten:
@@ -232,7 +229,7 @@ def zielgroessen(reg: pd.DataFrame, kls: pd.DataFrame) -> list[str]:
 
     - Der DISPERSIONSINDEX Var/Mean ist der zentrale Befund des Mengenstrangs:
       Bei einer Poisson-verteilten Groesse waere er 1. Er begruendet hier
-      NICHTS - er ist ein Befund.
+      nichts - er ist ein Befund.
     - Der Nullanteil ist bei Zaehldaten mitzuberichten, weil ein hoher Anteil
       eine andere Modellklasse verlangte (Hurdle, Zero-Inflated). Hier ist er
       praktisch null - und genau das ist der Grund, warum diese Modellklassen

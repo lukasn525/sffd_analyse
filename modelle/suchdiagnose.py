@@ -123,8 +123,6 @@ def _md(df: pd.DataFrame) -> str:
 
     NICHT `DataFrame.to_markdown()`: Das braucht `tabulate`, und das steht
     nicht in `requirements.txt`.
-    Der Aufruf waere erst nach ein bis zwei Stunden Rechenzeit gescheitert -
-    beim Schreiben des Berichts, also nach der ganzen Arbeit.
     """
     kopf = list(df.columns)
     zeilen = ["| " + " | ".join(kopf) + " |", "|" + "---|" * len(kopf)]
@@ -218,14 +216,14 @@ def main(argv: list[str]) -> int:
               f"in {int((gewinn > 0).sum())} von {N_FOLDS} Folds")
     f1 = pd.DataFrame(zeilen)
     print("\n  Einordnung: Ist der Gewinn klein gegenueber der Streuung ZWISCHEN")
-    print("  den Folds, hat sich die Suche totgelaufen - Budget 50 genuegte.")
+    print(f"  den Folds, hat sich die Suche totgelaufen - Budget {halb} haette gereicht.")
 
     # ---- Bericht ---------------------------------------------------------
     text = ["# Suchdiagnose", "",
             f"Stand {pd.Timestamp.today():%Y-%m-%d}. Budget {BUDGET}, "
             f"Suchraeume des Hauptlaufs, Wiederholung 0, Trainingsstadtteile je Fold.",
             "Das Hold-out wurde nicht gelesen.", "",
-            "## War Budget 50 zu klein?", "",
+            f"## Haette Budget {halb} gereicht?", "",
             _md(f1.round(5)), "",
             "**Zu lesen:** Ist der Gewinn der zweiten Haelfte klein gegenueber der",
             "Streuung zwischen den Folds, hat sich die Suche totgelaufen. Der innere",

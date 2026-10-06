@@ -107,7 +107,7 @@ META: dict[str, Meta] = {
     "median_haushaltseinkommen": M(
         "verhaeltnis", "USD je Jahr", "ACS 5-Jahres, B19013_001E",
         "Medianeinkommen der Haushalte",
-        "flaechengewichtete Aggregation der Census Tracts auf Stadtteile",
+        "bevoelkerungsgewichtetes Mittel der Tract-Mediane je Stadtteil",
         "Praediktor, soziooekonomisch"),
     "armutsquote_pct": M(
         "verhaeltnis", ANTEIL, "ACS 5-Jahres, B17001",
@@ -122,7 +122,7 @@ META: dict[str, Meta] = {
     "median_miete": M(
         "verhaeltnis", "USD je Monat", "ACS 5-Jahres, B25064_001E",
         "Median der Bruttomiete",
-        "flaechengewichtete Aggregation der Census Tracts",
+        "bevoelkerungsgewichtetes Mittel der Tract-Mediane je Stadtteil",
         "Praediktor, soziooekonomisch"),
     "leerstandsquote_pct": M(
         "verhaeltnis", ANTEIL, "ACS 5-Jahres, B25002",
@@ -177,7 +177,7 @@ META: dict[str, Meta] = {
     "gesamtbevoelkerung": M(
         "absolut", "Personen", "ACS 5-Jahres, B01003_001E",
         "Wohnbevoelkerung des Stadtteils",
-        "flaechengewichtete Aggregation der Census Tracts",
+        "Summe der Census Tracts je Stadtteil",
         "EXPOSITION: Offset des Poisson-GLM und Ruecktransformation der Rate; "
         f"{ROLLE_KEIN}"),
     "kriminalitaetsindex": M(

@@ -15,8 +15,8 @@ Output:  results/deskriptiv/rohbefunde.md
       Tracts je Jahrgang gegen Crosswalk    -> Trefferquoten, Rueckfall ueber
                                                den Basiscode der Tract-Nummer
       Einwohner der Parkgebiete             -> Ausschluss der drei Parks
-      erster Jahrgang mit Mission Bay       -> Ausschluss der drei Stadtteile
-                                               ohne durchgaengige Abdeckung
+      erster Jahrgang mit Mission Bay       -> in allen genutzten Jahrgaengen
+                                               abgedeckt, kein Ausschluss
   - bewusst nicht: Antwortzeit (Ergebnisvariable, geht nie in die Analyse),
     fehlende Medianwerte einzelner Tracts (kein Eingriff)
   - Parkgebiete als Spanne: Maximum ueber die genutzten Jahrgaenge gegen das
