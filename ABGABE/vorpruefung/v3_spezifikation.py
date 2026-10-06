@@ -206,6 +206,7 @@ def run() -> int:
 
     - laeuft einzeln, nicht ueber vorpruefung/run.py
     - die Zahl der nicht konvergierten Anpassungen wird ausgegeben
+    - dazu die Spannweite des RMSE ueber die vier Spezifikationen
     """
 
     if not PFAD_REGRESSION.exists():
@@ -230,6 +231,10 @@ def run() -> int:
               f"R2 {z['R2_mean']:9.3f}   "
               f"konvergiert {int(z['konvergiert_von_50'])}/"
               f"{WIEDERHOLUNGEN * N_FOLDS}")
+
+    rmse = df.groupby("spezifikation")["RMSE"].mean()
+    print(f"\n  Spannweite RMSE {rmse.max() - rmse.min():.2f} "
+          f"({rmse.idxmax()} gegen {rmse.idxmin()})")
 
     print()
     _selbsttest(mittel)
