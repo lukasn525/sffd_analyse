@@ -94,7 +94,9 @@ Hinweise zum Ablauf:
   `--test` läuft sie als kurzer Probelauf.
 - **Wiederaufnahme:** `m02_menge.py holdout --weiter` und
   `m03_struktur.py holdout --weiter` übernehmen Tuning und Kreuzvalidierung
-  aus `results/`, statt sie neu zu rechnen.
+  aus `results/`, statt sie neu zu rechnen. Das gilt nur direkt nach einem
+  eigenen Lauf: Sind Daten oder Konfiguration jünger als `tuning.csv`,
+  bricht das Skript ab.
 
 Einzelschritte:
 
@@ -108,11 +110,12 @@ python vorpruefung/v2_eignung.py        # nur die Eignungspruefung
 ## Reproduzierbarkeit
 
 Alle Zufallsschritte verwenden den Startwert `RANDOM_STATE = 42` aus
-`modelle/config_modelle.py`. Ein Wiederholungslauf reproduziert Gütemaße,
-Hyperparameter, Baselines, SHAP-Beiträge und die Spezifikationsgegenprobe
-exakt. Nicht reproduzierbar sind die Laufzeiten und der Vergleich zwischen
-einkernigem und parallelem Rechnen, weil XGBoost über mehrere Kerne nicht in
-jedem Lauf dieselbe Vorhersage liefert. Bewertet wird deshalb auf einem Kern.
+`modelle/config_modelle.py`. Ein Wiederholungslauf in dieser Umgebung
+reproduziert Gütemaße, Hyperparameter, Baselines, SHAP-Beiträge und die
+Spezifikationsgegenprobe exakt. Nicht reproduzierbar sind die Laufzeiten und
+der Vergleich zwischen einkernigem und parallelem Rechnen, weil XGBoost über
+mehrere Kerne nicht in jedem Lauf dieselbe Vorhersage liefert. Bewertet wird
+deshalb auf einem Kern.
 
 Alle Verfahren erhalten dieselben Zeilen, dieselben Merkmale und dieselbe
 Aufteilung. Die Zuordnung zu Folds und Hold-out steht als Spalte `fold` bzw.
